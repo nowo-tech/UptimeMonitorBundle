@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 use Exception;
 use Nowo\UptimeMonitorBundle\Service\SchemaSyncService;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 /**
  * @covers \Nowo\UptimeMonitorBundle\Service\SchemaSyncService
@@ -48,7 +49,7 @@ final class SchemaSyncServiceTest extends TestCase
             $this->createMock(\Doctrine\ORM\EntityManagerInterface::class),
         );
 
-        $exception = new \RuntimeException(
+        $exception = new RuntimeException(
             'SQLSTATE[42P07]: Duplicate table: relation "idx_test" already exists',
             0,
             new Exception('SQLSTATE[42P07]', 7),

@@ -41,7 +41,7 @@ final class PurgeDetailCommandTest extends TestCase
             $tenantRepo,
             ['purge_enabled' => true, 'detail_days' => 7],
         ));
-        $tester  = new CommandTester($command);
+        $tester = new CommandTester($command);
         $tester->execute([]);
 
         self::assertSame(0, $tester->getStatusCode());

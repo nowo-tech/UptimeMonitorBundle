@@ -10,7 +10,6 @@ use Doctrine\ORM\QueryBuilder;
 use Nowo\UptimeMonitorBundle\Command\ClearDataCommand;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
-use Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\TestCase;

@@ -9,7 +9,6 @@ use Nowo\UptimeMonitorBundle\Command\SeedDemoCommand;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
-use Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher;
 use Nowo\UptimeMonitorBundle\Service\DemoSeedService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\TestCase;
@@ -46,7 +45,7 @@ final class SeedDemoCommandTest extends TestCase
             new DemoSeedService($em, $tenantRepo, $monitorRepo),
             $this->pollingSyncDispatcher(),
         );
-        $tester  = new CommandTester($command);
+        $tester = new CommandTester($command);
         $tester->execute(['--tenant' => 'acme', '--name' => 'Acme Corp']);
 
         self::assertSame(0, $tester->getStatusCode());
