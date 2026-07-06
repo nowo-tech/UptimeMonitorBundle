@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function in_array;
 use function sprintf;
 
 use const JSON_THROW_ON_ERROR;
@@ -236,6 +237,6 @@ final class MonitorController extends AbstractUptimeController
     {
         $target = (string) $request->headers->get('X-Uptime-Return', '');
 
-        return \in_array($target, ['show', 'dashboard', 'reload'], true) ? $target : 'dashboard';
+        return in_array($target, ['show', 'dashboard', 'reload'], true) ? $target : 'dashboard';
     }
 }

@@ -71,7 +71,7 @@ final class TenantControllerTest extends TestCase
         return new TenantController(
             $tenantRepository ?? $this->createMock(TenantRepository::class),
             $this->createMock(EntityManagerInterface::class),
-            ['list_enabled' => true, 'redirect_when_single' => false, ...$tenantsConfig],
+            ['list_enabled'   => true, 'redirect_when_single' => false, ...$tenantsConfig],
             ['default_tenant' => 'main'],
         );
     }
@@ -94,7 +94,7 @@ final class TenantControllerTest extends TestCase
         $controller = new TenantController(
             $tenantRepo,
             $em,
-            ['list_enabled' => true, 'redirect_when_single' => false],
+            ['list_enabled'   => true, 'redirect_when_single' => false],
             ['default_tenant' => 'main'],
         );
         $this->bindController($controller, true, $request);

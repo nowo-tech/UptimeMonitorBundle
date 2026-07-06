@@ -14,6 +14,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+use function count;
+
 #[Route(path: '/tenants', name: 'nowo_uptime_tenant_', priority: 1)]
 final class TenantController extends AbstractController
 {
@@ -82,7 +84,7 @@ final class TenantController extends AbstractController
      */
     private function shouldRedirectWhenSingle(array $tenants): bool
     {
-        return (bool) ($this->tenantsConfig['redirect_when_single'] ?? false) && \count($tenants) === 1;
+        return (bool) ($this->tenantsConfig['redirect_when_single'] ?? false) && count($tenants) === 1;
     }
 
     /**
