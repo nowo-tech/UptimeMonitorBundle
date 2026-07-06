@@ -1,0 +1,38 @@
+// Design tokens (Kuma-style dashboard)
+$uptime-bg: #1a1d23;
+$uptime-surface: #252830;
+$uptime-border: #3a3f4b;
+$uptime-text: #e8eaed;
+$uptime-muted: #9aa0a6;
+$uptime-up: #22c55e;
+$uptime-down: #ef4444;
+$uptime-degraded: #eab308;
+$uptime-unknown: #64748b;
+
+$uptime-shell-bg: #12141a;
+$uptime-shell-text: #e8eaed;
+$uptime-header-bg: #0d0f14;
+$uptime-header-border: #2a2f3a;
+$uptime-link: #93c5fd;
+$uptime-link-light: #2563eb;
+
+$uptime-sidebar-bg: #15171c;
+$uptime-radius: 0.375rem;
+$uptime-settings-max: 1100px;
+$uptime-form-max: 40rem;
+
+$breakpoint-kuma: 960px;
+$breakpoint-settings: 768px;
+$breakpoint-form: 640px;
+
+@mixin kuma-tokens {
+  --uptime-bg: #{$uptime-bg};
+  --uptime-surface: #{$uptime-surface};
+  --uptime-border: #{$uptime-border};
+  --uptime-text: #{$uptime-text};
+  --uptime-muted: #{$uptime-muted};
+  --uptime-up: #{$uptime-up};
+  --uptime-down: #{$uptime-down};
+  --uptime-degraded: #{$uptime-degraded};
+  --uptime-unknown: #{$uptime-unknown};
+}

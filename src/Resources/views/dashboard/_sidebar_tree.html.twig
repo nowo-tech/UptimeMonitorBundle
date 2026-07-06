@@ -1,0 +1,40 @@
+<nav class="uptime-sidebar-tree" data-sidebar-tree aria-label="Monitors">
+    {% for section in groups %}
+        {% set section_id = section.label|lower|replace({' ': '-', '[': '', ']': ''}) %}
+        <div class="uptime-sidebar-group" data-project-group data-project-id="{{ section_id }}">
+            {% if section.group_row %}
+                <button type="button" class="uptime-sidebar-group-toggle uptime-sidebar-group-toggle--with-bar" data-project-toggle aria-expanded="true">
+                    <span class="uptime-sidebar-chevron" data-chevron-toggle aria-hidden="true"></span>
+                    {% include '@NowoUptimeMonitorBundle/dashboard/_sidebar_group_header.html.twig' with {
+                        row: section.group_row,
+                        tenant_slug: tenant_slug,
+                        heartbeat_bar_theme: heartbeat_bar_theme|default('normal'),
+                        elapsed_time_display: elapsed_time_display|default('show'),
+                    } %}
+                </button>
+            {% else %}
+                <button type="button" class="uptime-sidebar-group-toggle" data-project-toggle aria-expanded="true">
+                    <span class="uptime-sidebar-chevron" data-chevron-toggle aria-hidden="true"></span>
+                    <span class="uptime-sidebar-group-name">{{ section.label }}</span>
+                    <span class="uptime-sidebar-group-count">{{ section.children|length }}</span>
+                </button>
+            {% endif %}
+            <ul class="uptime-sidebar-list" data-project-body>
+                {% for row in section.children %}
+                    {% include '@NowoUptimeMonitorBundle/dashboard/_sidebar_row.html.twig' with {
+                        monitor: row.monitor,
+                        latest: row.latest,
+                        row: row,
+                        nested: row.nested|default(true),
+                        tenant_slug: tenant_slug,
+                        events_filter_monitor_id: events_filter_monitor_id|default(null),
+                        heartbeat_bar_theme: heartbeat_bar_theme|default('normal'),
+                        elapsed_time_display: elapsed_time_display|default('show'),
+                    } %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% else %}
+        <p class="uptime-empty">{{ 'dashboard.no_monitors'|trans }}</p>
+    {% endfor %}
+</nav>

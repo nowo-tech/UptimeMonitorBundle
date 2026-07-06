@@ -1,0 +1,13 @@
+@use 'variables' as *;
+
+@mixin media-down($width) {
+  @media (max-width: $width) {
+    @content;
+  }
+}
+
+@mixin settings-nav-horizontal {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

@@ -1,0 +1,63 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    Nowo\UptimeMonitorBundle\:
+        resource: '../../'
+        exclude:
+            - '../../DependencyInjection/'
+            - '../../Entity/'
+            - '../../Notification/Channel/'
+            - '../../UptimeMonitorBundle.php'
+
+    Nowo\UptimeMonitorBundle\Notification\Channel\EmailNotificationChannel:
+        tags: ['nowo.uptime_monitor.notification_channel']
+
+    nowo.uptime_monitor.notification.webhook:
+        class: Nowo\UptimeMonitorBundle\Notification\Channel\WebhookNotificationChannel
+        arguments:
+            $channelKey: 'webhook'
+        tags: ['nowo.uptime_monitor.notification_channel']
+
+    nowo.uptime_monitor.notification.slack:
+        class: Nowo\UptimeMonitorBundle\Notification\Channel\WebhookNotificationChannel
+        arguments:
+            $channelKey: 'slack'
+        tags: ['nowo.uptime_monitor.notification_channel']
+
+    Nowo\UptimeMonitorBundle\Repository\:
+        resource: '../../Repository/'
+
+    Nowo\UptimeMonitorBundle\Check\HttpCheckRunner:
+        arguments:
+            $blockPrivateUrls: '%nowo_uptime_monitor.checks.block_private_urls%'
+        tags: ['nowo.uptime_monitor.check_runner']
+
+    Nowo\UptimeMonitorBundle\Check\TcpCheckRunner:
+        tags: ['nowo.uptime_monitor.check_runner']
+
+    Nowo\UptimeMonitorBundle\Check\DnsCheckRunner:
+        tags: ['nowo.uptime_monitor.check_runner']
+
+    Nowo\UptimeMonitorBundle\Check\SslCheckRunner:
+        tags: ['nowo.uptime_monitor.check_runner']
+
+    Nowo\UptimeMonitorBundle\Check\PingCheckRunner:
+        tags: ['nowo.uptime_monitor.check_runner']
+
+    Nowo\UptimeMonitorBundle\Check\GroupCheckRunner:
+        tags: ['nowo.uptime_monitor.check_runner']
+
+    Nowo\UptimeMonitorBundle\Command\:
+        resource: '../../Command/'
+        tags: ['console.command']
+
+    Nowo\UptimeMonitorBundle\Controller\DashboardController:
+        arguments:
+            $mercureHub: '@?mercure.hub.default'
+            $mercureAuthorization: '@?Symfony\Component\Mercure\Authorization'
+
+    Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher:
+        arguments:
+            $hub: '@?mercure.hub.default'

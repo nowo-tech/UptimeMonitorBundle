@@ -1,0 +1,26 @@
+{
+	skip_install_trust
+}
+
+:80 {
+	root * /app/public
+
+	# Mercure SSE — must not pass through encode (breaks chunked event stream).
+	@mercure path /.well-known/mercure*
+	handle @mercure {
+		reverse_proxy mercure:80 {
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+		}
+	}
+
+	handle {
+		encode zstd br gzip
+		header Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+		header Pragma "no-cache"
+		php_server
+	}
+}

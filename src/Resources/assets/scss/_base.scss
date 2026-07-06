@@ -1,0 +1,727 @@
+.uptime-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.uptime-header a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.uptime-header-nav a {
+  margin-left: 1rem;
+  color: #94a3b8;
+}
+
+.uptime-nav {
+  margin: 1rem 1.5rem 0;
+}
+
+.uptime-nav--settings {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  box-sizing: border-box;
+}
+
+.uptime-nav a {
+  color: #2563eb;
+}
+
+.uptime-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1rem 1.5rem;
+}
+
+.uptime-btn,
+.uptime-table button {
+  display: inline-block;
+  padding: 0.4rem 0.75rem;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.uptime-btn-danger {
+  background: #dc2626;
+}
+
+.uptime-table {
+  width: calc(100% - 3rem);
+  margin: 0 1.5rem 1.5rem;
+  border-collapse: collapse;
+}
+
+.uptime-table th,
+.uptime-table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.uptime-target {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.uptime-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.uptime-inline-form {
+  display: inline;
+}
+
+.uptime-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.uptime-status-up {
+  background: color-mix(in oklab, var(--uptime-up, #22c55e) 22%, transparent);
+  color: var(--uptime-up, #4ade80);
+}
+
+.uptime-status-down {
+  background: color-mix(in oklab, var(--uptime-down, #ef4444) 22%, transparent);
+  color: var(--uptime-down, #f87171);
+}
+
+.uptime-status-degraded {
+  background: color-mix(in oklab, var(--uptime-degraded, #eab308) 22%, transparent);
+  color: var(--uptime-degraded, #facc15);
+}
+
+.uptime-status-unknown {
+  background: color-mix(in oklab, var(--uptime-unknown, #64748b) 28%, transparent);
+  color: var(--uptime-muted, var(--uptime-unknown, #9aa0a6));
+}
+
+.uptime-flash {
+  margin: 1rem 1.5rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+}
+
+.uptime-flash-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.uptime-tenant-list {
+  list-style: none;
+  margin: 1.5rem;
+  padding: 0;
+}
+
+.uptime-tenant-list li {
+  padding: 0.5rem 0;
+}
+
+.uptime-error {
+  color: #b91c1c;
+}
+
+form label {
+  display: block;
+  margin: 0.75rem 1.5rem 0.25rem;
+  font-weight: 600;
+}
+
+form input,
+form select {
+  margin: 0 1.5rem;
+  padding: 0.4rem 0.5rem;
+  width: min(480px, calc(100% - 3rem));
+}
+
+form button[type='submit'] {
+  margin: 1rem 1.5rem 1.5rem;
+}
+
+.uptime-sync-badge {
+  margin: 0 1.5rem;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.uptime-sync-badge code {
+  font-size: 0.8125rem;
+}
+
+.uptime-overview-charts,
+.uptime-charts {
+  margin: 1rem 1.5rem;
+}
+
+.uptime-chart-box {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+}
+
+.uptime-chart-box h3,
+.uptime-overview-charts h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: #334155;
+}
+
+.uptime-type-badge {
+  font-size: 0.75rem;
+  background: #e2e8f0;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.25rem;
+  vertical-align: middle;
+}
+
+/* Public status page */
+.uptime-status-page {
+  margin: 0;
+  background: var(--tblr-body-bg, #eef1f5);
+  color: var(--tblr-body-color, #1f2937);
+  font-family: var(--tblr-font-sans-serif, system-ui, sans-serif);
+}
+
+.uptime-status-main {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.uptime-status-card {
+  border-color: var(--tblr-border-color, #c5cdd6);
+  box-shadow: var(--tblr-shadow-card, none);
+}
+
+.uptime-status-topbar {
+  background: var(--tblr-bg-surface, #fff);
+  border-bottom: 1px solid var(--tblr-border-color, #c5cdd6);
+}
+
+.uptime-status-header h1,
+.uptime-status-header .page-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  color: var(--brand-navy, var(--tblr-body-color, #002046));
+}
+
+.uptime-status-overall {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.uptime-status-overall-operational {
+  color: #15803d;
+}
+
+.uptime-status-overall-degraded {
+  color: #b45309;
+}
+
+.uptime-status-overall-major {
+  color: #b91c1c;
+}
+
+.uptime-status-overall-unknown {
+  color: #475569;
+}
+
+.uptime-status-updated {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--tblr-muted, #4b5563);
+}
+
+.uptime-status-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.uptime-status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: var(--tblr-bg-surface, #fff);
+  border: 1px solid var(--tblr-border-color, #c5cdd6);
+  border-radius: var(--tblr-border-radius, 0.375rem);
+  margin-bottom: 0.5rem;
+}
+
+.uptime-status-item .uptime-status {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.uptime-status-item-body {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+}
+
+.uptime-status-item-meta,
+.uptime-status-item-latency {
+  font-size: 0.8125rem;
+  color: var(--tblr-muted, #4b5563);
+}
+
+.uptime-status-label {
+  font-size: 0.8125rem;
+  text-transform: capitalize;
+  color: var(--tblr-secondary, #4b5563);
+  font-weight: 500;
+}
+
+.uptime-status-footer {
+  margin-top: 2rem;
+  text-align: center;
+  color: var(--tblr-muted, #4b5563);
+}
+
+.uptime-status-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Uptime Kuma–style dashboard & detail (standalone bundle shell) */
+.uptime-dashboard-kuma,
+.uptime-detail {
+  --uptime-up: #22c55e;
+  --uptime-down: #ef4444;
+  --uptime-degraded: #eab308;
+  --uptime-unknown: #64748b;
+  margin: 0 1.5rem 2rem;
+  padding: 1rem;
+  background: var(--uptime-bg);
+  color: var(--uptime-text);
+  border-radius: 0.75rem;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-dashboard-kuma,
+.uptime-app:not(.uptime-app--embedded) .uptime-detail {
+  --uptime-bg: #1a1d23;
+  --uptime-surface: #252830;
+  --uptime-border: #3a3f4b;
+  --uptime-text: #e8eaed;
+  --uptime-muted: #9aa0a6;
+}
+
+.uptime-btn-primary {
+  background: #16a34a;
+}
+
+.uptime-dashboard-kuma .uptime-sync-badge {
+  color: var(--uptime-muted);
+}
+
+.uptime-sync-badge.is-mercure-connected {
+  color: #4ade80;
+}
+
+.uptime-sync-badge.is-mercure-error {
+  color: #f87171;
+}
+
+.uptime-overview-charts--compact {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--uptime-surface);
+  border-radius: 0.5rem;
+}
+
+.uptime-overview-charts--compact h3 {
+  color: var(--uptime-muted);
+  font-size: 0.875rem;
+}
+
+.uptime-project-group {
+  margin-bottom: 1.25rem;
+}
+
+.uptime-project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--uptime-border);
+}
+
+.uptime-project-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--uptime-text);
+}
+
+.uptime-project-count {
+  font-size: 0.75rem;
+  color: var(--uptime-muted);
+}
+
+.uptime-monitor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.uptime-monitor-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 0.35rem 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.375rem;
+  border-bottom: 1px solid var(--uptime-border);
+}
+
+.uptime-monitor-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.uptime-monitor-item--child {
+  margin-left: 1.25rem;
+  border-left: 2px solid var(--uptime-border);
+  padding-left: 0.75rem;
+}
+
+.uptime-monitor-item--group .uptime-monitor-name {
+  font-weight: 700;
+}
+
+.uptime-meta-group {
+  font-size: 0.75rem;
+  color: var(--uptime-muted);
+  font-style: italic;
+}
+
+.uptime-form-section {
+  margin: 1rem 1.5rem;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+}
+
+.uptime-form-section legend {
+  font-weight: 600;
+  padding: 0 0.35rem;
+}
+
+.uptime-form-hint {
+  margin: 1rem 0 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.uptime-group-children {
+  margin: 1rem 1.5rem;
+}
+
+.uptime-group-child-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.uptime-group-child-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.35rem 0;
+}
+
+.uptime-monitor-item-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.uptime-uptime-pill {
+  flex-shrink: 0;
+  min-width: 3rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  background: var(--uptime-surface);
+  color: var(--uptime-text);
+}
+
+.uptime-uptime-pill-up {
+  background: rgba(34, 197, 94, 0.2);
+  color: var(--uptime-up);
+}
+
+.uptime-uptime-pill-down {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--uptime-down);
+}
+
+.uptime-uptime-pill-degraded {
+  background: rgba(234, 179, 8, 0.2);
+  color: var(--uptime-degraded);
+}
+
+.uptime-monitor-name {
+  flex-shrink: 0;
+  color: var(--uptime-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.uptime-monitor-name:hover {
+  text-decoration: underline;
+}
+
+.uptime-monitor-history {
+  flex: 1;
+  min-width: 0;
+}
+
+.uptime-history-bar {
+  display: grid;
+  grid-template-columns: repeat(50, 1fr);
+  gap: 2px;
+  width: 7.5rem;
+  height: 22px;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.uptime-history-bar--large {
+  width: 12rem;
+  height: 56px;
+  gap: 3px;
+}
+
+.uptime-history-segment {
+  min-width: 0;
+  border-radius: 1px 1px 0 0;
+  background: #3f4451;
+}
+
+.uptime-history-segment-empty {
+  background: #3f4451;
+  opacity: 0.55;
+}
+
+.uptime-history-segment-up {
+  background: #22c55e;
+}
+
+.uptime-history-segment-down {
+  background: #ef4444;
+}
+
+.uptime-history-segment-degraded {
+  background: #eab308;
+}
+
+.uptime-history-segment-unknown {
+  background: #6b7280;
+}
+
+.uptime-monitor-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--uptime-muted);
+}
+
+.uptime-dashboard-kuma .uptime-status {
+  background: transparent;
+  padding: 0;
+  text-transform: capitalize;
+}
+
+.uptime-dashboard-kuma .uptime-status-up {
+  color: var(--uptime-up);
+}
+
+.uptime-dashboard-kuma .uptime-status-down {
+  color: var(--uptime-down);
+}
+
+.uptime-dashboard-kuma .uptime-status-degraded {
+  color: var(--uptime-degraded);
+}
+
+.uptime-monitor-item-actions {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+}
+
+.uptime-dashboard-kuma .uptime-actions a,
+.uptime-dashboard-kuma .uptime-actions button {
+  color: var(--uptime-muted);
+  background: transparent;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.35rem;
+}
+
+.uptime-empty {
+  color: var(--uptime-muted);
+}
+
+/* Monitor detail */
+.uptime-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.uptime-detail-title h2 {
+  margin: 0 0 0.35rem;
+}
+
+.uptime-project-tag {
+  font-size: 0.875rem;
+  color: var(--uptime-muted);
+  margin-right: 0.5rem;
+}
+
+.uptime-detail-status {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.uptime-detail .uptime-detail-status.uptime-status-up {
+  background: rgba(34, 197, 94, 0.25);
+  color: var(--uptime-up);
+}
+
+.uptime-detail .uptime-status-down.uptime-detail-status {
+  background: rgba(239, 68, 68, 0.25);
+  color: var(--uptime-down);
+}
+
+.uptime-detail .uptime-status-degraded.uptime-detail-status {
+  background: rgba(234, 179, 8, 0.25);
+  color: var(--uptime-degraded);
+}
+
+.uptime-detail-history-section h3,
+.uptime-events-header h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--uptime-muted);
+}
+
+.uptime-history-legend {
+  margin: 0.35rem 0 1rem;
+  font-size: 0.75rem;
+  color: var(--uptime-muted);
+}
+
+.uptime-metrics-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.uptime-metric-card {
+  padding: 0.75rem 1rem;
+  background: var(--uptime-surface);
+  border-radius: 0.5rem;
+  border: 1px solid var(--uptime-border);
+}
+
+.uptime-metric-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--uptime-muted);
+  margin-bottom: 0.25rem;
+}
+
+.uptime-metric-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.uptime-detail-charts .uptime-chart-box {
+  background: var(--uptime-surface);
+  border-color: var(--uptime-border);
+}
+
+.uptime-detail-charts .uptime-chart-box h3 {
+  color: var(--uptime-muted);
+}
+
+.uptime-events-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.uptime-events-table th,
+.uptime-events-table td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--uptime-border);
+  text-align: left;
+}
+
+.uptime-events-table th {
+  color: var(--uptime-muted);
+  font-weight: 600;
+}
+
+.uptime-event-message {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--uptime-muted);
+}
+

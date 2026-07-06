@@ -1,0 +1,11 @@
+nowo_uptime_monitor:
+    retention:
+        detail_days: 30
+    dashboard:
+        path: /uptime
+        sync: polling
+        mercure:
+            topic_template: '/uptime/{tenant}'
+    status_page:
+        enabled: true
+        path: /status

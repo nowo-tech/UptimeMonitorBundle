@@ -1,0 +1,19 @@
+{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+
+{% block settings_body %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    <p class="uptime-settings-note">{{ 'settings.notifications.intro'|trans|raw }}</p>
+    <dl class="uptime-settings-dl">
+        <dt>{{ 'settings.notifications.enabled'|trans }}</dt>
+        <dd>{{ notifications_config.enabled ? ('settings.notifications.yes'|trans) : ('settings.notifications.no'|trans) }}</dd>
+        <dt>{{ 'settings.notifications.cooldown'|trans }}</dt>
+        <dd>{{ 'settings.notifications.cooldown_seconds'|trans({ '%seconds%': notifications_config.cooldown_seconds ?? 300 }) }}</dd>
+        <dt>{{ 'settings.notifications.email'|trans }}</dt>
+        <dd>{{ notifications_config.email.enabled|default(false) ? ('settings.notifications.yes'|trans) : ('settings.notifications.no'|trans) }}</dd>
+        <dt>{{ 'settings.notifications.webhook'|trans }}</dt>
+        <dd>{{ notifications_config.webhook.enabled|default(false) ? ('settings.notifications.yes'|trans) : ('settings.notifications.no'|trans) }}</dd>
+        <dt>{{ 'settings.notifications.slack'|trans }}</dt>
+        <dd>{{ notifications_config.slack.enabled|default(false) ? ('settings.notifications.yes'|trans) : ('settings.notifications.no'|trans) }}</dd>
+    </dl>
+    <p class="uptime-settings-note">{{ 'settings.notifications.per_monitor'|trans }}</p>
+{% endblock %}

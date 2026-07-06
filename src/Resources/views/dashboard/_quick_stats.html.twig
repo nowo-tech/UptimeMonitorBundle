@@ -1,0 +1,23 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+<section class="uptime-quick-stats" data-quick-stats>
+    <div class="uptime-stat-card uptime-stat-card--up">
+        <span class="uptime-stat-value" data-stat-up>{{ stats.up }}</span>
+        <span class="uptime-stat-label">{{ 'dashboard.stat.up'|trans }}</span>
+    </div>
+    <div class="uptime-stat-card uptime-stat-card--down">
+        <span class="uptime-stat-value" data-stat-down>{{ stats.down }}</span>
+        <span class="uptime-stat-label">{{ 'dashboard.stat.down'|trans }}</span>
+    </div>
+    <div class="uptime-stat-card uptime-stat-card--degraded">
+        <span class="uptime-stat-value" data-stat-degraded>{{ stats.degraded }}</span>
+        <span class="uptime-stat-label">{{ 'dashboard.stat.degraded'|trans }}</span>
+    </div>
+    <div class="uptime-stat-card uptime-stat-card--unknown">
+        <span class="uptime-stat-value" data-stat-unknown>{{ stats.unknown }}</span>
+        <span class="uptime-stat-label">{{ 'dashboard.stat.unknown'|trans }}</span>
+    </div>
+    <div class="uptime-stat-card uptime-stat-card--paused">
+        <span class="uptime-stat-value" data-stat-paused>{{ stats.paused }}</span>
+        <span class="uptime-stat-label">{{ 'dashboard.stat.paused'|trans }}</span>
+    </div>
+</section>

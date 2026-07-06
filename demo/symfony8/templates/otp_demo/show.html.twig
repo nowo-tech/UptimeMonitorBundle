@@ -1,0 +1,35 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<div class="container py-4 otp-demo-shell">
+    <div class="card otp-demo-card">
+        <div class="card-body p-4 p-md-5">
+    <h1 class="mb-2">{{ demo_title }}</h1>
+    <p class="text-muted mb-4">Multi-input visual widget, single string value in Symfony form data. Switch example: <a href="{{ path('app_demo_index') }}">all demos</a>.</p>
+
+    {% if otp_value is not null %}
+        <div class="alert alert-success">
+            Submitted OTP value: <code>{{ otp_value }}</code>
+        </div>
+    {% endif %}
+
+    {{ form_start(form) }}
+        {{ form_row(form.otp) }}
+        <button class="btn btn-primary mt-3 px-4" type="submit">Submit OTP</button>
+    {{ form_end(form) }}
+
+    {% if examples is defined and examples|length > 1 %}
+        <hr class="my-4">
+        <p class="small text-muted mb-2">Other examples</p>
+        <div class="d-flex flex-wrap gap-2">
+            {% for slug, cfg in examples %}
+                <a href="{{ path('app_demo_otp', { slug: slug }) }}" class="btn btn-sm btn-outline-secondary{% if slug == demo_slug %} active{% endif %}">{{ cfg.title }}</a>
+            {% endfor %}
+        </div>
+    {% endif %}
+        </div>
+    </div>
+</div>
+
+<script src="{{ asset('bundles/nowootpinput/otp-input.js') }}"></script>
+{% endblock %}

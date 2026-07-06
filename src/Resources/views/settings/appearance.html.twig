@@ -1,0 +1,29 @@
+{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+
+{% block settings_body %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
+
+    <div class="uptime-settings-locale-notice uptime-settings-field--full">
+        <p class="uptime-settings-locale-notice__label">{{ 'settings.appearance.locale'|trans }}</p>
+        <p class="uptime-settings-locale-notice__value">
+            <strong>{{ app.request.locale }}</strong>
+            {% if app.request.locale == 'es' %}
+                — {{ 'settings.appearance.locale_name.es'|trans }}
+            {% elseif app.request.locale == 'en' %}
+                — {{ 'settings.appearance.locale_name.en'|trans }}
+            {% endif %}
+        </p>
+        <p class="uptime-settings-locale-notice__help">{{ 'settings.appearance.locale_help'|trans }}</p>
+    </div>
+
+    {{ form_start(form, { attr: { class: 'uptime-settings-form' } }) }}
+        <div class="uptime-settings-form-grid">
+            {{ form_widget(form) }}
+        </div>
+        <div class="uptime-form-actions">
+            {{ ui.btn_submit('settings.save'|trans, 'primary') }}
+        </div>
+    {{ form_end(form) }}
+{% endblock %}

@@ -1,0 +1,132 @@
+{
+    "name": "nowo-tech/uptime-monitor-bundle",
+    "description": "Symfony bundle for synthetic uptime monitoring (Uptime Kuma-style): scheduled checks, retention, aggregates, multi-tenant dashboard.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": [
+        "symfony",
+        "symfony-bundle",
+        "uptime",
+        "monitoring",
+        "health-check",
+        "synthetic-monitoring",
+        "status-page",
+        "doctrine",
+        "multi-tenant"
+    ],
+    "homepage": "https://github.com/nowo-tech/UptimeMonitorBundle",
+    "support": {
+        "issues": "https://github.com/nowo-tech/UptimeMonitorBundle/issues",
+        "source": "https://github.com/nowo-tech/UptimeMonitorBundle"
+    },
+    "authors": [
+        {
+            "name": "Héctor Franco Aceituno",
+            "email": "hectorfranco@nowo.tech",
+            "homepage": "https://github.com/HecFranco",
+            "role": "Developer"
+        },
+        {
+            "name": "Nowo.tech",
+            "homepage": "https://nowo.tech"
+        }
+    ],
+    "require": {
+        "php": ">=8.2 <8.6",
+        "doctrine/dbal": "^3.8.2 || ^4.0",
+        "doctrine/doctrine-bundle": "^2.8 || ^3.0",
+        "doctrine/orm": "^2.13 || ^3.0",
+        "symfony/config": "^7.4 || ^8.0",
+        "symfony/console": "^7.4 || ^8.0",
+        "symfony/dependency-injection": "^7.4 || ^8.0",
+        "symfony/form": "^7.4 || ^8.0",
+        "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/validator": "^7.4 || ^8.0",
+        "symfony/http-client": "^7.4 || ^8.0",
+        "symfony/http-kernel": "^7.4 || ^8.0",
+        "symfony/messenger": "^7.4 || ^8.0",
+        "symfony/routing": "^7.4 || ^8.0",
+        "symfony/security-bundle": "^7.4 || ^8.0",
+        "symfony/scheduler": "^7.4 || ^8.0",
+        "symfony/serializer": "^7.4 || ^8.0",
+        "symfony/translation": "^7.4 || ^8.0",
+        "symfony/twig-bundle": "^7.4 || ^8.0",
+        "symfony/yaml": "^7.4 || ^8.0"
+    },
+    "require-dev": {
+        "symfony/mercure": "^0.6.5",
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "phpstan/extension-installer": "^1.0",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
+        "phpunit/phpunit": "^10.5 || ^11.0",
+        "rector/rector": "^2.0",
+        "symfony/mailer": "^6.3 || ^7.0 || ^8.0",
+        "symfony/browser-kit": "^6.3 || ^7.0 || ^8.0",
+        "symfony/dom-crawler": "^6.3 || ^7.0 || ^8.0",
+        "symfony/phpunit-bridge": "^6.3 || ^7.0 || ^8.0"
+    },
+    "suggest": {
+        "symfony/mailer": "For email notifications",
+        "symfony/messenger": "For async check execution and scheduler consumer",
+        "symfony/mercure-bundle": "For dashboard.sync: mercure (real-time SSE updates)",
+        "pentatrion/vite-bundle": "Vite integration in host application demos"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nowo\\UptimeMonitorBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nowo\\UptimeMonitorBundle\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "symfony": {
+            "bundle": "Nowo\\UptimeMonitorBundle\\UptimeMonitorBundle"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "archive": {
+        "exclude": ["/demo", "/.cursor"]
+    },
+    "scripts": {
+        "test": "@php vendor/bin/phpunit --color=always",
+        "test-coverage": "@php vendor/bin/phpunit --color=always --process-isolation --coverage-html coverage --coverage-clover coverage.xml --coverage-text",
+        "test-coverage-90": [
+            "@test-coverage",
+            "php scripts/check-coverage.php coverage.xml --min-percent=90"
+        ],
+        "test-coverage-100": [
+            "@test-coverage",
+            "php scripts/check-coverage.php coverage.xml --min-percent=100"
+        ],
+        "cs-check": "@php vendor/bin/php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "@php vendor/bin/php-cs-fixer fix",
+        "rector": "@php vendor/bin/rector process",
+        "rector-dry": "@php vendor/bin/rector process --dry-run --no-progress-bar",
+        "phpstan": "@php vendor/bin/phpstan analyse --memory-limit=512M",
+        "qa": ["@cs-check", "@test"]
+    },
+    "scripts-descriptions": {
+        "test": "Run PHPUnit tests",
+        "test-coverage": "Run PHPUnit tests with code coverage",
+        "test-coverage-90": "Run test-coverage and fail if coverage is below 90%",
+        "test-coverage-100": "Run test-coverage and fail if coverage is below 100%",
+        "cs-check": "Check code style with PHP-CS-Fixer",
+        "cs-fix": "Fix code style with PHP-CS-Fixer",
+        "rector": "Apply Rector refactoring",
+        "rector-dry": "Run Rector in dry-run mode",
+        "phpstan": "Run PHPStan static analysis",
+        "qa": "Run all quality assurance checks"
+    }
+}

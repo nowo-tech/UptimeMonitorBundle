@@ -1,0 +1,21 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+{% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+<div class="modal modal-blur fade uptime-monitor-form-modal" id="uptime-monitor-form-modal" tabindex="-1"
+     aria-labelledby="uptime-monitor-form-modal-title" aria-hidden="true"
+     data-uptime-monitor-form-modal>
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uptime-monitor-form-modal-title" data-monitor-form-title>{{ 'monitor.edit'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'action.close'|trans }}"></button>
+            </div>
+            <div class="modal-body" data-monitor-form-body>
+                <div class="text-center text-secondary py-5" data-monitor-form-loading>
+                    <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                    {{ 'monitor.form.loading'|trans }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

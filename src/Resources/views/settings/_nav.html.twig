@@ -1,0 +1,19 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+<nav class="uptime-settings-nav" aria-label="{{ 'settings.title'|trans }}">
+    <a href="{{ path('nowo_uptime_settings_general', { tenantSlug: tenant_slug }) }}"
+       class="{{ section == 'general' ? 'is-active' : '' }}">{{ 'settings.nav.general'|trans }}</a>
+    <a href="{{ path('nowo_uptime_settings_appearance', { tenantSlug: tenant_slug }) }}"
+       class="{{ section == 'appearance' ? 'is-active' : '' }}">{{ 'settings.nav.appearance'|trans }}</a>
+    <a href="{{ path('nowo_uptime_settings_notifications', { tenantSlug: tenant_slug }) }}"
+       class="{{ section == 'notifications' ? 'is-active' : '' }}">{{ 'settings.nav.notifications'|trans }}</a>
+    <a href="{{ path('nowo_uptime_settings_reverse_proxy', { tenantSlug: tenant_slug }) }}"
+       class="{{ section == 'reverse_proxy' ? 'is-active' : '' }}">{{ 'settings.nav.reverse_proxy'|trans }}</a>
+    <a href="{{ path('nowo_uptime_settings_tags', { tenantSlug: tenant_slug }) }}"
+       class="{{ section == 'tags' ? 'is-active' : '' }}">{{ 'settings.nav.tags'|trans }}</a>
+    <a href="{{ path('nowo_uptime_settings_history', { tenantSlug: tenant_slug }) }}"
+       class="{{ section == 'history' ? 'is-active' : '' }}">{{ 'settings.nav.history'|trans }}</a>
+    <a href="{{ path('nowo_uptime_settings_backup', { tenantSlug: tenant_slug }) }}"
+       class="{{ section == 'backup' ? 'is-active' : '' }}">{{ 'settings.nav.backup'|trans }}</a>
+    <a href="{{ path('nowo_uptime_settings_about', { tenantSlug: tenant_slug }) }}"
+       class="{{ section == 'about' ? 'is-active' : '' }}">{{ 'settings.nav.about'|trans }}</a>
+</nav>

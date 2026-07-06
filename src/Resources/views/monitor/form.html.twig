@@ -1,0 +1,49 @@
+{% extends uptime_layout %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+
+{% block title %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    {{ title|trans }} — {{ tenant_slug }}
+{% endblock %}
+
+{% block uptime_content %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    <div class="uptime-page-shell uptime-page-shell--form">
+        <nav class="uptime-nav uptime-nav--form">
+            <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}">{{ 'dashboard.back'|trans }}</a>
+        </nav>
+        <h1 class="uptime-page-title">{{ title|trans }}</h1>
+
+        {% include '@NowoUptimeMonitorBundle/monitor/_monitor_form_body.html.twig' %}
+    </div>
+
+    <script>
+        (function () {
+            const typeSelect = document.querySelector('[data-monitor-type-select]');
+            if (!typeSelect) return;
+
+            const group = 'group';
+            const httpTypes = ['http', 'https'];
+            const tcpTypes = ['tcp', 'ping', 'ssl'];
+            const dns = 'dns';
+
+            const sections = document.querySelectorAll('[data-monitor-fields]');
+            const toggle = () => {
+                const value = typeSelect.value;
+                sections.forEach((el) => {
+                    const key = el.getAttribute('data-monitor-fields');
+                    let show = false;
+                    if (key === 'check') show = value !== group;
+                    else if (key === 'http' || key === 'http-advanced' || key === 'http-options') show = httpTypes.includes(value);
+                    else if (key === 'tcp') show = tcpTypes.includes(value);
+                    else if (key === 'dns') show = value === dns;
+                    else if (key === 'ssl') show = value === 'ssl';
+                    el.hidden = !show;
+                });
+            };
+
+            typeSelect.addEventListener('change', toggle);
+            toggle();
+        })();
+    </script>
+{% endblock %}

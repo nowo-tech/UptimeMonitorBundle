@@ -1,0 +1,61 @@
+name: uptime-monitor-bundle
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uptime-monitor-bundle-php
+    working_dir: /app
+    volumes:
+      - .:/app
+      - composer-cache:/root/.composer/cache
+      - coverage-data:/app/coverage
+    environment:
+      COMPOSER_ALLOW_SUPERUSER: "1"
+      DATABASE_URL: mysql://root:password@mysql:3306/uptime_monitor_test?serverVersion=8.0
+      DATABASE_URL_PG: postgresql://postgres:password@postgres:5432/uptime_monitor_test?serverVersion=15
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - uptime-monitor-bundle-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    container_name: uptime-monitor-bundle-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: uptime_monitor_test
+    networks:
+      - uptime-monitor-bundle-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:15
+    container_name: uptime-monitor-bundle-postgres
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: uptime_monitor_test
+    networks:
+      - uptime-monitor-bundle-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  composer-cache:
+  coverage-data:
+
+networks:
+  uptime-monitor-bundle-network:
+    driver: bridge

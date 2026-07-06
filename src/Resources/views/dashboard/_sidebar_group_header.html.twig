@@ -1,0 +1,22 @@
+{# Group row inside collapsible header (pill + name + history bar). #}
+{% set monitor = row.monitor %}
+{% set latest = row.latest %}
+{% set status = latest ? latest.status.value : 'unknown' %}
+{% set pill_class = monitor.paused ? 'paused' : status %}
+<div class="uptime-sidebar-group-row"
+     data-monitor-id="{{ monitor.id }}"
+     data-sidebar-row
+     data-group-header-row>
+    <span class="uptime-sidebar-pill uptime-sidebar-pill-{{ pill_class }}" data-uptime-pill title="24h uptime">
+        {% if monitor.paused %}—{% elseif row.uptime_24h is not null %}{{ row.uptime_24h|number_format(0) }}%{% else %}—{% endif %}
+    </span>
+    <span class="uptime-sidebar-label">
+        <a href="{{ path('nowo_uptime_monitor_show', { tenantSlug: tenant_slug, id: monitor.id }) }}" class="uptime-sidebar-name" data-sidebar-name>{{ monitor.name }}</a>
+    </span>
+    <span class="uptime-sidebar-history" data-history-container>
+        {% include '@NowoUptimeMonitorBundle/_history_bar.html.twig' with {
+            history: row.history,
+            bar_theme: heartbeat_bar_theme|default('normal'),
+        } %}
+    </span>
+</div>

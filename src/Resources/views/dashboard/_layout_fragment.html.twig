@@ -1,0 +1,7 @@
+{# Partial HTML for live dashboard layout refresh (fetched by uptime-dashboard.js). #}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+<div data-layout-fragment-root>
+    {% include '@NowoUptimeMonitorBundle/dashboard/_sidebar_tree.html.twig' %}
+    {% include '@NowoUptimeMonitorBundle/dashboard/_quick_stats.html.twig' %}
+    {% include '@NowoUptimeMonitorBundle/dashboard/_events_body.html.twig' %}
+</div>

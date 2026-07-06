@@ -1,0 +1,17 @@
+{% extends uptime_layout %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block uptime_content %}
+    <nav class="uptime-nav">
+        <a href="{{ path('nowo_uptime_tenant_index') }}">← Tenants</a>
+    </nav>
+    <h2>{{ title }}</h2>
+    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
+    {{ form_start(form) }}
+        {{ form_row(form.slug) }}
+        {{ form_row(form.name) }}
+        {{ ui.btn_submit('Create tenant', 'primary') }}
+    {{ form_end(form) }}
+{% endblock %}
