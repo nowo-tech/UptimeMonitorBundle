@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Check\CheckRunnerInterface;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -11,7 +12,6 @@ use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
-use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
