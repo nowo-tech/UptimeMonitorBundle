@@ -1,0 +1,7 @@
+{% if form is defined %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        {% form_theme form 'bootstrap_5_layout.html.twig' %}
+    {% elseif uptime_ui_framework == 'tailwind' %}
+        {% form_theme form 'tailwind_2_layout.html.twig' %}
+    {% endif %}
+{% endif %}

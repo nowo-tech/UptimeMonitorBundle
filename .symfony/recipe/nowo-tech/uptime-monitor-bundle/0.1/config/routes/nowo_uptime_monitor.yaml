@@ -1,0 +1,2 @@
+nowo_uptime_monitor:
+    resource: '@NowoUptimeMonitorBundle/Resources/config/routes.yaml'

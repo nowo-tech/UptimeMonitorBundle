@@ -1,0 +1,3 @@
+  * Run <fg=green>php bin/console nowo:uptime:sync-schema</> to create database tables.
+  * Optional: <fg=green>php bin/console nowo:uptime:seed-demo</> for sample monitors.
+  * Dashboard: <fg=green>/uptime/main</> — Status page: <fg=green>/status/main</>

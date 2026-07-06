@@ -1,0 +1,40 @@
+{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+
+{% block settings_body %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
+    {{ form_start(form, { attr: { class: 'uptime-settings-form uptime-settings-form--general' } }) }}
+
+    <section class="uptime-settings-group">
+        <h4 class="uptime-settings-group__title">{{ 'form.settings.group.regional'|trans }}</h4>
+        <div class="uptime-settings-form-grid">
+            {{ form_row(form.displayTimezone) }}
+            {{ form_row(form.serverTimezone) }}
+        </div>
+    </section>
+
+    <section class="uptime-settings-group">
+        <h4 class="uptime-settings-group__title">{{ 'form.settings.group.site'|trans }}</h4>
+        <div class="uptime-settings-form-grid">
+            {{ form_row(form.searchEngineIndex) }}
+            {{ form_row(form.entryPage) }}
+            {{ form_row(form.primaryBaseUrl) }}
+            {{ form_row(form.steamApiKey) }}
+        </div>
+    </section>
+
+    <section class="uptime-settings-group">
+        <h4 class="uptime-settings-group__title">{{ 'form.settings.group.runtime'|trans }}</h4>
+        <div class="uptime-settings-form-grid">
+            {{ form_row(form.nscdEnabled) }}
+            {{ form_row(form.httpDnsCache) }}
+            {{ form_row(form.chromiumExecutable) }}
+        </div>
+    </section>
+
+    <div class="uptime-form-actions">
+        {{ ui.btn_submit('settings.save'|trans, 'primary') }}
+    </div>
+    {{ form_end(form, { render_rest: false }) }}
+{% endblock %}

@@ -1,0 +1,29 @@
+{% set uptime_ui_framework = uptime_ui_framework|default('tabler') %}
+{% if uptime_ui_framework == 'tabler' and not uptime_tabler_skip_cdn|default(false) %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+    <style>
+        body { background: #f6f8fb; }
+        .uptime-header { background: #fff; border-bottom: 1px solid rgba(98, 105, 118, 0.16); padding: 0.75rem 0; margin-bottom: 1.5rem; }
+        .uptime-header h1 { font-size: 1.125rem; margin: 0; }
+        .uptime-header h1 a { color: inherit; text-decoration: none; }
+        .uptime-header-nav a { margin-right: 1rem; color: #626976; text-decoration: none; }
+        .uptime-header-nav a:hover { color: #206bc4; }
+    </style>
+{% endif %}
+<link rel="stylesheet" href="{{ asset('uptime-dashboard.css', 'nowo_uptime_monitor') }}">
+<link rel="stylesheet" href="{{ asset('uptime-theme.css', 'nowo_uptime_monitor') }}">
+
+{% if uptime_ui_framework == 'bootstrap' %}
+    {% if uptime_ui_bootstrap_css %}
+        <link rel="stylesheet" href="{{ uptime_ui_bootstrap_css }}">
+    {% endif %}
+    <link rel="stylesheet" href="{{ asset('uptime-ui-bootstrap.css', 'nowo_uptime_monitor') }}">
+{% elseif uptime_ui_framework == 'tailwind' %}
+    {% if uptime_ui_tailwind_css %}
+        <link rel="stylesheet" href="{{ uptime_ui_tailwind_css }}">
+    {% elseif uptime_ui_tailwind_cdn_script %}
+        <script src="{{ uptime_ui_tailwind_cdn_script }}"></script>
+    {% endif %}
+    <link rel="stylesheet" href="{{ asset('uptime-ui-tailwind.css', 'nowo_uptime_monitor') }}">
+{% endif %}

@@ -1,0 +1,98 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+
+{% macro flash(label, message) %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show mb-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% elseif uptime_ui_framework == 'tailwind' %}
+        <div class="mx-4 mt-3 rounded-lg px-4 py-3 text-sm {{ label == 'error' ? 'bg-red-900/40 text-red-200 border border-red-800' : (label == 'success' ? 'bg-emerald-900/40 text-emerald-200 border border-emerald-800' : 'bg-slate-800 text-slate-200 border border-slate-700') }}">
+            {{ message }}
+        </div>
+    {% else %}
+        <div class="uptime-flash uptime-flash-{{ label }}">{{ message }}</div>
+    {% endif %}
+{% endmacro %}
+
+{% macro btn_link(href, label, variant) %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <a href="{{ href }}" class="btn btn-{{ variant == 'primary' ? 'primary' : 'outline-secondary' }} btn-sm">{{ label }}</a>
+    {% elseif uptime_ui_framework == 'tailwind' %}
+        <a href="{{ href }}" class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium {{ variant == 'primary' ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'border border-slate-600 text-slate-200 hover:bg-slate-800' }}">{{ label }}</a>
+    {% else %}
+        <a href="{{ href }}" class="uptime-btn{{ variant == 'primary' ? ' uptime-btn-primary' : '' }}">{{ label }}</a>
+    {% endif %}
+{% endmacro %}
+
+{% macro btn_submit(label, variant) %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <button type="submit" class="btn btn-{{ variant == 'primary' ? 'primary' : 'secondary' }}">{{ label }}</button>
+    {% elseif uptime_ui_framework == 'tailwind' %}
+        <button type="submit" class="rounded-md px-4 py-2 text-sm font-medium {{ variant == 'primary' ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-slate-700 text-slate-100 hover:bg-slate-600' }}">{{ label }}</button>
+    {% else %}
+        <button type="submit" class="uptime-btn{{ variant == 'primary' ? ' uptime-btn-primary' : '' }}">{{ label }}</button>
+    {% endif %}
+{% endmacro %}
+
+{% macro btn_quiet(label) %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <button type="button" class="btn btn-link btn-sm">{{ label }}</button>
+    {% elseif uptime_ui_framework == 'tailwind' %}
+        <button type="button" class="text-sm text-slate-400 hover:text-slate-200 underline-offset-2 hover:underline">{{ label }}</button>
+    {% else %}
+        <button type="button" class="uptime-btn-quiet">{{ label }}</button>
+    {% endif %}
+{% endmacro %}
+
+{% macro btn_edit_monitor(tenant_slug, monitor_id, return_target, label) %}
+    {% set edit_label = label|default('monitor.edit'|trans) %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <button type="button"
+                class="btn btn-outline-secondary btn-sm"
+                data-monitor-form-open
+                data-monitor-form-url="{{ path('nowo_uptime_monitor_edit', { tenantSlug: tenant_slug, id: monitor_id }) }}"
+                data-monitor-form-return="{{ return_target }}"
+                data-monitor-form-title="{{ 'monitor.edit'|trans|e('html_attr') }}">
+            {{ edit_label }}
+        </button>
+    {% else %}
+        <a href="{{ path('nowo_uptime_monitor_edit', { tenantSlug: tenant_slug, id: monitor_id }) }}" class="uptime-btn">{{ edit_label }}</a>
+    {% endif %}
+{% endmacro %}
+
+{% macro btn_new_monitor(tenant_slug, label) %}
+    {% set new_label = label|default('dashboard.add'|trans) %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <button type="button"
+                class="btn btn-primary btn-sm"
+                data-monitor-form-open
+                data-monitor-form-url="{{ path('nowo_uptime_monitor_new', { tenantSlug: tenant_slug }) }}"
+                data-monitor-form-return="dashboard"
+                data-monitor-form-title="{{ 'monitor.new'|trans|e('html_attr') }}">
+            {{ new_label }}
+        </button>
+    {% else %}
+        <a href="{{ path('nowo_uptime_monitor_new', { tenantSlug: tenant_slug }) }}" class="uptime-btn uptime-btn-primary">{{ new_label }}</a>
+    {% endif %}
+{% endmacro %}
+
+{% macro page_header(title, subtitle) %}
+    {% if uptime_ui_framework == 'tabler' %}
+        <h2 class="page-title mb-0">{{ title }}</h2>
+        {% if subtitle %}<div class="text-secondary small mt-1"><code>{{ subtitle }}</code></div>{% endif %}
+    {% elseif uptime_ui_framework == 'bootstrap' %}
+        <div class="d-flex flex-wrap align-items-baseline gap-2 mb-1">
+            <h2 class="h4 mb-0">{{ title }}</h2>
+            {% if subtitle %}<span class="text-muted small">{{ subtitle }}</span>{% endif %}
+        </div>
+    {% elseif uptime_ui_framework == 'tailwind' %}
+        <div class="flex flex-wrap items-baseline gap-2">
+            <h2 class="text-xl font-semibold text-slate-100">{{ title }}</h2>
+            {% if subtitle %}<span class="text-sm text-slate-500">{{ subtitle }}</span>{% endif %}
+        </div>
+    {% else %}
+        <h2>{{ title }}</h2>
+        {% if subtitle %}<span class="uptime-tenant-slug">{{ subtitle }}</span>{% endif %}
+    {% endif %}
+{% endmacro %}

@@ -1,0 +1,19 @@
+{% extends uptime_layout %}
+
+{% block uptime_content %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    <nav class="uptime-nav uptime-nav--settings">
+        <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}">{{ 'dashboard.back'|trans }}</a>
+    </nav>
+
+    <div class="uptime-settings-layout">
+        <aside class="uptime-settings-sidebar">
+            <h2>{{ 'settings.title'|trans }}</h2>
+            {% include '@NowoUptimeMonitorBundle/settings/_nav.html.twig' %}
+        </aside>
+        <main class="uptime-settings-content">
+            <h3>{{ section_title|trans }}</h3>
+            {% block settings_body %}{% endblock %}
+        </main>
+    </div>
+{% endblock %}

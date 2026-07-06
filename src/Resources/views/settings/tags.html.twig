@@ -1,0 +1,32 @@
+{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+
+{% block settings_body %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    <div class="uptime-settings-tags">
+        <h4>{{ 'settings.tags.list'|trans }}</h4>
+        {% if tags is empty %}
+            <p>{{ 'settings.tags.empty'|trans }}</p>
+        {% else %}
+            <ul class="uptime-tag-list">
+                {% for tag in tags %}
+                    <li>
+                        {% if tag.color %}
+                            <span class="uptime-tag-swatch" style="background: {{ tag.color }}"></span>
+                        {% endif %}
+                        {{ tag.name }}
+                        <form method="post" action="{{ path('nowo_uptime_settings_tag_delete', { tenantSlug: tenant_slug, id: tag.id }) }}" class="uptime-inline-form">
+                            <input type="hidden" name="_token" value="{{ csrf_token('delete-tag-' ~ tag.id) }}">
+                            <button type="submit" class="uptime-btn-quiet">{{ 'settings.tags.delete'|trans }}</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <h4>{{ 'settings.tags.add'|trans }}</h4>
+        {{ form_start(form, { attr: { class: 'uptime-settings-form' } }) }}
+            {{ form_widget(form) }}
+            <button type="submit" class="uptime-btn uptime-btn-primary">{{ 'settings.tags.add_button'|trans }}</button>
+        {{ form_end(form) }}
+    </div>
+{% endblock %}

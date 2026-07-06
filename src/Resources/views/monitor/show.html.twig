@@ -1,0 +1,144 @@
+{% extends uptime_layout %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+
+{% block title %}{{ monitor.name }} — Detail{% endblock %}
+
+{% block uptime_content %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    {% set status = latest ? latest.status.value : 'unknown' %}
+
+    <nav class="uptime-nav uptime-nav--detail">
+        {% if uptime_ui_framework == 'tabler' %}
+            <div class="btn-list">
+                <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}" class="btn btn-outline-secondary btn-sm">← {{ 'dashboard.back'|trans }}</a>
+                {{ ui.btn_edit_monitor(tenant_slug, monitor.id, 'show') }}
+            </div>
+        {% else %}
+            <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}">← Dashboard</a>
+            ·
+            {{ ui.btn_edit_monitor(tenant_slug, monitor.id, 'show') }}
+        {% endif %}
+    </nav>
+
+    <div class="uptime-detail" id="uptime-monitor-detail-root"
+         data-monitor-id="{{ monitor.id }}"
+         data-api-history="{{ api_history_url }}"
+         data-series="{{ chart_series_json|e('html_attr') }}"
+         data-latency-series="{{ latency_series_json|e('html_attr') }}">
+
+        {% if monitor.type.value == 'group' and detail.children is not empty %}
+        <section class="uptime-group-children">
+            <h3>Monitors in this group</h3>
+            <ul class="uptime-group-child-list">
+                {% for child in detail.children %}
+                    <li>
+                        <a href="{{ path('nowo_uptime_monitor_show', { tenantSlug: tenant_slug, id: child.monitor.id }) }}">{{ child.monitor.name }}</a>
+                        <span class="uptime-status uptime-status-{{ child.latest ? child.latest.status.value : 'unknown' }}">{{ child.latest ? child.latest.status.value : 'unknown' }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        <header class="uptime-detail-header">
+            <div class="uptime-detail-title">
+                <h2 class="{{ uptime_ui_framework == 'tabler' ? 'page-title mb-1' : '' }}">{{ monitor.name }}</h2>
+                {% if monitor.parent %}
+                    <span class="uptime-project-tag">Group: {{ monitor.parent.name }}</span>
+                {% elseif monitor.project %}
+                    <span class="uptime-project-tag">{{ monitor.project }}</span>
+                {% endif %}
+                <span class="uptime-type-badge">{{ monitor.type.value }}</span>
+                <p class="uptime-target">{{ monitor.target }}</p>
+            </div>
+            <div class="uptime-detail-status-wrap">
+                <span class="uptime-detail-status uptime-status-{{ status }}" data-detail-status>{{ status }}</span>
+            </div>
+        </header>
+
+        <section class="uptime-detail-history-section">
+            <h3>Check history (last 24h)</h3>
+            {% include '@NowoUptimeMonitorBundle/_history_bar.html.twig' with { history: detail.history, large: true } %}
+            <p class="uptime-history-legend">
+                <span>Older</span>
+                <span>→</span>
+                <span>Now</span>
+                {% if latest %}
+                    · Last check <span data-detail-checked>{{ latest.checkedAt|date('Y-m-d H:i:s') }}</span>
+                    · Interval {{ monitor.intervalSeconds }}s
+                {% endif %}
+            </p>
+        </section>
+
+        <section class="uptime-metrics-cards">
+            <div class="uptime-metric-card">
+                <span class="uptime-metric-label">Uptime (24h)</span>
+                <span class="uptime-metric-value" data-uptime-24h>
+                    {{ detail.uptime_24h is not null ? detail.uptime_24h|number_format(1) ~ '%' : '—' }}
+                </span>
+            </div>
+            <div class="uptime-metric-card">
+                <span class="uptime-metric-label">Uptime (30d)</span>
+                <span class="uptime-metric-value" data-uptime-30d>
+                    {{ detail.uptime_30d is not null ? detail.uptime_30d|number_format(1) ~ '%' : '—' }}
+                </span>
+            </div>
+            <div class="uptime-metric-card">
+                <span class="uptime-metric-label">Latency</span>
+                <span class="uptime-metric-value" data-detail-latency>
+                    {{ latest ? latest.latencyMs ~ ' ms' : '—' }}
+                </span>
+            </div>
+        </section>
+
+        <section class="uptime-charts uptime-detail-charts">
+            <div class="uptime-chart-box">
+                <h3>Response time (24h)</h3>
+                <canvas id="uptime-chart-response" height="140"></canvas>
+            </div>
+            <div class="uptime-chart-box">
+                <h3>Uptime % (30 days, daily)</h3>
+                <canvas id="uptime-chart-uptime" height="120"></canvas>
+            </div>
+            <div class="uptime-chart-box">
+                <h3>Avg latency (30 days, daily)</h3>
+                <canvas id="uptime-chart-latency" height="120"></canvas>
+            </div>
+        </section>
+
+        <section class="uptime-events">
+            <header class="uptime-events-header">
+                <h3>Check log</h3>
+            </header>
+            <table class="uptime-events-table" data-events-table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Date & time</th>
+                        <th>Latency</th>
+                        <th>Code</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in detail.events|reverse %}
+                        <tr>
+                            <td><span class="uptime-status uptime-status-{{ event.status }}">{{ event.status }}</span></td>
+                            <td>{{ event.checked_at|date('Y-m-d H:i:s') }}</td>
+                            <td>{{ event.latency_ms }} ms</td>
+                            <td>{{ event.status_code ?? '—' }}</td>
+                            <td class="uptime-event-message">{{ event.message ?? '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5">No check events yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    {% include '@NowoUptimeMonitorBundle/monitor/_monitor_edit_modal.html.twig' %}
+    <script type="module" src="{{ asset('uptime-monitor-detail.js', 'nowo_uptime_monitor') }}" defer></script>
+{% endblock %}

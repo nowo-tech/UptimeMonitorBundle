@@ -1,0 +1,65 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+<fieldset class="uptime-form-section">
+    <legend>{{ 'monitor.form.section.general'|trans }}</legend>
+    {{ form_row(form.type, { attr: { 'data-monitor-type-select': '1' } }) }}
+    {{ form_row(form.name) }}
+    {{ form_row(form.parentId) }}
+    {{ form_row(form.project) }}
+    {{ form_row(form.description) }}
+</fieldset>
+
+<fieldset class="uptime-form-section" data-monitor-fields="check">
+    <legend>{{ 'monitor.form.section.heartbeat'|trans }}</legend>
+    {{ form_row(form.intervalSeconds) }}
+    {{ form_row(form.retries) }}
+    {{ form_row(form.retryIntervalSeconds) }}
+    {{ form_row(form.requestTimeoutSeconds) }}
+    {{ form_row(form.resendNotificationAfterDown) }}
+    {{ form_row(form.paused) }}
+</fieldset>
+
+<fieldset class="uptime-form-section" data-monitor-fields="http">
+    <legend>{{ 'monitor.form.section.http'|trans }}</legend>
+    {{ form_row(form.url) }}
+    {{ form_row(form.method) }}
+    {{ form_row(form.expectedStatusCodes) }}
+    {{ form_row(form.maxRedirects) }}
+    {{ form_row(form.keyword) }}
+</fieldset>
+
+<fieldset class="uptime-form-section" data-monitor-fields="http-advanced">
+    <legend>{{ 'monitor.form.section.advanced'|trans }}</legend>
+    {{ form_row(form.ignoreTls) }}
+    {{ form_row(form.upsideDown) }}
+    {{ form_row(form.checkCertExpiry) }}
+    {{ form_row(form.proxy) }}
+    {{ form_row(form.tags) }}
+</fieldset>
+
+<fieldset class="uptime-form-section" data-monitor-fields="http-options">
+    <legend>{{ 'monitor.form.section.http_options'|trans }}</legend>
+    {{ form_row(form.bodyEncoding) }}
+    {{ form_row(form.httpBody) }}
+    {{ form_row(form.httpHeaders) }}
+    {{ form_row(form.authMethod) }}
+    {{ form_row(form.authUsername) }}
+    {{ form_row(form.authPassword) }}
+</fieldset>
+
+<fieldset class="uptime-form-section" data-monitor-fields="tcp">
+    <legend>{{ 'monitor.form.section.tcp'|trans }}</legend>
+    {{ form_row(form.host) }}
+    {{ form_row(form.port) }}
+</fieldset>
+
+<fieldset class="uptime-form-section" data-monitor-fields="dns">
+    <legend>{{ 'monitor.form.section.dns'|trans }}</legend>
+    {{ form_row(form.hostname) }}
+    {{ form_row(form.recordType) }}
+    {{ form_row(form.expectedDnsValue) }}
+</fieldset>
+
+<fieldset class="uptime-form-section" data-monitor-fields="ssl">
+    <legend>{{ 'monitor.form.section.ssl'|trans }}</legend>
+    {{ form_row(form.daysBeforeExpiry) }}
+</fieldset>

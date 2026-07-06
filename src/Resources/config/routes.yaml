@@ -1,0 +1,28 @@
+nowo_uptime_monitor_tenants:
+    resource: '../../Controller/TenantController.php'
+    type: attribute
+    prefix: '%nowo_uptime_monitor.dashboard.path%'
+
+nowo_uptime_monitor_dashboard:
+    resource: '../../Controller/DashboardController.php'
+    type: attribute
+    prefix: '%nowo_uptime_monitor.dashboard.path%'
+
+nowo_uptime_monitor_crud:
+    resource: '../../Controller/MonitorController.php'
+    type: attribute
+    prefix: '%nowo_uptime_monitor.dashboard.path%'
+
+nowo_uptime_monitor_settings:
+    resource: '../../Controller/SettingsController.php'
+    type: attribute
+    prefix: '%nowo_uptime_monitor.dashboard.path%'
+
+nowo_uptime_monitor_status_page:
+    resource: '../../Controller/StatusPageController.php'
+    type: attribute
+    prefix: '%nowo_uptime_monitor.status_page.path%'
+
+nowo_uptime_monitor_api:
+    resource: '../../Controller/Api/'
+    type: attribute

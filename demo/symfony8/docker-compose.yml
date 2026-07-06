@@ -1,0 +1,106 @@
+name: uptime-monitor-demo-symfony8
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uptime-monitor-demo-symfony8-php
+    working_dir: /app
+    ports:
+      - "${PORT:-8011}:80"
+    volumes:
+      - .:/app
+      - ../..:/var/uptime-monitor-bundle
+      - ./docker/frankenphp/Caddyfile.dev:/etc/frankenphp/Caddyfile.dev
+      - ./docker/php-dev.ini:/usr/local/etc/php/conf.d/99-dev.ini:ro
+      - composer-cache:/root/.composer/cache
+    environment:
+      COMPOSER_ALLOW_SUPERUSER: "1"
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      APP_SECRET: ${APP_SECRET:-demo-secret}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      MERCURE_URL: http://mercure/.well-known/mercure
+      MERCURE_PUBLIC_URL: http://localhost:${PORT:-8011}/.well-known/mercure
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - uptime-monitor-demo-network
+    depends_on:
+      database:
+        condition: service_healthy
+
+  checks-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uptime-monitor-demo-symfony8-checks
+    working_dir: /app
+    entrypoint: []
+    volumes:
+      - .:/app
+      - ../..:/var/uptime-monitor-bundle
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      MERCURE_URL: http://mercure/.well-known/mercure
+      MERCURE_PUBLIC_URL: http://localhost:${PORT:-8011}/.well-known/mercure
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          php bin/console nowo:uptime:run-due-checks --no-ansi 2>&1 || true
+          sleep 15
+        done
+    depends_on:
+      database:
+        condition: service_healthy
+      php:
+        condition: service_started
+      mercure:
+        condition: service_started
+    networks:
+      - uptime-monitor-demo-network
+
+  mercure:
+    image: dunglas/mercure
+    restart: unless-stopped
+    environment:
+      SERVER_NAME: ':80'
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      MERCURE_EXTRA_DIRECTIVES: |
+        cors_origins http://localhost:8011 http://127.0.0.1:8011 http://localhost:3080
+    ports:
+      - "${MERCURE_PORT:-3080}:80"
+    networks:
+      - uptime-monitor-demo-network
+
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - database_data:/var/lib/postgresql/data:rw
+    networks:
+      - uptime-monitor-demo-network
+
+volumes:
+  database_data:
+  composer-cache:
+
+networks:
+  uptime-monitor-demo-network:
+    driver: bridge

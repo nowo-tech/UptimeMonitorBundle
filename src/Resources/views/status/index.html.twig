@@ -1,0 +1,60 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+<!DOCTYPE html>
+<html lang="{{ app.request.locale|default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} — {{ 'status_page.title_suffix'|trans }}</title>
+    <link rel="stylesheet" href="{{ asset('uptime-dashboard.css', 'nowo_uptime_monitor') }}">
+    <link rel="stylesheet" href="{{ asset('uptime-theme.css', 'nowo_uptime_monitor') }}">
+</head>
+<body class="uptime-status-page">
+    <main class="uptime-status-main">
+        <header class="uptime-status-header">
+            <h1>{{ title }}</h1>
+            <p class="uptime-status-overall uptime-status-overall-{{ overall_status }}">
+                {% if overall_status == 'operational' %}
+                    {{ 'status_page.overall.operational'|trans }}
+                {% elseif overall_status == 'degraded' %}
+                    {{ 'status_page.overall.degraded'|trans }}
+                {% elseif overall_status == 'major' %}
+                    {{ 'status_page.overall.major'|trans }}
+                {% else %}
+                    {{ 'status_page.overall.unknown'|trans }}
+                {% endif %}
+            </p>
+            <p class="uptime-status-updated">
+                {{ 'status_page.updated'|trans({'%datetime%': "now"|date('Y-m-d H:i:s T')}) }}
+            </p>
+        </header>
+
+        <section class="uptime-status-services">
+            <h2 class="uptime-status-visually-hidden">{{ 'status_page.services_heading'|trans }}</h2>
+            <ul class="uptime-status-list">
+                {% for row in rows %}
+                    {% set monitor = row.monitor %}
+                    {% set latest = row.latest %}
+                    {% set status = latest ? latest.status.value : 'unknown' %}
+                    <li class="uptime-status-item">
+                        <span class="uptime-status uptime-status-{{ status }}" aria-hidden="true"></span>
+                        <div class="uptime-status-item-body">
+                            <strong>{{ monitor.name }}</strong>
+                            <span class="uptime-status-item-meta">{{ monitor.type.value }}</span>
+                            {% if show_latency and latest %}
+                                <span class="uptime-status-item-latency">{{ latest.latencyMs }} ms</span>
+                            {% endif %}
+                        </div>
+                        <span class="uptime-status-label">{{ ('status.' ~ status)|trans }}</span>
+                    </li>
+                {% else %}
+                    <li class="uptime-status-item">{{ 'status_page.no_monitors'|trans }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <footer class="uptime-status-footer">
+            <small>{{ 'status_page.powered_by'|trans }}</small>
+        </footer>
+    </main>
+</body>
+</html>

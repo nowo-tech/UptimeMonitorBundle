@@ -1,0 +1,13 @@
+controllers:
+    resource:
+        path: ../src/Controller/
+        namespace: App\Controller
+    type: attribute
+
+nowo_uptime_monitor:
+    resource: '@UptimeMonitorBundle/Resources/config/routes.yaml'
+
+when@dev:
+    _dev_routes:
+        resource: ../config/routes/dev/
+        type: directory

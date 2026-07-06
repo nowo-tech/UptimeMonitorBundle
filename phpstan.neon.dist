@@ -1,0 +1,19 @@
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - demo/*
+    bootstrapFiles:
+        - vendor/autoload.php
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#Property .+::\$id \(int\|null\) is never assigned int#'
+        - '#Property .+ is never read, only written#'
+        - '#Call to static method .+ will always evaluate to true#'
+        - '#Comparison operation .+ is always true#'
+        - '#Strict comparison using === between int<1, max> and 0 will always evaluate to false#'
+        -
+            message: '#Parameter .* of function openssl_x509_.* expects#'
+            path: src/Check/SslCheckRunner.php

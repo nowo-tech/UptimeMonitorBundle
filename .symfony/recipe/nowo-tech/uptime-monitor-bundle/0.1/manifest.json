@@ -1,0 +1,11 @@
+{
+    "bundles": {
+        "Nowo\\UptimeMonitorBundle\\UptimeMonitorBundle": ["all"]
+    },
+    "copy-from-recipe": {
+        "config/": "%CONFIG_DIR%/"
+    },
+    "routes": {
+        "nowo_uptime_monitor": "config/routes/nowo_uptime_monitor.yaml"
+    }
+}

@@ -1,0 +1,11 @@
+{# Fixed-slot history bar: empty=grey, up=green, down=red (Kuma style, aligned right). #}
+<div class="uptime-history-bar{{ large|default(false) ? ' uptime-history-bar--large' : '' }}{{ bar_theme is defined and bar_theme != 'normal' ? ' uptime-history-bar--' ~ bar_theme : '' }}" role="img" aria-label="Check history" data-history-bar>
+    {% for segment in history %}
+        <span
+            class="uptime-history-segment uptime-history-segment-{{ segment.status }}"
+            {% if segment.status != 'empty' and segment.checked_at %}
+                title="{{ segment.checked_at|date('Y-m-d H:i:s') }} — {{ segment.status }}"
+            {% endif %}
+        ></span>
+    {% endfor %}
+</div>

@@ -1,0 +1,366 @@
+
+/* Form pages (monitor, tenant) */
+.uptime-page-shell--form {
+  max-width: 720px;
+  margin: 0 auto 2rem;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+}
+
+.uptime-page-title {
+  margin: 0 0 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.uptime-nav--form {
+  margin: 1rem 0 0.75rem;
+}
+
+.uptime-monitor-form {
+  margin: 0;
+}
+
+.uptime-form-section {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+}
+
+.uptime-form-section legend {
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.uptime-app .uptime-page-title {
+  color: #f8fafc;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-form-section {
+  background: #252830;
+  border-color: #3a3f4b;
+  color: #e8eaed;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-form-section legend {
+  color: #f8fafc;
+}
+
+.uptime-app .uptime-form-hint {
+  margin: 1rem 0 0;
+  color: #9aa0a6;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.uptime-app .uptime-form-hint strong {
+  color: #c4c7cc;
+}
+
+.uptime-monitor-form .form-group,
+.uptime-monitor-form div:has(> label) {
+  margin-bottom: 0.75rem;
+}
+
+.uptime-monitor-form label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.uptime-monitor-form input[type='text'],
+.uptime-monitor-form input[type='url'],
+.uptime-monitor-form input[type='number'],
+.uptime-monitor-form input[type='password'],
+.uptime-monitor-form select,
+.uptime-monitor-form textarea {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form input[type='text'],
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form input[type='url'],
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form input[type='number'],
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form input[type='password'],
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form select,
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form textarea {
+  background: #1e2128;
+  border-color: #3a3f4b;
+  color: #e8eaed;
+}
+
+/* Settings (Uptime Kuma parity) */
+.uptime-settings-layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+  gap: 1.5rem 2rem;
+  align-items: start;
+  margin: 1rem auto 2rem;
+  padding: 0 1.5rem;
+  max-width: 1100px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.uptime-settings-sidebar h2 {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+}
+
+.uptime-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.uptime-settings-nav a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  color: #334155;
+  text-decoration: none;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.uptime-settings-nav a.is-active,
+.uptime-settings-nav a:hover {
+  background: #e2e8f0;
+}
+
+.uptime-settings-content {
+  min-width: 0;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.uptime-settings-content h3 {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.uptime-settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+  max-width: 40rem;
+}
+
+.uptime-settings-form-grid > .mb-3 {
+  margin-bottom: 0 !important;
+}
+
+.uptime-settings-form-grid .uptime-settings-field--full,
+.uptime-settings-form-grid > .mb-3.uptime-settings-field--full {
+  grid-column: 1 / -1;
+}
+
+.uptime-settings-group {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.uptime-settings-group:last-of-type {
+  margin-bottom: 1rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.uptime-settings-group__title {
+  margin: 0 0 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.uptime-settings-form .form-check {
+  min-height: 1.5rem;
+  padding-top: 0.1rem;
+}
+
+.uptime-settings-form-grid .form-check-inline,
+.uptime-settings-form-grid .form-check {
+  margin-bottom: 0.35rem;
+}
+
+.uptime-settings-form .uptime-form-actions {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  max-width: 40rem;
+}
+
+.uptime-settings-form--general .uptime-form-actions {
+  max-width: none;
+}
+
+/* Dark dashboard shell (standalone bundle only — embedded uses host data-bs-theme) */
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-nav a {
+  color: #c4c7cc;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-nav a.is-active,
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-nav a:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-sidebar h2 {
+  color: #f8fafc;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-content {
+  background: #252830;
+  border-color: #3a3f4b;
+  color: #e8eaed;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-content h3 {
+  color: #f8fafc;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-group {
+  border-bottom-color: #3a3f4b;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-group__title {
+  color: #9aa0a6;
+}
+
+.uptime-app:not(.uptime-app--embedded) .uptime-settings-form .uptime-form-actions {
+  border-top-color: #3a3f4b;
+}
+
+.uptime-settings-locale-notice {
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  background: #f8fafc;
+  max-width: 40rem;
+}
+
+.uptime-settings-locale-notice__label {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.uptime-settings-locale-notice__value {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.uptime-settings-locale-notice__help {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.uptime-app .uptime-settings-locale-notice {
+  background: #1e2128;
+  border-color: #3a3f4b;
+}
+
+.uptime-app .uptime-settings-locale-notice__label,
+.uptime-app .uptime-settings-locale-notice__help {
+  color: #9aa0a6;
+}
+
+.uptime-app .uptime-settings-locale-notice__value {
+  color: #e8eaed;
+}
+
+.uptime-app.uptime-theme-light .uptime-settings-locale-notice {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.uptime-app.uptime-theme-light .uptime-settings-locale-notice__value {
+  color: #0f172a;
+}
+
+@media (max-width: 640px) {
+  .uptime-settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .uptime-settings-form-grid .uptime-settings-field--half,
+  .uptime-settings-form-grid > .mb-3.uptime-settings-field--half {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .uptime-settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .uptime-settings-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+.uptime-sidebar-elapsed { display: block; font-size: 0.65rem; color: #94a3b8; margin-top: 2px; }
+
+/* Heartbeat bar theme (Settings → Appearance) */
+.uptime-history-bar--none,
+.uptime-dashboard-kuma[data-heartbeat-bar-theme='none'] .uptime-sidebar-history {
+  display: none !important;
+}
+
+.uptime-dashboard-kuma[data-heartbeat-bar-theme='bottom'] .uptime-sidebar-item,
+.uptime-dashboard-kuma[data-heartbeat-bar-theme='bottom'] .uptime-sidebar-group-row {
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: start;
+}
+
+.uptime-dashboard-kuma[data-heartbeat-bar-theme='bottom'] .uptime-sidebar-pill {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.uptime-dashboard-kuma[data-heartbeat-bar-theme='bottom'] .uptime-sidebar-label {
+  grid-row: 1;
+  grid-column: 2;
+  min-width: 0;
+}
+
+.uptime-dashboard-kuma[data-heartbeat-bar-theme='bottom'] .uptime-sidebar-history {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  margin-top: 0.2rem;
+  padding-left: 0.15rem;
+}
+
+.uptime-dashboard-kuma[data-heartbeat-bar-theme='bottom'] .uptime-history-bar {
+  width: 100%;
+  max-width: none;
+}
+
+.uptime-dashboard-kuma[data-heartbeat-bar-theme='bottom'] .uptime-sidebar-item--child {
+  padding-left: 1.25rem;
+}

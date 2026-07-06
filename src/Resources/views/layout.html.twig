@@ -1,0 +1,45 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+<!DOCTYPE html>
+{% set uptime_theme_resolved = uptime_theme|default('auto') %}
+{% set uptime_ui_framework = uptime_ui_framework|default('tabler') %}
+<html lang="{{ app.request.locale }}"
+      class="uptime-html uptime-ui--{{ uptime_ui_framework }}"
+      {% if uptime_ui_framework == 'bootstrap' %}data-bs-theme="{{ uptime_theme_resolved }}"{% endif %}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% if uptime_search_index is defined and not uptime_search_index %}
+        <meta name="robots" content="noindex, nofollow">
+    {% endif %}
+    <title>{% block title %}{{ 'app.title'|trans }}{% endblock %}</title>
+    {% include '@NowoUptimeMonitorBundle/_stylesheets.html.twig' %}
+    {% block stylesheets %}{% endblock %}
+</head>
+<body class="uptime-app uptime-theme-{{ uptime_theme_resolved }} uptime-ui--{{ uptime_ui_framework }}">
+<div class="page">
+    <div class="container-xl py-4">
+        <header class="uptime-header">
+            <div class="d-flex align-items-center justify-content-between">
+                <h1><a href="{{ path('nowo_uptime_tenant_index') }}">{{ 'app.title'|trans }}</a></h1>
+                <nav class="uptime-header-nav">
+                    <a href="{{ path('nowo_uptime_tenant_index') }}">{{ 'app.nav.tenants'|trans }}</a>
+                </nav>
+            </div>
+        </header>
+        <main>
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    {{ ui.flash(label, message) }}
+                {% endfor %}
+            {% endfor %}
+            {% block uptime_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% if uptime_ui_framework == 'bootstrap' and uptime_ui_bootstrap_js %}
+    <script src="{{ uptime_ui_bootstrap_js }}" defer></script>
+{% endif %}
+{% block javascripts %}{% endblock %}
+</body>
+</html>

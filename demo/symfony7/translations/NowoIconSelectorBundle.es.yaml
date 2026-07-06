@@ -1,0 +1,3 @@
+# Demo: ensure placeholder and search_placeholder are translated (bundle domain)
+placeholder: 'Choose icon...'
+search_placeholder: 'Search icons...'

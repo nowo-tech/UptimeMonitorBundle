@@ -1,0 +1,357 @@
+
+@use 'host-theme';
+
+/* —— Light —— */
+.uptime-app.uptime-theme-light {
+  --uptime-shell-bg: #f8fafc;
+  --uptime-shell-text: #0f172a;
+  --uptime-header-bg: #ffffff;
+  --uptime-header-border: #e2e8f0;
+  --uptime-link: var(--tblr-primary, var(--brand-primary, #2563eb));
+  --uptime-bg: #f1f5f9;
+  --uptime-surface: #ffffff;
+  --uptime-border: #e2e8f0;
+  --uptime-text: #0f172a;
+  --uptime-muted: #64748b;
+  --uptime-sidebar-bg: #ffffff;
+  --uptime-sidebar-hover: rgba(37, 99, 235, 0.08);
+  --uptime-sidebar-selected: rgba(37, 99, 235, 0.12);
+  --uptime-sidebar-link: #334155;
+  --uptime-sidebar-name: #0f172a;
+  --uptime-input-bg: #ffffff;
+  --uptime-input-border: #cbd5e1;
+  --uptime-events-bg: #ffffff;
+  --uptime-table-head-bg: #f1f5f9;
+}
+
+.uptime-app.uptime-theme-light {
+  background: var(--uptime-shell-bg);
+  color: var(--uptime-shell-text);
+}
+
+.uptime-app.uptime-theme-light .uptime-header {
+  background: var(--uptime-header-bg);
+  color: var(--uptime-shell-text);
+  border-bottom: 1px solid var(--uptime-header-border);
+}
+
+.uptime-app.uptime-theme-light .uptime-header-nav a {
+  color: var(--uptime-muted);
+}
+
+.uptime-app.uptime-theme-light .uptime-nav a {
+  color: var(--uptime-link);
+}
+
+.uptime-app.uptime-theme-light .uptime-dashboard-kuma,
+.uptime-app.uptime-theme-light .uptime-kuma-layout {
+  --uptime-bg: #f1f5f9;
+  --uptime-surface: #ffffff;
+  --uptime-border: #e2e8f0;
+  --uptime-text: #0f172a;
+  --uptime-muted: #64748b;
+}
+
+.uptime-app.uptime-theme-light .uptime-sidebar {
+  background: var(--uptime-sidebar-bg);
+  border-right-color: var(--uptime-border);
+}
+
+.uptime-app.uptime-theme-light .uptime-search-input {
+  background: var(--uptime-input-bg);
+  border-color: var(--uptime-input-border);
+  color: var(--uptime-text);
+}
+
+.uptime-app.uptime-theme-light .uptime-sidebar-group-toggle {
+  color: var(--uptime-sidebar-link);
+}
+
+.uptime-app.uptime-theme-light .uptime-sidebar-name {
+  color: var(--uptime-sidebar-name);
+}
+
+.uptime-app.uptime-theme-light .uptime-sidebar-item:hover,
+.uptime-app.uptime-theme-light .uptime-sidebar-item.is-selected {
+  background: var(--uptime-sidebar-selected);
+}
+
+.uptime-app.uptime-theme-light .uptime-settings-nav a {
+  color: var(--uptime-muted);
+}
+
+.uptime-app.uptime-theme-light .uptime-settings-nav a.is-active,
+.uptime-app.uptime-theme-light .uptime-settings-nav a:hover {
+  background: var(--uptime-sidebar-hover);
+  color: var(--uptime-link);
+}
+
+.uptime-app.uptime-theme-light .uptime-settings-sidebar h2,
+.uptime-app.uptime-theme-light .uptime-settings-content h3,
+.uptime-app.uptime-theme-light .uptime-page-title {
+  color: var(--uptime-text);
+}
+
+.uptime-app.uptime-theme-light .uptime-settings-content {
+  background: var(--uptime-surface);
+  border-color: var(--uptime-border);
+  color: var(--uptime-text);
+}
+
+.uptime-app.uptime-theme-light .uptime-settings-group {
+  border-bottom-color: var(--uptime-border);
+}
+
+.uptime-app.uptime-theme-light .uptime-form-section {
+  background: var(--uptime-surface);
+  border-color: var(--uptime-border);
+  color: var(--uptime-text);
+}
+
+.uptime-app.uptime-theme-light .uptime-form-section legend {
+  color: var(--uptime-text);
+}
+
+.uptime-app.uptime-theme-light .uptime-events-table-wrap {
+  background: var(--uptime-events-bg);
+  border-color: var(--uptime-border);
+}
+
+.uptime-app.uptime-theme-light .uptime-events-table--dashboard thead {
+  background: var(--uptime-table-head-bg);
+}
+
+.uptime-app.uptime-theme-light .uptime-toolbar-title h2,
+.uptime-app.uptime-theme-light .uptime-tenant-slug,
+.uptime-app.uptime-theme-light .uptime-sync-bar,
+.uptime-app.uptime-theme-light .uptime-events-panel-header h3 {
+  color: var(--uptime-muted);
+}
+
+.uptime-app.uptime-theme-light .uptime-main-panel {
+  background: var(--uptime-bg);
+}
+
+/* —— Dark (explicit + default shell) —— */
+.uptime-app.uptime-theme-dark {
+  --uptime-shell-bg: #12141a;
+  --uptime-shell-text: #e8eaed;
+  --uptime-header-bg: #0d0f14;
+  --uptime-header-border: #2a2f3a;
+  --uptime-link: var(--tblr-primary, var(--brand-primary, #93c5fd));
+  --uptime-bg: #1a1d23;
+  --uptime-surface: #252830;
+  --uptime-border: #3a3f4b;
+  --uptime-text: #e8eaed;
+  --uptime-muted: #9aa0a6;
+}
+
+/* —— Auto: follow OS preference —— */
+@media (prefers-color-scheme: light) {
+  .uptime-app.uptime-theme-auto {
+    --uptime-shell-bg: #f8fafc;
+    --uptime-shell-text: #0f172a;
+    --uptime-header-bg: #ffffff;
+    --uptime-header-border: #e2e8f0;
+    --uptime-link: var(--tblr-primary, var(--brand-primary, #2563eb));
+    --uptime-bg: #f1f5f9;
+    --uptime-surface: #ffffff;
+    --uptime-border: #e2e8f0;
+    --uptime-text: #0f172a;
+    --uptime-muted: #64748b;
+    --uptime-sidebar-bg: #ffffff;
+    --uptime-sidebar-hover: rgba(37, 99, 235, 0.08);
+    --uptime-sidebar-selected: rgba(37, 99, 235, 0.12);
+    --uptime-sidebar-link: #334155;
+    --uptime-sidebar-name: #0f172a;
+    --uptime-input-bg: #ffffff;
+    --uptime-input-border: #cbd5e1;
+    --uptime-events-bg: #ffffff;
+    --uptime-table-head-bg: #f1f5f9;
+  }
+
+  .uptime-app.uptime-theme-auto {
+    background: var(--uptime-shell-bg);
+    color: var(--uptime-shell-text);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-header {
+    background: var(--uptime-header-bg);
+    color: var(--uptime-shell-text);
+    border-bottom: 1px solid var(--uptime-header-border);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-header-nav a {
+    color: var(--uptime-muted);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-nav a {
+    color: var(--uptime-link);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-dashboard-kuma,
+  .uptime-app.uptime-theme-auto .uptime-kuma-layout {
+    --uptime-bg: #f1f5f9;
+    --uptime-surface: #ffffff;
+    --uptime-border: #e2e8f0;
+    --uptime-text: #0f172a;
+    --uptime-muted: #64748b;
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-sidebar {
+    background: var(--uptime-sidebar-bg);
+    border-right-color: var(--uptime-border);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-search-input {
+    background: var(--uptime-input-bg);
+    border-color: var(--uptime-input-border);
+    color: var(--uptime-text);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-sidebar-group-toggle {
+    color: var(--uptime-sidebar-link);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-sidebar-name {
+    color: var(--uptime-sidebar-name);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-sidebar-item:hover,
+  .uptime-app.uptime-theme-auto .uptime-sidebar-item.is-selected {
+    background: var(--uptime-sidebar-selected);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-settings-nav a {
+    color: var(--uptime-muted);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-settings-nav a.is-active,
+  .uptime-app.uptime-theme-auto .uptime-settings-nav a:hover {
+    background: var(--uptime-sidebar-hover);
+    color: var(--uptime-link);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-settings-sidebar h2,
+  .uptime-app.uptime-theme-auto .uptime-settings-content h3,
+  .uptime-app.uptime-theme-auto .uptime-page-title {
+    color: var(--uptime-text);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-settings-content {
+    background: var(--uptime-surface);
+    border-color: var(--uptime-border);
+    color: var(--uptime-text);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-settings-group {
+    border-bottom-color: var(--uptime-border);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-form-section {
+    background: var(--uptime-surface);
+    border-color: var(--uptime-border);
+    color: var(--uptime-text);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-form-section legend {
+    color: var(--uptime-text);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-events-table-wrap {
+    background: var(--uptime-events-bg);
+    border-color: var(--uptime-border);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-events-table--dashboard thead {
+    background: var(--uptime-table-head-bg);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-toolbar-title h2,
+  .uptime-app.uptime-theme-auto .uptime-tenant-slug,
+  .uptime-app.uptime-theme-auto .uptime-sync-bar,
+  .uptime-app.uptime-theme-auto .uptime-events-panel-header h3 {
+    color: var(--uptime-muted);
+  }
+
+  .uptime-app.uptime-theme-auto .uptime-main-panel {
+    background: var(--uptime-bg);
+  }
+}
+
+/* Bootstrap 5 forms/components follow data-bs-theme; reinforce custom panels in light/auto-light */
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-settings-form .form-label,
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-settings-form .form-check-label,
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-monitor-form .form-label,
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-monitor-form .form-check-label {
+  color: var(--uptime-text, #0f172a);
+}
+
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-settings-form .form-control,
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-settings-form .form-select,
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-monitor-form .form-control,
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-monitor-form .form-select {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+@media (prefers-color-scheme: light) {
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-settings-form .form-label,
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-settings-form .form-check-label,
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-monitor-form .form-label,
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-monitor-form .form-check-label {
+    color: #0f172a;
+  }
+
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-settings-form .form-control,
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-settings-form .form-select,
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-monitor-form .form-control,
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-monitor-form .form-select {
+    background-color: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-sidebar {
+    background: #ffffff;
+  }
+
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-search-input {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-events-table-wrap {
+    background: #ffffff;
+  }
+
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-events-table--dashboard thead {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-events-table--dashboard th,
+  .uptime-app.uptime-theme-auto.uptime-ui--bootstrap .uptime-events-table--dashboard td {
+    color: #0f172a;
+  }
+}
+
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-sidebar {
+  background: #ffffff;
+}
+
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-events-table-wrap {
+  background: #ffffff;
+}
+
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-events-table--dashboard thead {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-events-table--dashboard th,
+.uptime-app.uptime-theme-light.uptime-ui--bootstrap .uptime-events-table--dashboard td {
+  color: #0f172a;
+}

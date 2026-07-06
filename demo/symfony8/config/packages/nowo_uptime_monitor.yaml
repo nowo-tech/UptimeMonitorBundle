@@ -1,0 +1,20 @@
+nowo_uptime_monitor:
+    connection: default
+    ui:
+        framework: bootstrap
+    scheduler:
+        enabled: true
+        mode: scheduler
+        tick: '15 seconds'
+    retention:
+        detail_days: 30
+        purge_enabled: true
+    dashboard:
+        path: /uptime
+        sync: mercure
+        poll_interval_ms: 30000
+        mercure:
+            topic_template: '/uptime/{tenant}'
+            private: true
+    multi_tenant:
+        default_tenant: main

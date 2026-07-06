@@ -1,0 +1,18 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+
+{% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
+{{ form_start(form, { attr: { class: 'uptime-monitor-form', 'data-monitor-form': '1' } }) }}
+{% include '@NowoUptimeMonitorBundle/monitor/_monitor_form_fields.html.twig' %}
+
+<div class="uptime-form-actions">
+    {{ ui.btn_submit('monitor.form.save'|trans, 'primary') }}
+    {% if modal_mode|default(false) and uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ 'monitor.form.cancel'|trans }}</button>
+    {% endif %}
+</div>
+{{ form_end(form) }}
+
+{% if not modal_mode|default(false) %}
+    <p class="uptime-form-hint">{{ 'monitor.form.hint'|trans|raw }}</p>
+{% endif %}

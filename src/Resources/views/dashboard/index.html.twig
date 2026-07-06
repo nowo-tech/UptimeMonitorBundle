@@ -1,0 +1,116 @@
+{% extends uptime_layout %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+
+{% block title %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    {{ 'dashboard.title'|trans({ '%name%': tenant.name }) }}
+{% endblock %}
+
+{% block uptime_content %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    <div class="uptime-toolbar uptime-toolbar--dashboard">
+        <div class="uptime-toolbar-title">
+            {{ ui.page_header(tenant.name, tenant_slug|lower != tenant.name|lower ? tenant_slug : null) }}
+        </div>
+        <div class="uptime-toolbar-actions btn-list flex-wrap{% if uptime_ui_framework == 'bootstrap' %} d-flex flex-wrap gap-2{% elseif uptime_ui_framework == 'tailwind' %} flex flex-wrap gap-2{% endif %}">
+            {{ ui.btn_link(path('nowo_uptime_settings_index', { tenantSlug: tenant_slug }), 'dashboard.settings'|trans) }}
+            {{ ui.btn_link(path('nowo_uptime_status_page', { tenantSlug: tenant_slug }), 'dashboard.status_page'|trans) }}
+            {{ ui.btn_new_monitor(tenant_slug) }}
+        </div>
+    </div>
+
+    <div class="uptime-sync-bar">
+        <span class="uptime-live-indicator is-active" data-live-indicator title="{{ 'dashboard.live_title'|trans }}">
+            <span class="uptime-live-dot"></span> {{ 'dashboard.live'|trans }}
+        </span>
+        <span class="uptime-sync-badge" data-sync-badge data-mercure-state="{{ dashboard_sync == 'mercure' ? 'connecting' : '' }}">
+            {% if dashboard_sync == 'mercure' %}
+                {{ 'dashboard.mercure_connecting'|trans }}
+            {% else %}
+                {{ 'dashboard.polling'|trans({ '%seconds%': (poll_interval_ms / 1000)|round }) }}
+            {% endif %}
+        </span>
+        <span class="uptime-last-sync">{{ 'dashboard.updated'|trans }} <span data-last-sync>—</span></span>
+    </div>
+
+    {% set dashboard_i18n = {
+        no_events: 'dashboard.no_events'|trans,
+        status: {
+            up: 'status.up'|trans,
+            down: 'status.down'|trans,
+            degraded: 'status.degraded'|trans,
+            unknown: 'status.unknown'|trans,
+            paused: 'status.paused'|trans,
+        },
+    } %}
+    {% set monitor_edit_url_template = path('nowo_uptime_monitor_edit', { tenantSlug: tenant_slug, id: 0 })|replace({'/monitors/0/': '/monitors/__ID__/'}) %}
+    <div id="uptime-dashboard-root"
+         class="uptime-dashboard-kuma uptime-kuma-layout"
+         data-tenant="{{ tenant_slug }}"
+         data-sync="{{ dashboard_sync }}"
+         data-poll-interval="{{ poll_interval_ms }}"
+         data-history-slots="50"
+         data-heartbeat-bar-theme="{{ heartbeat_bar_theme|default('normal') }}"
+         data-elapsed-time="{{ elapsed_time_display|default('show') }}"
+         data-api-summary="{{ api_summary_url }}"
+         data-layout-fragment="{{ layout_fragment_url }}"
+         data-events-filter="{{ events_filter_monitor_id|default('') }}"
+         data-events-filter-name="{{ events_filter_monitor ? events_filter_monitor.name|e('html_attr') : '' }}"
+         data-monitor-form-url-template="{{ monitor_edit_url_template|e('html_attr') }}"
+         data-mercure-hub="{{ mercure_hub_url|default('')|e('html_attr') }}"
+         data-mercure-topic="{{ mercure_topic|default('')|e('html_attr') }}"
+         data-i18n="{{ dashboard_i18n|json_encode|e('html_attr') }}">
+
+        <aside class="uptime-sidebar" data-sidebar>
+            <div class="uptime-sidebar-search">
+                <input type="search" class="uptime-search-input" placeholder="{{ 'dashboard.search_placeholder'|trans }}" data-monitor-search aria-label="{{ 'dashboard.search_aria'|trans }}" autocomplete="off">
+            </div>
+
+            {% include '@NowoUptimeMonitorBundle/dashboard/_sidebar_tree.html.twig' %}
+        </aside>
+
+        <main class="uptime-main-panel" data-main-panel>
+            {% include '@NowoUptimeMonitorBundle/dashboard/_quick_stats.html.twig' %}
+
+            <section class="uptime-events-panel">
+                <header class="uptime-events-panel-header">
+                    <h3>{{ 'dashboard.recent_checks'|trans }}</h3>
+                    <span class="uptime-events-filter-hint" data-events-filter-hint data-filter-template="{{ 'dashboard.filtered_by_monitor'|trans({ '%name%': '%name%' })|e('html_attr') }}"{% if not events_filter_monitor_id %} hidden{% endif %}>
+                        {% if events_filter_monitor %}
+                            {{ 'dashboard.filtered_by_monitor'|trans({ '%name%': events_filter_monitor.name }) }}
+                        {% else %}
+                            {{ 'dashboard.filtered_by_monitor'|trans({ '%name%': '' }) }}
+                        {% endif %}
+                    </span>
+                    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-monitor-form-open data-events-edit-monitor hidden
+                                data-monitor-form-url=""
+                                data-monitor-form-return="dashboard"
+                                data-monitor-form-title="{{ 'monitor.edit'|trans|e('html_attr') }}">{{ 'monitor.edit'|trans }}</button>
+                        <button type="button" class="btn btn-link btn-sm" data-events-clear-filter{% if not events_filter_monitor_id %} hidden{% endif %}>{{ 'dashboard.clear_filter'|trans }}</button>
+                    {% elseif uptime_ui_framework == 'tailwind' %}
+                        <button type="button" class="text-sm text-slate-400 hover:text-slate-200 underline-offset-2 hover:underline" data-events-clear-filter{% if not events_filter_monitor_id %} hidden{% endif %}>{{ 'dashboard.clear_filter'|trans }}</button>
+                    {% else %}
+                        <button type="button" class="uptime-btn-quiet" data-events-clear-filter{% if not events_filter_monitor_id %} hidden{% endif %}>{{ 'dashboard.clear_filter'|trans }}</button>
+                    {% endif %}
+                </header>
+                <div class="uptime-events-table-wrap">
+                    <table class="uptime-events-table uptime-events-table--dashboard" data-events-table>
+                        <thead>
+                            <tr>
+                                <th>{{ 'dashboard.col.name'|trans }}</th>
+                                <th>{{ 'dashboard.col.status'|trans }}</th>
+                                <th>{{ 'dashboard.col.datetime'|trans }}</th>
+                                <th>{{ 'dashboard.col.message'|trans }}</th>
+                            </tr>
+                        </thead>
+                        {% include '@NowoUptimeMonitorBundle/dashboard/_events_body.html.twig' %}
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    {% include '@NowoUptimeMonitorBundle/monitor/_monitor_edit_modal.html.twig' %}
+    <script type="module" src="{{ asset('uptime-dashboard.js', 'nowo_uptime_monitor') }}" defer></script>
+{% endblock %}

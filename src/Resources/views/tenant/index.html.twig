@@ -1,0 +1,18 @@
+{% extends uptime_layout %}
+
+{% block title %}Tenants{% endblock %}
+
+{% block uptime_content %}
+    <h2>Tenants</h2>
+    <p><a href="{{ path('nowo_uptime_tenant_new') }}" class="uptime-btn">New tenant</a></p>
+    <ul class="uptime-tenant-list">
+        {% for tenant in tenants %}
+            <li>
+                <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant.slug }) }}">{{ tenant.name }}</a>
+                <code>{{ tenant.slug }}</code>
+            </li>
+        {% else %}
+            <li>No tenants yet.</li>
+        {% endfor %}
+    </ul>
+{% endblock %}

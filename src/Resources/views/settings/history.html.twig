@@ -1,0 +1,29 @@
+{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+
+{% block settings_body %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
+    {{ form_start(form, { attr: { class: 'uptime-settings-form' } }) }}
+        <div class="uptime-settings-form-grid">
+            {{ form_widget(form) }}
+        </div>
+        <div class="uptime-form-actions">
+            <button type="submit" class="uptime-btn uptime-btn-primary">{{ 'settings.save'|trans }}</button>
+        </div>
+    {{ form_end(form) }}
+
+    <hr class="uptime-settings-divider">
+
+    <p>{{ 'settings.history.intro'|trans|raw }}</p>
+
+    <form method="post" action="{{ path('nowo_uptime_settings_history_purge', { tenantSlug: tenant_slug }) }}" class="uptime-settings-action">
+        <input type="hidden" name="_token" value="{{ csrf_token('purge-history') }}">
+        <button type="submit" class="uptime-btn">{{ 'settings.history.purge'|trans }}</button>
+    </form>
+
+    <form method="post" action="{{ path('nowo_uptime_settings_history_clear', { tenantSlug: tenant_slug }) }}" class="uptime-settings-action"
+          onsubmit="return confirm('{{ 'settings.history.clear_confirm'|trans|e('js') }}');">
+        <input type="hidden" name="_token" value="{{ csrf_token('clear-stats') }}">
+        <button type="submit" class="uptime-btn uptime-btn-danger">{{ 'settings.history.clear'|trans }}</button>
+    </form>
+{% endblock %}

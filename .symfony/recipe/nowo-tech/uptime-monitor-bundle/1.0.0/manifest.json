@@ -1,0 +1,14 @@
+{
+    "version": "1.0.0",
+    "bundles": {
+        "Nowo\\UptimeMonitorBundle\\UptimeMonitorBundle": ["all"]
+    },
+    "copy": {
+        "config/packages/nowo_uptime_monitor.yaml": "%CONFIG_DIR%/packages/nowo_uptime_monitor.yaml",
+        "config/routes/nowo_uptime_monitor.yaml": "%CONFIG_DIR%/routes/nowo_uptime_monitor.yaml"
+    },
+    "gitignore": [
+        "/config/packages/nowo_uptime_monitor.yaml",
+        "/config/routes/nowo_uptime_monitor.yaml"
+    ]
+}

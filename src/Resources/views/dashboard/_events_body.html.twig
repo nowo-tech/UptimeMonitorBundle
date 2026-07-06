@@ -1,0 +1,13 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+<tbody data-events-body>
+    {% for event in events %}
+        <tr data-event-row data-monitor-id="{{ event.monitor_id }}" data-status="{{ event.status }}">
+            <td class="uptime-event-name">{{ event.monitor_name }}</td>
+            <td><span class="uptime-status-badge uptime-status-badge-{{ event.status }}">{{ ('status.' ~ event.status)|trans }}</span></td>
+            <td class="uptime-event-time">{{ event.checked_at|date('Y-m-d H:i:s') }}</td>
+            <td class="uptime-event-message">{{ event.message ?? '—' }}</td>
+        </tr>
+    {% else %}
+        <tr data-events-empty><td colspan="4">{{ 'dashboard.no_events'|trans }}</td></tr>
+    {% endfor %}
+</tbody>

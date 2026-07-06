@@ -1,0 +1,15 @@
+{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+
+{% block settings_body %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
+    {{ form_start(form, { attr: { class: 'uptime-settings-form' } }) }}
+        <div class="uptime-settings-form-grid">
+            {{ form_widget(form) }}
+        </div>
+        <div class="uptime-form-actions">
+            {{ ui.btn_submit('settings.save'|trans, 'primary') }}
+        </div>
+    {{ form_end(form) }}
+{% endblock %}

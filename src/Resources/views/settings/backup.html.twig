@@ -1,0 +1,27 @@
+{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+
+{% block settings_body %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    <section class="uptime-settings-block">
+        <h4>{{ 'settings.backup.export_title'|trans }}</h4>
+        <p>{{ 'settings.backup.export_intro'|trans }}</p>
+        <a href="{{ path('nowo_uptime_settings_backup_export', { tenantSlug: tenant_slug }) }}" class="uptime-btn uptime-btn-primary">{{ 'settings.backup.export_button'|trans }}</a>
+    </section>
+
+    <section class="uptime-settings-block">
+        <h4>{{ 'settings.backup.import_title'|trans }}</h4>
+        <form method="post" enctype="multipart/form-data" class="uptime-settings-form">
+            <input type="hidden" name="action" value="import">
+            <fieldset>
+                <legend>{{ 'settings.backup.import_mode'|trans }}</legend>
+                <label><input type="radio" name="import_mode" value="skip" checked> {{ 'settings.backup.import_skip'|trans }}</label>
+                <label><input type="radio" name="import_mode" value="keep"> {{ 'settings.backup.import_keep'|trans }}</label>
+                <label><input type="radio" name="import_mode" value="overwrite"> {{ 'settings.backup.import_overwrite'|trans }}</label>
+            </fieldset>
+            <p>
+                <input type="file" name="backup" accept="application/json,.json" required>
+            </p>
+            <button type="submit" class="uptime-btn">{{ 'settings.backup.import_button'|trans }}</button>
+        </form>
+    </section>
+{% endblock %}

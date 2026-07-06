@@ -1,0 +1,14 @@
+{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+
+{% block settings_body %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    <dl class="uptime-settings-dl">
+        <dt>{{ 'settings.about.product'|trans }}</dt>
+        <dd>{{ 'settings.about.product_value'|trans }}</dd>
+        <dt>{{ 'settings.about.style'|trans }}</dt>
+        <dd>{{ 'settings.about.style_value'|trans }}</dd>
+        <dt>{{ 'settings.about.tenant'|trans }}</dt>
+        <dd>{{ tenant.name }} ({{ tenant_slug }})</dd>
+    </dl>
+    <p class="uptime-settings-note">{{ 'settings.about.not_implemented'|trans }}</p>
+{% endblock %}
