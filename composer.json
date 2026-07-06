@@ -54,7 +54,7 @@
         "symfony/yaml": "^7.4 || ^8.0"
     },
     "require-dev": {
-        "symfony/mercure": "^0.6.5",
+        "symfony/mercure": "^0.7.2",
         "friendsofphp/php-cs-fixer": "^3.0",
         "phpstan/extension-installer": "^1.0",
         "phpstan/phpstan": "^2.0",
