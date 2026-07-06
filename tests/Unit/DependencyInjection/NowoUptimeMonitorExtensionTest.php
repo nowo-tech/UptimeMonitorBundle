@@ -7,7 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeDoctrineExtension;
-use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeTwigExtension;
+use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeFrameworkExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
@@ -30,20 +30,21 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertSame(14, $retention['detail_days']);
     }
 
-    public function testPrependRegistersDoctrineAndTwigConfig(): void
+    public function testPrependRegistersDoctrineAndFrameworkConfig(): void
     {
         $container = new ContainerBuilder();
+        $container->registerExtension(new FakeFrameworkExtension());
         $container->registerExtension(new FakeDoctrineExtension());
-        $container->registerExtension(new FakeTwigExtension());
 
         (new UptimeMonitorExtension())->prepend($container);
+
+        $frameworkConfigs = $container->getExtensionConfig('framework');
+        self::assertNotEmpty($frameworkConfigs);
+        self::assertArrayHasKey('translator', $frameworkConfigs[0]);
 
         $doctrineConfigs = $container->getExtensionConfig('doctrine');
         self::assertNotEmpty($doctrineConfigs);
         self::assertArrayHasKey('orm', $doctrineConfigs[0]);
-
-        $twigConfigs = $container->getExtensionConfig('twig');
-        self::assertNotEmpty($twigConfigs);
     }
 
     public function testPrependSkipsWhenDoctrineMissing(): void

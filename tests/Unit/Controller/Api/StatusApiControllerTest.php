@@ -14,9 +14,9 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
-use Nowo\UptimeMonitorBundle\Service\SummaryPayloadBuilder;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,6 +28,7 @@ final class StatusApiControllerTest extends TestCase
 {
     use ControllerContainerTrait;
     use EntityIdTrait;
+    use SyncDispatcherTestTrait;
 
     public function testSummaryReturnsMonitorPayload(): void
     {
@@ -45,7 +46,7 @@ final class StatusApiControllerTest extends TestCase
         $checkRepo = $this->createMock(CheckResultRepository::class);
         $checkRepo->method('findLatestByMonitorIds')->willReturn([3 => $latest]);
 
-        $controller = new StatusApiController($tenantRepo, new SummaryPayloadBuilder($monitorRepo, $checkRepo));
+        $controller = new StatusApiController($tenantRepo, $this->summaryPayloadBuilder($monitorRepo, $checkRepo));
         $this->bindController($controller);
 
         $response = $controller->summary('main', new Request());
@@ -63,10 +64,7 @@ final class StatusApiControllerTest extends TestCase
 
         $controller = new StatusApiController(
             $tenantRepo,
-            new SummaryPayloadBuilder(
-                $this->createMock(MonitorRepository::class),
-                $this->createMock(CheckResultRepository::class),
-            ),
+            $this->summaryPayloadBuilder(),
         );
         $this->bindController($controller);
 
@@ -90,7 +88,7 @@ final class StatusApiControllerTest extends TestCase
         $checkRepo = $this->createMock(CheckResultRepository::class);
         $checkRepo->method('findLatestByMonitorIds')->willReturn([1 => $latest]);
 
-        $controller = new StatusApiController($tenantRepo, new SummaryPayloadBuilder($monitorRepo, $checkRepo));
+        $controller = new StatusApiController($tenantRepo, $this->summaryPayloadBuilder($monitorRepo, $checkRepo));
         $this->bindController($controller);
 
         $since    = $latest->getCheckedAt()->modify('+1 hour')->format(DateTimeInterface::ATOM);
@@ -115,7 +113,7 @@ final class StatusApiControllerTest extends TestCase
         $checkRepo = $this->createMock(CheckResultRepository::class);
         $checkRepo->method('findLatestByMonitorIds')->willReturn([]);
 
-        $controller = new StatusApiController($tenantRepo, new SummaryPayloadBuilder($monitorRepo, $checkRepo));
+        $controller = new StatusApiController($tenantRepo, $this->summaryPayloadBuilder($monitorRepo, $checkRepo));
         $this->bindController($controller);
 
         $response = $controller->summary('main', new Request(['since' => 'not-a-date']));

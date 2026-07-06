@@ -9,10 +9,12 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * @covers \Nowo\UptimeMonitorBundle\Check\HttpCheckRunner
@@ -21,7 +23,7 @@ final class HttpCheckRunnerTest extends TestCase
 {
     public function testSupportsHttpTypes(): void
     {
-        $runner  = new HttpCheckRunner();
+        $runner  = $this->createRunner();
         $monitor = $this->createMonitor(MonitorType::Https);
 
         self::assertTrue($runner->supports($monitor));
@@ -30,7 +32,7 @@ final class HttpCheckRunnerTest extends TestCase
     public function testRunReturnsUpOnExpectedStatus(): void
     {
         $client  = new MockHttpClient([new MockResponse('ok', ['http_code' => 200])]);
-        $runner  = new HttpCheckRunner($client);
+        $runner  = $this->createRunner($client);
         $monitor = $this->createMonitor(MonitorType::Http);
         $monitor->setConfig(['url' => 'https://example.test/health']);
 
@@ -43,7 +45,7 @@ final class HttpCheckRunnerTest extends TestCase
     public function testRunReturnsDownOnUnexpectedStatus(): void
     {
         $client  = new MockHttpClient([new MockResponse('', ['http_code' => 503])]);
-        $runner  = new HttpCheckRunner($client);
+        $runner  = $this->createRunner($client);
         $monitor = $this->createMonitor(MonitorType::Http);
         $monitor->setConfig(['url' => 'https://example.test/']);
 
@@ -56,7 +58,7 @@ final class HttpCheckRunnerTest extends TestCase
     public function testRunReturnsDownWhenKeywordMissing(): void
     {
         $client  = new MockHttpClient([new MockResponse('nope', ['http_code' => 200])]);
-        $runner  = new HttpCheckRunner($client);
+        $runner  = $this->createRunner($client);
         $monitor = $this->createMonitor(MonitorType::Http);
         $monitor->setConfig(['url' => 'https://example.test/', 'keyword' => 'ok']);
 
@@ -70,7 +72,7 @@ final class HttpCheckRunnerTest extends TestCase
         $client = new MockHttpClient(static function (): never {
             throw new TransportException('connection failed');
         });
-        $runner  = new HttpCheckRunner($client);
+        $runner  = $this->createRunner($client);
         $monitor = $this->createMonitor(MonitorType::Https);
         $monitor->setConfig(['url' => 'https://example.test/']);
 
@@ -83,7 +85,7 @@ final class HttpCheckRunnerTest extends TestCase
     public function testRunHonorsCustomHeadersAndSslOptions(): void
     {
         $client  = new MockHttpClient([new MockResponse('ok', ['http_code' => 200])]);
-        $runner  = new HttpCheckRunner($client);
+        $runner  = $this->createRunner($client);
         $monitor = $this->createMonitor(MonitorType::Https);
         $monitor->setConfig([
             'url'                   => 'https://example.test/',
@@ -99,10 +101,19 @@ final class HttpCheckRunnerTest extends TestCase
 
     public function testSupportsReturnsFalseForPing(): void
     {
-        $runner  = new HttpCheckRunner();
+        $runner  = $this->createRunner();
         $monitor = $this->createMonitor(MonitorType::Ping);
 
         self::assertFalse($runner->supports($monitor));
+    }
+
+    private function createRunner(?HttpClientInterface $client = null): HttpCheckRunner
+    {
+        return new HttpCheckRunner(
+            $client,
+            new MonitorUrlSsrfGuard(),
+            false,
+        );
     }
 
     private function createMonitor(MonitorType $type): Monitor

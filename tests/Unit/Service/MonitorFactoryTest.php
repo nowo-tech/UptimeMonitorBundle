@@ -10,15 +10,17 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use PHPUnit\Framework\TestCase;
+use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 
 /**
  * @covers \Nowo\UptimeMonitorBundle\Service\MonitorFactory
  */
 final class MonitorFactoryTest extends TestCase
 {
+    use SyncDispatcherTestTrait;
     public function testCreateFromFormDataBuildsConfig(): void
     {
-        $factory                   = new MonitorFactory();
+        $factory                   = $this->monitorFactory();
         $tenant                    = new Tenant('main', 'Main');
         $data                      = new MonitorFormData();
         $data->name                = 'API';
@@ -39,7 +41,7 @@ final class MonitorFactoryTest extends TestCase
 
     public function testCreateTcpMonitor(): void
     {
-        $factory    = new MonitorFactory();
+        $factory    = $this->monitorFactory();
         $tenant     = new Tenant('main', 'Main');
         $data       = new MonitorFormData();
         $data->name = 'DB port';
@@ -56,7 +58,7 @@ final class MonitorFactoryTest extends TestCase
 
     public function testCreatePingMonitor(): void
     {
-        $factory    = new MonitorFactory();
+        $factory    = $this->monitorFactory();
         $tenant     = new Tenant('main', 'Main');
         $data       = new MonitorFormData();
         $data->name = 'Gateway';
@@ -72,7 +74,7 @@ final class MonitorFactoryTest extends TestCase
 
     public function testCreateDnsAndSslMonitors(): void
     {
-        $factory = new MonitorFactory();
+        $factory = $this->monitorFactory();
         $tenant  = new Tenant('main', 'Main');
 
         $dns                   = new MonitorFormData();
@@ -100,7 +102,7 @@ final class MonitorFactoryTest extends TestCase
 
     public function testToFormDataMapsAllMonitorTypes(): void
     {
-        $factory = new MonitorFactory();
+        $factory = $this->monitorFactory();
         $tenant  = new Tenant('main', 'Main');
 
         $http = new Monitor($tenant, 'HTTP', MonitorType::Http, 'http://x.test');
@@ -124,7 +126,7 @@ final class MonitorFactoryTest extends TestCase
 
     public function testCreateHttpMonitorUsesDefaultStatusCodeWhenEmpty(): void
     {
-        $factory                   = new MonitorFactory();
+        $factory                   = $this->monitorFactory();
         $tenant                    = new Tenant('main', 'Main');
         $data                      = new MonitorFormData();
         $data->name                = 'HTTP';
@@ -139,7 +141,7 @@ final class MonitorFactoryTest extends TestCase
 
     public function testApplyFormDataEnforcesMinimumInterval(): void
     {
-        $factory               = new MonitorFactory();
+        $factory               = $this->monitorFactory();
         $monitor               = new Monitor(new Tenant('main', 'Main'), 'API', MonitorType::Http, 'http://x.test');
         $data                  = new MonitorFormData();
         $data->name            = 'API';

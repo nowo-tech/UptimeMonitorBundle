@@ -48,8 +48,9 @@ final class SchemaSyncServiceTest extends TestCase
             $this->createMock(\Doctrine\ORM\EntityManagerInterface::class),
         );
 
-        $exception = new \Doctrine\DBAL\Exception(
+        $exception = new \RuntimeException(
             'SQLSTATE[42P07]: Duplicate table: relation "idx_test" already exists',
+            0,
             new Exception('SQLSTATE[42P07]', 7),
         );
 

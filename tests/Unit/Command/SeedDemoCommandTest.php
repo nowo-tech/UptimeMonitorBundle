@@ -9,7 +9,9 @@ use Nowo\UptimeMonitorBundle\Command\SeedDemoCommand;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher;
 use Nowo\UptimeMonitorBundle\Service\DemoSeedService;
+use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -18,6 +20,8 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 final class SeedDemoCommandTest extends TestCase
 {
+    use SyncDispatcherTestTrait;
+
     public function testExecuteReportsCreatedMonitors(): void
     {
         $tenant = new Tenant('acme', 'Acme');
@@ -38,7 +42,10 @@ final class SeedDemoCommandTest extends TestCase
         $em->method('persist');
         $em->method('flush');
 
-        $command = new SeedDemoCommand(new DemoSeedService($em, $tenantRepo, $monitorRepo));
+        $command = new SeedDemoCommand(
+            new DemoSeedService($em, $tenantRepo, $monitorRepo),
+            $this->pollingSyncDispatcher(),
+        );
         $tester  = new CommandTester($command);
         $tester->execute(['--tenant' => 'acme', '--name' => 'Acme Corp']);
 

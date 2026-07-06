@@ -10,15 +10,17 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
+use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
-use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * @covers \Nowo\UptimeMonitorBundle\Controller\MonitorController
@@ -27,6 +29,7 @@ final class MonitorControllerTest extends TestCase
 {
     use ControllerContainerTrait;
     use EntityIdTrait;
+    use SyncDispatcherTestTrait;
 
     private function chartService(): AggregateChartService
     {
@@ -55,10 +58,13 @@ final class MonitorControllerTest extends TestCase
         $monitorRepo->method('find')->willReturn($monitor);
 
         return new MonitorController(
+            $this->createMock(TranslatorInterface::class),
             $tenantRepo,
             $monitorRepo,
-            new MonitorFactory(),
+            $this->createMock(CheckResultRepository::class),
+            $this->monitorFactory($monitorRepo),
             $this->chartService(),
+            $this->dashboardViewBuilder($monitorRepo),
             $em ?? $this->createMock(EntityManagerInterface::class),
         );
     }
