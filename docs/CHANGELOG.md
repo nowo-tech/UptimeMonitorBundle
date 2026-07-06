@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.2] - 2026-07-06
+
+### Fixed
+
+- `demo/Makefile`: fixed `Makefile.demo-aggregate-update-deps.mk` include (unterminated `abspath` call); `make update-deps` no longer fails at the demo aggregator.
+- Demo `symfony7` and `symfony8` Makefiles: set `COMPOSE` and `SERVICE_PHP` so per-demo `make update-deps` runs reliably.
+
+### Changed
+
+- Frontend dev toolchain (Dependabot): Vite 8.1.3, TypeScript 6.0.3, happy-dom 20.10.6, sass 1.101.0, `@types/node` 26.1.0.
+- Dev: PHPUnit 11.5.56, Rector 2.5.4.
+- CI: `softprops/action-gh-release` v3.
+
 ## [1.0.1] - 2026-07-06
 
 ### Fixed
@@ -59,5 +72,6 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.2]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.2
 [1.0.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.1
 [1.0.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.0

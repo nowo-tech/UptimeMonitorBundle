@@ -64,4 +64,6 @@ update-bundle: ensure-up
 release-check: ensure-up update-bundle test test-coverage
 
 # REQ-MAKE-008: update-deps (REQ-MAKE-008)
+COMPOSE := docker-compose
+SERVICE_PHP := php
 include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)
