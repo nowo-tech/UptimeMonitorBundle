@@ -59,10 +59,12 @@ final class DashboardControllerTest extends TestCase
         $checkRepo = $this->createMock(CheckResultRepository::class);
         $checkRepo->method('findLatestByMonitorIds')->willReturn([1 => $latest]);
 
+        $viewBuilder = $this->dashboardViewBuilder($monitorRepo, $checkRepo);
+
         $controller = new DashboardController(
             $tenantRepo,
             $monitorRepo,
-            $checkRepo,
+            $viewBuilder,
             $this->chartService(),
             ['poll_interval_ms' => 5000, 'sync' => 'polling'],
             $this->pollingSyncDispatcher(),
@@ -83,7 +85,7 @@ final class DashboardControllerTest extends TestCase
         $controller = new DashboardController(
             $tenantRepo,
             $this->createMock(MonitorRepository::class),
-            $this->createMock(CheckResultRepository::class),
+            $this->dashboardViewBuilder(),
             $this->chartService(),
             ['sync' => 'polling'],
             $this->pollingSyncDispatcher(),

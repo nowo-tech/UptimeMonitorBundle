@@ -7,6 +7,8 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\DetailRetentionService;
 use PHPUnit\Framework\TestCase;
 
@@ -20,7 +22,10 @@ final class DetailRetentionServiceTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::never())->method('createQueryBuilder');
 
-        $service = new DetailRetentionService($em, ['purge_enabled' => false, 'detail_days' => 30]);
+        $tenantRepo = $this->createMock(TenantRepository::class);
+        $tenantRepo->method('findAll')->willReturn([new Tenant('main', 'Main')]);
+
+        $service = new DetailRetentionService($em, $tenantRepo, ['purge_enabled' => false, 'detail_days' => 30]);
 
         self::assertSame(0, $service->purgeExpiredDetail());
     }
@@ -30,7 +35,10 @@ final class DetailRetentionServiceTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::never())->method('createQueryBuilder');
 
-        $service = new DetailRetentionService($em, ['purge_enabled' => true, 'detail_days' => null]);
+        $tenantRepo = $this->createMock(TenantRepository::class);
+        $tenantRepo->method('findAll')->willReturn([new Tenant('main', 'Main')]);
+
+        $service = new DetailRetentionService($em, $tenantRepo, ['purge_enabled' => true, 'detail_days' => null]);
 
         self::assertSame(0, $service->purgeExpiredDetail());
     }
@@ -49,7 +57,10 @@ final class DetailRetentionServiceTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('createQueryBuilder')->willReturn($qb);
 
-        $service = new DetailRetentionService($em, ['purge_enabled' => true, 'detail_days' => 7]);
+        $tenantRepo = $this->createMock(TenantRepository::class);
+        $tenantRepo->method('findAll')->willReturn([new Tenant('main', 'Main')]);
+
+        $service = new DetailRetentionService($em, $tenantRepo, ['purge_enabled' => true, 'detail_days' => 7]);
 
         self::assertSame(5, $service->purgeExpiredDetail());
     }

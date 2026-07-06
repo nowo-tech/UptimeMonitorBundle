@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Command;
 
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
+use Doctrine\ORM\QueryBuilder;
 use Nowo\UptimeMonitorBundle\Command\ClearDataCommand;
+use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
+use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -15,20 +21,31 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 final class ClearDataCommandTest extends TestCase
 {
+    use SyncDispatcherTestTrait;
+
     public function testExecuteClearsWithNoInteraction(): void
     {
-        $service = $this->createMock(UptimeDataClearService::class);
-        $service->method('clear')->with(null)->willReturn([
-            'checks'         => 10,
-            'aggregates'     => 4,
-            'incidents'      => 1,
-            'monitors_reset' => 3,
-        ]);
+        $query = $this->createMock(Query::class);
+        $query->method('execute')->willReturn(10);
 
-        $sync = $this->createMock(DashboardSyncDispatcher::class);
-        $sync->expects(self::once())->method('dispatchTenantRefresh');
+        $qb = $this->createMock(QueryBuilder::class);
+        $qb->method('delete')->willReturnSelf();
+        $qb->method('andWhere')->willReturnSelf();
+        $qb->method('setParameter')->willReturnSelf();
+        $qb->method('getQuery')->willReturn($query);
 
-        $service->method('listTenantSlugs')->willReturn(['main']);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('createQueryBuilder')->willReturn($qb);
+        $em->method('flush');
+
+        $tenantRepo = $this->createMock(TenantRepository::class);
+        $tenantRepo->method('findAll')->willReturn([]);
+
+        $monitorRepo = $this->createMock(MonitorRepository::class);
+        $monitorRepo->method('findAll')->willReturn([]);
+
+        $service = new UptimeDataClearService($em, $tenantRepo, $monitorRepo);
+        $sync    = $this->pollingSyncDispatcher();
 
         $tester = new CommandTester(new ClearDataCommand($service, $sync));
         $tester->execute(['--no-interaction' => true]);

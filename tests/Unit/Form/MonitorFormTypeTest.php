@@ -21,6 +21,7 @@ final class MonitorFormTypeTest extends TypeTestCase
         $data->type            = MonitorType::Https;
         $data->url             = 'https://example.test';
         $data->intervalSeconds = 60;
+        $data->project         = '';
 
         $form = $this->factory->create(MonitorFormType::class, $data);
         $form->submit([
@@ -38,7 +39,7 @@ final class MonitorFormTypeTest extends TypeTestCase
             'daysBeforeExpiry'    => 14,
             'intervalSeconds'     => 90,
             'paused'              => true,
-        ]);
+        ], false);
 
         self::assertTrue($form->isSynchronized());
         self::assertSame(90, $data->intervalSeconds);
