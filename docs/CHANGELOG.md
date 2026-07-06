@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.1] - 2026-07-06
+
+### Fixed
+
+- Unit tests aligned with current service and controller APIs (`MonitorUrlSsrfGuard`, `MonitorRetryService`, `DashboardViewBuilder`, `TenantRepository` in retention services, and related constructors).
+- CI Symfony **8.1** matrix: dependency resolution when `doctrine/doctrine-bundle` 2.x conflicted with Symfony 8 components.
+
+### Changed
+
+- Dev dependency: `symfony/mercure` bumped to `^0.7.2` (Symfony 8 compatible).
+- CI: pins all bundle Symfony components to the matrix version; uses `doctrine/doctrine-bundle` ^3.2 on Symfony 8.x and ^2.18 on Symfony 7.x.
+- CI: Dependabot bumps (`actions/cache` v6, `codecov/codecov-action` v7).
+
 ## [1.0.0] - 2026-07-06
 
 First stable release of `nowo-tech/uptime-monitor-bundle`.
@@ -46,4 +59,5 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.1
 [1.0.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.0

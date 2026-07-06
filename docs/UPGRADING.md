@@ -10,11 +10,22 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Upgrading to next release (Unreleased)](#upgrading-to-next-release-unreleased)
+- [Upgrading to 1.0.1 (2026-07-06)](#upgrading-to-101-2026-07-06)
 - [Upgrading to 1.0.0 (2026-07-06)](#upgrading-to-100-2026-07-06)
 
 ## Upgrading to next release (Unreleased)
 
 _No changes yet._
+
+## Upgrading to 1.0.1 (2026-07-06)
+
+Repository, CI, and test tooling only. The bundle API, configuration keys, and runtime behaviour are unchanged.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+No application code or schema changes are required.
 
 ## Upgrading to 1.0.0 (2026-07-06)
 
@@ -25,7 +36,7 @@ Initial public release. There is no earlier tagged version to migrate from.
 - Public status page (`status_page` config, route `/status/{tenantSlug}` by default).
 - Ping (ICMP) check runner and monitor form type.
 - API summary supports `?since=` filtering for polling deltas.
-- Demo seed includes TCP, DNS, SSL, and Ping sample monitors.
+- Demo seed: one project group plus local HTTP probe monitors (`demo_uptime_ok`, `demo_uptime_flaky`).
 - Uptime Kuma–style **tenant settings** UI (`/uptime/{tenant}/settings`) and extended HTTP monitor options.
 - `uptime_tenant.settings` JSON column and `uptime_tag` table.
 - Mercure real-time dashboard sync (optional).
