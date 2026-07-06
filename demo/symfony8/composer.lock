@@ -1005,7 +1005,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "386ccbc83a8092c9604dadef9209ae02acd86e9a"
+                "reference": "0f42a4a775928dbcfaebd3664c40bc2e16ecf730"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",
@@ -1040,7 +1040,7 @@
                 "symfony/browser-kit": "^6.3 || ^7.0 || ^8.0",
                 "symfony/dom-crawler": "^6.3 || ^7.0 || ^8.0",
                 "symfony/mailer": "^6.3 || ^7.0 || ^8.0",
-                "symfony/mercure": "^0.6.5",
+                "symfony/mercure": "^0.7.2",
                 "symfony/phpunit-bridge": "^6.3 || ^7.0 || ^8.0"
             },
             "suggest": {

@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.3] - 2026-07-06
+
+### Changed
+
+- Demo `symfony7` and `symfony8`: `composer.lock` synced after `make update-deps` (follow-up to the Makefile fixes in 1.0.2).
+
 ## [1.0.2] - 2026-07-06
 
 ### Fixed
@@ -72,6 +78,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.3]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.3
 [1.0.2]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.2
 [1.0.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.1
 [1.0.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.0
