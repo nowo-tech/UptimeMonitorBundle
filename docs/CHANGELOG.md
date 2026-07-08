@@ -14,6 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.5] - 2026-07-08
+
+### Changed
+
+- Demo `symfony7` and `symfony8`: `composer.lock` synced after `make update-deps` (path bundle ref, `nowo-tech/twig-inspector-bundle` v1.0.34 in demo dev deps).
+- Demo `symfony7`/`symfony8`: regenerated `config/reference.php` (Symfony config schema, including `nowo_uptime_monitor.checks.block_private_urls`).
+
 ## [1.0.4] - 2026-07-08
 
 ### Added
@@ -91,6 +98,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.5]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.5
 [1.0.4]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.4
 [1.0.3]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.3
 [1.0.2]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.2
