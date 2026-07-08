@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 // This file is auto-generated and is for apps only. Bundles SHOULD NOT rely on its content.
 
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
@@ -123,7 +121,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * }
  * @psalm-type ServicesConfig = array{
  *     _defaults?: DefaultsType,
- *     _instanceof?: InstanceofType,
+ *     _instanceof?: array<class-string, InstanceofType>,
  *     ...<string, DefinitionType|AliasType|PrototypeType|StackType|ArgumentsType|null>
  * }
  * @psalm-type ExtensionType = array<string, mixed>
@@ -718,7 +716,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             servicename?: scalar|Param|null, // Overrules dbname parameter if given and used as SERVICE_NAME or SID connection parameter for Oracle depending on the service parameter.
  *             sessionMode?: scalar|Param|null, // The session mode to use for the oci8 driver
  *             server?: scalar|Param|null, // The name of a running database server to connect to for SQL Anywhere.
- *             default_dbname?: scalar|Param|null, // Override the default database (postgres) to connect to for PostgreSQL connexion.
+ *             default_dbname?: scalar|Param|null, // Override the default database (postgres) to connect to for PostgreSQL connection.
  *             sslmode?: scalar|Param|null, // Determines whether or with what priority a SSL TCP/IP connection will be negotiated with the server for PostgreSQL.
  *             sslrootcert?: scalar|Param|null, // The name of a file containing SSL certificate authority (CA) certificate(s). If the file exists, the server's certificate will be verified to be signed by one of these authorities.
  *             sslcert?: scalar|Param|null, // The path to the SSL client certificate file for PostgreSQL.
@@ -764,7 +762,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 servicename?: scalar|Param|null, // Overrules dbname parameter if given and used as SERVICE_NAME or SID connection parameter for Oracle depending on the service parameter.
  *                 sessionMode?: scalar|Param|null, // The session mode to use for the oci8 driver
  *                 server?: scalar|Param|null, // The name of a running database server to connect to for SQL Anywhere.
- *                 default_dbname?: scalar|Param|null, // Override the default database (postgres) to connect to for PostgreSQL connexion.
+ *                 default_dbname?: scalar|Param|null, // Override the default database (postgres) to connect to for PostgreSQL connection.
  *                 sslmode?: scalar|Param|null, // Determines whether or with what priority a SSL TCP/IP connection will be negotiated with the server for PostgreSQL.
  *                 sslrootcert?: scalar|Param|null, // The name of a file containing SSL certificate authority (CA) certificate(s). If the file exists, the server's certificate will be verified to be signed by one of these authorities.
  *                 sslcert?: scalar|Param|null, // The path to the SSL client certificate file for PostgreSQL.
@@ -843,7 +841,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                     lock_path?: scalar|Param|null, // Default: "%kernel.cache_dir%/doctrine/orm/slc/filelock"
  *                     lock_lifetime?: scalar|Param|null, // Default: 60
  *                     type?: scalar|Param|null, // Default: "default"
- *                     lifetime?: scalar|Param|null, // Default: 0
+ *                     lifetime?: scalar|Param|null, // Default: null
  *                     service?: scalar|Param|null,
  *                     name?: scalar|Param|null,
  *                 }>,
@@ -936,6 +934,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     checks?: array{ // Check execution and reported latency
  *         min_latency_ms?: int|Param, // Floor for stored latency (ms); 0 = no floor. Per-monitor override: config.min_latency_ms // Default: 0
+ *         block_private_urls?: bool|Param, // Block HTTP monitor URLs targeting private/local networks (SSRF mitigation). // Default: true
  *     },
  *     retention?: array{
  *         detail_days?: int|Param, // Days to keep CheckResult detail rows; 0 = infinite (no purge) // Default: 30
@@ -950,8 +949,24 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         header?: scalar|Param|null, // Default: "X-Uptime-Tenant"
  *         default_tenant?: scalar|Param|null, // Default: "main"
  *     },
- *     ui?: array{ // UI framework for Twig screens: custom (BEM), bootstrap, or tailwind
- *         framework?: "custom"|"bootstrap"|"tailwind"|Param, // Default: "custom"
+ *     tenants?: array{ // Tenant list UI (/tenants). Disable in single-tenant host apps (e.g. nowo-devkit).
+ *         list_enabled?: bool|Param, // When false, GET /tenants redirects to the default tenant dashboard. // Default: true
+ *         redirect_when_single?: bool|Param, // When true and exactly one tenant exists, /tenants redirects to its dashboard. // Default: false
+ *     },
+ *     security?: array{
+ *         access_checker?: scalar|Param|null, // Default: null
+ *         dashboard_roles?: list<scalar|Param|null>,
+ *         manage_roles?: list<scalar|Param|null>,
+ *         settings_roles?: list<scalar|Param|null>,
+ *     },
+ *     templates?: array{ // Twig layout for admin screens (override in templates/bundles/NowoUptimeMonitorBundle/)
+ *         layout?: scalar|Param|null, // Default: "@NowoUptimeMonitorBundle/layout.html.twig"
+ *     },
+ *     ui?: array{ // UI framework for Twig screens: tabler (Nowo default), custom (BEM), bootstrap, or tailwind
+ *         framework?: "tabler"|"custom"|"bootstrap"|"tailwind"|Param, // Default: "tabler"
+ *         tabler?: array{ // Tabler integration when ui.framework is tabler
+ *             skip_cdn?: bool|Param, // Skip Tabler CDN when the host app already serves Tabler (e.g. nowo-devkit Vite entry) // Default: false
+ *         },
  *         bootstrap?: array{
  *             css_url?: scalar|Param|null, // Default: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
  *             js_url?: scalar|Param|null, // Default: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
