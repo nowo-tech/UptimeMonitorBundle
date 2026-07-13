@@ -1,6 +1,6 @@
 {
   "name": "@nowo-tech/uptime-monitor-bundle",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Assets build for Uptime Monitor Bundle (TypeScript + Vite)",
   "private": true,
   "packageManager": "pnpm@10.32.1",
