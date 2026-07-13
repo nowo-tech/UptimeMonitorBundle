@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.6] - 2026-07-13
+
+### Changed
+
+- `.gitignore`: ignore `.cursor/sandbox.json` (machine-specific Cursor sandbox; REQ-IDE-005).
+- Dev: `friendsofphp/php-cs-fixer` 3.95.13, `rector/rector` 2.5.6 (`composer.lock`).
+- Demo `symfony7` and `symfony8`: `composer.lock` synced after `make update-deps` (path bundle ref to v1.0.5).
+- Demo `symfony7`/`symfony8`: `config/reference.php` — restore `declare(strict_types=1);` (PHP CS Fixer CI).
+
 ## [1.0.5] - 2026-07-08
 
 ### Changed
@@ -98,6 +107,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.6]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.6
 [1.0.5]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.5
 [1.0.4]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.4
 [1.0.3]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.3
