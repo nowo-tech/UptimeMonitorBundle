@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.7] - 2026-07-13
+
+### Fixed
+
+- Demo `symfony7`/`symfony8`: `config/reference.php` aligned with Symfony generator output (omit `declare(strict_types=1);`) so PHP CS Fixer CI no longer rewrites auto-generated demo config on every run.
+
 ## [1.0.6] - 2026-07-13
 
 ### Changed
@@ -107,6 +113,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.7]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.7
 [1.0.6]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.6
 [1.0.5]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.5
 [1.0.4]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.4
