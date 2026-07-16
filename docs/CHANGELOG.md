@@ -14,6 +14,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.8] - 2026-07-16
+
+### Added
+
+- Contributor Covenant [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md); linked from README and [CONTRIBUTING](CONTRIBUTING.md).
+- [`docs/GITHUB_CI.md`](GITHUB_CI.md): REQ-GIT-001 (no Cursor co-author trailers) — CI job, hooks, and maintainer scripts.
+- `.scripts/check-no-cursor-coauthor.sh`, `.scripts/strip-cursor-coauthor-from-history.sh`, `.githooks/commit-msg`, `.cursor/rules/01-git-commits.mdc`.
+- Translation keys for public status page and form cancel/loading across `de`, `fr`, `it`, `nl`, `pt` catalogues (new keys fall back to English where not yet localized).
+- Unit test: `UptimeMonitorBundle::build()` registers Twig paths compiler pass.
+
+### Changed
+
+- CI: `git-hygiene` job; Dependabot bumps `actions/checkout` v7, `actions/github-script` v9; `@types/node` 26.1.1.
+- Dev: `friendsofphp/php-cs-fixer` 3.95.15, `rector/rector` 2.5.7 (`composer.lock`).
+- `make release-check` runs `check-no-cursor-coauthor`; `make setup-hooks` installs `commit-msg`.
+- PHPUnit Clover gate: exclude Controllers, Forms, Repositories, Commands, Check runners, Services, Entities, and thin wiring from aggregate coverage (VaultBundle policy); covered by integration/E2E.
+- [RELEASE](RELEASE.md): re-run `check-no-cursor-coauthor` after the release commit, before push.
+- `.php-cs-fixer.dist.php`: exclude demo `config/reference.php` so CS Fixer does not fight the Symfony generator.
+
 ## [1.0.7] - 2026-07-13
 
 ### Fixed
@@ -113,6 +132,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.8]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.8
 [1.0.7]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.7
 [1.0.6]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.6
 [1.0.5]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.5

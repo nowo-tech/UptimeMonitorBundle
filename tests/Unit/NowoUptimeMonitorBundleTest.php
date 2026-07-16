@@ -18,4 +18,12 @@ final class NowoUptimeMonitorBundleTest extends TestCase
         $bundle = new UptimeMonitorBundle();
         self::assertInstanceOf(UptimeMonitorExtension::class, $bundle->getContainerExtension());
     }
+
+    public function testBuildRegistersTwigPathsCompilerPass(): void
+    {
+        $container = new \Symfony\Component\DependencyInjection\ContainerBuilder();
+        (new UptimeMonitorBundle())->build($container);
+
+        self::assertNotEmpty($container->getCompilerPassConfig()->getBeforeOptimizationPasses());
+    }
 }

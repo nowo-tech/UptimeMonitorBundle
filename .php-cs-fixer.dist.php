@@ -94,4 +94,7 @@ return (new Config())
         (new Finder())
             ->in(__DIR__)
             ->exclude(['vendor', 'var', 'coverage', '.phpunit.cache'])
+            // Symfony auto-generated; omit declare(strict_types) — keep in sync with generator (see CHANGELOG 1.0.7)
+            ->notPath('demo/symfony7/config/reference.php')
+            ->notPath('demo/symfony8/config/reference.php')
     );

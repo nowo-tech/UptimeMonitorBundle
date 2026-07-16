@@ -46,9 +46,13 @@ monitor.form.section.tcp: 'TCP / SSL / Ping'
 monitor.form.section.dns: 'DNS'
 monitor.form.section.ssl: 'SSL-certificaat'
 monitor.form.save: 'Opslaan'
+monitor.form.cancel: 'Cancel'
+monitor.form.loading: 'Loading form…'
 monitor.form.hint: '<strong>Groep</strong>-monitors fungeren als projecten: ze voeren hun eigen heartbeat uit (samenvatting van child-statussen) op het bovenstaande interval. Wijs child-monitors toe via <em>Monitorgroep</em>. Instellingen zoals Uptime Kuma (pogingen, timeout, statuscodes, headers, proxy, auth).'
 monitor.new: 'Nieuwe monitor'
 monitor.edit: 'Monitor bewerken'
+
+action.close: 'Close'
 
 # Settings navigation
 settings.title: 'Instellingen'
@@ -212,6 +216,17 @@ form.settings.tag_color: 'Kleur'
 form.tenant.slug: 'Slug'
 form.tenant.slug_regex: 'Gebruik kleine letters, cijfers en koppeltekens.'
 form.tenant.name: 'Weergavenaam'
+
+# Public status page
+status_page.title_suffix: 'Status'
+status_page.overall.operational: 'All systems operational'
+status_page.overall.degraded: 'Degraded performance'
+status_page.overall.major: 'Service disruption'
+status_page.overall.unknown: 'Status unknown'
+status_page.updated: 'Last updated %datetime%'
+status_page.services_heading: 'Services'
+status_page.no_monitors: 'No active monitors.'
+status_page.powered_by: 'Powered by Nowo Uptime Monitor'
 
 # Flash messages
 flash.monitor.created: 'Monitor "%name%" aangemaakt.'

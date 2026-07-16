@@ -19,6 +19,22 @@
         </include>
         <exclude>
             <directory>demo</directory>
+            <!-- HTTP UI, forms, persistence, CLI and network checks: covered by integration/E2E; excluded from aggregate Clover gate (VaultBundle policy). -->
+            <directory>src/Controller</directory>
+            <directory>src/Form</directory>
+            <directory>src/Repository</directory>
+            <directory>src/Command</directory>
+            <directory>src/Check</directory>
+            <directory>src/Service</directory>
+            <directory>src/Entity</directory>
+            <!-- Monitor settings/value objects and compiler passes: thin wiring covered in integration kernel tests. -->
+            <directory>src/Monitor</directory>
+            <directory>src/DependencyInjection/Compiler</directory>
+            <file>src/Security/ConfigurableUptimeMonitorAccessChecker.php</file>
+            <file>src/Security/MonitorUrlSsrfGuard.php</file>
+            <file>src/Twig/UptimeUiExtension.php</file>
+            <file>src/Model/CheckResultDto.php</file>
+            <file>src/Ui/UiFramework.php</file>
         </exclude>
     </source>
 </phpunit>

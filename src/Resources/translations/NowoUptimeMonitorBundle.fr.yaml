@@ -46,9 +46,13 @@ monitor.form.section.tcp: 'TCP / SSL / Ping'
 monitor.form.section.dns: 'DNS'
 monitor.form.section.ssl: 'Certificat SSL'
 monitor.form.save: 'Enregistrer'
+monitor.form.cancel: 'Cancel'
+monitor.form.loading: 'Loading form…'
 monitor.form.hint: 'Les moniteurs <strong>Groupe</strong> servent de projets : ils exécutent leur propre heartbeat (agrégation des statuts enfants) sur l''intervalle ci-dessus. Assignez les moniteurs enfants via <em>Groupe de moniteur</em>. Paramètres compatibles Uptime Kuma (tentatives, délai, codes de statut, en-têtes, proxy, auth).'
 monitor.new: 'Nouveau moniteur'
 monitor.edit: 'Modifier le moniteur'
+
+action.close: 'Close'
 
 # Settings navigation
 settings.title: 'Paramètres'
@@ -212,6 +216,17 @@ form.settings.tag_color: 'Couleur'
 form.tenant.slug: 'Slug'
 form.tenant.slug_regex: 'Utilisez des lettres minuscules, des chiffres et des tirets.'
 form.tenant.name: 'Nom affiché'
+
+# Public status page
+status_page.title_suffix: 'Status'
+status_page.overall.operational: 'All systems operational'
+status_page.overall.degraded: 'Degraded performance'
+status_page.overall.major: 'Service disruption'
+status_page.overall.unknown: 'Status unknown'
+status_page.updated: 'Last updated %datetime%'
+status_page.services_heading: 'Services'
+status_page.no_monitors: 'No active monitors.'
+status_page.powered_by: 'Powered by Nowo Uptime Monitor'
 
 # Flash messages
 flash.monitor.created: 'Moniteur « %name% » créé.'
