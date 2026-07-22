@@ -1,15 +1,24 @@
 <?php
 
 declare(strict_types=1);
+use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
+use Nowo\TwigInspectorBundle\NowoTwigInspectorBundle;
+use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
+use Symfony\Bundle\DebugBundle\DebugBundle;
+use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
+use Symfony\Bundle\MercureBundle\MercureBundle;
+use Symfony\Bundle\SecurityBundle\SecurityBundle;
+use Symfony\Bundle\TwigBundle\TwigBundle;
+use Symfony\Bundle\WebProfilerBundle\WebProfilerBundle;
 
 return [
-    Symfony\Bundle\FrameworkBundle\FrameworkBundle::class     => ['all' => true],
-    Doctrine\Bundle\DoctrineBundle\DoctrineBundle::class      => ['all' => true],
-    Symfony\Bundle\TwigBundle\TwigBundle::class               => ['all' => true],
-    Symfony\Bundle\DebugBundle\DebugBundle::class             => ['dev' => true],
-    Symfony\Bundle\WebProfilerBundle\WebProfilerBundle::class => ['dev' => true],
-    Nowo\UptimeMonitorBundle\UptimeMonitorBundle::class       => ['all' => true],
-    Nowo\TwigInspectorBundle\NowoTwigInspectorBundle::class   => ['dev' => true, 'test' => true],
-    Symfony\Bundle\SecurityBundle\SecurityBundle::class       => ['all' => true],
-    Symfony\Bundle\MercureBundle\MercureBundle::class         => ['all' => true],
+    FrameworkBundle::class         => ['all' => true],
+    DoctrineBundle::class          => ['all' => true],
+    TwigBundle::class              => ['all' => true],
+    DebugBundle::class             => ['dev' => true],
+    WebProfilerBundle::class       => ['dev' => true],
+    UptimeMonitorBundle::class     => ['all' => true],
+    NowoTwigInspectorBundle::class => ['dev' => true, 'test' => true],
+    SecurityBundle::class          => ['all' => true],
+    MercureBundle::class           => ['all' => true],
 ];

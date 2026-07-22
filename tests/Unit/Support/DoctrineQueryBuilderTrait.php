@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
 
 trait DoctrineQueryBuilderTrait
 {
@@ -18,7 +19,7 @@ trait DoctrineQueryBuilderTrait
      */
     protected function createManagerRegistryWithQueryResult(
         array $result,
-        string $entityClass = \Nowo\UptimeMonitorBundle\Entity\Monitor::class,
+        string $entityClass = Monitor::class,
     ): ManagerRegistry {
         $query = $this->createMock(Query::class);
         $query->method('getResult')->willReturn($result);

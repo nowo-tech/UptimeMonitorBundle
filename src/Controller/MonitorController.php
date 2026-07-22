@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
@@ -188,7 +189,7 @@ final class MonitorController extends AbstractUptimeController
         return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenantSlug]);
     }
 
-    private function requireTenant(string $tenantSlug): \Nowo\UptimeMonitorBundle\Entity\Tenant
+    private function requireTenant(string $tenantSlug): Tenant
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
         if ($tenant === null) {

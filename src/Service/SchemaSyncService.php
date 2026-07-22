@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Service;
 
 use Doctrine\DBAL\Exception as DbalException;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Tools\SchemaTool;
 use Throwable;
 
@@ -242,7 +243,7 @@ final class SchemaSyncService
     }
 
     /**
-     * @return list<\Doctrine\ORM\Mapping\ClassMetadata<object>>
+     * @return list<ClassMetadata<object>>
      */
     private function getBundleMetadata(): array
     {
@@ -250,7 +251,7 @@ final class SchemaSyncService
 
         return array_values(array_filter(
             $metadata,
-            static fn (\Doctrine\ORM\Mapping\ClassMetadata $classMetadata): bool => str_starts_with(
+            static fn (ClassMetadata $classMetadata): bool => str_starts_with(
                 $classMetadata->getName(),
                 self::ENTITY_NAMESPACE_PREFIX,
             ),

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Controller;
 
+use Nowo\UptimeMonitorBundle\Entity\CheckResult;
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
@@ -83,7 +85,7 @@ final class StatusPageController extends AbstractController
     }
 
     /**
-     * @param list<array{monitor: \Nowo\UptimeMonitorBundle\Entity\Monitor, latest: ?\Nowo\UptimeMonitorBundle\Entity\CheckResult}> $rows
+     * @param list<array{monitor: Monitor, latest: ?CheckResult}> $rows
      */
     private function resolveOverallStatus(array $rows): string
     {

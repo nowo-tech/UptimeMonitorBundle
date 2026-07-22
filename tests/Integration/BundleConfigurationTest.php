@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Integration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
@@ -25,7 +26,7 @@ final class BundleConfigurationTest extends TestCase
     {
         $configuration = new Configuration();
         $tree          = $configuration->getConfigTreeBuilder();
-        $processor     = new \Symfony\Component\Config\Definition\Processor();
+        $processor     = new Processor();
 
         $config = $processor->processConfiguration($configuration, [[]]);
 

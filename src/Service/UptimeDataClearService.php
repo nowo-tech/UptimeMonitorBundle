@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Service;
 
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
@@ -118,9 +119,9 @@ final class UptimeDataClearService
     }
 
     /**
-     * @param \Doctrine\ORM\QueryBuilder<object> $qb
+     * @param QueryBuilder<object> $qb
      */
-    private function applyTenantFilter(\Doctrine\ORM\QueryBuilder $qb, string $alias, ?string $tenantSlug): void
+    private function applyTenantFilter(QueryBuilder $qb, string $alias, ?string $tenantSlug): void
     {
         if ($tenantSlug === null) {
             return;

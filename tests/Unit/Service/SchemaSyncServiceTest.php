@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Nowo\UptimeMonitorBundle\Service\SchemaSyncService;
 use PHPUnit\Framework\TestCase;
@@ -17,7 +18,7 @@ final class SchemaSyncServiceTest extends TestCase
     public function testFilterCreateStatementsSkipsExistingTables(): void
     {
         $service = new SchemaSyncService(
-            $this->createMock(\Doctrine\ORM\EntityManagerInterface::class),
+            $this->createMock(EntityManagerInterface::class),
         );
 
         $sql = [
@@ -33,7 +34,7 @@ final class SchemaSyncServiceTest extends TestCase
     public function testFilterCreateStatementsHandlesQuotedSchemaTable(): void
     {
         $service = new SchemaSyncService(
-            $this->createMock(\Doctrine\ORM\EntityManagerInterface::class),
+            $this->createMock(EntityManagerInterface::class),
         );
 
         $sql = ['CREATE TABLE public."uptime_tag" (id INT NOT NULL)'];
@@ -46,7 +47,7 @@ final class SchemaSyncServiceTest extends TestCase
     public function testIsDuplicateSchemaObjectExceptionDetectsPostgresCode(): void
     {
         $service = new SchemaSyncService(
-            $this->createMock(\Doctrine\ORM\EntityManagerInterface::class),
+            $this->createMock(EntityManagerInterface::class),
         );
 
         $exception = new RuntimeException(

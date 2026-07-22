@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Controller;
 use Doctrine\ORM\EntityManagerInterface;
 use JsonException;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\Model\TagFormData;
 use Nowo\UptimeMonitorBundle\Form\SettingsAppearanceFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsGeneralFormType;
@@ -21,6 +22,7 @@ use Nowo\UptimeMonitorBundle\Service\MonitorBackupService;
 use Nowo\UptimeMonitorBundle\Service\TenantSettingsMapper;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -282,7 +284,7 @@ final class SettingsController extends AbstractUptimeController
         ]));
     }
 
-    private function handleImport(\Nowo\UptimeMonitorBundle\Entity\Tenant $tenant, Request $request): Response
+    private function handleImport(Tenant $tenant, Request $request): Response
     {
         $file = $request->files->get('backup');
         if (!$file instanceof UploadedFile) {
@@ -312,13 +314,13 @@ final class SettingsController extends AbstractUptimeController
     }
 
     /**
-     * @param \Symfony\Component\Form\FormInterface<mixed> $form
+     * @param FormInterface<mixed> $form
      */
     private function renderSection(
-        \Nowo\UptimeMonitorBundle\Entity\Tenant $tenant,
+        Tenant $tenant,
         string $section,
         string $title,
-        \Symfony\Component\Form\FormInterface $form,
+        FormInterface $form,
     ): Response {
         return $this->render('@NowoUptimeMonitorBundle/settings/section.html.twig', array_merge($this->baseViewParams($tenant), [
             'section'       => $section,
@@ -330,7 +332,7 @@ final class SettingsController extends AbstractUptimeController
     /**
      * @return array<string, mixed>
      */
-    private function baseViewParams(\Nowo\UptimeMonitorBundle\Entity\Tenant $tenant): array
+    private function baseViewParams(Tenant $tenant): array
     {
         $settings = TenantSettings::from($tenant);
 
@@ -342,7 +344,7 @@ final class SettingsController extends AbstractUptimeController
         ];
     }
 
-    private function requireTenant(string $tenantSlug): \Nowo\UptimeMonitorBundle\Entity\Tenant
+    private function requireTenant(string $tenantSlug): Tenant
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
         if ($tenant === null) {

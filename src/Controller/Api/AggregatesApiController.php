@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Controller\Api;
 
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -70,7 +71,7 @@ final class AggregatesApiController extends AbstractController
         ]);
     }
 
-    private function resolveMonitor(string $tenantSlug, int $id): \Nowo\UptimeMonitorBundle\Entity\Monitor|JsonResponse
+    private function resolveMonitor(string $tenantSlug, int $id): Monitor|JsonResponse
     {
         $monitor = $this->monitorRepository->find($id);
         if ($monitor === null || $monitor->getTenant()->getSlug() !== $tenantSlug) {

@@ -10,6 +10,7 @@ use Doctrine\ORM\QueryBuilder;
 use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -25,7 +26,7 @@ final class UptimeDataClearServiceTest extends TestCase
     {
         $tenant  = new Tenant('main', 'Main');
         $monitor = new Monitor($tenant, 'API', MonitorType::Https, 'https://example.test');
-        $monitor->setLastKnownStatus(\Nowo\UptimeMonitorBundle\Enum\CheckStatus::Up);
+        $monitor->setLastKnownStatus(CheckStatus::Up);
 
         $query = $this->createMock(Query::class);
         $query->method('execute')->willReturn(5);

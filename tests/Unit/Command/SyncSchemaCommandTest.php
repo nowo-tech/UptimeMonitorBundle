@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Command;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
 use Nowo\UptimeMonitorBundle\Command\SyncSchemaCommand;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -72,7 +73,7 @@ final class SyncSchemaCommandTest extends TestCase
     public function testExecuteThrowsForNonOrmManager(): void
     {
         $registry = $this->createMock(ManagerRegistry::class);
-        $registry->method('getManager')->willReturn($this->createMock(\Doctrine\Persistence\ObjectManager::class));
+        $registry->method('getManager')->willReturn($this->createMock(ObjectManager::class));
 
         $command = new SyncSchemaCommand($registry, 'default');
         $tester  = new CommandTester($command);

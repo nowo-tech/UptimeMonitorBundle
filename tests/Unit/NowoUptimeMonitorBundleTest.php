@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
  * @covers \Nowo\UptimeMonitorBundle\UptimeMonitorBundle
@@ -21,7 +22,7 @@ final class NowoUptimeMonitorBundleTest extends TestCase
 
     public function testBuildRegistersTwigPathsCompilerPass(): void
     {
-        $container = new \Symfony\Component\DependencyInjection\ContainerBuilder();
+        $container = new ContainerBuilder();
         (new UptimeMonitorBundle())->build($container);
 
         self::assertNotEmpty($container->getCompilerPassConfig()->getBeforeOptimizationPasses());

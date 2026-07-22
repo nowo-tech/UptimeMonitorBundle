@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 
+use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
@@ -35,7 +36,7 @@ final class DashboardSyncDispatcherTest extends TestCase
 
         $tenant  = new Tenant('main', 'Main');
         $monitor = new Monitor($tenant, 'API', MonitorType::Https, 'https://x.test');
-        $result  = new \Nowo\UptimeMonitorBundle\Entity\CheckResult($monitor, CheckStatus::Up, 10);
+        $result  = new CheckResult($monitor, CheckStatus::Up, 10);
 
         $dispatcher = new DashboardSyncDispatcher(
             $this->summaryPayloadBuilder(),
@@ -56,7 +57,7 @@ final class DashboardSyncDispatcherTest extends TestCase
 
         $tenant  = new Tenant('main', 'Main');
         $monitor = new Monitor($tenant, 'API', MonitorType::Https, 'https://x.test');
-        $result  = new \Nowo\UptimeMonitorBundle\Entity\CheckResult($monitor, CheckStatus::Up, 10);
+        $result  = new CheckResult($monitor, CheckStatus::Up, 10);
 
         $dispatcher = new DashboardSyncDispatcher(
             $this->summaryPayloadBuilder(),

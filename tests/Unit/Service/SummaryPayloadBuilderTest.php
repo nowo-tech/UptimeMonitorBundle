@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 
+use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
@@ -49,7 +50,7 @@ final class SummaryPayloadBuilderTest extends TestCase
     {
         $tenant  = new Tenant('main', 'Main');
         $monitor = new Monitor($tenant, 'API', MonitorType::Https, 'https://example.test');
-        $latest  = new \Nowo\UptimeMonitorBundle\Entity\CheckResult(
+        $latest  = new CheckResult(
             $monitor,
             CheckStatus::Up,
             42,
