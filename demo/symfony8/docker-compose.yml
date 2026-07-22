@@ -18,6 +18,7 @@ services:
     environment:
       COMPOSER_ALLOW_SUPERUSER: "1"
       APP_ENV: dev
+      FRANKENPHP_MODE: ${FRANKENPHP_MODE:-worker}
       APP_DEBUG: "1"
       APP_SECRET: ${APP_SECRET:-demo-secret}
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8

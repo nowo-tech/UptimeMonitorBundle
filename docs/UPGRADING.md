@@ -10,6 +10,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Upgrading to next release (Unreleased)](#upgrading-to-next-release-unreleased)
+- [Upgrading to 1.0.9 (2026-07-22)](#upgrading-to-109-2026-07-22)
 - [Upgrading to 1.0.8 (2026-07-16)](#upgrading-to-108-2026-07-16)
 - [Upgrading to 1.0.7 (2026-07-13)](#upgrading-to-107-2026-07-13)
 - [Upgrading to 1.0.6 (2026-07-13)](#upgrading-to-106-2026-07-13)
@@ -23,6 +24,16 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Upgrading to next release (Unreleased)
 
 _No changes yet._
+
+## Upgrading to 1.0.9 (2026-07-22)
+
+Demo FrankenPHP mode switch (`FRANKENPHP_MODE`), demo lock sync, and frontend/dev tooling. The bundle public API, configuration keys, and runtime behaviour are unchanged for application consumers.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+No application code or schema changes are required. If you run the demos, set `FRANKENPHP_MODE=classic|worker` in `.env` and recreate containers (`docker compose up -d`) after changing it.
 
 ## Upgrading to 1.0.8 (2026-07-16)
 

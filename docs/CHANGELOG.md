@@ -14,6 +14,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.9] - 2026-07-22
+
+### Added
+
+- Demo `symfony7`/`symfony8`: `FRANKENPHP_MODE` (`classic`|`worker`, default `worker`) via `.env` / Compose and shared `docker/entrypoint.sh` (REQ-DEMO-010). Documented in [`DEMO-FRANKENPHP.md`](DEMO-FRANKENPHP.md).
+
+### Changed
+
+- Demo `symfony7`/`symfony8`: `composer.lock` synced (`nowo-tech/twig-inspector-bundle` v1.0.35).
+- Frontend dev toolchain (Dependabot): Vite 8.1.5, happy-dom 20.11.0.
+- `.php-cs-fixer.dist.php`: `fully_qualified_strict_types.import_symbols` enabled.
+
+### Fixed
+
+- Demo entrypoints: `git safe.directory` for `/var/uptime-monitor-bundle` (was a leftover `/var/otp-input-bundle` path).
+
 ## [1.0.8] - 2026-07-16
 
 ### Added
@@ -132,6 +148,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.9]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.9
 [1.0.8]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.8
 [1.0.7]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.7
 [1.0.6]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.6

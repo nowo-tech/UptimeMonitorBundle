@@ -69,6 +69,17 @@ make -C demo clear-data-symfony8
 
 Optional tenant scope: `docker compose exec php php bin/console nowo:uptime:clear-data -t main --no-interaction`
 
+## Switching classic vs worker (`FRANKENPHP_MODE`)
+
+Demos select the FrankenPHP runtime via **`FRANKENPHP_MODE`** in `.env` / `.env.example` (not a Dockerfile `ENV`):
+
+| Value | Behaviour |
+| --- | --- |
+| **`worker`** (default) | Keep the worker Caddyfile (`php_server { worker ... }`) |
+| **`classic`** | Entrypoint copies `Caddyfile.dev` (plain `php_server`, hot-reload friendly) |
+
+Compose passes `FRANKENPHP_MODE=${FRANKENPHP_MODE:-worker}` into the PHP service. After changing `.env`, run `docker compose up -d` (or `make up`) so the container is **recreated** — a plain `restart` does not reload env. No image rebuild is required.
+
 ## Troubleshooting
 
 - **DNS / Composer**: demo compose sets `dns: [8.8.8.8, 8.8.4.4]` on the PHP service for Docker/WSL resolver issues.
