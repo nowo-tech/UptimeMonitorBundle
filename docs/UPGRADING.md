@@ -10,6 +10,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Upgrading to next release (Unreleased)](#upgrading-to-next-release-unreleased)
+- [Upgrading to 1.0.10 (2026-07-22)](#upgrading-to-110-2026-07-22)
 - [Upgrading to 1.0.9 (2026-07-22)](#upgrading-to-109-2026-07-22)
 - [Upgrading to 1.0.8 (2026-07-16)](#upgrading-to-108-2026-07-16)
 - [Upgrading to 1.0.7 (2026-07-13)](#upgrading-to-107-2026-07-13)
@@ -24,6 +25,16 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Upgrading to next release (Unreleased)
 
 _No changes yet._
+
+## Upgrading to 1.0.10 (2026-07-22)
+
+Code style / demo lock follow-up to 1.0.9 (`import_symbols`). The bundle public API, configuration keys, and runtime behaviour are unchanged.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+No application code or schema changes are required.
 
 ## Upgrading to 1.0.9 (2026-07-22)
 

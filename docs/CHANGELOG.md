@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
+## [1.0.10] - 2026-07-22
+
+### Changed
+
+- Apply PHP CS Fixer `fully_qualified_strict_types.import_symbols` across `src/` and `tests/` (follow-up to 1.0.9 config change; clears stale-cache gap).
+- Demo `symfony7`/`symfony8`: `config/bundles.php` import style aligned with CS Fixer; `composer.lock` synced (`doctrine/dbal` 4.4.4, `twig-inspector-bundle` v1.0.37, path bundle ref).
+- Dev: `doctrine/dbal` 4.4.4, `doctrine/doctrine-bundle` 2.18.4 (`composer.lock`).
+
 ## [1.0.9] - 2026-07-22
 
 ### Added
@@ -148,6 +156,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[1.0.10]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.10
 [1.0.9]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.9
 [1.0.8]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.8
 [1.0.7]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.7
