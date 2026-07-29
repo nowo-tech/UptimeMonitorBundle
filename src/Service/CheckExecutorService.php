@@ -19,20 +19,20 @@ use function sprintf;
 /**
  * Runs monitor checks and persists detail results.
  */
-final class CheckExecutorService
+final readonly class CheckExecutorService
 {
     /**
      * @param iterable<CheckRunnerInterface> $checkRunners
      */
     public function __construct(
         #[AutowireIterator('nowo.uptime_monitor.check_runner')]
-        private readonly iterable $checkRunners,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly AggregateService $aggregateService,
-        private readonly StatusTransitionService $statusTransitionService,
-        private readonly DashboardSyncDispatcher $dashboardSyncDispatcher,
-        private readonly CheckLatencyNormalizer $latencyNormalizer,
-        private readonly MonitorRetryService $monitorRetryService,
+        private iterable $checkRunners,
+        private EntityManagerInterface $entityManager,
+        private AggregateService $aggregateService,
+        private StatusTransitionService $statusTransitionService,
+        private DashboardSyncDispatcher $dashboardSyncDispatcher,
+        private CheckLatencyNormalizer $latencyNormalizer,
+        private MonitorRetryService $monitorRetryService,
     ) {
     }
 
@@ -68,7 +68,7 @@ final class CheckExecutorService
     private function refreshParentGroupAfterChildCheck(Monitor $monitor): void
     {
         $parent = $monitor->getParent();
-        if ($parent === null || $parent->getType() !== MonitorType::Group || $parent->isPaused()) {
+        if (!$parent instanceof Monitor || $parent->getType() !== MonitorType::Group || $parent->isPaused()) {
             return;
         }
 

@@ -20,16 +20,16 @@ use function is_string;
 /**
  * Export/import monitors (Uptime Kuma backup JSON subset — no history).
  */
-final class MonitorBackupService
+final readonly class MonitorBackupService
 {
     public const IMPORT_KEEP      = 'keep';
     public const IMPORT_SKIP      = 'skip';
     public const IMPORT_OVERWRITE = 'overwrite';
 
     public function __construct(
-        private readonly MonitorRepository $monitorRepository,
-        private readonly MonitorFactory $monitorFactory,
-        private readonly EntityManagerInterface $entityManager,
+        private MonitorRepository $monitorRepository,
+        private MonitorFactory $monitorFactory,
+        private EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -82,7 +82,7 @@ final class MonitorBackupService
             }
 
             $existing = $this->findByName($tenant, $name);
-            if ($existing !== null) {
+            if ($existing instanceof Monitor) {
                 if ($mode === self::IMPORT_SKIP) {
                     ++$skipped;
                     continue;
@@ -176,7 +176,7 @@ final class MonitorBackupService
             $data->url    = isset($config['url']) && is_string($config['url']) ? $config['url'] : (string) ($row['target'] ?? '');
             $data->method = isset($config['method']) && is_string($config['method']) ? $config['method'] : 'GET';
             if (isset($config['expected_status_codes']) && is_array($config['expected_status_codes'])) {
-                $data->expectedStatusCodes = implode(',', array_map('strval', $config['expected_status_codes']));
+                $data->expectedStatusCodes = implode(',', array_map(strval(...), $config['expected_status_codes']));
             }
         }
 

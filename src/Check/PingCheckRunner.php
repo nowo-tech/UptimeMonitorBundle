@@ -8,6 +8,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
+use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
 
 use function is_string;
 use function sprintf;
@@ -19,6 +20,12 @@ use const PHP_OS_FAMILY;
  */
 final class PingCheckRunner implements CheckRunnerInterface
 {
+    public function __construct(
+        private readonly MonitorUrlSsrfGuard $ssrfGuard,
+        private readonly bool $blockPrivateUrls = true,
+    ) {
+    }
+
     public function supports(Monitor $monitor): bool
     {
         return $monitor->getType() === MonitorType::Ping;
@@ -32,6 +39,15 @@ final class PingCheckRunner implements CheckRunnerInterface
 
         if (!$this->isValidHost($host)) {
             return new CheckResultDto(CheckStatus::Unknown, 0, null, 'Invalid ping host');
+        }
+
+        if ($this->blockPrivateUrls && $this->ssrfGuard->isBlockedHost($host)) {
+            return new CheckResultDto(
+                CheckStatus::Unknown,
+                0,
+                null,
+                'Ping host targets a private or local network address (blocked)',
+            );
         }
 
         $command = $this->buildPingCommand($host, $timeout);

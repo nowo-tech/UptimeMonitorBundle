@@ -15,10 +15,23 @@
    git push origin HEAD
    ```
 
+   Example for v1.0.11:
+   ```bash
+   git add -A
+   git -c core.hooksPath=.githooks commit -m "Prepare v1.0.11 release"
+   git push origin HEAD
+   ```
+
 3. **Create and push the tag**
    ```bash
    git tag -a v1.1.0 -m "Release v1.1.0"
    git push origin v1.1.0
+   ```
+
+   Example for v1.0.11:
+   ```bash
+   git tag -a v1.0.11 -m "Release v1.0.11 - ROLE_ADMIN defaults, ping SSRF, FrankenPHP banner, demo-smoke"
+   git push origin v1.0.11
    ```
 
 4. **GitHub Actions** (if configured) may create the GitHub Release from the tag.

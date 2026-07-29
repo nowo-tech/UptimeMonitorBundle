@@ -10,6 +10,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Upgrading to next release (Unreleased)](#upgrading-to-next-release-unreleased)
+- [Upgrading to 1.0.11 (2026-07-29)](#upgrading-to-1011-2026-07-29)
 - [Upgrading to 1.0.10 (2026-07-22)](#upgrading-to-110-2026-07-22)
 - [Upgrading to 1.0.9 (2026-07-22)](#upgrading-to-109-2026-07-22)
 - [Upgrading to 1.0.8 (2026-07-16)](#upgrading-to-108-2026-07-16)
@@ -24,7 +25,30 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 ## Upgrading to next release (Unreleased)
 
-_No changes yet._
+_Placeholder for the next release._
+
+## Upgrading to 1.0.11 (2026-07-29)
+
+### Security defaults (UI-002)
+
+Default `nowo_uptime_monitor.security.*_roles` and `dashboard.roles` are now **`ROLE_ADMIN`** (deny-by-default for anonymous/low-privilege users). To keep previous “allow all authenticated” behaviour, set empty lists explicitly:
+
+```yaml
+nowo_uptime_monitor:
+    security:
+        dashboard_roles: []
+        manage_roles: []
+        settings_roles: []
+```
+
+### Ping SSRF
+
+ICMP ping targets are blocked when they resolve to private/local networks if `checks.block_private_urls` is `true` (default), same guard as HTTP monitors.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console cache:clear
+```
 
 ## Upgrading to 1.0.10 (2026-07-22)
 

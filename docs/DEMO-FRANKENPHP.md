@@ -1,5 +1,12 @@
 # Demo applications with FrankenPHP
 
+## Table of contents
+
+- [Overview](#overview)
+- [Quick start](#quick-start)
+- [FrankenPHP modes](#frankenphp-modes)
+- [Ports](#ports)
+
 The bundle ships **Symfony 7** and **Symfony 8** demos under `demo/symfony7/` and `demo/symfony8/` (not included in the Composer package archive).
 
 ## Overview

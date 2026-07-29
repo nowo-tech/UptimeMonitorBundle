@@ -15,14 +15,14 @@ use Symfony\Component\Scheduler\ScheduleProviderInterface;
  * Registers the periodic due-check scan when scheduler mode is enabled.
  */
 #[AsSchedule('uptime_monitor')]
-final class UptimeMonitorScheduleProvider implements ScheduleProviderInterface
+final readonly class UptimeMonitorScheduleProvider implements ScheduleProviderInterface
 {
     /**
      * @param array<string, mixed> $schedulerConfig
      */
     public function __construct(
         #[Autowire('%nowo_uptime_monitor.scheduler%')]
-        private readonly array $schedulerConfig,
+        private array $schedulerConfig,
     ) {
     }
 

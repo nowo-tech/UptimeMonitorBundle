@@ -17,17 +17,8 @@ class CheckAggregate
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (Doctrine sets id via reflection) */
     private ?int $id = null;
-
-    #[ORM\ManyToOne(targetEntity: Monitor::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Monitor $monitor;
-
-    #[ORM\Column(type: Types::STRING, length: 8, enumType: AggregatePeriod::class)]
-    private AggregatePeriod $period;
-
-    #[ORM\Column(name: 'period_start', type: Types::DATETIME_IMMUTABLE)]
-    private DateTimeImmutable $periodStart;
 
     #[ORM\Column(type: Types::INTEGER)]
     private int $checksTotal = 0;
@@ -44,11 +35,20 @@ class CheckAggregate
     #[ORM\Column(type: Types::INTEGER)]
     private int $latencyAvgMs = 0;
 
-    public function __construct(Monitor $monitor, AggregatePeriod $period, DateTimeImmutable $periodStart)
+    public function __construct(
+        #[ORM\ManyToOne(targetEntity: Monitor::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private Monitor $monitor,
+        #[ORM\Column(type: Types::STRING, length: 8, enumType: AggregatePeriod::class)]
+        private AggregatePeriod $period,
+        #[ORM\Column(name: 'period_start', type: Types::DATETIME_IMMUTABLE)]
+        private DateTimeImmutable $periodStart
+    ) {
+    }
+
+    public function getId(): ?int
     {
-        $this->monitor     = $monitor;
-        $this->period      = $period;
-        $this->periodStart = $periodStart;
+        return $this->id;
     }
 
     public function getMonitor(): Monitor

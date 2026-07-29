@@ -16,11 +16,8 @@ class Tag
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (Doctrine sets id via reflection) */
     private ?int $id = null;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Tenant $tenant;
 
     #[ORM\Column(type: Types::STRING, length: 64)]
     private string $name;
@@ -28,10 +25,11 @@ class Tag
     #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]
     private ?string $color = null;
 
-    public function __construct(Tenant $tenant, string $name)
+    public function __construct(#[ORM\ManyToOne(targetEntity: Tenant::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private Tenant $tenant, string $name)
     {
-        $this->tenant = $tenant;
-        $this->name   = trim($name);
+        $this->name = trim($name);
     }
 
     public function getId(): ?int

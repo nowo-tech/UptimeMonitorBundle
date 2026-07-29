@@ -10,8 +10,8 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
+use OpenSSLCertificate;
 
-use function is_object;
 use function is_string;
 use function sprintf;
 
@@ -72,7 +72,7 @@ final class SslCheckRunner implements CheckRunnerInterface
         fclose($client);
 
         $cert = $params['options']['ssl']['peer_certificate'] ?? null;
-        if (!is_string($cert) && !is_object($cert)) {
+        if (!is_string($cert) && !$cert instanceof OpenSSLCertificate) {
             return new CheckResultDto(CheckStatus::Unknown, $latencyMs, null, 'Could not capture peer certificate');
         }
 

@@ -17,7 +17,7 @@ use function count;
 /**
  * Seeds demo tenants with one project group and local HTTP probe monitors.
  */
-final class DemoSeedService
+final readonly class DemoSeedService
 {
     /** Base URL for demo probe routes when checks run inside the demo Docker network. */
     private const DEMO_PROBE_BASE_URL = 'http://php';
@@ -25,9 +25,9 @@ final class DemoSeedService
     private const DEMO_GROUP_KEY = 'demo';
 
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly TenantRepository $tenantRepository,
-        private readonly MonitorRepository $monitorRepository,
+        private EntityManagerInterface $entityManager,
+        private TenantRepository $tenantRepository,
+        private MonitorRepository $monitorRepository,
     ) {
     }
 
@@ -52,7 +52,7 @@ final class DemoSeedService
     public function seed(string $tenantSlug = 'main', string $tenantName = 'Main'): array
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             $tenant = new Tenant($tenantSlug, $tenantName);
             $this->entityManager->persist($tenant);
             $this->entityManager->flush();
@@ -127,7 +127,7 @@ final class DemoSeedService
 
         usort(
             $monitors,
-            static fn (Monitor $a, Monitor $b): int => ($a->getParent() === null ? 1 : 0) <=> ($b->getParent() === null ? 1 : 0),
+            static fn (Monitor $a, Monitor $b): int => ($a->getParent() instanceof Monitor ? 0 : 1) <=> ($b->getParent() instanceof Monitor ? 0 : 1),
         );
 
         foreach ($monitors as $monitor) {
@@ -185,7 +185,7 @@ final class DemoSeedService
             ->setLastKnownStatus(null)
             ->setLastAlertAt(null);
 
-        if ($group !== null) {
+        if ($group instanceof Monitor) {
             $monitor->setParent($group)->setProject(null);
         }
     }

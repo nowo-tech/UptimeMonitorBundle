@@ -9,10 +9,10 @@ use Nowo\UptimeMonitorBundle\Service\DueChecksRunner;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
-final class RunDueChecksMessageHandler
+final readonly class RunDueChecksMessageHandler
 {
     public function __construct(
-        private readonly DueChecksRunner $dueChecksRunner,
+        private DueChecksRunner $dueChecksRunner,
     ) {
     }
 

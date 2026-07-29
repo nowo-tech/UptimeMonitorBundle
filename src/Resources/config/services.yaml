@@ -44,6 +44,8 @@ services:
         tags: ['nowo.uptime_monitor.check_runner']
 
     Nowo\UptimeMonitorBundle\Check\PingCheckRunner:
+        arguments:
+            $blockPrivateUrls: '%nowo_uptime_monitor.checks.block_private_urls%'
         tags: ['nowo.uptime_monitor.check_runner']
 
     Nowo\UptimeMonitorBundle\Check\GroupCheckRunner:

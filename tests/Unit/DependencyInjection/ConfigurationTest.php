@@ -13,9 +13,12 @@ use Symfony\Component\Config\Definition\Processor;
  */
 final class ConfigurationTest extends TestCase
 {
-    public function testAlias(): void
+    public function testConfigTreeBuilderUsesAliasAsRoot(): void
     {
-        self::assertSame('nowo_uptime_monitor', Configuration::ALIAS);
+        $treeBuilder = (new Configuration())->getConfigTreeBuilder();
+        $root        = $treeBuilder->buildTree();
+
+        self::assertSame(Configuration::ALIAS, $root->getName());
     }
 
     public function testDefaults(): void

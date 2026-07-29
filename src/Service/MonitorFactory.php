@@ -19,10 +19,10 @@ use function sprintf;
 /**
  * Maps form data to Monitor entity fields.
  */
-final class MonitorFactory
+final readonly class MonitorFactory
 {
     public function __construct(
-        private readonly MonitorRepository $monitorRepository,
+        private MonitorRepository $monitorRepository,
     ) {
     }
 
@@ -46,7 +46,7 @@ final class MonitorFactory
             $monitor->setParent(null)->setProject(null);
         } else {
             $monitor->setParent($this->resolveParent($data->parentId));
-            if ($monitor->getParent() === null && $data->project !== '') {
+            if (!$monitor->getParent() instanceof Monitor && $data->project !== '') {
                 $monitor->setProject($data->project);
             }
         }
@@ -231,7 +231,7 @@ final class MonitorFactory
 
         if ($data->tags !== '') {
             $config['tags'] = array_values(array_filter(array_map(
-                static fn (string $tag): string => trim($tag),
+                trim(...),
                 explode(',', $data->tags),
             )));
         }
@@ -248,7 +248,7 @@ final class MonitorFactory
         $data->method = isset($config['method']) && is_string($config['method']) ? $config['method'] : 'GET';
         $codes        = $config['expected_status_codes'] ?? [200];
         if (is_array($codes)) {
-            $data->expectedStatusCodes = implode(',', array_map('strval', $codes));
+            $data->expectedStatusCodes = implode(',', array_map(strval(...), $codes));
         }
         $data->keyword      = isset($config['keyword']) && is_string($config['keyword']) ? $config['keyword'] : '';
         $data->maxRedirects = isset($config['max_redirects']) && is_numeric($config['max_redirects'])
@@ -273,7 +273,7 @@ final class MonitorFactory
             : '';
         $tags = $config['tags'] ?? [];
         if (is_array($tags)) {
-            $data->tags = implode(', ', array_map('strval', $tags));
+            $data->tags = implode(', ', array_map(strval(...), $tags));
         }
 
         return $data;

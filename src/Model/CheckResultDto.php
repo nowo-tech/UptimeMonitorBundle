@@ -9,17 +9,17 @@ use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 /**
  * Result of a single monitor check execution (before persistence).
  */
-final class CheckResultDto
+final readonly class CheckResultDto
 {
     /**
      * @param array<string, mixed>|null $metadata
      */
     public function __construct(
-        public readonly CheckStatus $status,
-        public readonly int $latencyMs,
-        public readonly ?int $statusCode = null,
-        public readonly ?string $message = null,
-        public readonly ?array $metadata = null,
+        public CheckStatus $status,
+        public int $latencyMs,
+        public ?int $statusCode = null,
+        public ?string $message = null,
+        public ?array $metadata = null,
     ) {
     }
 }

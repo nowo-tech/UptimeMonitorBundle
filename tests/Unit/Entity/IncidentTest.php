@@ -24,7 +24,9 @@ final class IncidentTest extends TestCase
 
         self::assertTrue($incident->isOpen());
         self::assertSame($monitor, $incident->getMonitor());
-        self::assertInstanceOf(DateTimeImmutable::class, $incident->getStartedAt());
+        self::assertSame(CheckStatus::Down, $incident->getTriggerStatus());
+        self::assertSame('timeout', $incident->getMessage());
+        self::assertGreaterThan(0, $incident->getStartedAt()->getTimestamp());
 
         $ended = new DateTimeImmutable('2026-05-02');
         $incident->resolve($ended);

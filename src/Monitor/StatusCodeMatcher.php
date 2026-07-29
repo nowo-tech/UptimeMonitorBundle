@@ -24,7 +24,7 @@ final class StatusCodeMatcher
             }
 
             if (str_contains($part, '-')) {
-                [$min, $max] = array_map('intval', explode('-', $part, 2));
+                [$min, $max] = array_map(intval(...), explode('-', $part, 2));
                 if ($min > $max) {
                     [$min, $max] = [$max, $min];
                 }
@@ -42,6 +42,9 @@ final class StatusCodeMatcher
         return $codes === [] ? [200] : $codes;
     }
 
+    /**
+     * @param list<int> $allowed
+     */
     public static function matches(int $statusCode, array $allowed): bool
     {
         return in_array($statusCode, $allowed, true);

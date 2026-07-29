@@ -49,6 +49,12 @@ Install bundle public assets:
 php bin/console assets:install public
 ```
 
+Load published CSS/JS with the named Symfony asset package **`nowo_uptime_monitor`** (registered via `framework.assets.packages`, base path `/bundles/uptimemonitor`):
+
+```twig
+<link rel="stylesheet" href="{{ asset('uptime-dashboard.css', 'nowo_uptime_monitor') }}">
+```
+
 Build frontend assets when developing the bundle from source (pnpm + Vite).
 
 Configure Doctrine and create tables:

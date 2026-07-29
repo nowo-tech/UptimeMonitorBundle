@@ -16,13 +16,8 @@ class Tenant
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (Doctrine sets id via reflection) */
     private ?int $id = null;
-
-    #[ORM\Column(type: Types::STRING, length: 64)]
-    private string $slug;
-
-    #[ORM\Column(type: Types::STRING, length: 255)]
-    private string $name;
 
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $enabled = true;
@@ -34,10 +29,10 @@ class Tenant
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
 
-    public function __construct(string $slug, string $name)
+    public function __construct(#[ORM\Column(type: Types::STRING, length: 64)]
+        private string $slug, #[ORM\Column(type: Types::STRING, length: 255)]
+        private string $name)
     {
-        $this->slug      = $slug;
-        $this->name      = $name;
         $this->createdAt = new DateTimeImmutable();
     }
 

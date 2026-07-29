@@ -29,12 +29,12 @@ use const STREAM_CLIENT_CONNECT;
 /**
  * Executes HTTP/HTTPS monitor checks via Symfony HttpClient.
  */
-final class HttpCheckRunner implements CheckRunnerInterface
+final readonly class HttpCheckRunner implements CheckRunnerInterface
 {
     public function __construct(
-        private readonly ?HttpClientInterface $httpClient,
-        private readonly MonitorUrlSsrfGuard $ssrfGuard,
-        private readonly bool $blockPrivateUrls = true,
+        private ?HttpClientInterface $httpClient,
+        private MonitorUrlSsrfGuard $ssrfGuard,
+        private bool $blockPrivateUrls = true,
     ) {
     }
 
@@ -110,15 +110,13 @@ final class HttpCheckRunner implements CheckRunnerInterface
                 );
             }
 
-            if (isset($config['keyword']) && is_string($config['keyword']) && $config['keyword'] !== '') {
-                if (!str_contains($bodyContent, $config['keyword'])) {
-                    return new CheckResultDto(
-                        CheckStatus::Down,
-                        $latencyMs,
-                        $statusCode,
-                        'Response body does not contain expected keyword',
-                    );
-                }
+            if (isset($config['keyword']) && is_string($config['keyword']) && $config['keyword'] !== '' && !str_contains($bodyContent, $config['keyword'])) {
+                return new CheckResultDto(
+                    CheckStatus::Down,
+                    $latencyMs,
+                    $statusCode,
+                    'Response body does not contain expected keyword',
+                );
             }
 
             if ($settings->isCheckCertExpiry() && $monitor->getType() === MonitorType::Https) {

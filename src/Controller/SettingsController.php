@@ -25,6 +25,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -51,8 +52,10 @@ final class SettingsController extends AbstractUptimeController
         private readonly MonitorBackupService $backupService,
         private readonly UptimeDataClearService $dataClearService,
         private readonly DetailRetentionService $detailRetentionService,
+        /** @var array<string, mixed> $retentionConfig */
         #[Autowire('%nowo_uptime_monitor.retention%')]
         private readonly array $retentionConfig,
+        /** @var array<string, mixed> $notificationsConfig */
         #[Autowire('%nowo_uptime_monitor.notifications%')]
         private readonly array $notificationsConfig,
     ) {
@@ -60,7 +63,7 @@ final class SettingsController extends AbstractUptimeController
     }
 
     #[Route('', name: 'index', methods: ['GET'])]
-    public function index(string $tenantSlug): Response
+    public function index(string $tenantSlug): RedirectResponse
     {
         return $this->redirectToRoute('nowo_uptime_settings_general', ['tenantSlug' => $tenantSlug]);
     }
@@ -171,7 +174,7 @@ final class SettingsController extends AbstractUptimeController
     }
 
     #[Route('/tags/{id}/delete', name: 'tag_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function deleteTag(string $tenantSlug, int $id, Request $request): Response
+    public function deleteTag(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
         $tenant = $this->requireTenant($tenantSlug);
         $tag    = $this->tagRepository->find($id);
@@ -200,7 +203,7 @@ final class SettingsController extends AbstractUptimeController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->settingsMapper->applyHistory($tenant, $data, $globalDays);
+            $this->settingsMapper->applyHistory($tenant, $data);
             $this->entityManager->flush();
             $this->addFlash('success', $this->transMessage('flash.settings.history_saved'));
 
@@ -216,7 +219,7 @@ final class SettingsController extends AbstractUptimeController
     }
 
     #[Route('/history/purge', name: 'history_purge', methods: ['POST'])]
-    public function purgeHistory(string $tenantSlug, Request $request): Response
+    public function purgeHistory(string $tenantSlug, Request $request): RedirectResponse
     {
         $this->requireTenant($tenantSlug);
         if ($this->isCsrfTokenValid('purge-history', (string) $request->request->get('_token'))) {
@@ -228,7 +231,7 @@ final class SettingsController extends AbstractUptimeController
     }
 
     #[Route('/history/clear-stats', name: 'history_clear', methods: ['POST'])]
-    public function clearStats(string $tenantSlug, Request $request): Response
+    public function clearStats(string $tenantSlug, Request $request): RedirectResponse
     {
         $this->requireTenant($tenantSlug);
         if ($this->isCsrfTokenValid('clear-stats', (string) $request->request->get('_token'))) {
@@ -284,7 +287,7 @@ final class SettingsController extends AbstractUptimeController
         ]));
     }
 
-    private function handleImport(Tenant $tenant, Request $request): Response
+    private function handleImport(Tenant $tenant, Request $request): RedirectResponse
     {
         $file = $request->files->get('backup');
         if (!$file instanceof UploadedFile) {
@@ -347,7 +350,7 @@ final class SettingsController extends AbstractUptimeController
     private function requireTenant(string $tenantSlug): Tenant
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             throw $this->createNotFoundException(sprintf('Tenant "%s" not found.', $tenantSlug));
         }
 

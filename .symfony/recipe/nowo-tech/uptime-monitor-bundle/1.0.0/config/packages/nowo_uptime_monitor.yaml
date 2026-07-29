@@ -1,6 +1,10 @@
 nowo_uptime_monitor:
     retention:
         detail_days: 30
+    security:
+        dashboard_roles: ['ROLE_ADMIN']
+        manage_roles: ['ROLE_ADMIN']
+        settings_roles: ['ROLE_ADMIN']
     ui:
         framework: tabler
         tabler:

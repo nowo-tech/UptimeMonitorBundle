@@ -105,12 +105,12 @@ final class RollupCommand extends Command
                 $bucket['start'],
             );
 
-            if ($aggregate === null) {
+            if (!$aggregate instanceof CheckAggregate) {
                 $aggregate = new CheckAggregate($bucket['monitor'], $bucket['period'], $bucket['start']);
                 $this->entityManager->persist($aggregate);
             }
 
-            $total      = (int) $bucket['total'];
+            $total      = $bucket['total'];
             $avgLatency = (int) round($bucket['latency_sum'] / $total);
 
             $aggregate->applyTotals($total, $bucket['up'], $avgLatency);

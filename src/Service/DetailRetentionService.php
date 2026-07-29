@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Service;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -16,16 +17,16 @@ use function sprintf;
 /**
  * Removes detailed check rows older than {@see Configuration} retention.detail_days.
  */
-final class DetailRetentionService
+final readonly class DetailRetentionService
 {
     /**
      * @param array<string, mixed> $retentionConfig
      */
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly TenantRepository $tenantRepository,
+        private EntityManagerInterface $entityManager,
+        private TenantRepository $tenantRepository,
         #[Autowire('%nowo_uptime_monitor.retention%')]
-        private readonly array $retentionConfig,
+        private array $retentionConfig,
     ) {
     }
 
@@ -69,7 +70,7 @@ final class DetailRetentionService
     private function resolveDetailDays(string $tenantSlug): ?int
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant !== null) {
+        if ($tenant instanceof Tenant) {
             $override = TenantSettings::from($tenant)->getDetailRetentionDays();
             if ($override !== null) {
                 return $override;

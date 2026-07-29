@@ -17,27 +17,8 @@ class CheckResult
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (Doctrine sets id via reflection) */
     private ?int $id = null;
-
-    #[ORM\ManyToOne(targetEntity: Monitor::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Monitor $monitor;
-
-    #[ORM\Column(type: Types::STRING, length: 16, enumType: CheckStatus::class)]
-    private CheckStatus $status;
-
-    #[ORM\Column(type: Types::INTEGER)]
-    private int $latencyMs;
-
-    #[ORM\Column(type: Types::INTEGER, nullable: true)]
-    private ?int $statusCode = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $message = null;
-
-    /** @var array<string, mixed>|null */
-    #[ORM\Column(type: Types::JSON, nullable: true)]
-    private ?array $metadata = null;
 
     #[ORM\Column(name: 'checked_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $checkedAt;
@@ -46,20 +27,21 @@ class CheckResult
      * @param array<string, mixed>|null $metadata
      */
     public function __construct(
-        Monitor $monitor,
-        CheckStatus $status,
-        int $latencyMs,
-        ?int $statusCode = null,
-        ?string $message = null,
-        ?array $metadata = null,
+        #[ORM\ManyToOne(targetEntity: Monitor::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private Monitor $monitor,
+        #[ORM\Column(type: Types::STRING, length: 16, enumType: CheckStatus::class)]
+        private CheckStatus $status,
+        #[ORM\Column(type: Types::INTEGER)]
+        private int $latencyMs,
+        #[ORM\Column(type: Types::INTEGER, nullable: true)]
+        private ?int $statusCode = null,
+        #[ORM\Column(type: Types::TEXT, nullable: true)]
+        private ?string $message = null,
+        #[ORM\Column(type: Types::JSON, nullable: true)]
+        private ?array $metadata = null,
     ) {
-        $this->monitor    = $monitor;
-        $this->status     = $status;
-        $this->latencyMs  = $latencyMs;
-        $this->statusCode = $statusCode;
-        $this->message    = $message;
-        $this->metadata   = $metadata;
-        $this->checkedAt  = new DateTimeImmutable();
+        $this->checkedAt = new DateTimeImmutable();
     }
 
     public function getId(): ?int
@@ -90,6 +72,14 @@ class CheckResult
     public function getMessage(): ?string
     {
         return $this->message;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getMetadata(): ?array
+    {
+        return $this->metadata;
     }
 
     public function getCheckedAt(): DateTimeImmutable

@@ -1,17 +1,16 @@
 # Uptime Monitor Bundle
 
-[![CI](https://github.com/nowo-tech/UptimeMonitorBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/UptimeMonitorBundle/actions/workflows/ci.yml)
-[![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/uptime-monitor-bundle.svg?style=flat)](https://packagist.org/packages/nowo-tech/uptime-monitor-bundle)
-[![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/uptime-monitor-bundle.svg)](https://packagist.org/packages/nowo-tech/uptime-monitor-bundle)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net)
-[![Symfony](https://img.shields.io/badge/Symfony-7.4%2B%20%7C%208.x-000000?logo=symfony)](https://symfony.com)
+[![CI](https://github.com/nowo-tech/UptimeMonitorBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/UptimeMonitorBundle/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/uptime-monitor-bundle.svg?style=flat)](https://packagist.org/packages/nowo-tech/uptime-monitor-bundle) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/uptime-monitor-bundle.svg)](https://packagist.org/packages/nowo-tech/uptime-monitor-bundle) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-7.4%2B%20%7C%208.x-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/UptimeMonitorBundle.svg?style=social&label=Star)](https://github.com/nowo-tech/UptimeMonitorBundle) [![Coverage](https://img.shields.io/badge/Coverage-99%25-brightgreen)](#tests-and-coverage)
 
 > ⭐ **Found this useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
 **Symfony bundle for synthetic uptime monitoring** (Uptime Kuma–style): scheduled checks, detail retention, perpetual aggregates, multi-tenant dashboard with polling sync, public status page, and notifications.
 
 > 📋 **Compatible with Symfony 7.4+ and 8.x** (PHP 8.2+)
+
+![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
+
+This bundle is **FrankenPHP worker mode friendly**.
 
 ## Features
 
@@ -48,9 +47,17 @@ php bin/console nowo:uptime:run-due-checks
 
 Dashboard: `/uptime/{tenantSlug}` · Status page: `/status/{tenantSlug}` (default tenant `main`).
 
+## Development
+
+```bash
+make up
+make test
+make assets
+make -C demo up-symfony8
+```
+
 ## Documentation
 
-- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md)
@@ -66,6 +73,7 @@ Dashboard: `/uptime/{tenantSlug}` · Status page: `/status/{tenantSlug}` (defaul
 
 ### Additional documentation
 
+- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Scheduling](docs/SCHEDULING.md)
 - [Check types](docs/CHECK-TYPES.md)
 - [Monitor configuration (Uptime Kuma parity)](docs/MONITOR-CONFIGURATION.md)
@@ -74,15 +82,6 @@ Dashboard: `/uptime/{tenantSlug}` · Status page: `/status/{tenantSlug}` (defaul
 - [Notifications](docs/NOTIFICATIONS.md)
 - [Mercure real-time sync](docs/MERCURE.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
-
-## Development
-
-```bash
-make up
-make test
-make assets
-make -C demo up-symfony8
-```
 
 ## Tests and coverage
 

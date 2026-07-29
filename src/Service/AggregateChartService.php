@@ -15,10 +15,10 @@ use function sprintf;
 /**
  * Builds Chart.js-friendly datasets from stored aggregates.
  */
-final class AggregateChartService
+final readonly class AggregateChartService
 {
     public function __construct(
-        private readonly CheckAggregateRepository $aggregateRepository,
+        private CheckAggregateRepository $aggregateRepository,
     ) {
     }
 
@@ -44,7 +44,7 @@ final class AggregateChartService
     }
 
     /**
-     * @return array<string, array{name: string, labels: list<string>, uptime_percent: list<float>}>
+     * @return array<int|string, array{name: string, labels: list<string>, uptime_percent: list<float>}>
      */
     public function buildTenantOverview(string $tenantSlug, int $days = 7): array
     {
@@ -76,7 +76,6 @@ final class AggregateChartService
             ];
         }
 
-        /* @var array<string, array{name: string, labels: list<string>, uptime_percent: list<float>}> $result */
         return $result;
     }
 

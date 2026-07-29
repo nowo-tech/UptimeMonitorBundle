@@ -55,7 +55,8 @@ final class TenantSettingsMapper
         $data->theme             = $s->getTheme();
         $data->heartbeatBarTheme = $s->getHeartbeatBarTheme();
         $data->elapsedTime       = $s->getElapsedTimeDisplay();
-        $data->uiFramework       = $s->getUiFrameworkOverride()?->value ?? 'default';
+        $uiOverride              = $s->getUiFrameworkOverride();
+        $data->uiFramework       = $uiOverride !== null ? $uiOverride->value : 'default';
 
         return $data;
     }
@@ -97,7 +98,7 @@ final class TenantSettingsMapper
         return $data;
     }
 
-    public function applyHistory(Tenant $tenant, SettingsHistoryData $data, int $globalDetailDays): void
+    public function applyHistory(Tenant $tenant, SettingsHistoryData $data): void
     {
         if ($data->useGlobalDefault) {
             $settings = $tenant->getSettings();

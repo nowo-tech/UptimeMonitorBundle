@@ -17,6 +17,7 @@ use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -163,7 +164,7 @@ final class MonitorController extends AbstractUptimeController
     }
 
     #[Route('/{id}/delete', name: 'delete', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function delete(string $tenantSlug, int $id, Request $request): Response
+    public function delete(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
         $monitor = $this->requireMonitor($tenantSlug, $id);
 
@@ -177,7 +178,7 @@ final class MonitorController extends AbstractUptimeController
     }
 
     #[Route('/{id}/toggle-pause', name: 'toggle_pause', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function togglePause(string $tenantSlug, int $id, Request $request): Response
+    public function togglePause(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
         $monitor = $this->requireMonitor($tenantSlug, $id);
 
@@ -192,7 +193,7 @@ final class MonitorController extends AbstractUptimeController
     private function requireTenant(string $tenantSlug): Tenant
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             throw $this->createNotFoundException(sprintf('Tenant "%s" not found.', $tenantSlug));
         }
 
@@ -220,7 +221,7 @@ final class MonitorController extends AbstractUptimeController
             if ($groupId === null) {
                 continue;
             }
-            if ($exclude !== null && $exclude->getId() === $groupId) {
+            if ($exclude instanceof Monitor && $exclude->getId() === $groupId) {
                 continue;
             }
             $choices[$group->getName()] = $groupId;

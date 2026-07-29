@@ -17,16 +17,16 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 /**
  * Maintains rollup buckets (hour/day/month/year) from individual check results.
  */
-final class AggregateService
+final readonly class AggregateService
 {
     /**
      * @param array<string, mixed> $aggregatesConfig
      */
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly CheckAggregateRepository $aggregateRepository,
+        private EntityManagerInterface $entityManager,
+        private CheckAggregateRepository $aggregateRepository,
         #[Autowire('%nowo_uptime_monitor.aggregates%')]
-        private readonly array $aggregatesConfig,
+        private array $aggregatesConfig,
     ) {
     }
 
@@ -45,7 +45,7 @@ final class AggregateService
             $bucketStart = $this->bucketStart($now, $period);
             $aggregate   = $this->aggregateRepository->findOneForBucket($monitor, $period, $bucketStart);
 
-            if ($aggregate === null) {
+            if (!$aggregate instanceof CheckAggregate) {
                 $aggregate = new CheckAggregate($monitor, $period, $bucketStart);
                 $this->entityManager->persist($aggregate);
             }

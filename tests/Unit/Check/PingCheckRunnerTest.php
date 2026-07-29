@@ -9,6 +9,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -21,9 +22,14 @@ use const PHP_OS_FAMILY;
  */
 final class PingCheckRunnerTest extends TestCase
 {
+    private function runner(bool $blockPrivateUrls = true): PingCheckRunner
+    {
+        return new PingCheckRunner(new MonitorUrlSsrfGuard(), $blockPrivateUrls);
+    }
+
     public function testSupportsPingType(): void
     {
-        $runner  = new PingCheckRunner();
+        $runner  = $this->runner();
         $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '8.8.8.8');
         $monitor->setConfig(['host' => '8.8.8.8']);
 
@@ -32,7 +38,7 @@ final class PingCheckRunnerTest extends TestCase
 
     public function testRunReturnsUnknownForInvalidHost(): void
     {
-        $runner  = new PingCheckRunner();
+        $runner  = $this->runner();
         $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, 'bad host');
         $monitor->setConfig(['host' => 'bad host']);
 
@@ -41,13 +47,25 @@ final class PingCheckRunnerTest extends TestCase
         self::assertSame(CheckStatus::Unknown, $result->status);
     }
 
+    public function testRunBlocksPrivateHostWhenEnabled(): void
+    {
+        $runner  = $this->runner(true);
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '127.0.0.1');
+        $monitor->setConfig(['host' => '127.0.0.1']);
+
+        $result = $runner->run($monitor);
+
+        self::assertSame(CheckStatus::Unknown, $result->status);
+        self::assertStringContainsString('private', (string) $result->message);
+    }
+
     public function testRunReturnsDownForUnreachableHost(): void
     {
         if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin', 'BSD'], true)) {
             self::markTestSkipped('Ping runner only tested on Unix-like systems');
         }
 
-        $runner  = new PingCheckRunner();
+        $runner  = $this->runner(false);
         $monitor = new Monitor(
             new Tenant('main', 'Main'),
             'Ping fail',
@@ -63,9 +81,8 @@ final class PingCheckRunnerTest extends TestCase
 
     public function testParseLatencyMsExtractsMilliseconds(): void
     {
-        $runner = new PingCheckRunner();
+        $runner = $this->runner();
         $method = new ReflectionMethod(PingCheckRunner::class, 'parseLatencyMs');
-        $method->setAccessible(true);
 
         $latency = $method->invoke($runner, ['64 bytes from 8.8.8.8: time=12.5 ms']);
 
@@ -77,9 +94,8 @@ final class PingCheckRunnerTest extends TestCase
 
     public function testParseLatencyMsReturnsNullWhenMissing(): void
     {
-        $runner = new PingCheckRunner();
+        $runner = $this->runner();
         $method = new ReflectionMethod(PingCheckRunner::class, 'parseLatencyMs');
-        $method->setAccessible(true);
 
         self::assertNull($method->invoke($runner, ['no timing here']));
     }
@@ -90,9 +106,8 @@ final class PingCheckRunnerTest extends TestCase
             self::markTestSkipped('Ping command branches only on Unix-like systems');
         }
 
-        $runner = new PingCheckRunner();
+        $runner = $this->runner();
         $method = new ReflectionMethod(PingCheckRunner::class, 'buildPingCommand');
-        $method->setAccessible(true);
 
         $command = $method->invoke($runner, '127.0.0.1', 2.5);
 
@@ -107,7 +122,7 @@ final class PingCheckRunnerTest extends TestCase
             self::markTestSkipped('Ping runner only tested on Unix-like systems');
         }
 
-        $runner  = new PingCheckRunner();
+        $runner  = $this->runner(false);
         $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '127.0.0.1');
         $monitor->setConfig(['timeout' => 1.0]);
 

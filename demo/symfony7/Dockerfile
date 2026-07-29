@@ -1,6 +1,6 @@
-# FrankenPHP (Dunglas) - PHP 8.4 Alpine
+# FrankenPHP (Dunglas) - PHP 8.5 Alpine
 # https://frankenphp.dev/docs/docker/
-FROM dunglas/frankenphp:1-php8.4-alpine
+FROM dunglas/frankenphp:1-php8.5-alpine
 
 RUN apk add --no-cache git unzip bash nodejs npm
 RUN install-php-extensions intl zip pdo_pgsql

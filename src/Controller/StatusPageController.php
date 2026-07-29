@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Controller;
 
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
@@ -47,17 +48,17 @@ final class StatusPageController extends AbstractController
         }
 
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             throw $this->createNotFoundException(sprintf('Tenant "%s" not found.', $tenantSlug));
         }
 
         $monitors = array_values(array_filter(
             $this->monitorRepository->findByTenantSlug($tenantSlug),
-            static fn ($m) => !$m->isPaused(),
+            static fn (Monitor $m): bool => !$m->isPaused(),
         ));
 
         $ids = array_values(array_filter(array_map(
-            static fn ($m) => $m->getId(),
+            static fn (Monitor $m): ?int => $m->getId(),
             $monitors,
         )));
         $latestResults = $this->checkResultRepository->findLatestByMonitorIds($ids);

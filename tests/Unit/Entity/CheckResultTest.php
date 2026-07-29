@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Entity;
 
-use DateTimeImmutable;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -27,6 +26,7 @@ final class CheckResultTest extends TestCase
         self::assertSame(42, $result->getLatencyMs());
         self::assertSame(200, $result->getStatusCode());
         self::assertSame('ok', $result->getMessage());
-        self::assertInstanceOf(DateTimeImmutable::class, $result->getCheckedAt());
+        self::assertSame(['foo' => 'bar'], $result->getMetadata());
+        self::assertGreaterThan(0, $result->getCheckedAt()->getTimestamp());
     }
 }

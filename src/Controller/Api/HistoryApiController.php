@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Controller\Api;
 
 use DateTimeInterface;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -38,7 +39,7 @@ final class HistoryApiController extends AbstractController
     public function monitorHistory(string $tenantSlug, int $id): JsonResponse
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             return $this->json(['error' => 'Tenant not found'], Response::HTTP_NOT_FOUND);
         }
 

@@ -43,11 +43,8 @@ final class SeedDemoCommand extends Command
         $name  = (string) $input->getOption('name');
         $fresh = (bool) $input->getOption('fresh');
 
-        $result = $fresh
-            ? $this->demoSeedService->freshSeed($slug, $name)
-            : $this->demoSeedService->seed($slug, $name);
-
         if ($fresh) {
+            $result = $this->demoSeedService->freshSeed($slug, $name);
             $io->success(sprintf(
                 'Tenant "%s" reset. Removed %d monitor(s), created %d (1 group + demo_uptime_ok + demo_uptime_flaky).',
                 $result['tenant']->getSlug(),
@@ -55,6 +52,7 @@ final class SeedDemoCommand extends Command
                 $result['monitors_created'],
             ));
         } else {
+            $result = $this->demoSeedService->seed($slug, $name);
             $io->success(sprintf(
                 'Tenant "%s" ready. Created %d new monitor(s). Use --fresh to replace the full demo tree.',
                 $result['tenant']->getSlug(),

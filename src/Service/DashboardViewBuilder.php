@@ -17,14 +17,14 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 /**
  * Builds grouped dashboard rows with history bars and uptime metrics.
  */
-final class DashboardViewBuilder
+final readonly class DashboardViewBuilder
 {
     public function __construct(
-        private readonly MonitorRepository $monitorRepository,
-        private readonly CheckResultRepository $checkResultRepository,
-        private readonly CheckAggregateRepository $aggregateRepository,
-        private readonly UptimeMetricsService $metricsService,
-        private readonly TenantDashboardSerializer $tenantSerializer,
+        private MonitorRepository $monitorRepository,
+        private CheckResultRepository $checkResultRepository,
+        private CheckAggregateRepository $aggregateRepository,
+        private UptimeMetricsService $metricsService,
+        private TenantDashboardSerializer $tenantSerializer,
     ) {
     }
 
@@ -35,7 +35,7 @@ final class DashboardViewBuilder
     {
         $monitors = $this->monitorRepository->findByTenantSlug($tenantSlug);
         $ids      = array_values(array_filter(array_map(
-            static fn (Monitor $m) => $m->getId(),
+            static fn (Monitor $m): ?int => $m->getId(),
             $monitors,
         )));
 
@@ -59,13 +59,13 @@ final class DashboardViewBuilder
             $results = $this->checkResultRepository->findRecentForMonitor($monitor, null, $limit);
 
             return array_map(
-                fn (CheckResult $result): array => $this->tenantSerializer->serializeEvent($result),
+                $this->tenantSerializer->serializeEvent(...),
                 array_reverse($results),
             );
         }
 
         return array_map(
-            fn (CheckResult $result): array => $this->tenantSerializer->serializeEvent($result),
+            $this->tenantSerializer->serializeEvent(...),
             $this->checkResultRepository->findRecentForTenant($tenantSlug, $limit),
         );
     }
@@ -82,7 +82,7 @@ final class DashboardViewBuilder
     {
         $monitors = $this->monitorRepository->findByTenantSlug($tenantSlug);
         $ids      = array_values(array_filter(array_map(
-            static fn (Monitor $m) => $m->getId(),
+            static fn (Monitor $m): ?int => $m->getId(),
             $monitors,
         )));
 
@@ -236,7 +236,7 @@ final class DashboardViewBuilder
         $children = [];
         if ($monitor->isGroup() && $monitor->getId() !== null) {
             $childIds = array_values(array_filter(array_map(
-                static fn (Monitor $m) => $m->getId(),
+                static fn (Monitor $m): ?int => $m->getId(),
                 $this->monitorRepository->findChildrenOf($monitor->getId()),
             )));
             $latestChildren = $this->checkResultRepository->findLatestByMonitorIds($childIds);

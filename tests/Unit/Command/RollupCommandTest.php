@@ -37,7 +37,6 @@ final class RollupCommandTest extends TestCase
 
         $result     = new CheckResult($monitor, CheckStatus::Up, 100, 200);
         $reflection = new ReflectionProperty($result, 'checkedAt');
-        $reflection->setAccessible(true);
         $reflection->setValue($result, new DateTimeImmutable('-2 days'));
 
         $query = $this->createMock(Query::class);

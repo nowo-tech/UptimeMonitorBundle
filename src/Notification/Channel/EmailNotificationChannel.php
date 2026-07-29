@@ -12,15 +12,15 @@ use Symfony\Component\Mime\Email;
 
 use function is_array;
 
-final class EmailNotificationChannel implements NotificationChannelInterface
+final readonly class EmailNotificationChannel implements NotificationChannelInterface
 {
     /**
      * @param array<string, mixed> $notificationsConfig
      */
     public function __construct(
         #[Autowire('%nowo_uptime_monitor.notifications%')]
-        private readonly array $notificationsConfig,
-        private readonly ?MailerInterface $mailer = null,
+        private array $notificationsConfig,
+        private ?MailerInterface $mailer = null,
     ) {
     }
 
@@ -35,7 +35,7 @@ final class EmailNotificationChannel implements NotificationChannelInterface
 
         return ($this->notificationsConfig['enabled'] ?? false)
             && ($config['enabled'] ?? false)
-            && $this->mailer !== null;
+            && $this->mailer instanceof MailerInterface;
     }
 
     public function send(UptimeAlert $alert): bool
@@ -48,13 +48,13 @@ final class EmailNotificationChannel implements NotificationChannelInterface
         $from   = (string) ($config['from'] ?? '');
         $to     = $config['to'] ?? [];
 
-        if ($from === '' || !is_array($to) || $to === [] || $this->mailer === null) {
+        if ($from === '' || !is_array($to) || $to === [] || !$this->mailer instanceof MailerInterface) {
             return false;
         }
 
         $email = (new Email())
             ->from($from)
-            ->to(...array_map('strval', $to))
+            ->to(...array_map(strval(...), $to))
             ->subject($alert->getSubject())
             ->text($alert->getMessage());
 

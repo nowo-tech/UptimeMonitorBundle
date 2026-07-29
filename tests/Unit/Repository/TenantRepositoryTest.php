@@ -34,7 +34,7 @@ final class TenantRepositoryTest extends TestCase
         $registry = $this->createMock(ManagerRegistry::class);
         $registry->method('getManagerForClass')->willReturn($em);
 
-        $repository = new TenantRepository($registry);
-        self::assertInstanceOf(TenantRepository::class, $repository);
+        new TenantRepository($registry);
+        $this->addToAssertionCount(1);
     }
 }

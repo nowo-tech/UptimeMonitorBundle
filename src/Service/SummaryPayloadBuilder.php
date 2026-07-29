@@ -17,13 +17,13 @@ use function count;
 /**
  * Builds dashboard summary payloads shared by the REST API and Mercure updates.
  */
-final class SummaryPayloadBuilder
+final readonly class SummaryPayloadBuilder
 {
     public function __construct(
-        private readonly MonitorRepository $monitorRepository,
-        private readonly CheckResultRepository $checkResultRepository,
-        private readonly UptimeMetricsService $metricsService,
-        private readonly TenantDashboardSerializer $tenantSerializer,
+        private MonitorRepository $monitorRepository,
+        private CheckResultRepository $checkResultRepository,
+        private UptimeMetricsService $metricsService,
+        private TenantDashboardSerializer $tenantSerializer,
     ) {
     }
 
@@ -39,7 +39,7 @@ final class SummaryPayloadBuilder
     {
         $monitors = $this->monitorRepository->findByTenantSlug($tenantSlug);
         $ids      = array_values(array_filter(array_map(
-            static fn (Monitor $m) => $m->getId(),
+            static fn (Monitor $m): ?int => $m->getId(),
             $monitors,
         )));
         $now           = new DateTimeImmutable();
@@ -58,7 +58,7 @@ final class SummaryPayloadBuilder
             $monitorId = $monitor->getId();
             $latest    = $monitorId !== null ? ($latestResults[$monitorId] ?? null) : null;
 
-            if ($since !== null && $latest !== null && $latest->getCheckedAt() <= $since) {
+            if ($since instanceof DateTimeImmutable && $latest !== null && $latest->getCheckedAt() <= $since) {
                 continue;
             }
 
@@ -84,10 +84,10 @@ final class SummaryPayloadBuilder
             'monitors'    => $items,
         ];
 
-        if ($since === null) {
+        if (!$since instanceof DateTimeImmutable) {
             $payload['stats']  = $this->tenantSerializer->buildQuickStats($monitors, $latestResults);
             $payload['events'] = array_map(
-                fn (CheckResult $result): array => $this->tenantSerializer->serializeEvent($result),
+                $this->tenantSerializer->serializeEvent(...),
                 $this->checkResultRepository->findRecentForTenant($tenantSlug, 80),
             );
         }
@@ -117,7 +117,7 @@ final class SummaryPayloadBuilder
             $checks24h = $this->checkResultRepository->findChecksForMonitorSince($monitor, $since24h);
         }
 
-        if ($latest === null) {
+        if (!$latest instanceof CheckResult) {
             $monitorId = $monitor->getId();
             if ($monitorId !== null) {
                 $latest = $this->checkResultRepository->findLatestByMonitorIds([$monitorId])[$monitorId] ?? null;
@@ -143,7 +143,7 @@ final class SummaryPayloadBuilder
      */
     private function ensureLatestInHistory(array $historyChecks, ?CheckResult $latest): array
     {
-        if ($latest === null) {
+        if (!$latest instanceof CheckResult) {
             return $historyChecks;
         }
 
@@ -181,7 +181,7 @@ final class SummaryPayloadBuilder
         $tenantSlug = $monitor->getTenant()->getSlug();
         $monitors   = $this->monitorRepository->findByTenantSlug($tenantSlug);
         $ids        = array_values(array_filter(array_map(
-            static fn (Monitor $m) => $m->getId(),
+            static fn (Monitor $m): ?int => $m->getId(),
             $monitors,
         )));
         $latestResults = $this->checkResultRepository->findLatestByMonitorIds($ids);
@@ -197,6 +197,8 @@ final class SummaryPayloadBuilder
 
     /**
      * @param list<array{status: string, checked_at: string}> $history
+     *
+     * @return array<string, mixed>
      */
     public function serializeMonitor(
         Monitor $monitor,

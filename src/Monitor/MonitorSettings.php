@@ -14,12 +14,12 @@ use function is_string;
 /**
  * Typed access to monitor JSON config (Uptime Kuma–compatible fields).
  */
-final class MonitorSettings
+final readonly class MonitorSettings
 {
     private const FAILURE_STREAK_KEY = 'failure_streak';
 
     public function __construct(
-        private readonly Monitor $monitor,
+        private Monitor $monitor,
     ) {
     }
 
@@ -171,7 +171,7 @@ final class MonitorSettings
             return [200];
         }
 
-        return StatusCodeMatcher::parse(implode(',', array_map('strval', $raw)));
+        return StatusCodeMatcher::parse(implode(',', array_map(strval(...), $raw)));
     }
 
     public function appliesToHttp(): bool

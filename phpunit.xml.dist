@@ -37,4 +37,7 @@
             <file>src/Ui/UiFramework.php</file>
         </exclude>
     </source>
+    <php>
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[direct]=0"/>
+    </php>
 </phpunit>

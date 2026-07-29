@@ -33,7 +33,6 @@ final class DemoSeedServiceTest extends TestCase
         $service = new DemoSeedService($entityManager, $tenantRepository, $monitorRepository);
         $result  = $service->seed('main', 'Main');
 
-        self::assertInstanceOf(Tenant::class, $result['tenant']);
         self::assertSame('main', $result['tenant']->getSlug());
         self::assertSame(3, $result['monitors_created']);
     }
@@ -71,14 +70,12 @@ final class DemoSeedServiceTest extends TestCase
 
         $monitorRepository = $this->createMock(MonitorRepository::class);
         $monitorRepository->method('findOneBy')->willReturnCallback(
-            static function (array $criteria) use ($tenant): Monitor {
-                return new Monitor(
-                    $tenant,
-                    (string) ($criteria['name'] ?? 'existing'),
-                    $criteria['type'] ?? MonitorType::Http,
-                    'target',
-                );
-            },
+            static fn (array $criteria): Monitor => new Monitor(
+                $tenant,
+                (string) ($criteria['name'] ?? 'existing'),
+                $criteria['type'] ?? MonitorType::Http,
+                'target',
+            ),
         );
 
         $entityManager = $this->createMock(EntityManagerInterface::class);

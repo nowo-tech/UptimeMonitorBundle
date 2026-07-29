@@ -45,12 +45,12 @@ trait SyncDispatcherTestTrait
         return new DashboardSyncDispatcher(
             $this->summaryPayloadBuilder(),
             ['sync' => 'polling'],
-            null,
         );
     }
 
     /**
      * @param iterable<CheckRunnerInterface> $runners
+     * @param list<string> $aggregatePeriods
      */
     protected function checkExecutorService(
         iterable $runners = [],

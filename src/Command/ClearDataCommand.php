@@ -45,12 +45,10 @@ final class ClearDataCommand extends Command
 
         $scope = $tenantSlug !== null ? sprintf('tenant "%s"', $tenantSlug) : 'all tenants';
 
-        if (!$input->getOption('no-interaction')) {
-            if (!$io->confirm(sprintf('Delete all uptime records for %s? Monitors and tenants are kept.', $scope), false)) {
-                $io->note('Aborted.');
+        if (!$input->getOption('no-interaction') && !$io->confirm(sprintf('Delete all uptime records for %s? Monitors and tenants are kept.', $scope), false)) {
+            $io->note('Aborted.');
 
-                return Command::SUCCESS;
-            }
+            return Command::SUCCESS;
         }
 
         try {

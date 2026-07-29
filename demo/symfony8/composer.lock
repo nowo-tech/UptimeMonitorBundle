@@ -248,16 +248,16 @@
         },
         {
             "name": "doctrine/doctrine-bundle",
-            "version": "3.3.0",
+            "version": "3.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/DoctrineBundle.git",
-                "reference": "88ad38467d03e30b676069493fa96663ffa0a32b"
+                "reference": "9b231f957020de52d6ac94fd72f0cbe8cf1eaad5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/DoctrineBundle/zipball/88ad38467d03e30b676069493fa96663ffa0a32b",
-                "reference": "88ad38467d03e30b676069493fa96663ffa0a32b",
+                "url": "https://api.github.com/repos/doctrine/DoctrineBundle/zipball/9b231f957020de52d6ac94fd72f0cbe8cf1eaad5",
+                "reference": "9b231f957020de52d6ac94fd72f0cbe8cf1eaad5",
                 "shasum": ""
             },
             "require": {
@@ -346,7 +346,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/DoctrineBundle/issues",
-                "source": "https://github.com/doctrine/DoctrineBundle/tree/3.3.0"
+                "source": "https://github.com/doctrine/DoctrineBundle/tree/3.3.1"
             },
             "funding": [
                 {
@@ -362,7 +362,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-22T11:49:24+00:00"
+            "time": "2026-07-23T10:37:01+00:00"
         },
         {
             "name": "doctrine/event-manager",
@@ -1007,7 +1007,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "23b0a4a03739cfd93f815bbf4c598c433debaea0"
+                "reference": "fb84a70fb56c6a43df39a7a271cc1557ff7141b1"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",
@@ -1033,6 +1033,7 @@
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.0",
+                "nowo-tech/phpstan-frankenphp": "^1.0",
                 "phpstan/extension-installer": "^1.0",
                 "phpstan/phpstan": "^2.0",
                 "phpstan/phpstan-phpunit": "^2.0",
@@ -1127,9 +1128,11 @@
             "homepage": "https://github.com/nowo-tech/UptimeMonitorBundle",
             "keywords": [
                 "doctrine",
+                "frankenphp",
                 "health-check",
                 "monitoring",
                 "multi-tenant",
+                "php",
                 "status-page",
                 "symfony",
                 "symfony-bundle",
@@ -3926,16 +3929,16 @@
         },
         {
             "name": "symfony/polyfill-intl-grapheme",
-            "version": "v1.38.1",
+            "version": "v1.41.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-grapheme.git",
-                "reference": "e9247d281d694a5120554d9afaf54e070e88a603"
+                "reference": "bb899c1db0aa8127dc3afe8cda4a67eb24915f8d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/e9247d281d694a5120554d9afaf54e070e88a603",
-                "reference": "e9247d281d694a5120554d9afaf54e070e88a603",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/bb899c1db0aa8127dc3afe8cda4a67eb24915f8d",
+                "reference": "bb899c1db0aa8127dc3afe8cda4a67eb24915f8d",
                 "shasum": ""
             },
             "require": {
@@ -3984,7 +3987,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.38.1"
+                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.41.0"
             },
             "funding": [
                 {
@@ -4004,7 +4007,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-26T05:58:03+00:00"
+            "time": "2026-07-28T08:25:59+00:00"
         },
         {
             "name": "symfony/polyfill-intl-icu",
@@ -4346,16 +4349,16 @@
         },
         {
             "name": "symfony/polyfill-php85",
-            "version": "v1.38.1",
+            "version": "v1.41.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php85.git",
-                "reference": "ba2ba04f3352cfa2dcbbcb90aee13ed967f505b1"
+                "reference": "255fab485aaa1006ed411040c42aecd7b5302d7a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-php85/zipball/ba2ba04f3352cfa2dcbbcb90aee13ed967f505b1",
-                "reference": "ba2ba04f3352cfa2dcbbcb90aee13ed967f505b1",
+                "url": "https://api.github.com/repos/symfony/polyfill-php85/zipball/255fab485aaa1006ed411040c42aecd7b5302d7a",
+                "reference": "255fab485aaa1006ed411040c42aecd7b5302d7a",
                 "shasum": ""
             },
             "require": {
@@ -4402,7 +4405,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php85/tree/v1.38.1"
+                "source": "https://github.com/symfony/polyfill-php85/tree/v1.41.0"
             },
             "funding": [
                 {
@@ -4422,7 +4425,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-26T02:25:22+00:00"
+            "time": "2026-07-01T12:47:55+00:00"
         },
         {
             "name": "symfony/property-access",
@@ -6420,16 +6423,16 @@
     "packages-dev": [
         {
             "name": "nowo-tech/twig-inspector-bundle",
-            "version": "v1.0.37",
+            "version": "v1.0.40",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/TwigInspectorBundle.git",
-                "reference": "87f257751802989a5fbe3e61da3cff3737edc928"
+                "reference": "38b44a33602670c6f4f44786dd529472be1aee3b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/TwigInspectorBundle/zipball/87f257751802989a5fbe3e61da3cff3737edc928",
-                "reference": "87f257751802989a5fbe3e61da3cff3737edc928",
+                "url": "https://api.github.com/repos/nowo-tech/TwigInspectorBundle/zipball/38b44a33602670c6f4f44786dd529472be1aee3b",
+                "reference": "38b44a33602670c6f4f44786dd529472be1aee3b",
                 "shasum": ""
             },
             "require": {
@@ -6447,6 +6450,7 @@
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.0",
+                "nowo-tech/phpstan-frankenphp": "^1.0",
                 "phpstan/extension-installer": "^1.4",
                 "phpstan/phpstan": "^2.0",
                 "phpstan/phpstan-symfony": "^2.0",
@@ -6518,7 +6522,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-20T08:48:35+00:00"
+            "time": "2026-07-22T16:18:15+00:00"
         },
         {
             "name": "symfony/debug-bundle",

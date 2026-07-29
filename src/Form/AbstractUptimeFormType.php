@@ -10,6 +10,10 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
  * Base form type: all labels and help texts use the {@see UptimeTranslation::DOMAIN} catalogue.
+ *
+ * @template TData
+ *
+ * @extends AbstractType<TData>
  */
 abstract class AbstractUptimeFormType extends AbstractType
 {

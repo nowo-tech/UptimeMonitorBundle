@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Controller\Api;
 
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -58,7 +59,7 @@ final class AggregatesApiController extends AbstractController
     )]
     public function tenantOverview(string $tenantSlug, Request $request): JsonResponse
     {
-        if ($this->tenantRepository->findOneBySlug($tenantSlug) === null) {
+        if (!$this->tenantRepository->findOneBySlug($tenantSlug) instanceof Tenant) {
             return $this->json(['error' => 'Tenant not found'], Response::HTTP_NOT_FOUND);
         }
 

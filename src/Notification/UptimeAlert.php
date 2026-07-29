@@ -12,17 +12,17 @@ use function sprintf;
 /**
  * Alert payload for uptime status transitions.
  */
-final class UptimeAlert
+final readonly class UptimeAlert
 {
     public const TRANSITION_DOWN = 'down';
     public const TRANSITION_UP   = 'recovery';
 
     public function __construct(
-        private readonly Monitor $monitor,
-        private readonly string $transition,
-        private readonly CheckStatus $currentStatus,
-        private readonly ?CheckStatus $previousStatus,
-        private readonly ?string $message = null,
+        private Monitor $monitor,
+        private string $transition,
+        private CheckStatus $currentStatus,
+        private ?CheckStatus $previousStatus,
+        private ?string $message = null,
     ) {
     }
 

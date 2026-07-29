@@ -14,10 +14,10 @@ use function is_string;
 /**
  * Typed access to per-tenant settings (Uptime Kuma Settings screen).
  */
-final class TenantSettings
+final readonly class TenantSettings
 {
     public function __construct(
-        private readonly Tenant $tenant,
+        private Tenant $tenant,
     ) {
     }
 

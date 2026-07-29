@@ -11,7 +11,7 @@ use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final class WebhookNotificationChannel implements NotificationChannelInterface
+final readonly class WebhookNotificationChannel implements NotificationChannelInterface
 {
     public const CHANNEL_GENERIC = 'webhook';
     public const CHANNEL_SLACK   = 'slack';
@@ -21,9 +21,9 @@ final class WebhookNotificationChannel implements NotificationChannelInterface
      */
     public function __construct(
         #[Autowire('%nowo_uptime_monitor.notifications%')]
-        private readonly array $notificationsConfig,
-        private readonly HttpClientInterface $httpClient,
-        private readonly string $channelKey = self::CHANNEL_GENERIC,
+        private array $notificationsConfig,
+        private HttpClientInterface $httpClient,
+        private string $channelKey = self::CHANNEL_GENERIC,
     ) {
     }
 

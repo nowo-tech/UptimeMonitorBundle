@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Twig;
 
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Ui\UiFramework;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
@@ -53,7 +55,7 @@ final class UptimeUiExtension extends AbstractExtension implements GlobalsInterf
     private function resolveTheme(): string
     {
         $request = $this->requestStack->getCurrentRequest();
-        if ($request === null) {
+        if (!$request instanceof Request) {
             return 'auto';
         }
 
@@ -63,7 +65,7 @@ final class UptimeUiExtension extends AbstractExtension implements GlobalsInterf
         }
 
         $tenant = $this->tenantRepository->findOneBySlug($slug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             return 'auto';
         }
 
@@ -77,7 +79,7 @@ final class UptimeUiExtension extends AbstractExtension implements GlobalsInterf
         $global = UiFramework::fromString((string) ($this->uiConfig['framework'] ?? UiFramework::Tabler->value));
 
         $request = $this->requestStack->getCurrentRequest();
-        if ($request === null) {
+        if (!$request instanceof Request) {
             return $global;
         }
 
@@ -87,12 +89,12 @@ final class UptimeUiExtension extends AbstractExtension implements GlobalsInterf
         }
 
         $tenant = $this->tenantRepository->findOneBySlug($slug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             return $global;
         }
 
         $override = TenantSettings::from($tenant)->getUiFrameworkOverride();
-        if ($override === null) {
+        if (!$override instanceof UiFramework) {
             return $global;
         }
 

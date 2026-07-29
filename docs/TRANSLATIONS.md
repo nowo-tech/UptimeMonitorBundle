@@ -1,15 +1,22 @@
 # Translations
 
-The bundle UI uses Symfony Translation with domain **`uptime`** and locales **`en`** (default) and **`es`**.
+## Table of contents
+
+- [Files](#files)
+- [Locale (session)](#locale-session)
+- [Forms](#forms)
+- [Twig](#twig)
+
+The bundle UI uses Symfony Translation with domain **`NowoUptimeMonitorBundle`** (catalogue files) and validator domain messages. Locales: **en**, **es**, **de**, **fr**, **it**, **nl**, **pt**.
 
 ## Files
 
-| File | Locale |
-|------|--------|
-| `src/Resources/translations/uptime.en.yaml` | English |
-| `src/Resources/translations/uptime.es.yaml` | Spanish |
-| `src/Resources/translations/validators.en.yaml` | Validator messages (English) |
-| `src/Resources/translations/validators.es.yaml` | Validator messages (Spanish) |
+| File | Locale / purpose |
+|------|------------------|
+| `src/Resources/translations/NowoUptimeMonitorBundle.en.yaml` | English UI |
+| `src/Resources/translations/NowoUptimeMonitorBundle.es.yaml` | Spanish UI |
+| `src/Resources/translations/NowoUptimeMonitorBundle.{de,fr,it,nl,pt}.yaml` | Additional UI locales |
+| `src/Resources/translations/validators.*.yaml` | Validator messages |
 
 ## Locale (session)
 
@@ -19,44 +26,20 @@ The bundle UI uses the **Symfony request locale** from the host application (ses
 
 ## Forms
 
-All bundle form types extend `AbstractUptimeFormType`, which sets `translation_domain: uptime`. Labels and help texts are message keys (e.g. `form.monitor.name`).
+All bundle form types extend `AbstractUptimeFormType`, which sets `translation_domain: NowoUptimeMonitorBundle` (or the configured domain). Labels and help texts are message keys (e.g. `form.monitor.name`).
 
 ## Twig
 
-Templates use the `uptime` domain via `{% trans_default_domain 'NowoUptimeMonitorBundle' %}`.
+Templates use `{% trans_default_domain 'NowoUptimeMonitorBundle' %}`.
 
 **Important:** Twig does not propagate `trans_default_domain` from the layout into **child blocks**. Put `{% trans_default_domain 'NowoUptimeMonitorBundle' %}` as the first line inside each `{% block %}` that uses `|trans` (not after `{% extends %}` outside blocks — Twig 3 forbids that).
 
 ## Host application
 
-The bundle prepends (when `framework` is available):
+Ensure the host enables the translator and loads bundle catalogues (Flex recipe / `framework.translator.paths` prepended by the bundle).
 
-```yaml
-framework:
-    default_locale: en
-    enabled_locales: ['en', 'es']
-    translator:
-        fallbacks: ['en']
-```
+To add a locale:
 
-Demos already enable `en` and `es` in `config/packages/framework.yaml`. Ensure `symfony/translation` is installed (required by the bundle).
-
-## Adding a locale
-
-1. Copy `uptime.en.yaml` to `uptime.{locale}.yaml` and translate.
-2. Add the locale to `UptimeTranslation::LOCALES`.
-3. Add `enabled_locales` in the host app `framework` config.
-
-## Validate catalogues
-
-```bash
-# In the host app (after composer require symfony/translation)
-php bin/console debug:translation uptime --only-missing en
-php bin/console debug:translation uptime --only-missing es
-```
-
-From the bundle repo:
-
-```bash
-make validate-translations
-```
+1. Copy `NowoUptimeMonitorBundle.en.yaml` to `NowoUptimeMonitorBundle.{locale}.yaml` and translate.
+2. Add the locale to `enabled_locales` if you customize it.
+3. Run `make validate-translations` from the bundle root.

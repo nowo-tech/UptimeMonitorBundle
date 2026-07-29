@@ -20,7 +20,6 @@ use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -73,7 +72,6 @@ final class DashboardControllerTest extends TestCase
 
         $response = $controller->index('main', new Request());
 
-        self::assertInstanceOf(Response::class, $response);
         self::assertSame('rendered', $response->getContent());
     }
 

@@ -17,11 +17,11 @@ use function sprintf;
 /**
  * Heartbeat for project groups: rolls up the latest status of child monitors.
  */
-final class GroupCheckRunner implements CheckRunnerInterface
+final readonly class GroupCheckRunner implements CheckRunnerInterface
 {
     public function __construct(
-        private readonly MonitorRepository $monitorRepository,
-        private readonly CheckResultRepository $checkResultRepository,
+        private MonitorRepository $monitorRepository,
+        private CheckResultRepository $checkResultRepository,
     ) {
     }
 
@@ -48,7 +48,7 @@ final class GroupCheckRunner implements CheckRunnerInterface
         }
 
         $childIds = array_values(array_filter(array_map(
-            static fn (Monitor $m) => $m->getId(),
+            static fn (Monitor $m): ?int => $m->getId(),
             $children,
         )));
         $latestByChild = $this->checkResultRepository->findLatestByMonitorIds($childIds);
@@ -91,7 +91,7 @@ final class GroupCheckRunner implements CheckRunnerInterface
             CheckStatus::Up->value       => 1,
         ];
 
-        return ($rank[$candidate->value] ?? 0) > ($rank[$current->value] ?? 0)
+        return $rank[$candidate->value] > $rank[$current->value]
             ? $candidate
             : $current;
     }

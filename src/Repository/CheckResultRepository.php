@@ -142,7 +142,7 @@ class CheckResultRepository extends ServiceEntityRepository
             ->orderBy('c.checkedAt', 'DESC')
             ->setMaxResults(max(1, $limit));
 
-        if ($since !== null) {
+        if ($since instanceof DateTimeImmutable) {
             $qb->andWhere('c.checkedAt >= :since')
                 ->setParameter('since', $since);
         }

@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Controller\Api;
 
 use DateTimeImmutable;
 use Exception;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\SummaryPayloadBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -37,7 +38,7 @@ final class StatusApiController extends AbstractController
     public function summary(string $tenantSlug, Request $request): JsonResponse
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             return $this->json(['error' => 'Tenant not found'], Response::HTTP_NOT_FOUND);
         }
 

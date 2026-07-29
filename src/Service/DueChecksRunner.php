@@ -10,11 +10,11 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 /**
  * Executes all monitors that are due at the given time.
  */
-final class DueChecksRunner
+final readonly class DueChecksRunner
 {
     public function __construct(
-        private readonly MonitorRepository $monitorRepository,
-        private readonly CheckExecutorService $checkExecutor,
+        private MonitorRepository $monitorRepository,
+        private CheckExecutorService $checkExecutor,
     ) {
     }
 

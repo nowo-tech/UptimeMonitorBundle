@@ -1,7 +1,9 @@
-.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix phpstan rector rector-dry qa composer-sync release-check release-check-demos validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
+.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix phpstan rector rector-dry qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history
 
 COMPOSE_FILE ?= docker-compose.yml
-COMPOSE     ?= docker-compose -f $(COMPOSE_FILE)
+# Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
+COMPOSE_BIN ?= $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
+COMPOSE     ?= $(COMPOSE_BIN) -f $(COMPOSE_FILE)
 SERVICE_PHP ?= php
 
 help:
@@ -97,7 +99,10 @@ composer-sync: ensure-up
 release-check-demos:
 	@$(MAKE) -C demo release-check
 
-release-check: check-no-cursor-coauthor ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-90 release-check-demos test-ts
+demo-smoke:
+	@$(MAKE) -C demo demo-smoke
+
+release-check: check-no-cursor-coauthor check-open-prs ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-90 release-check-demos test-ts
 
 clean:
 	rm -rf vendor coverage coverage-ts .phpunit.cache coverage-php.txt coverage-ts.txt node_modules
@@ -109,13 +114,19 @@ validate:
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer validate --strict
 
 validate-translations:
-	@test -f src/Resources/translations/uptime.en.yaml
-	@test -f src/Resources/translations/uptime.es.yaml
-	@echo "Translation catalogues: uptime.en.yaml, uptime.es.yaml (domain: uptime)"
+	@test -f src/Resources/translations/NowoUptimeMonitorBundle.en.yaml
+	@test -f src/Resources/translations/NowoUptimeMonitorBundle.es.yaml
+	@test -f src/Resources/translations/validators.en.yaml
+	@test -f src/Resources/translations/validators.es.yaml
+	@echo "Translation catalogues: NowoUptimeMonitorBundle.*.yaml + validators.*.yaml"
 
 check-no-cursor-coauthor:
 	@chmod +x .scripts/check-no-cursor-coauthor.sh
 	@./.scripts/check-no-cursor-coauthor.sh HEAD
+
+check-open-prs:
+	@chmod +x .scripts/check-open-prs.sh
+	@bash .scripts/check-open-prs.sh
 
 setup-hooks:
 	@chmod +x .githooks/pre-commit 2>/dev/null || true
@@ -125,7 +136,8 @@ setup-hooks:
 
 # REQ-MAKE-008: update-deps (REQ-MAKE-008)
 BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
+# Optional: monorepo helper absent on standalone GitHub Actions checkout (REQ-MAKE-009).
+-include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
 
 strip-cursor-coauthor-from-history:
 	@chmod +x .scripts/strip-cursor-coauthor-from-history.sh

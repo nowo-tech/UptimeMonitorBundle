@@ -12,6 +12,7 @@ use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 
@@ -21,12 +22,12 @@ use function sprintf;
 /**
  * Removes uptime operational records (checks, aggregates, incidents) and resets monitor status hints.
  */
-final class UptimeDataClearService
+final readonly class UptimeDataClearService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly TenantRepository $tenantRepository,
-        private readonly MonitorRepository $monitorRepository,
+        private EntityManagerInterface $entityManager,
+        private TenantRepository $tenantRepository,
+        private MonitorRepository $monitorRepository,
     ) {
     }
 
@@ -35,7 +36,7 @@ final class UptimeDataClearService
      */
     public function clear(?string $tenantSlug = null): array
     {
-        if ($tenantSlug !== null && $this->tenantRepository->findOneBySlug($tenantSlug) === null) {
+        if ($tenantSlug !== null && !$this->tenantRepository->findOneBySlug($tenantSlug) instanceof Tenant) {
             throw new InvalidArgumentException(sprintf('Tenant "%s" not found.', $tenantSlug));
         }
 
@@ -118,9 +119,6 @@ final class UptimeDataClearService
         return $slugs;
     }
 
-    /**
-     * @param QueryBuilder<object> $qb
-     */
     private function applyTenantFilter(QueryBuilder $qb, string $alias, ?string $tenantSlug): void
     {
         if ($tenantSlug === null) {

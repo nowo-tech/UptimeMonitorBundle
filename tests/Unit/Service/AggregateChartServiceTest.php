@@ -66,13 +66,11 @@ final class AggregateChartServiceTest extends TestCase
 
         $repo = $this->createMock(CheckAggregateRepository::class);
         $repo->method('findForMonitorInRange')->willReturnCallback(
-            static function () use ($monitor, $at): array {
-                return [
-                    new CheckAggregate($monitor, AggregatePeriod::Hour, $at),
-                    new CheckAggregate($monitor, AggregatePeriod::Month, $at),
-                    new CheckAggregate($monitor, AggregatePeriod::Year, $at),
-                ];
-            },
+            static fn (): array => [
+                new CheckAggregate($monitor, AggregatePeriod::Hour, $at),
+                new CheckAggregate($monitor, AggregatePeriod::Month, $at),
+                new CheckAggregate($monitor, AggregatePeriod::Year, $at),
+            ],
         );
 
         $service = new AggregateChartService($repo);

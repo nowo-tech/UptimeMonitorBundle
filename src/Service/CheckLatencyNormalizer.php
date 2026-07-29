@@ -11,14 +11,14 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 /**
  * Applies configured minimum latency so reported values are not below measurement resolution.
  */
-final class CheckLatencyNormalizer
+final readonly class CheckLatencyNormalizer
 {
     /**
      * @param array<string, mixed> $checksConfig
      */
     public function __construct(
         #[Autowire('%nowo_uptime_monitor.checks%')]
-        private readonly array $checksConfig,
+        private array $checksConfig,
     ) {
     }
 
@@ -29,7 +29,7 @@ final class CheckLatencyNormalizer
             return max(0, $latencyMs);
         }
 
-        return $latencyMs < $min ? $min : $latencyMs;
+        return max($min, $latencyMs);
     }
 
     public function normalizeDto(Monitor $monitor, CheckResultDto $dto): CheckResultDto

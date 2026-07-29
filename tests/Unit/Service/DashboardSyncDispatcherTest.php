@@ -29,10 +29,8 @@ final class DashboardSyncDispatcherTest extends TestCase
         $hub = $this->createMock(HubInterface::class);
         $hub->expects(self::once())
             ->method('publish')
-            ->with(self::callback(static function (Update $update): bool {
-                return str_contains($update->getData(), 'monitor_update')
-                    && in_array('/uptime/main', $update->getTopics(), true);
-            }));
+            ->with(self::callback(static fn (Update $update): bool => str_contains($update->getData(), 'monitor_update')
+                && in_array('/uptime/main', $update->getTopics(), true)));
 
         $tenant  = new Tenant('main', 'Main');
         $monitor = new Monitor($tenant, 'API', MonitorType::Https, 'https://x.test');
@@ -73,7 +71,6 @@ final class DashboardSyncDispatcherTest extends TestCase
         $dispatcher = new DashboardSyncDispatcher(
             $this->summaryPayloadBuilder(),
             ['sync' => 'mercure', 'mercure' => ['topic_template' => '/uptime/{tenant}']],
-            null,
         );
 
         self::assertSame('/uptime/acme', $dispatcher->resolveTopic('acme'));

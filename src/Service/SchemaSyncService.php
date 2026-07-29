@@ -15,12 +15,12 @@ use function in_array;
 /**
  * Applies Doctrine schema create/update SQL for Uptime Monitor entities only.
  */
-final class SchemaSyncService
+final readonly class SchemaSyncService
 {
     private const ENTITY_NAMESPACE_PREFIX = 'Nowo\\UptimeMonitorBundle\\Entity\\';
 
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
+        private EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -113,7 +113,7 @@ final class SchemaSyncService
         $codes = ['42P07', '42701', '42S01', '1050'];
         $walk  = $exception;
 
-        while ($walk !== null) {
+        while ($walk instanceof Throwable) {
             if ($walk instanceof DbalException) {
                 $code = (string) $walk->getCode();
                 if (in_array($code, $codes, true)) {
@@ -159,7 +159,7 @@ final class SchemaSyncService
 
         $sequence = $this->parseCreateSequenceName($sql);
 
-        return (bool) ($sequence !== null && isset($sequences[$sequence]))
+        return $sequence !== null && isset($sequences[$sequence])
 
         ;
     }
@@ -172,7 +172,7 @@ final class SchemaSyncService
         $schemaManager = $this->entityManager->getConnection()->createSchemaManager();
 
         return array_map(
-            static fn (string $name): string => strtolower($name),
+            strtolower(...),
             $schemaManager->listTableNames(),
         );
     }
@@ -201,13 +201,9 @@ final class SchemaSyncService
     {
         $schemaManager = $this->entityManager->getConnection()->createSchemaManager();
 
-        if (!method_exists($schemaManager, 'listSequences')) {
-            return [];
-        }
-
         try {
             return array_map(
-                static fn (string $name): string => strtolower($name),
+                static fn ($sequence): string => strtolower($sequence->getName()),
                 $schemaManager->listSequences(),
             );
         } catch (DbalException) {

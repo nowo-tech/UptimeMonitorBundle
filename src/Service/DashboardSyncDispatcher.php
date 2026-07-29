@@ -15,17 +15,17 @@ use const JSON_THROW_ON_ERROR;
 /**
  * Pushes dashboard updates to Mercure when {@see Configuration} dashboard.sync is mercure.
  */
-final class DashboardSyncDispatcher
+final readonly class DashboardSyncDispatcher
 {
     /**
      * @param array<string, mixed> $dashboardConfig
      */
     public function __construct(
-        private readonly SummaryPayloadBuilder $payloadBuilder,
+        private SummaryPayloadBuilder $payloadBuilder,
         #[Autowire('%nowo_uptime_monitor.dashboard%')]
-        private readonly array $dashboardConfig,
+        private array $dashboardConfig,
         #[Autowire('@?mercure.hub.default')]
-        private readonly ?HubInterface $hub = null,
+        private ?HubInterface $hub = null,
     ) {
     }
 
@@ -35,7 +35,7 @@ final class DashboardSyncDispatcher
             return;
         }
 
-        if ($this->hub === null) {
+        if (!$this->hub instanceof HubInterface) {
             return;
         }
 
@@ -61,7 +61,7 @@ final class DashboardSyncDispatcher
             return;
         }
 
-        if ($this->hub === null) {
+        if (!$this->hub instanceof HubInterface) {
             return;
         }
 
@@ -90,6 +90,6 @@ final class DashboardSyncDispatcher
 
     public function isMercureEnabled(): bool
     {
-        return ($this->dashboardConfig['sync'] ?? 'polling') === 'mercure' && $this->hub !== null;
+        return ($this->dashboardConfig['sync'] ?? 'polling') === 'mercure' && $this->hub instanceof HubInterface;
     }
 }

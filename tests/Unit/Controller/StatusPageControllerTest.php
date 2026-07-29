@@ -87,6 +87,6 @@ final class StatusPageControllerTest extends TestCase
         $this->bindController($controller);
 
         $controller->index('main');
-        self::assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 }

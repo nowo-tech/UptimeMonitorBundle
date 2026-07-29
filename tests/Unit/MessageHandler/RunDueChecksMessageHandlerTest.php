@@ -35,6 +35,6 @@ final class RunDueChecksMessageHandlerTest extends TestCase
         $handler = new RunDueChecksMessageHandler($runner);
         ($handler)(new RunDueChecksMessage());
 
-        self::assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 }

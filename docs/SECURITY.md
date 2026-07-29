@@ -34,12 +34,13 @@ This bundle provides:
 
 ## Threat model and mitigations
 
-- **SSRF / outbound requests**: Monitors call user-configured URLs and hosts. Restrict who can create monitors; use `dashboard.roles` and Symfony Security in production.
+- **SSRF / outbound requests**: HTTP/HTTPS monitors use `MonitorUrlSsrfGuard` when `checks.block_private_urls` is `true` (default). Restrict who can create monitors; default UI roles require **`ROLE_ADMIN`**.
 - **Stored data**: Check results may contain response snippets and DNS/SSL metadata. Protect database access and backups.
 - **Public status page**: Exposes monitor names and last status only (paused monitors hidden). Disable via `status_page.enabled: false` if needed.
-- **ICMP ping**: Requires OS `ping` binary; validate monitor creation permissions to avoid abuse from the app container.
+- **ICMP ping**: Requires OS `ping` binary; hosts are validated and private/local targets are blocked under the same SSRF guard as HTTP when `block_private_urls` is enabled.
 - **Webhooks / Slack**: URLs and tokens belong in environment configuration, not in git.
 - **CSRF**: Monitor delete/pause actions use Symfony CSRF tokens in Twig forms.
+- **Access control**: Configure Symfony Security firewall + `nowo_uptime_monitor.security.dashboard_roles` / `manage_roles` / `settings_roles` (defaults: `ROLE_ADMIN`).
 
 ## Dependencies and updates
 

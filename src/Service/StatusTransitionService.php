@@ -21,17 +21,17 @@ use function sprintf;
 /**
  * Handles status changes, incidents, and notification cooldown.
  */
-final class StatusTransitionService
+final readonly class StatusTransitionService
 {
     /**
      * @param array<string, mixed> $notificationsConfig
      */
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly IncidentRepository $incidentRepository,
-        private readonly NotificationService $notificationService,
+        private EntityManagerInterface $entityManager,
+        private IncidentRepository $incidentRepository,
+        private NotificationService $notificationService,
         #[Autowire('%nowo_uptime_monitor.notifications%')]
-        private readonly array $notificationsConfig,
+        private array $notificationsConfig,
     ) {
     }
 
@@ -40,7 +40,7 @@ final class StatusTransitionService
         $current  = $result->getStatus();
         $previous = $monitor->getLastKnownStatus();
 
-        if ($previous === null) {
+        if (!$previous instanceof CheckStatus) {
             $monitor->setLastKnownStatus($current);
             $this->updateIncidentState($monitor, $current, $result->getMessage());
 
@@ -127,14 +127,14 @@ final class StatusTransitionService
         $open = $this->incidentRepository->findOpenForMonitor($monitor);
 
         if ($status === CheckStatus::Up) {
-            if ($open !== null) {
+            if ($open instanceof Incident) {
                 $open->resolve();
             }
 
             return;
         }
 
-        if (in_array($status, [CheckStatus::Down, CheckStatus::Degraded], true) && $open === null) {
+        if (in_array($status, [CheckStatus::Down, CheckStatus::Degraded], true) && !$open instanceof Incident) {
             $this->entityManager->persist(new Incident($monitor, $status, $message));
         }
     }
@@ -148,7 +148,7 @@ final class StatusTransitionService
         $cooldown = (int) ($this->notificationsConfig['cooldown_seconds'] ?? 300);
         $last     = $monitor->getLastAlertAt();
 
-        if ($last === null) {
+        if (!$last instanceof DateTimeImmutable) {
             return true;
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Integration;
 
+use Nowo\UptimeMonitorBundle\Check\HttpCheckRunner;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\TestCase;
@@ -25,8 +26,8 @@ final class BundleConfigurationTest extends TestCase
     public function testConfigurationTreeProcessesDefaults(): void
     {
         $configuration = new Configuration();
-        $tree          = $configuration->getConfigTreeBuilder();
-        $processor     = new Processor();
+        $configuration->getConfigTreeBuilder();
+        $processor = new Processor();
 
         $config = $processor->processConfiguration($configuration, [[]]);
 
@@ -44,6 +45,6 @@ final class BundleConfigurationTest extends TestCase
         );
         $loader->load('services.yaml');
 
-        self::assertTrue($container->hasDefinition('Nowo\UptimeMonitorBundle\Check\HttpCheckRunner'));
+        self::assertTrue($container->hasDefinition(HttpCheckRunner::class));
     }
 }

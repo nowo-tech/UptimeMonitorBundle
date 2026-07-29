@@ -87,7 +87,7 @@ final class SummaryPayloadBuilderTest extends TestCase
             new TenantDashboardSerializer(),
         );
 
-        $item = $builder->serializeMonitor($monitor, null, [], null);
+        $item = $builder->serializeMonitor($monitor, null, []);
 
         self::assertNull($item['last_status']);
         self::assertNull($item['last_checked_at']);

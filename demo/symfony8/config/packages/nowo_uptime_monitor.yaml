@@ -1,5 +1,10 @@
 nowo_uptime_monitor:
     connection: default
+    # Demo firewall has security disabled — empty roles keep UI reachable without ROLE_ADMIN.
+    security:
+        dashboard_roles: []
+        manage_roles: []
+        settings_roles: []
     ui:
         framework: bootstrap
     scheduler:
@@ -11,7 +16,8 @@ nowo_uptime_monitor:
         purge_enabled: true
     dashboard:
         path: /uptime
-        sync: mercure
+        # Polling avoids Mercure cookie domain issues on localhost demo (smoke / release-verify).
+        sync: polling
         poll_interval_ms: 30000
         mercure:
             topic_template: '/uptime/{tenant}'

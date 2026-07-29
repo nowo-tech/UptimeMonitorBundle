@@ -4,15 +4,39 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Table of contents
+
+- [Unreleased](#unreleased)
+- [1.0.11](#1011---2026-07-29)
+- [1.0.10](#1010---2026-07-22)
+
 ## [Unreleased]
+
+## [1.0.11] - 2026-07-29
 
 ### Added
 
+- FrankenPHP Friendly banner + canonical README sentence (REQ-DOCS-017).
+- Root **`make demo-smoke`** + `.github/workflows/demo-smoke.yml` (REQ-TEST-011).
+- `.scripts/check-open-prs.sh` in `release-check` (REQ-REL-003 / MAKE-002).
+- Composer keywords `php`, `frankenphp` (REQ-PKG-004).
+- README badges: GitHub stars + Coverage (REQ-DOCS-004).
+- Ping checks honor `MonitorUrlSsrfGuard` / `block_private_urls` (SSRF harden).
+
 ### Changed
 
-### Fixed
+- **UI-002**: default `security.dashboard_roles` / `manage_roles` / `settings_roles` and `dashboard.roles` → `ROLE_ADMIN` (demos override to `[]` with firewall off).
+- **CS-006**: `ignoreErrors: []`; removed `phpstan-baseline.neon`.
+- PHPUnit / CI: `SYMFONY_DEPRECATIONS_HELPER=max[direct]=0` (REQ-SF-005).
+- Demo Dockerfiles: FrankenPHP **php8.5** (REQ-DEMO-010).
+- README Documentation order; `GITHUB_CI` under Additional (REQ-DOCS-002).
+- `validate-translations` paths → `NowoUptimeMonitorBundle.*.yaml`.
+- Demo Makefiles: absolute `DOCKER_BIN` (REQ-MAKE-010).
+- Demos: `dashboard.sync: polling` by default so localhost smoke avoids Mercure cookie domain errors (Mercure still documented).
 
 ### Removed
+
+- Stale PHPStan baseline file.
 
 ## [1.0.10] - 2026-07-22
 

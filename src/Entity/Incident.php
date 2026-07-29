@@ -17,11 +17,8 @@ class Incident
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (Doctrine sets id via reflection) */
     private ?int $id = null;
-
-    #[ORM\ManyToOne(targetEntity: Monitor::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Monitor $monitor;
 
     #[ORM\Column(name: 'started_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $startedAt;
@@ -29,18 +26,13 @@ class Incident
     #[ORM\Column(name: 'ended_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $endedAt = null;
 
-    #[ORM\Column(type: Types::STRING, length: 16, enumType: CheckStatus::class)]
-    private CheckStatus $triggerStatus;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $message = null;
-
-    public function __construct(Monitor $monitor, CheckStatus $triggerStatus, ?string $message = null)
+    public function __construct(#[ORM\ManyToOne(targetEntity: Monitor::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private Monitor $monitor, #[ORM\Column(type: Types::STRING, length: 16, enumType: CheckStatus::class)]
+        private CheckStatus $triggerStatus, #[ORM\Column(type: Types::TEXT, nullable: true)]
+        private ?string $message = null)
     {
-        $this->monitor       = $monitor;
-        $this->triggerStatus = $triggerStatus;
-        $this->message       = $message;
-        $this->startedAt     = new DateTimeImmutable();
+        $this->startedAt = new DateTimeImmutable();
     }
 
     public function getId(): ?int
@@ -51,6 +43,16 @@ class Incident
     public function getMonitor(): Monitor
     {
         return $this->monitor;
+    }
+
+    public function getTriggerStatus(): CheckStatus
+    {
+        return $this->triggerStatus;
+    }
+
+    public function getMessage(): ?string
+    {
+        return $this->message;
     }
 
     public function getStartedAt(): DateTimeImmutable
@@ -65,7 +67,7 @@ class Incident
 
     public function isOpen(): bool
     {
-        return $this->endedAt === null;
+        return !$this->endedAt instanceof DateTimeImmutable;
     }
 
     public function resolve(DateTimeImmutable $endedAt = new DateTimeImmutable()): self

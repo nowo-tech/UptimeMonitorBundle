@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Controller;
 
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -55,7 +56,7 @@ final class DashboardController extends AbstractController
     public function index(string $tenantSlug, Request $request): Response
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             throw $this->createNotFoundException(sprintf('Tenant "%s" not found.', $tenantSlug));
         }
 
@@ -73,7 +74,7 @@ final class DashboardController extends AbstractController
 
         if ($sync === 'mercure') {
             $mercureTopic = $this->dashboardSyncDispatcher->resolveTopic($tenantSlug);
-            if ($this->mercureHub !== null) {
+            if ($this->mercureHub instanceof HubInterface) {
                 $mercureHubUrl = $this->mercureHub->getPublicUrl();
             }
         }
@@ -101,7 +102,7 @@ final class DashboardController extends AbstractController
             'mercure_topic'            => $mercureTopic,
         ]);
 
-        if ($sync === 'mercure' && $mercureHubUrl !== null && $mercureTopic !== null && $this->mercureAuthorization !== null) {
+        if ($sync === 'mercure' && $mercureHubUrl !== null && $mercureTopic !== null && $this->mercureAuthorization instanceof Authorization) {
             $this->mercureAuthorization->setCookie($request, [$mercureTopic]);
         }
 
@@ -119,7 +120,7 @@ final class DashboardController extends AbstractController
     public function layoutFragment(string $tenantSlug, Request $request): Response
     {
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if ($tenant === null) {
+        if (!$tenant instanceof Tenant) {
             throw $this->createNotFoundException(sprintf('Tenant "%s" not found.', $tenantSlug));
         }
 

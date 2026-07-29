@@ -20,14 +20,8 @@ class Monitor
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (Doctrine sets id via reflection) */
     private ?int $id = null;
-
-    #[ORM\ManyToOne(targetEntity: Tenant::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Tenant $tenant;
-
-    #[ORM\Column(type: Types::STRING, length: 255)]
-    private string $name;
 
     #[ORM\Column(type: Types::STRING, length: 128, nullable: true)]
     private ?string $project = null;
@@ -35,12 +29,6 @@ class Monitor
     #[ORM\ManyToOne(targetEntity: self::class)]
     #[ORM\JoinColumn(name: 'parent_id', nullable: true, onDelete: 'SET NULL')]
     private ?Monitor $parent = null;
-
-    #[ORM\Column(type: Types::STRING, length: 16, enumType: MonitorType::class)]
-    private MonitorType $type;
-
-    #[ORM\Column(type: Types::STRING, length: 2048)]
-    private string $target;
 
     /** @var array<string, mixed> */
     #[ORM\Column(type: Types::JSON)]
@@ -55,7 +43,7 @@ class Monitor
     #[ORM\Column(name: 'next_check_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $nextCheckAt = null;
 
-    #[ORM\Column(name: 'last_known_status', type: Types::STRING, length: 16, enumType: CheckStatus::class, nullable: true)]
+    #[ORM\Column(name: 'last_known_status', type: Types::STRING, length: 16, nullable: true, enumType: CheckStatus::class)]
     private ?CheckStatus $lastKnownStatus = null;
 
     #[ORM\Column(name: 'last_alert_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
@@ -64,12 +52,13 @@ class Monitor
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
 
-    public function __construct(Tenant $tenant, string $name, MonitorType $type, string $target)
+    public function __construct(#[ORM\ManyToOne(targetEntity: Tenant::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private Tenant $tenant, #[ORM\Column(type: Types::STRING, length: 255)]
+        private string $name, #[ORM\Column(type: Types::STRING, length: 16, enumType: MonitorType::class)]
+        private MonitorType $type, #[ORM\Column(type: Types::STRING, length: 2048)]
+        private string $target)
     {
-        $this->tenant      = $tenant;
-        $this->name        = $name;
-        $this->type        = $type;
-        $this->target      = $target;
         $this->createdAt   = new DateTimeImmutable();
         $this->nextCheckAt = new DateTimeImmutable();
     }
@@ -110,7 +99,7 @@ class Monitor
     public function setParent(?self $parent): self
     {
         $this->parent = $parent;
-        if ($parent !== null) {
+        if ($parent instanceof self) {
             $this->project = $parent->getName();
         }
 
@@ -253,6 +242,11 @@ class Monitor
         $this->nextCheckAt = $nextCheckAt;
 
         return $this;
+    }
+
+    public function getCreatedAt(): DateTimeImmutable
+    {
+        return $this->createdAt;
     }
 
     public function scheduleNextCheck(DateTimeImmutable $from): self

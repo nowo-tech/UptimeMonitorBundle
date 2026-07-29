@@ -17,7 +17,7 @@ use const FILTER_VALIDATE_IP;
 use const PHP_URL_HOST;
 
 /**
- * Blocks monitor URLs that target private/local networks (SSRF mitigation).
+ * Blocks monitor URLs / hosts that target private/local networks (SSRF mitigation).
  */
 final class MonitorUrlSsrfGuard
 {
@@ -28,6 +28,14 @@ final class MonitorUrlSsrfGuard
             return true;
         }
 
+        return $this->isBlockedHost($host);
+    }
+
+    /**
+     * Whether a bare host/IP (e.g. ping target) resolves to a private/local address.
+     */
+    public function isBlockedHost(string $host): bool
+    {
         $host      = trim($host, '[]');
         $hostLower = strtolower($host);
 

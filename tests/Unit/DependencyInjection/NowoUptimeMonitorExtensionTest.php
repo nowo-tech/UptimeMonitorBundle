@@ -24,7 +24,9 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
 
         self::assertSame(Configuration::ALIAS, $extension->getAlias());
         self::assertTrue($container->getParameter('nowo_uptime_monitor.enabled'));
-        self::assertSame('@NowoUptimeMonitorBundle/layout.html.twig', $container->getParameter('nowo_uptime_monitor.templates')['layout']);
+        /** @var array<string, mixed> $templates */
+        $templates = $container->getParameter('nowo_uptime_monitor.templates');
+        self::assertSame('@NowoUptimeMonitorBundle/layout.html.twig', $templates['layout']);
         /** @var array<string, mixed> $retention */
         $retention = $container->getParameter('nowo_uptime_monitor.retention');
         self::assertSame(14, $retention['detail_days']);
@@ -41,6 +43,10 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $frameworkConfigs = $container->getExtensionConfig('framework');
         self::assertNotEmpty($frameworkConfigs);
         self::assertArrayHasKey('translator', $frameworkConfigs[0]);
+        self::assertSame(
+            '/bundles/uptimemonitor',
+            $frameworkConfigs[0]['assets']['packages']['nowo_uptime_monitor']['base_path'],
+        );
 
         $doctrineConfigs = $container->getExtensionConfig('doctrine');
         self::assertNotEmpty($doctrineConfigs);
