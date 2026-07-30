@@ -39,7 +39,7 @@ This bundle provides:
 - **Public status page**: Exposes monitor names and last status only (paused monitors hidden). Disable via `status_page.enabled: false` if needed.
 - **ICMP ping**: Requires OS `ping` binary; hosts are validated and private/local targets are blocked under the same SSRF guard as HTTP when `block_private_urls` is enabled.
 - **Webhooks / Slack**: URLs and tokens belong in environment configuration, not in git.
-- **CSRF**: Monitor delete/pause actions use Symfony CSRF tokens in Twig forms.
+- **CSRF**: Session-authenticated mutations use Symfony CSRF tokens in Twig forms (`_token`), including monitor delete/pause, tag delete, history purge/clear-stats, and backup import (`backup-import`). Invalid tokens fail closed (no side effects).
 - **Access control**: Configure Symfony Security firewall + `nowo_uptime_monitor.security.dashboard_roles` / `manage_roles` / `settings_roles` (defaults: `ROLE_ADMIN`).
 
 ## Dependencies and updates

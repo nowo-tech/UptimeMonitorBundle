@@ -12,6 +12,7 @@
         <h4>{{ 'settings.backup.import_title'|trans }}</h4>
         <form method="post" enctype="multipart/form-data" class="uptime-settings-form">
             <input type="hidden" name="action" value="import">
+            <input type="hidden" name="_token" value="{{ csrf_token('backup-import') }}">
             <fieldset>
                 <legend>{{ 'settings.backup.import_mode'|trans }}</legend>
                 <label><input type="radio" name="import_mode" value="skip" checked> {{ 'settings.backup.import_skip'|trans }}</label>

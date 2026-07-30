@@ -9,7 +9,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 ## Table of contents
 
-- [Upgrading to next release (Unreleased)](#upgrading-to-next-release-unreleased)
+- [Upgrading to 1.1.1 (2026-07-30)](#upgrading-to-111-2026-07-30)
 - [Upgrading to 1.1.0 (2026-07-30)](#upgrading-to-110-2026-07-30)
 - [Upgrading to 1.0.11 (2026-07-29)](#upgrading-to-1011-2026-07-29)
 - [Upgrading to 1.0.10 (2026-07-22)](#upgrading-to-110-2026-07-22)
@@ -24,9 +24,29 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [Upgrading to 1.0.1 (2026-07-06)](#upgrading-to-101-2026-07-06)
 - [Upgrading to 1.0.0 (2026-07-06)](#upgrading-to-100-2026-07-06)
 
-## Upgrading to next release (Unreleased)
+## Upgrading to 1.1.1 (2026-07-30)
 
-_Placeholder for the next release._
+### Behaviour change (backup import CSRF)
+
+
+Settings backup **import** POST now requires a CSRF token (REQ-SEC-005), same pattern as history purge / clear-stats.
+
+| Before | After |
+|--------|--------|
+| Import accepted without `_token` | Import ignored unless `_token` is valid for id `backup-import` |
+
+If you POST to `nowo_uptime_settings_backup` with a custom form (not the bundle Twig), add:
+
+```html
+<input type="hidden" name="_token" value="{{ csrf_token('backup-import') }}">
+```
+
+The bundled `settings/backup.html.twig` already includes this field.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console cache:clear
+```
 
 ## Upgrading to 1.1.0 (2026-07-30)
 

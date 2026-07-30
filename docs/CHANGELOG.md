@@ -7,11 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.1.1](#111---2026-07-30)
 - [1.1.0](#110---2026-07-30)
 - [1.0.11](#1011---2026-07-29)
 - [1.0.10](#1010---2026-07-22)
 
 ## [Unreleased]
+
+## [1.1.1] - 2026-07-30
+
+### Fixed
+
+- **Security (REQ-SEC-005):** settings backup import POST now validates CSRF (`backup-import`), matching purge-history / clear-stats.
+- **Demo / FrankenPHP** — entrypoint waits for `vendor/autoload_runtime.php` before starting worker mode so `make demo-smoke` / `make up` work on a clean CI checkout (workers no longer exit before Composer).
 
 ## [1.1.0] - 2026-07-30
 

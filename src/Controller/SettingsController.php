@@ -289,28 +289,30 @@ final class SettingsController extends AbstractUptimeController
 
     private function handleImport(Tenant $tenant, Request $request): RedirectResponse
     {
-        $file = $request->files->get('backup');
-        if (!$file instanceof UploadedFile) {
-            $this->addFlash('error', $this->transMessage('flash.settings.backup_no_file'));
+        if ($this->isCsrfTokenValid('backup-import', (string) $request->request->get('_token'))) {
+            $file = $request->files->get('backup');
+            if (!$file instanceof UploadedFile) {
+                $this->addFlash('error', $this->transMessage('flash.settings.backup_no_file'));
 
-            return $this->redirectToRoute('nowo_uptime_settings_backup', ['tenantSlug' => $tenant->getSlug()]);
-        }
-
-        try {
-            $payload = json_decode($file->getContent(), true, 512, JSON_THROW_ON_ERROR);
-            if (!is_array($payload)) {
-                throw new JsonException('Invalid JSON root.');
+                return $this->redirectToRoute('nowo_uptime_settings_backup', ['tenantSlug' => $tenant->getSlug()]);
             }
 
-            $mode   = (string) $request->request->get('import_mode', MonitorBackupService::IMPORT_SKIP);
-            $result = $this->backupService->import($tenant, $payload, $mode);
-            $this->addFlash('success', $this->transMessage('flash.settings.backup_imported', [
-                '%imported%'    => $result['imported'],
-                '%skipped%'     => $result['skipped'],
-                '%overwritten%' => $result['overwritten'],
-            ]));
-        } catch (Throwable $e) {
-            $this->addFlash('error', $this->transMessage('flash.settings.backup_import_failed', ['%error%' => $e->getMessage()]));
+            try {
+                $payload = json_decode($file->getContent(), true, 512, JSON_THROW_ON_ERROR);
+                if (!is_array($payload)) {
+                    throw new JsonException('Invalid JSON root.');
+                }
+
+                $mode   = (string) $request->request->get('import_mode', MonitorBackupService::IMPORT_SKIP);
+                $result = $this->backupService->import($tenant, $payload, $mode);
+                $this->addFlash('success', $this->transMessage('flash.settings.backup_imported', [
+                    '%imported%'    => $result['imported'],
+                    '%skipped%'     => $result['skipped'],
+                    '%overwritten%' => $result['overwritten'],
+                ]));
+            } catch (Throwable $e) {
+                $this->addFlash('error', $this->transMessage('flash.settings.backup_import_failed', ['%error%' => $e->getMessage()]));
+            }
         }
 
         return $this->redirectToRoute('nowo_uptime_settings_backup', ['tenantSlug' => $tenant->getSlug()]);
