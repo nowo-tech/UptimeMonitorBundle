@@ -74,7 +74,7 @@ nowo_uptime_monitor:
         layout: '@NowoUptimeMonitorBundle/layout.html.twig'
 ```
 
-Bundle admin templates extend the configurable `uptime_layout` global and fill `{% block uptime_content %}`. The public status page stays standalone.
+Bundle admin templates extend the configurable `uptime_layout` global (alias: `nowo_uptime_layout_template`) and fill `{% block uptime_content %}`. Config: `templates.layout` ≡ `templates.layout_template`. The public status page stays standalone.
 
 ### Embedded host theme
 
@@ -112,7 +112,7 @@ min_latency_ms: 5
 
 ### UI framework (Bootstrap / Tailwind)
 
-`ui.framework` selects the styling stack for Twig screens:
+`ui.framework` selects the styling stack for Twig screens (alias: `ui.css_framework` — same value):
 
 | Value | Description |
 |-------|-------------|

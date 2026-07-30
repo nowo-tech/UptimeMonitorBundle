@@ -10,6 +10,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Upgrading to next release (Unreleased)](#upgrading-to-next-release-unreleased)
+- [Upgrading to 1.1.0 (2026-07-30)](#upgrading-to-110-2026-07-30)
 - [Upgrading to 1.0.11 (2026-07-29)](#upgrading-to-1011-2026-07-29)
 - [Upgrading to 1.0.10 (2026-07-22)](#upgrading-to-110-2026-07-22)
 - [Upgrading to 1.0.9 (2026-07-22)](#upgrading-to-109-2026-07-22)
@@ -26,6 +27,24 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Upgrading to next release (Unreleased)
 
 _Placeholder for the next release._
+
+## Upgrading to 1.1.0 (2026-07-30)
+
+### REQ-UI-001 aliases and host layout stacking (optional)
+
+**Non-breaking.** Existing `templates.layout` / `ui.framework` config keeps working. New optional aliases:
+
+| Prefer (canonical) | Also accepted |
+|--------------------|---------------|
+| `templates.layout` | `templates.layout_template` |
+| `ui.framework` | `ui.css_framework` |
+
+Twig: `nowo_uptime_layout_template` mirrors `uptime_layout`. Prefer pointing `templates.layout` at your project layout instead of freezing every admin page (see [USAGE](USAGE.md#overriding-templates)).
+
+```bash
+composer require nowo-tech/uptime-monitor-bundle:^1.1.0
+php bin/console cache:clear
+```
 
 ## Upgrading to 1.0.11 (2026-07-29)
 

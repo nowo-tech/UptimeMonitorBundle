@@ -7,10 +7,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.1.0](#110---2026-07-30)
 - [1.0.11](#1011---2026-07-29)
 - [1.0.10](#1010---2026-07-22)
 
 ## [Unreleased]
+
+## [1.1.0] - 2026-07-30
+
+### Added
+
+- **REQ-UI-001 naming aliases (BC):** `templates.layout_template` ≡ `templates.layout`; `ui.css_framework` ≡ `ui.framework`. Twig global alias **`nowo_uptime_layout_template`** (same value as `uptime_layout`).
+- Unit coverage for **`TwigPathsPass`** (addPath / prependPath override directory).
+
+### Changed
+
+- Admin pages (`dashboard`, `monitor/form`, `monitor/show`) stack CSS/JS with **`{{ parent() }}`** so host layouts keep their assets when `templates.layout` points at the project (REQ-UI-001).
+- Default **`layout.html.twig`**: stylesheets / javascripts live inside blocks so `parent()` stacking works.
+
+### Documentation
+
+- **[USAGE](USAGE.md):** Overriding templates (REQ-TWIG-001) — freeze rule, procedure, correct `NowoUptimeMonitorBundle` override path, layout / CSS stack table.
+- **[CONFIGURATION](CONFIGURATION.md):** document layout / `css_framework` aliases and `nowo_uptime_layout_template`.
+- **[UPGRADING](UPGRADING.md)** section **Upgrading to 1.1.0**.
 
 ## [1.0.11] - 2026-07-29
 

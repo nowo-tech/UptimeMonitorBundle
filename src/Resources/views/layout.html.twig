@@ -13,8 +13,9 @@
         <meta name="robots" content="noindex, nofollow">
     {% endif %}
     <title>{% block title %}{{ 'app.title'|trans }}{% endblock %}</title>
-    {% include '@NowoUptimeMonitorBundle/_stylesheets.html.twig' %}
-    {% block stylesheets %}{% endblock %}
+    {% block stylesheets %}
+        {% include '@NowoUptimeMonitorBundle/_stylesheets.html.twig' %}
+    {% endblock %}
 </head>
 <body class="uptime-app uptime-theme-{{ uptime_theme_resolved }} uptime-ui--{{ uptime_ui_framework }}">
 <div class="page">
@@ -37,9 +38,10 @@
         </main>
     </div>
 </div>
-{% if uptime_ui_framework == 'bootstrap' and uptime_ui_bootstrap_js %}
-    <script src="{{ uptime_ui_bootstrap_js }}" defer></script>
-{% endif %}
-{% block javascripts %}{% endblock %}
+{% block javascripts %}
+    {% if uptime_ui_framework == 'bootstrap' and uptime_ui_bootstrap_js %}
+        <script src="{{ uptime_ui_bootstrap_js }}" defer></script>
+    {% endif %}
+{% endblock %}
 </body>
 </html>

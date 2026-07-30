@@ -129,24 +129,50 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->arrayNode('templates')
                     ->addDefaultsIfNotSet()
-                    ->info('Twig layout for admin screens (override in templates/bundles/NowoUptimeMonitorBundle/)')
+                    ->info('Twig layout for admin screens (override in templates/bundles/NowoUptimeMonitorBundle/). layout ≡ layout_template (REQ-UI-001).')
+                    ->beforeNormalization()
+                        ->ifArray()
+                        ->then(static function (array $v): array {
+                            // BC alias: layout_template → layout (REQ-UI-001 naming)
+                            if (isset($v['layout_template']) && !isset($v['layout'])) {
+                                $v['layout'] = $v['layout_template'];
+                            }
+                            unset($v['layout_template']);
+
+                            return $v;
+                        })
+                    ->end()
                     ->children()
                         ->scalarNode('layout')
                             ->defaultValue('@NowoUptimeMonitorBundle/layout.html.twig')
+                            ->info('Twig layout extended by admin pages (globals uptime_layout / nowo_uptime_layout_template). Alias: templates.layout_template.')
                         ->end()
                     ->end()
                 ->end()
                 ->arrayNode('ui')
                     ->addDefaultsIfNotSet()
-                    ->info('UI framework for Twig screens: tabler (Nowo default), custom (BEM), bootstrap, or tailwind')
+                    ->info('UI framework for Twig screens: tabler (Nowo default), custom (BEM), bootstrap, or tailwind. ui.framework ≡ css_framework (REQ-UI-001).')
+                    ->beforeNormalization()
+                        ->ifArray()
+                        ->then(static function (array $v): array {
+                            // BC alias: css_framework → framework (REQ-UI-001 naming)
+                            if (isset($v['css_framework']) && !isset($v['framework'])) {
+                                $v['framework'] = $v['css_framework'];
+                            }
+                            unset($v['css_framework']);
+
+                            return $v;
+                        })
+                    ->end()
                     ->children()
                         ->enumNode('framework')
                             ->values(['tabler', 'custom', 'bootstrap', 'tailwind'])
                             ->defaultValue('tabler')
+                            ->info('Host CSS stack. Alias: ui.css_framework.')
                         ->end()
                         ->arrayNode('tabler')
                             ->addDefaultsIfNotSet()
-                            ->info('Tabler integration when ui.framework is tabler')
+                            ->info('Tabler integration when ui.framework / css_framework is tabler')
                             ->children()
                                 ->booleanNode('skip_cdn')
                                     ->defaultFalse()

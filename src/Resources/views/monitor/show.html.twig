@@ -3,6 +3,11 @@
 
 {% block title %}{{ monitor.name }} — Detail{% endblock %}
 
+{% block javascripts %}
+    {{ parent() }}
+    <script type="module" src="{{ asset('uptime-monitor-detail.js', 'nowo_uptime_monitor') }}" defer></script>
+{% endblock %}
+
 {% block uptime_content %}
     {% trans_default_domain 'NowoUptimeMonitorBundle' %}
     {% set status = latest ? latest.status.value : 'unknown' %}
@@ -140,5 +145,4 @@
     </div>
 
     {% include '@NowoUptimeMonitorBundle/monitor/_monitor_edit_modal.html.twig' %}
-    <script type="module" src="{{ asset('uptime-monitor-detail.js', 'nowo_uptime_monitor') }}" defer></script>
 {% endblock %}

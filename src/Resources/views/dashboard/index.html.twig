@@ -6,6 +6,11 @@
     {{ 'dashboard.title'|trans({ '%name%': tenant.name }) }}
 {% endblock %}
 
+{% block javascripts %}
+    {{ parent() }}
+    <script type="module" src="{{ asset('uptime-dashboard.js', 'nowo_uptime_monitor') }}" defer></script>
+{% endblock %}
+
 {% block uptime_content %}
     {% trans_default_domain 'NowoUptimeMonitorBundle' %}
     <div class="uptime-toolbar uptime-toolbar--dashboard">
@@ -112,5 +117,4 @@
     </div>
 
     {% include '@NowoUptimeMonitorBundle/monitor/_monitor_edit_modal.html.twig' %}
-    <script type="module" src="{{ asset('uptime-dashboard.js', 'nowo_uptime_monitor') }}" defer></script>
 {% endblock %}

@@ -38,4 +38,45 @@ final class ConfigurationTest extends TestCase
         self::assertTrue($config['tenants']['list_enabled']);
         self::assertFalse($config['tenants']['redirect_when_single']);
     }
+
+    public function testLayoutTemplateAliasMapsToLayout(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [[
+            'templates' => [
+                'layout_template' => 'base.html.twig',
+            ],
+        ]]);
+
+        self::assertSame('base.html.twig', $config['templates']['layout']);
+        self::assertArrayNotHasKey('layout_template', $config['templates']);
+    }
+
+    public function testCssFrameworkAliasMapsToFramework(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [[
+            'ui' => [
+                'css_framework' => 'bootstrap',
+            ],
+        ]]);
+
+        self::assertSame('bootstrap', $config['ui']['framework']);
+        self::assertArrayNotHasKey('css_framework', $config['ui']);
+    }
+
+    public function testCanonicalKeysWinOverAliases(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [[
+            'templates' => [
+                'layout'          => 'canonical-layout.html.twig',
+                'layout_template' => 'ignored-alias.html.twig',
+            ],
+            'ui' => [
+                'framework'     => 'tailwind',
+                'css_framework' => 'bootstrap',
+            ],
+        ]]);
+
+        self::assertSame('canonical-layout.html.twig', $config['templates']['layout']);
+        self::assertSame('tailwind', $config['ui']['framework']);
+    }
 }

@@ -40,8 +40,12 @@ final class UptimeUiExtension extends AbstractExtension implements GlobalsInterf
     {
         $framework = $this->resolveFramework();
 
+        $layout = (string) ($this->templatesConfig['layout'] ?? '@NowoUptimeMonitorBundle/layout.html.twig');
+
         return [
-            'uptime_layout'                 => (string) ($this->templatesConfig['layout'] ?? '@NowoUptimeMonitorBundle/layout.html.twig'),
+            'uptime_layout' => $layout,
+            // REQ-UI-001 alias (mirrors templates.layout / uptime_layout)
+            'nowo_uptime_layout_template'   => $layout,
             'uptime_ui_framework'           => $framework->value,
             'uptime_tabler_skip_cdn'        => (bool) ($this->uiConfig['tabler']['skip_cdn'] ?? false),
             'uptime_ui_bootstrap_css'       => (string) ($this->uiConfig['bootstrap']['css_url'] ?? ''),

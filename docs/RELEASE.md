@@ -15,16 +15,16 @@
    git push origin HEAD
    ```
 
-   Example for v1.0.11:
+   Example for v1.1.0:
    ```bash
    git add -A
-   git -c core.hooksPath=.githooks commit -m "Prepare v1.0.11 release"
+   git -c core.hooksPath=.githooks commit -m "Prepare v1.1.0 release"
    git push origin HEAD
    ```
 
 3. **Create and push the tag**
    ```bash
-   git tag -a v1.1.0 -m "Release v1.1.0"
+   git tag -a v1.1.0 -m "Release v1.1.0 - layout_template/css_framework aliases, parent() stacking (REQ-UI-001)"
    git push origin v1.1.0
    ```
 

@@ -6,17 +6,8 @@
     {{ title|trans }} — {{ tenant_slug }}
 {% endblock %}
 
-{% block uptime_content %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    <div class="uptime-page-shell uptime-page-shell--form">
-        <nav class="uptime-nav uptime-nav--form">
-            <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}">{{ 'dashboard.back'|trans }}</a>
-        </nav>
-        <h1 class="uptime-page-title">{{ title|trans }}</h1>
-
-        {% include '@NowoUptimeMonitorBundle/monitor/_monitor_form_body.html.twig' %}
-    </div>
-
+{% block javascripts %}
+    {{ parent() }}
     <script>
         (function () {
             const typeSelect = document.querySelector('[data-monitor-type-select]');
@@ -46,4 +37,16 @@
             toggle();
         })();
     </script>
+{% endblock %}
+
+{% block uptime_content %}
+    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    <div class="uptime-page-shell uptime-page-shell--form">
+        <nav class="uptime-nav uptime-nav--form">
+            <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}">{{ 'dashboard.back'|trans }}</a>
+        </nav>
+        <h1 class="uptime-page-title">{{ title|trans }}</h1>
+
+        {% include '@NowoUptimeMonitorBundle/monitor/_monitor_form_body.html.twig' %}
+    </div>
 {% endblock %}

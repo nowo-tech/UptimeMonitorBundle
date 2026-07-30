@@ -30,6 +30,7 @@ final class UptimeUiExtensionTest extends TestCase
 
         self::assertSame([
             'uptime_layout'                 => '@NowoUptimeMonitorBundle/layout.html.twig',
+            'nowo_uptime_layout_template'   => '@NowoUptimeMonitorBundle/layout.html.twig',
             'uptime_ui_framework'           => 'tabler',
             'uptime_tabler_skip_cdn'        => true,
             'uptime_ui_bootstrap_css'       => '',
@@ -66,6 +67,7 @@ final class UptimeUiExtensionTest extends TestCase
         $globals = $extension->getGlobals();
 
         self::assertSame('@App/layout.html.twig', $globals['uptime_layout']);
+        self::assertSame('@App/layout.html.twig', $globals['nowo_uptime_layout_template']);
         self::assertSame('bootstrap', $globals['uptime_ui_framework']);
         self::assertSame('dark', $globals['uptime_theme']);
     }
