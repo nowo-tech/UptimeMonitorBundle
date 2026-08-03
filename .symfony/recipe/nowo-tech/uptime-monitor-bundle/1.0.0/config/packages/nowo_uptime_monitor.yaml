@@ -2,6 +2,9 @@ nowo_uptime_monitor:
     retention:
         detail_days: 30
     security:
+        access_roles: ['ROLE_ADMIN']
+        # access_checker: App\Security\MyUptimeMonitorAccessChecker
+        allow_unauthenticated: false
         dashboard_roles: ['ROLE_ADMIN']
         manage_roles: ['ROLE_ADMIN']
         settings_roles: ['ROLE_ADMIN']

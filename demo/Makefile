@@ -72,12 +72,14 @@ test-coverage:
 
 release-verify-symfony7:
 	@$(MAKE) -C symfony7 ensure-up update-bundle
+	@$(MAKE) -C symfony7 sync-schema reset-demo
 	@PORT=$$(grep '^PORT=' symfony7/.env.example | cut -d= -f2); \
 	curl -sf "http://localhost:$$PORT/uptime/main" >/dev/null && \
 	curl -sf "http://localhost:$$PORT/status/main" >/dev/null
 
 release-verify-symfony8:
 	@$(MAKE) -C symfony8 ensure-up update-bundle
+	@$(MAKE) -C symfony8 sync-schema reset-demo
 	@PORT=$$(grep '^PORT=' symfony8/.env.example | cut -d= -f2); \
 	curl -sf "http://localhost:$$PORT/uptime/main" >/dev/null && \
 	curl -sf "http://localhost:$$PORT/status/main" >/dev/null

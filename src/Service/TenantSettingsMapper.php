@@ -10,6 +10,7 @@ use Nowo\UptimeMonitorBundle\Form\Model\SettingsGeneralData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsHistoryData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsReverseProxyData;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
+use Nowo\UptimeMonitorBundle\Ui\UiFramework;
 
 /**
  * Maps tenant settings JSON ↔ form models.
@@ -56,7 +57,7 @@ final class TenantSettingsMapper
         $data->heartbeatBarTheme = $s->getHeartbeatBarTheme();
         $data->elapsedTime       = $s->getElapsedTimeDisplay();
         $uiOverride              = $s->getUiFrameworkOverride();
-        $data->uiFramework       = $uiOverride !== null ? $uiOverride->value : 'default';
+        $data->uiFramework       = $uiOverride instanceof UiFramework ? $uiOverride->value : 'default';
 
         return $data;
     }

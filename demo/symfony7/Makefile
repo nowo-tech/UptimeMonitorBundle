@@ -1,4 +1,4 @@
-.PHONY: help up down build install shell logs test test-coverage cache-clear clear-data reset-demo link-bundle update-bundle ensure-up restart release-check
+.PHONY: help up down build install shell logs test test-coverage cache-clear clear-data reset-demo link-bundle update-bundle ensure-up restart release-check sync-schema
 
 help:
 	@echo "Symfony 7 Demo - Uptime Monitor Bundle"
@@ -59,6 +59,9 @@ cache-clear: ensure-up
 
 clear-data: ensure-up
 	$(COMPOSE) exec -T php php bin/console nowo:uptime:clear-data --no-interaction
+
+sync-schema: ensure-up
+	$(COMPOSE) exec -T php php bin/console nowo:uptime:sync-schema
 
 reset-demo: ensure-up
 	$(COMPOSE) exec -T php php bin/console nowo:uptime:seed-demo --fresh --no-interaction

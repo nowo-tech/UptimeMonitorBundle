@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Service;
 
 use Doctrine\DBAL\Exception as DbalException;
+use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -203,7 +204,7 @@ final readonly class SchemaSyncService
 
         try {
             return array_map(
-                static fn ($sequence): string => strtolower($sequence->getName()),
+                static fn (Sequence $sequence): string => strtolower($sequence->getName()),
                 $schemaManager->listSequences(),
             );
         } catch (DbalException) {

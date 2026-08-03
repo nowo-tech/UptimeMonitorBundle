@@ -1,45 +1,29 @@
 # Release process
 
-## Creating a new version (e.g. v1.1.0)
+Current stable target: **v1.2.0**.
+
+## Creating a new version (e.g. v1.2.0)
 
 1. **Ensure everything is ready**
    - [CHANGELOG.md](CHANGELOG.md) has the target version with date and full entry; `[Unreleased]` is at the top.
    - [UPGRADING.md](UPGRADING.md) has a section "Upgrading to X.Y.Z" with what's new and upgrade steps.
-   - Tests pass: `make test` and `make test-ts`.
-   - Static analysis: `make phpstan` and `make cs-check`.
+   - `make release-check` passes.
 
 2. **Commit and push** any last changes to your default branch:
    ```bash
    git add -A
-   git commit -m "Prepare v1.1.0 release"
-   git push origin HEAD
-   ```
-
-   Example for v1.1.0:
-   ```bash
-   git add -A
-   git -c core.hooksPath=.githooks commit -m "Prepare v1.1.0 release"
+   git commit -m "chore(release): prepare 1.2.0"
    git push origin HEAD
    ```
 
 3. **Create and push the tag**
    ```bash
-   git tag -a v1.1.0 -m "Release v1.1.0 - layout_template/css_framework aliases, parent() stacking (REQ-UI-001)"
-   git push origin v1.1.0
-   ```
-
-   Example for v1.0.11:
-   ```bash
-   git tag -a v1.0.11 -m "Release v1.0.11 - ROLE_ADMIN defaults, ping SSRF, FrankenPHP banner, demo-smoke"
-   git push origin v1.0.11
+   git tag -a v1.2.0 -m "Release v1.2.0 - REQ-UI-002 access_roles / AccessSubscriber"
+   git push origin v1.2.0
    ```
 
 4. **GitHub Actions** (if configured) may create the GitHub Release from the tag.
 
 5. **Packagist** will pick up the new tag; users can then `composer require nowo-tech/uptime-monitor-bundle`.
 
-## After releasing
-
-- Keep `[Unreleased]` at the top of [CHANGELOG.md](CHANGELOG.md) for the next version.
-
-After creating the release commit and tag, run `make check-no-cursor-coauthor` again **before** `git push` (REQ-GIT-001). The release commit itself is not covered by an earlier `release-check` run.
+After creating the release commit and tag, run `make check-no-cursor-coauthor` again **before** `git push` (REQ-GIT-001).

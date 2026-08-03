@@ -1,21 +1,21 @@
-# Mercure en las demos (Symfony 7 y 8)
+# Mercure in the demos (Symfony 7 and 8)
 
-Las demos usan **`dashboard.sync: mercure`**: el dashboard recibe checks en tiempo real por **SSE** (Server-Sent Events), no por polling continuo al API.
+The demos use **`dashboard.sync: mercure`**: the dashboard receives checks in real time over **SSE** (Server-Sent Events), not via continuous API polling.
 
 ## URLs
 
-| Demo | Dashboard | Hub en el navegador (mismo origen) | Hub directo (solo debug) |
+| Demo | Dashboard | Hub in browser (same origin) | Direct hub (debug only) |
 |------|-----------|--------------------------------------|---------------------------|
 | Symfony 8 | http://localhost:8011/uptime/main | http://localhost:8011/.well-known/mercure | http://localhost:3080/.well-known/mercure |
 | Symfony 7 | http://localhost:8010/uptime/main | http://localhost:8010/.well-known/mercure | http://localhost:3081/.well-known/mercure |
 
-El navegador **siempre** debe usar el hub en el **mismo puerto que la app** (`8011` / `8010`). Así se envía la cookie JWT de suscripción. Si `MERCURE_PUBLIC_URL` apunta solo al puerto `3080`/`3081`, Mercure no recibe la cookie y verás solo refrescos manuales o fallback a polling.
+The browser **must always** use the hub on the **same port as the app** (`8011` / `8010`). This sends the JWT subscription cookie. If `MERCURE_PUBLIC_URL` points only to port `3080`/`3081`, Mercure does not receive the cookie and you will only see manual refreshes or polling fallback.
 
-## Arquitectura Docker
+## Docker architecture
 
 ```mermaid
 flowchart LR
-  subgraph browser [Navegador]
+  subgraph browser [Browser]
     D[Dashboard /uptime/main]
     ES[EventSource SSE]
   end
@@ -30,21 +30,21 @@ flowchart LR
 
   D -->|cookie mercureAuthorization| ES
   ES --> Caddy
-  Caddy -->|/.well-known/mercure sin encode| Hub
+  Caddy -->|/.well-known/mercure no encode| Hub
   SF -->|setCookie JWT subscribe| D
   Run -->|publish JWT| Hub
   SF -->|publish JWT| Hub
 ```
 
-| Servicio | Rol |
+| Service | Role |
 |----------|-----|
-| **php** | App web, proxy SSE hacia `mercure`, cookie JWT al cargar el dashboard |
-| **checks-worker** | Bucle cada 15 s: ejecuta checks y **publica** en Mercure (`MERCURE_URL` interno) |
-| **mercure** | Hub SSE; valida JWT de publisher y subscriber |
+| **php** | Web app, SSE proxy to `mercure`, JWT cookie when loading the dashboard |
+| **checks-worker** | Loop every 15 s: runs checks and **publishes** to Mercure (internal `MERCURE_URL`) |
+| **mercure** | SSE hub; validates publisher and subscriber JWT |
 
-## Variables de entorno
+## Environment variables
 
-En `demo/symfony8/.env` (o `.env.example`):
+In `demo/symfony8/.env` (or `.env.example`):
 
 ```env
 MERCURE_URL=http://mercure/.well-known/mercure
@@ -52,22 +52,22 @@ MERCURE_PUBLIC_URL=http://localhost:8011/.well-known/mercure
 MERCURE_JWT_SECRET=!ChangeThisMercureHubJWTSecretKey!
 ```
 
-| Variable | Uso |
+| Variable | Usage |
 |----------|-----|
-| `MERCURE_URL` | Symfony y el worker **publican** aquí (red Docker, hostname `mercure`) |
-| `MERCURE_PUBLIC_URL` | URL que ve el **navegador** (proxy en FrankenPHP, mismo origen que la app) |
-| `MERCURE_JWT_SECRET` | Clave compartida hub + `config/packages/mercure.yaml` |
+| `MERCURE_URL` | Symfony and the worker **publish** here (Docker network, hostname `mercure`) |
+| `MERCURE_PUBLIC_URL` | URL seen by the **browser** (FrankenPHP proxy, same origin as the app) |
+| `MERCURE_JWT_SECRET` | Shared key hub + `config/packages/mercure.yaml` |
 
-Symfony 7: mismas variables con `PORT=8010` y hub público `http://localhost:8010/.well-known/mercure`.
+Symfony 7: same variables with `PORT=8010` and public hub `http://localhost:8010/.well-known/mercure`.
 
-## Configuración Symfony
+## Symfony configuration
 
 `config/packages/nowo_uptime_monitor.yaml`:
 
 ```yaml
 dashboard:
     sync: mercure
-    poll_interval_ms: 30000   # solo si Mercure falla en el navegador
+    poll_interval_ms: 30000   # only if Mercure fails in the browser
     mercure:
         topic_template: '/uptime/{tenant}'
         private: true
@@ -87,20 +87,20 @@ mercure:
                 subscribe: ['*']
 ```
 
-## Seguridad (JWT, sin API key)
+## Security (JWT, no API key)
 
-No hace falta configurar API keys en el front. El flujo es el estándar de **Symfony Mercure Bundle**:
+No API keys are needed in the front end. The flow follows the standard **Symfony Mercure Bundle**:
 
-1. **Publicar** (backend): el worker y Symfony usan `MERCURE_URL` + JWT (`publish`).
-2. **Updates privados**: `mercure.private: true` en el bundle.
-3. **Suscribir** (navegador): al abrir `/uptime/main`, Symfony llama a `Authorization::setCookie()` con el topic del tenant (p. ej. `/uptime/main`).
-4. **EventSource** con `withCredentials: true` envía la cookie al hub (vía proxy en `:8011`).
+1. **Publish** (backend): the worker and Symfony use `MERCURE_URL` + JWT (`publish`).
+2. **Private updates**: `mercure.private: true` in the bundle.
+3. **Subscribe** (browser): when opening `/uptime/main`, Symfony calls `Authorization::setCookie()` with the tenant topic (e.g. `/uptime/main`).
+4. **EventSource** with `withCredentials: true` sends the cookie to the hub (via proxy on `:8011`).
 
-En producción: cambia `MERCURE_JWT_SECRET`, usa HTTPS y restringe `publish` / `subscribe` en `mercure.yaml` (evita `*`).
+In production: change `MERCURE_JWT_SECRET`, use HTTPS, and restrict `publish` / `subscribe` in `mercure.yaml` (avoid `*`).
 
-## Proxy FrankenPHP (obligatorio en demo)
+## FrankenPHP proxy (required in demo)
 
-`docker/frankenphp/Caddyfile.dev` enruta `/.well-known/mercure` al contenedor `mercure` **sin** compresión `encode` (si no, SSE rompe con `ERR_INCOMPLETE_CHUNKED_ENCODING`):
+`docker/frankenphp/Caddyfile.dev` routes `/.well-known/mercure` to the `mercure` container **without** `encode` compression (otherwise SSE breaks with `ERR_INCOMPLETE_CHUNKED_ENCODING`):
 
 ```caddyfile
 @mercure path /.well-known/mercure*
@@ -115,53 +115,53 @@ handle @mercure {
 }
 ```
 
-Tras cambiar el Caddyfile:
+After changing the Caddyfile:
 
 ```bash
 docker compose restart php
 ```
 
-## Comportamiento en el navegador
+## Browser behavior
 
-| Elemento | Qué indica |
+| Element | What it indicates |
 |----------|------------|
-| Badge **Mercure · connected** (verde) | SSE abierto |
-| Badge **Mercure · connecting…** | Conectando |
-| Badge **Polling · 30s** | Fallback: Mercure no disponible |
-| Consola `📦 [uptime] script loaded…` | Assets del dashboard cargados |
-| Consola `ℹ️ [uptime] Mercure connected.` | SSE OK (mismo estilo que twig-inspector) |
-| Red → **EventSource** | `/.well-known/mercure?topic=/uptime/main` en `:8011` |
-| Red → **GET summary** | Solo al cargar (y cada 30 s si hay fallback), no cada 15 s con Mercure OK |
+| Badge **Mercure · connected** (green) | SSE open |
+| Badge **Mercure · connecting…** | Connecting |
+| Badge **Polling · 30s** | Fallback: Mercure unavailable |
+| Console `📦 [uptime] script loaded…` | Dashboard assets loaded |
+| Console `ℹ️ [uptime] Mercure connected.` | SSE OK (same style as twig-inspector) |
+| Network → **EventSource** | `/.well-known/mercure?topic=/uptime/main` on `:8011` |
+| Network → **GET summary** | Only on load (and every 30 s on fallback), not every 15 s when Mercure OK |
 
-Tras `seed-demo --fresh`, el JS recibe `dashboard_reset` por Mercure o refresca el layout vía `GET /uptime/main/fragment/layout` sin F5 completo.
+After `seed-demo --fresh`, JS receives `dashboard_reset` via Mercure or refreshes the layout via `GET /uptime/main/fragment/layout` without a full F5.
 
-## Comandos útiles
+## Useful commands
 
 ```bash
-# Levantar stack (incluye mercure + worker)
+# Start stack (includes mercure + worker)
 make -C demo up-symfony8
 
-# Recrear monitores y primeros checks
+# Recreate monitors and first checks
 make -C demo reset-demo-symfony8
 
-# Comprobar publicación manual
+# Verify manual publish
 docker compose -f demo/symfony8/docker-compose.yml exec php \
   php bin/console nowo:uptime:run-due-checks
 
-# Logs del hub
+# Hub logs
 docker compose -f demo/symfony8/docker-compose.yml logs mercure --tail 20
 
-# Reiniciar solo PHP (tras cambiar Caddyfile o .env)
+# Restart PHP only (after Caddyfile or .env change)
 docker compose -f demo/symfony8/docker-compose.yml restart php
 
-# Worker debe ejecutar el bucle de checks (no FrankenPHP)
+# Worker must run the check loop (not FrankenPHP)
 docker compose -f demo/symfony8/docker-compose.yml exec checks-worker ps aux
-# → debe verse: sh -c while true; do php bin/console nowo:uptime:run-due-checks ...
+# → should show: sh -c while true; do php bin/console nowo:uptime:run-due-checks ...
 ```
 
 ## checks-worker
 
-El servicio `checks-worker` usa `entrypoint: []` para no arrancar FrankenPHP y sí el bucle:
+The `checks-worker` service uses `entrypoint: []` so it does not start FrankenPHP and instead runs the loop:
 
 ```yaml
 command:
@@ -174,19 +174,19 @@ command:
     done
 ```
 
-Sin esto no hay checks nuevos ni publicaciones Mercure.
+Without this there are no new checks or Mercure publications.
 
-## Resolución de problemas
+## Troubleshooting
 
-| Síntoma | Causa probable | Acción |
+| Symptom | Likely cause | Action |
 |---------|----------------|--------|
-| `ERR_INCOMPLETE_CHUNKED_ENCODING` en `/.well-known/mercure` | `encode` de Caddy comprime el SSE | Usar `Caddyfile.dev` actual; `docker compose restart php` |
-| Solo requests a `/api/.../summary` | Hub en `:3080` o cookie no enviada | `MERCURE_PUBLIC_URL=http://localhost:8011/.well-known/mercure` |
-| Badge en **Polling · 30s** | Mercure cerrado / JWT inválido | Reabrir dashboard; revisar cookie `mercureAuthorization` |
-| Pegadas no se mueven | Worker no corre | `docker compose up -d checks-worker --force-recreate` |
-| Lista de monitores tras seed sin F5 | Normal si Mercure cae; con SSE OK llega `dashboard_reset` | `nowo:uptime:seed-demo --fresh`; esperar o recargar una vez |
+| `ERR_INCOMPLETE_CHUNKED_ENCODING` on `/.well-known/mercure` | Caddy `encode` compresses SSE | Use current `Caddyfile.dev`; `docker compose restart php` |
+| Only requests to `/api/.../summary` | Hub on `:3080` or cookie not sent | `MERCURE_PUBLIC_URL=http://localhost:8011/.well-known/mercure` |
+| Badge **Polling · 30s** | Mercure closed / invalid JWT | Reopen dashboard; check `mercureAuthorization` cookie |
+| Monitors not updating | Worker not running | `docker compose up -d checks-worker --force-recreate` |
+| Monitor list after seed without F5 | Normal if Mercure down; with SSE OK `dashboard_reset` arrives | `nowo:uptime:seed-demo --fresh`; wait or reload once |
 
-## Más documentación
+## More documentation
 
-- [../docs/MERCURE.md](../docs/MERCURE.md) — integración en aplicaciones host
-- [README.md](README.md) — inicio rápido de las demos
+- [../docs/MERCURE.md](../docs/MERCURE.md) — host application integration
+- [README.md](README.md) — demo quick start

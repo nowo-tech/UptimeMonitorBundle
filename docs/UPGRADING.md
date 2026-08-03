@@ -9,6 +9,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 ## Table of contents
 
+- [Upgrading to 1.2.0 (2026-08-03)](#upgrading-to-120-2026-08-03)
 - [Upgrading to 1.1.1 (2026-07-30)](#upgrading-to-111-2026-07-30)
 - [Upgrading to 1.1.0 (2026-07-30)](#upgrading-to-110-2026-07-30)
 - [Upgrading to 1.0.11 (2026-07-29)](#upgrading-to-1011-2026-07-29)
@@ -23,6 +24,43 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [Upgrading to 1.0.2 (2026-07-06)](#upgrading-to-102-2026-07-06)
 - [Upgrading to 1.0.1 (2026-07-06)](#upgrading-to-101-2026-07-06)
 - [Upgrading to 1.0.0 (2026-07-06)](#upgrading-to-100-2026-07-06)
+
+## Upgrading to 1.2.0 (2026-08-03)
+
+Minor release: REQ-UI-002 completion — `security.access_roles` / `access_checker` / `allow_unauthenticated`, SecurityBundle compile-time guard, and `UptimeMonitorAccessSubscriber` enforcement on admin controllers.
+
+### Install / update
+
+```bash
+composer require nowo-tech/uptime-monitor-bundle:^1.2
+php bin/console cache:clear
+```
+
+### Behaviour change (admin access)
+
+| Topic | Before | 1.2.0 |
+| --- | --- | --- |
+| General gate | Area `*_roles` only | `access_roles` (default `[ROLE_ADMIN]`) **plus** area roles |
+| Enforcement | Twig / host firewall | Bundle `UptimeMonitorAccessSubscriber` on admin controllers |
+| Apps without SecurityBundle | Could boot | Boot fails with `LogicException` unless `allow_unauthenticated: true` |
+
+**Demos / trusted local kernels:**
+
+```yaml
+nowo_uptime_monitor:
+    security:
+        access_roles: []
+        allow_unauthenticated: true   # never in production
+        dashboard_roles: []
+        manage_roles: []
+        settings_roles: []
+```
+
+**Production:** keep `allow_unauthenticated: false`, install SecurityBundle, grant `access_roles` (and area roles), and protect `/uptime` with host `access_control`.
+
+### Breaking changes
+
+Apps that used the dashboard without SecurityBundle (or without matching `ROLE_ADMIN`) must install/configure SecurityBundle roles or set `allow_unauthenticated: true` for non-production use. The public status page (`/status`) is unchanged.
 
 ## Upgrading to 1.1.1 (2026-07-30)
 
@@ -70,15 +108,21 @@ php bin/console cache:clear
 
 ### Security defaults (UI-002)
 
-Default `nowo_uptime_monitor.security.*_roles` and `dashboard.roles` are now **`ROLE_ADMIN`** (deny-by-default for anonymous/low-privilege users). To keep previous “allow all authenticated” behaviour, set empty lists explicitly:
+Default `nowo_uptime_monitor.security.*_roles`, `security.access_roles`, and `dashboard.roles` are **`ROLE_ADMIN`**. `security.allow_unauthenticated` defaults to **`false`**. Admin UI access is enforced by `UptimeMonitorAccessSubscriber`.
+
+To keep previous “allow all” demo behaviour:
 
 ```yaml
 nowo_uptime_monitor:
     security:
+        access_roles: []
+        allow_unauthenticated: true   # demo/dev only
         dashboard_roles: []
         manage_roles: []
         settings_roles: []
 ```
+
+Protect `/uptime` in the host app with Symfony `access_control` (see [CONFIGURATION.md](CONFIGURATION.md) / [SECURITY.md](SECURITY.md)).
 
 ### Ping SSRF
 

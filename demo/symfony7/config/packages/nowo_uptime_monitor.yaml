@@ -1,7 +1,9 @@
 nowo_uptime_monitor:
     connection: default
-    # Demo firewall has security disabled — empty roles keep UI reachable without ROLE_ADMIN.
+    # Demo-only: firewall security off + allow_unauthenticated (never use in production).
     security:
+        access_roles: []
+        allow_unauthenticated: true
         dashboard_roles: []
         manage_roles: []
         settings_roles: []

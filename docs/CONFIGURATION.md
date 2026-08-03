@@ -52,7 +52,38 @@ nowo_uptime_monitor:
         cooldown_seconds: 300
     templates:
         layout: '@NowoUptimeMonitorBundle/layout.html.twig'
+    security:
+        access_roles: [ROLE_ADMIN]   # general gate (REQ-UI-002)
+        # access_checker: App\Security\MyUptimeMonitorAccessChecker
+        allow_unauthenticated: false # DEV/DEMO only when true
+        dashboard_roles: [ROLE_ADMIN]
+        manage_roles: [ROLE_ADMIN]
+        settings_roles: [ROLE_ADMIN]
 ```
+
+### Security (REQ-UI-002)
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `security.access_roles` | `[ROLE_ADMIN]` | General gate: user needs **at least one** role. Empty = no general role check. |
+| `security.access_checker` | `null` | Optional service id implementing `UptimeMonitorAccessCheckerInterface`. |
+| `security.allow_unauthenticated` | `false` | DEV/DEMO only: skip bundle access checks (and allow missing SecurityBundle). **Never** in production. |
+| `security.dashboard_roles` | `[ROLE_ADMIN]` | Dashboard / read / polling API. Empty = no area check beyond `access_roles`. |
+| `security.manage_roles` | `[ROLE_ADMIN]` | Monitor CRUD mutations (`new` / `edit` / `delete` / pause). |
+| `security.settings_roles` | `[ROLE_ADMIN]` | Tenant settings UI. |
+
+Enforcement is via `UptimeMonitorAccessSubscriber` on `kernel.controller` (not Twig alone). The public status page (`status_page.path`, default `/status`) is **not** gated.
+
+Host firewall example for the admin prefix (`dashboard.path`, default `/uptime`):
+
+```yaml
+# config/packages/security.yaml
+security:
+    access_control:
+        - { path: ^/uptime, roles: ROLE_ADMIN }
+```
+
+When `dashboard.enabled` is `true` and `allow_unauthenticated` is `false`, the bundle requires `symfony/security-bundle` to be registered (compile-time `LogicException` otherwise).
 
 ### Host app layout (nowo-devkit)
 

@@ -34,6 +34,8 @@ final class BundleConfigurationTest extends TestCase
         self::assertTrue($config['enabled']);
         self::assertSame('/uptime', $config['dashboard']['path']);
         self::assertTrue($config['status_page']['enabled']);
+        self::assertSame(['ROLE_ADMIN'], $config['security']['access_roles']);
+        self::assertFalse($config['security']['allow_unauthenticated']);
     }
 
     public function testServicesYamlLoads(): void

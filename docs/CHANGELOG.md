@@ -7,12 +7,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.2.0](#120---2026-08-03)
 - [1.1.1](#111---2026-07-30)
 - [1.1.0](#110---2026-07-30)
 - [1.0.11](#1011---2026-07-29)
 - [1.0.10](#1010---2026-07-22)
 
 ## [Unreleased]
+
+## [1.2.0] - 2026-08-03
+
+### Added
+
+- **REQ-UI-002:** canonical `security.access_roles` (default `[ROLE_ADMIN]`), `security.access_checker`, `security.allow_unauthenticated` (default `false`), and `AllowAllUptimeMonitorAccessChecker`.
+- Compile-time SecurityBundle guard when the dashboard is enabled and `allow_unauthenticated` is `false`.
+- `UptimeMonitorAccessSubscriber` enforces `UptimeMonitorAccessCheckerInterface` on admin/manage/API controllers (public status page remains ungated).
+- Demos set `allow_unauthenticated: true` (never copy to production).
+
+### Changed
+
+- `ConfigurableUptimeMonitorAccessChecker` applies the general `access_roles` gate before area `dashboard_roles` / `manage_roles` / `settings_roles`.
+- Docs: CONFIGURATION / SECURITY / recipe; demo MERCURE.md translated to English.
+- Demo `release-verify`: run `sync-schema` + `reset-demo` before HTTP smoke (avoids 500 on empty DB).
+- Vitest: add `text-summary` reporter and `coverage-ts` output dir (TS coverage parse + avoid PHP `coverage/` lock).
+- Dev deps (Dependabot): php-cs-fixer 3.95.18, rector 2.5.9, phpstan group, vite 8.2.0, `@types/node`, `actions/stale` v11, `phpstan-frankenphp` 1.0.2, symfony/phpunit-bridge.
+
+### Compatibility
+
+- PHP `>=8.2 <8.6`; Symfony `^7.4 || ^8.0`.
+- Dashboard with default security settings requires **SecurityBundle** (or set `allow_unauthenticated: true` for trusted local demos).
 
 ## [1.1.1] - 2026-07-30
 
@@ -207,6 +230,11 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
+[1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
+[1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
+[1.0.11]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.11
 [1.0.10]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.10
 [1.0.9]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.9
 [1.0.8]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.0.8

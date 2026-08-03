@@ -964,17 +964,19 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         redirect_when_single?: bool|Param, // When true and exactly one tenant exists, /tenants redirects to its dashboard. // Default: false
  *     },
  *     security?: array{
- *         access_checker?: scalar|Param|null, // Default: null
+ *         access_roles?: list<scalar|Param|null>,
+ *         access_checker?: scalar|Param|null, // Optional service id implementing UptimeMonitorAccessCheckerInterface. null = built-in role checker. // Default: null
+ *         allow_unauthenticated?: bool|Param, // DEV/DEMO only: skip bundle access checks and allow UI without SecurityBundle. Production MUST keep false. // Default: false
  *         dashboard_roles?: list<scalar|Param|null>,
  *         manage_roles?: list<scalar|Param|null>,
  *         settings_roles?: list<scalar|Param|null>,
  *     },
- *     templates?: array{ // Twig layout for admin screens (override in templates/bundles/NowoUptimeMonitorBundle/)
- *         layout?: scalar|Param|null, // Default: "@NowoUptimeMonitorBundle/layout.html.twig"
+ *     templates?: array{ // Twig layout for admin screens (override in templates/bundles/NowoUptimeMonitorBundle/). layout ≡ layout_template (REQ-UI-001).
+ *         layout?: scalar|Param|null, // Twig layout extended by admin pages (globals uptime_layout / nowo_uptime_layout_template). Alias: templates.layout_template. // Default: "@NowoUptimeMonitorBundle/layout.html.twig"
  *     },
- *     ui?: array{ // UI framework for Twig screens: tabler (Nowo default), custom (BEM), bootstrap, or tailwind
- *         framework?: "tabler"|"custom"|"bootstrap"|"tailwind"|Param, // Default: "tabler"
- *         tabler?: array{ // Tabler integration when ui.framework is tabler
+ *     ui?: array{ // UI framework for Twig screens: tabler (Nowo default), custom (BEM), bootstrap, or tailwind. ui.framework ≡ css_framework (REQ-UI-001).
+ *         framework?: "tabler"|"custom"|"bootstrap"|"tailwind"|Param, // Host CSS stack. Alias: ui.css_framework. // Default: "tabler"
+ *         tabler?: array{ // Tabler integration when ui.framework / css_framework is tabler
  *             skip_cdn?: bool|Param, // Skip Tabler CDN when the host app already serves Tabler (e.g. nowo-devkit Vite entry) // Default: false
  *         },
  *         bootstrap?: array{

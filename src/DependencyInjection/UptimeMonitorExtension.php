@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
+use LogicException;
+use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Symfony\Component\Config\FileLocator;
@@ -63,6 +65,14 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
 
         $config = $this->processConfiguration(new Configuration(), $configs);
 
+        if (
+            $config['dashboard']['enabled']
+            && !$config['security']['allow_unauthenticated']
+            && !$this->isSecurityBundleAvailable($container)
+        ) {
+            throw new LogicException('NowoUptimeMonitorBundle dashboard UI requires symfony/security-bundle when security.allow_unauthenticated is false.');
+        }
+
         $container->setParameter(Configuration::ALIAS . '.enabled', $config['enabled']);
         $container->setParameter(Configuration::ALIAS . '.environments', $config['environments']);
         $container->setParameter(Configuration::ALIAS . '.connection', $config['connection']);
@@ -82,6 +92,10 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.status_page.path', $config['status_page']['path']);
         $container->setParameter(Configuration::ALIAS . '.notifications', $config['notifications']);
         $container->setParameter(Configuration::ALIAS . '.security', $config['security']);
+        $container->setParameter(
+            Configuration::ALIAS . '.security.allow_unauthenticated',
+            $config['security']['allow_unauthenticated'],
+        );
 
         $this->registerAccessChecker($container, $config['security']);
     }
@@ -97,13 +111,41 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $accessCheckerId = $security['access_checker'] ?? null;
         if (!is_string($accessCheckerId) || $accessCheckerId === '') {
             $accessCheckerId = 'nowo_uptime_monitor.access_checker.default';
-            $container->setDefinition($accessCheckerId, (new Definition(ConfigurableUptimeMonitorAccessChecker::class))
-                ->setAutowired(true)
-                ->setArgument('$dashboardRoles', $security['dashboard_roles'])
-                ->setArgument('$manageRoles', $security['manage_roles'])
-                ->setArgument('$settingsRoles', $security['settings_roles']));
+            if ($security['allow_unauthenticated']) {
+                $container->setDefinition(
+                    $accessCheckerId,
+                    (new Definition(AllowAllUptimeMonitorAccessChecker::class))->setPublic(false),
+                );
+            } else {
+                $container->setDefinition($accessCheckerId, (new Definition(ConfigurableUptimeMonitorAccessChecker::class))
+                    ->setAutowired(true)
+                    ->setArgument('$accessRoles', $security['access_roles'])
+                    ->setArgument('$dashboardRoles', $security['dashboard_roles'])
+                    ->setArgument('$manageRoles', $security['manage_roles'])
+                    ->setArgument('$settingsRoles', $security['settings_roles']));
+            }
         }
 
         $container->setAlias(UptimeMonitorAccessCheckerInterface::class, $accessCheckerId);
+    }
+
+    /**
+     * Prefer kernel.bundles: ContainerBuilder::hasExtension() can be false while SecurityBundle
+     * is already registered (e.g. during early Flex cache:clear boots).
+     */
+    private function isSecurityBundleAvailable(ContainerBuilder $container): bool
+    {
+        if ($container->hasExtension('security')) {
+            return true;
+        }
+
+        if (!$container->hasParameter('kernel.bundles')) {
+            return false;
+        }
+
+        /** @var array<string, class-string> $bundles */
+        $bundles = $container->getParameter('kernel.bundles');
+
+        return isset($bundles['SecurityBundle']);
     }
 }

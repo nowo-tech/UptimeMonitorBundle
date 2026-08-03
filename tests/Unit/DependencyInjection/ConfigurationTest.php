@@ -37,6 +37,12 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['ui']['tabler']['skip_cdn']);
         self::assertTrue($config['tenants']['list_enabled']);
         self::assertFalse($config['tenants']['redirect_when_single']);
+        self::assertSame(['ROLE_ADMIN'], $config['security']['access_roles']);
+        self::assertFalse($config['security']['allow_unauthenticated']);
+        self::assertNull($config['security']['access_checker']);
+        self::assertSame(['ROLE_ADMIN'], $config['security']['dashboard_roles']);
+        self::assertSame(['ROLE_ADMIN'], $config['security']['manage_roles']);
+        self::assertSame(['ROLE_ADMIN'], $config['security']['settings_roles']);
     }
 
     public function testLayoutTemplateAliasMapsToLayout(): void

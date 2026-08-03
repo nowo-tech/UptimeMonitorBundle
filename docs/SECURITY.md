@@ -40,7 +40,21 @@ This bundle provides:
 - **ICMP ping**: Requires OS `ping` binary; hosts are validated and private/local targets are blocked under the same SSRF guard as HTTP when `block_private_urls` is enabled.
 - **Webhooks / Slack**: URLs and tokens belong in environment configuration, not in git.
 - **CSRF**: Session-authenticated mutations use Symfony CSRF tokens in Twig forms (`_token`), including monitor delete/pause, tag delete, history purge/clear-stats, and backup import (`backup-import`). Invalid tokens fail closed (no side effects).
-- **Access control**: Configure Symfony Security firewall + `nowo_uptime_monitor.security.dashboard_roles` / `manage_roles` / `settings_roles` (defaults: `ROLE_ADMIN`).
+- **Access control (REQ-UI-002)**: Admin UI under `dashboard.path` (default `/uptime`) is private by default. Canonical keys:
+  - `security.access_roles` (default `[ROLE_ADMIN]`) — general gate
+  - `security.access_checker` — optional custom `UptimeMonitorAccessCheckerInterface`
+  - `security.allow_unauthenticated` (default `false`) — **demo/dev only**; never enable in production
+  - Area roles: `dashboard_roles` / `manage_roles` / `settings_roles` (defaults `ROLE_ADMIN`)
+  
+  Enforcement: `UptimeMonitorAccessSubscriber` calls the access checker before admin controllers run. The public status page (`/status`) is excluded.
+
+  Host `access_control` example:
+
+  ```yaml
+  security:
+      access_control:
+          - { path: ^/uptime, roles: ROLE_ADMIN }
+  ```
 
 ## Dependencies and updates
 
@@ -59,7 +73,7 @@ Before tagging a release, confirm:
 | **Recipe / Flex** | Default recipe ships no production secrets. |
 | **Input / output** | Monitor targets validated where possible; Twig escapes output. |
 | **Dependencies** | `composer audit` run; issues triaged. |
-| **Permissions** | Document `dashboard.roles` and firewall for production. |
+| **Permissions** | Document `security.access_roles`, area `*_roles`, and firewall `access_control` for `/uptime`. Confirm `allow_unauthenticated: false` in production. |
 | **Outbound checks** | Document SSRF risk for HTTP monitors. |
 
 Record confirmation in the release PR or tag notes.

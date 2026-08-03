@@ -1007,7 +1007,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "fb84a70fb56c6a43df39a7a271cc1557ff7141b1"
+                "reference": "376b0e721077055a2edbd1a986adabc5e5b18029"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",

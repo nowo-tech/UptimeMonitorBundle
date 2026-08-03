@@ -18,11 +18,11 @@ use const PHP_OS_FAMILY;
 /**
  * ICMP ping check via system ping binary (OS-dependent; requires ping in PATH).
  */
-final class PingCheckRunner implements CheckRunnerInterface
+final readonly class PingCheckRunner implements CheckRunnerInterface
 {
     public function __construct(
-        private readonly MonitorUrlSsrfGuard $ssrfGuard,
-        private readonly bool $blockPrivateUrls = true,
+        private MonitorUrlSsrfGuard $ssrfGuard,
+        private bool $blockPrivateUrls = true,
     ) {
     }
 

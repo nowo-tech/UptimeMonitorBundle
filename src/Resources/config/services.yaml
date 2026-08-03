@@ -10,6 +10,9 @@ services:
             - '../../Entity/'
             - '../../Notification/Channel/'
             - '../../UptimeMonitorBundle.php'
+            - '../../Security/UptimeMonitorAccessCheckerInterface.php'
+            - '../../Security/ConfigurableUptimeMonitorAccessChecker.php'
+            - '../../Security/AllowAllUptimeMonitorAccessChecker.php'
 
     Nowo\UptimeMonitorBundle\Notification\Channel\EmailNotificationChannel:
         tags: ['nowo.uptime_monitor.notification_channel']
@@ -59,6 +62,11 @@ services:
         arguments:
             $mercureHub: '@?mercure.hub.default'
             $mercureAuthorization: '@?Symfony\Component\Mercure\Authorization'
+
+    Nowo\UptimeMonitorBundle\EventSubscriber\UptimeMonitorAccessSubscriber:
+        arguments:
+            $allowUnauthenticated: '%nowo_uptime_monitor.security.allow_unauthenticated%'
+            $tokenStorage: '@?security.token_storage'
 
     Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher:
         arguments:

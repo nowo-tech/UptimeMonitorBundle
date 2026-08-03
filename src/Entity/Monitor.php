@@ -41,7 +41,7 @@ class Monitor
     private bool $paused = false;
 
     #[ORM\Column(name: 'next_check_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    private ?DateTimeImmutable $nextCheckAt = null;
+    private ?DateTimeImmutable $nextCheckAt;
 
     #[ORM\Column(name: 'last_known_status', type: Types::STRING, length: 16, nullable: true, enumType: CheckStatus::class)]
     private ?CheckStatus $lastKnownStatus = null;
