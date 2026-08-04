@@ -22,11 +22,17 @@
             "src/Repository/.gitignore"
         ]
     },
+    "nowo-tech/form-kit-bundle": {
+        "version": "v2.0.20"
+    },
     "nowo-tech/otp-input-bundle": {
         "version": "dev-main"
     },
     "nowo-tech/twig-inspector-bundle": {
         "version": "v1.0.22"
+    },
+    "nowo-tech/ui-kit-bundle": {
+        "version": "v1.4.0"
     },
     "nowo-tech/uptime-monitor-bundle": {
         "version": "dev-main"
@@ -224,5 +230,8 @@
             "config/packages/web_profiler.yaml",
             "config/routes/web_profiler.yaml"
         ]
+    },
+    "twig/extra-bundle": {
+        "version": "v3.24.0"
     }
 }

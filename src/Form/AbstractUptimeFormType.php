@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Form;
 
+use Nowo\FormKitBundle\Attribute\FormKitConfig;
+use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Nowo\UptimeMonitorBundle\Translation\UptimeTranslation;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
- * Base form type: all labels and help texts use the {@see UptimeTranslation::DOMAIN} catalogue.
- *
  * @template TData
  *
  * @extends AbstractType<TData>
  */
+#[FormKitConfig('uptime_monitor')]
 abstract class AbstractUptimeFormType extends AbstractType
 {
+    use FormOptionsTrait;
+
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([

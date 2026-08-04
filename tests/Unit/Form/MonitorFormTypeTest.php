@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Form;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
+use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
 use Symfony\Component\Form\Test\TypeTestCase;
 
 /**
@@ -14,6 +15,16 @@ use Symfony\Component\Form\Test\TypeTestCase;
  */
 final class MonitorFormTypeTest extends TypeTestCase
 {
+    /**
+     * @return list<object>
+     */
+    protected function getTypes(): array
+    {
+        return [
+            FormKitTestSupport::withMerger(new MonitorFormType()),
+        ];
+    }
+
     public function testSubmitValidData(): void
     {
         $data                  = new MonitorFormData();

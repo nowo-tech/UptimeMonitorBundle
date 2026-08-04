@@ -15,6 +15,8 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
+use function array_key_exists;
+use function is_array;
 use function is_string;
 
 /**
@@ -24,25 +26,24 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
 {
     public function prepend(ContainerBuilder $container): void
     {
-        if (!$container->hasExtension('framework')) {
-            return;
-        }
-
-        $container->prependExtensionConfig('framework', [
-            'assets' => [
-                'packages' => [
-                    'nowo_uptime_monitor' => [
-                        'base_path' => '/bundles/uptimemonitor',
+        $this->prependFormKitDefaults($container);
+        if ($container->hasExtension('framework')) {
+            $container->prependExtensionConfig('framework', [
+                'assets' => [
+                    'packages' => [
+                        'nowo_uptime_monitor' => [
+                            'base_path' => '/bundles/uptimemonitor',
+                        ],
                     ],
                 ],
-            ],
-            'translator' => [
-                'paths'     => [__DIR__ . '/../Resources/translations'],
-                'fallbacks' => ['en'],
-            ],
-            'default_locale'  => 'en',
-            'enabled_locales' => ['en', 'es', 'de', 'fr', 'it', 'nl', 'pt'],
-        ]);
+                'translator' => [
+                    'paths'     => [__DIR__ . '/../Resources/translations'],
+                    'fallbacks' => ['en'],
+                ],
+                'default_locale'  => 'en',
+                'enabled_locales' => ['en', 'es', 'de', 'fr', 'it', 'nl', 'pt'],
+            ]);
+        }
 
         if ($container->hasExtension('doctrine')) {
             $container->prependExtensionConfig('doctrine', [
@@ -56,6 +57,106 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
                 ],
             ]);
         }
+
+        $this->prependUiKitDefaults($container);
+    }
+
+    /**
+     * Seed nowo_ui_kit.css_framework from ui.framework when the host has not set UiKit (REQ-UI-001-kit).
+     */
+
+    /**
+     * When FormKit is installed, register the uptime_monitor profile. Forms select it via #[FormKitConfig].
+     */
+    private function prependFormKitDefaults(ContainerBuilder $container): void
+    {
+        if (!$container->hasExtension('nowo_form_kit')) {
+            return;
+        }
+
+        $hostHasCssFramework = false;
+        $hostHasProfile      = false;
+        foreach ($container->getExtensionConfig('nowo_form_kit') as $cfg) {
+            /** @var array<string, mixed> $cfg */
+            if (array_key_exists('css_framework', $cfg)) {
+                $hostHasCssFramework = true;
+            }
+            $profiles = $cfg['profiles'] ?? null;
+            if (is_array($profiles) && array_key_exists('uptime_monitor', $profiles)) {
+                $hostHasProfile = true;
+            }
+        }
+
+        $seed = [];
+
+        if (!$hostHasCssFramework) {
+            $seed['css_framework'] = 'bootstrap';
+        }
+
+        if (!$hostHasProfile) {
+            $seed['profiles'] = [
+                'uptime_monitor' => [
+                    'alias'              => 'uptime_monitor',
+                    'translation_domain' => 'NowoUptimeMonitorBundle',
+                    'defaults'           => [
+                        'attr'     => ['class' => 'nowo-ui-input form-control'],
+                        'row_attr' => ['class' => 'mb-2'],
+                    ],
+                    'field_types' => [
+                        'checkbox' => [
+                            'attr'     => ['class' => 'form-check-input'],
+                            'row_attr' => ['class' => 'form-check mb-2'],
+                        ],
+                        'choice' => [
+                            'attr' => ['class' => 'form-select'],
+                        ],
+                        'entity' => [
+                            'attr' => ['class' => 'form-select'],
+                        ],
+                        'file' => [
+                            'attr' => ['class' => 'nowo-ui-input form-control'],
+                        ],
+                        'textarea' => [
+                            'attr' => ['class' => 'nowo-ui-input form-control'],
+                        ],
+                    ],
+                ],
+            ];
+        }
+
+        if ($seed !== []) {
+            $container->prependExtensionConfig('nowo_form_kit', $seed);
+        }
+    }
+
+    private function prependUiKitDefaults(ContainerBuilder $container): void
+    {
+        if (!$container->hasExtension('nowo_ui_kit')) {
+            return;
+        }
+
+        $hostHasCssFramework = false;
+        foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
+            if (is_array($cfg) && array_key_exists('css_framework', $cfg)) {
+                $hostHasCssFramework = true;
+                break;
+            }
+        }
+
+        if ($hostHasCssFramework) {
+            return;
+        }
+
+        $config = $this->processConfiguration(new Configuration(), $container->getExtensionConfig(Configuration::ALIAS));
+        $ui     = is_array($config['ui'] ?? null) ? $config['ui'] : [];
+        $fw     = (string) ($ui['framework'] ?? 'tabler');
+        if ($fw === 'bootstrap') {
+            $fw = 'bootstrap5';
+        }
+
+        $container->prependExtensionConfig('nowo_ui_kit', [
+            'css_framework' => $fw,
+        ]);
     }
 
     public function load(array $configs, ContainerBuilder $container): void

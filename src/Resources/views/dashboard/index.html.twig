@@ -1,5 +1,7 @@
 {% extends uptime_layout %}
-{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
+{% import '@NowoUptimeMonitorBundle/_monitor_actions.html.twig' as monitor_actions %}
+{% set kit_fw = uptime_ui_framework == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework|default('tabler') %}
 
 {% block title %}
     {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -13,14 +15,23 @@
 
 {% block uptime_content %}
     {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+    {% set subtitle = tenant_slug|lower != tenant.name|lower ? tenant_slug : null %}
     <div class="uptime-toolbar uptime-toolbar--dashboard">
         <div class="uptime-toolbar-title">
-            {{ ui.page_header(tenant.name, tenant_slug|lower != tenant.name|lower ? tenant_slug : null) }}
+            <div class="{{ ui.page_header(kit_fw) }}">
+                {% if kit_fw == 'tabler' %}
+                    <h2 class="page-title mb-0">{{ tenant.name }}</h2>
+                    {% if subtitle %}<div class="text-secondary small mt-1"><code>{{ subtitle }}</code></div>{% endif %}
+                {% else %}
+                    <h2 class="{% if kit_fw in ['bootstrap5', 'bootstrap4'] %}h4 mb-0{% elseif kit_fw == 'tailwind' %}text-xl font-semibold{% endif %}">{{ tenant.name }}</h2>
+                    {% if subtitle %}<span class="{{ ui.muted(kit_fw) }} small">{{ subtitle }}</span>{% endif %}
+                {% endif %}
+            </div>
         </div>
         <div class="uptime-toolbar-actions btn-list flex-wrap{% if uptime_ui_framework == 'bootstrap' %} d-flex flex-wrap gap-2{% elseif uptime_ui_framework == 'tailwind' %} flex flex-wrap gap-2{% endif %}">
-            {{ ui.btn_link(path('nowo_uptime_settings_index', { tenantSlug: tenant_slug }), 'dashboard.settings'|trans) }}
-            {{ ui.btn_link(path('nowo_uptime_status_page', { tenantSlug: tenant_slug }), 'dashboard.status_page'|trans) }}
-            {{ ui.btn_new_monitor(tenant_slug) }}
+            <a href="{{ path('nowo_uptime_settings_index', { tenantSlug: tenant_slug }) }}" class="{{ ui.btn('secondary', 'sm', kit_fw) }}">{{ 'dashboard.settings'|trans }}</a>
+            <a href="{{ path('nowo_uptime_status_page', { tenantSlug: tenant_slug }) }}" class="{{ ui.btn('secondary', 'sm', kit_fw) }}">{{ 'dashboard.status_page'|trans }}</a>
+            {{ monitor_actions.btn_new_monitor(tenant_slug) }}
         </div>
     </div>
 

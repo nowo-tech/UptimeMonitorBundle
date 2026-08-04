@@ -1,5 +1,6 @@
 {% extends uptime_layout %}
-{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
+{% set kit_fw = uptime_ui_framework == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework|default('tabler') %}
 
 {% block title %}{{ title }}{% endblock %}
 
@@ -12,6 +13,6 @@
     {{ form_start(form) }}
         {{ form_row(form.slug) }}
         {{ form_row(form.name) }}
-        {{ ui.btn_submit('Create tenant', 'primary') }}
+        <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">Create tenant</button>
     {{ form_end(form) }}
 {% endblock %}

@@ -71,3 +71,9 @@ services:
     Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher:
         arguments:
             $hub: '@?mercure.hub.default'
+
+    # Form Kit injects FormOptionsMerger into tagged form types (FormOptionsMergerInjectorCompilerPass).
+    Nowo\UptimeMonitorBundle\Form\:
+        resource: '../../Form/'
+        exclude: '../../Form/DataTransformer/'
+        tags: ['form.type']

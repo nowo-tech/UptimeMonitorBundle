@@ -1,5 +1,6 @@
 {% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
-{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
+{% set kit_fw = uptime_ui_framework == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework|default('tabler') %}
 
 {% block settings_body %}
     {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -9,7 +10,7 @@
             {{ form_widget(form) }}
         </div>
         <div class="uptime-form-actions">
-            {{ ui.btn_submit('settings.save'|trans, 'primary') }}
+            <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">{{ 'settings.save'|trans }}</button>
         </div>
     {{ form_end(form) }}
 {% endblock %}

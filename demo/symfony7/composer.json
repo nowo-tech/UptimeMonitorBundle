@@ -4,25 +4,28 @@
     "type": "project",
     "license": "MIT",
     "require": {
-        "php": ">=8.2",
-        "nowo-tech/uptime-monitor-bundle": "@dev",
         "doctrine/doctrine-bundle": "^2.13 || ^3.0",
         "doctrine/orm": "^2.13 || ^3.0",
+        "nowo-tech/form-kit-bundle": "^2.0",
+        "nowo-tech/uptime-monitor-bundle": "@dev",
+        "php": ">=8.2",
         "symfony/asset": "^7.2",
         "symfony/console": "^7.2",
         "symfony/dotenv": "^7.2",
-        "symfony/form": "^7.2",
-        "symfony/validator": "^7.2",
         "symfony/flex": "^2.0",
+        "symfony/form": "^7.2",
         "symfony/framework-bundle": "^7.2",
+        "symfony/mercure-bundle": "^0.4",
         "symfony/messenger": "^7.2",
         "symfony/runtime": "^7.2",
-        "symfony/translation": "^7.2",
         "symfony/scheduler": "^7.2",
         "symfony/security-bundle": "^7.2",
+        "symfony/translation": "^7.2",
         "symfony/twig-bundle": "^7.2",
+        "symfony/validator": "^7.2",
         "symfony/yaml": "^7.2",
-        "symfony/mercure-bundle": "^0.4"
+        "twig/extra-bundle": "^3.12",
+        "twig/string-extra": "^3.12"
     },
     "config": {
         "allow-plugins": {
@@ -43,8 +46,12 @@
             "cache:clear": "symfony-cmd",
             "assets:install %PUBLIC_DIR%": "symfony-cmd"
         },
-        "post-install-cmd": ["@auto-scripts"],
-        "post-update-cmd": ["@auto-scripts"],
+        "post-install-cmd": [
+            "@auto-scripts"
+        ],
+        "post-update-cmd": [
+            "@auto-scripts"
+        ],
         "test": "php bin/console about --env=dev",
         "test-coverage": "@composer test"
     },

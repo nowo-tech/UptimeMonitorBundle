@@ -23,7 +23,7 @@
     },
     "authors": [
         {
-            "name": "Héctor Franco Aceituno",
+            "name": "H\u00e9ctor Franco Aceituno",
             "email": "hectorfranco@nowo.tech",
             "homepage": "https://github.com/HecFranco",
             "role": "Developer"
@@ -34,26 +34,30 @@
         }
     ],
     "require": {
-        "php": ">=8.2 <8.6",
         "doctrine/dbal": "^3.8.2 || ^4.0",
         "doctrine/doctrine-bundle": "^2.8 || ^3.0",
         "doctrine/orm": "^2.13 || ^3.0",
+        "nowo-tech/form-kit-bundle": "^2.0",
+        "nowo-tech/ui-kit-bundle": "^1.4",
+        "php": ">=8.2 <8.6",
         "symfony/config": "^7.4 || ^8.0",
         "symfony/console": "^7.4 || ^8.0",
         "symfony/dependency-injection": "^7.4 || ^8.0",
         "symfony/form": "^7.4 || ^8.0",
         "symfony/framework-bundle": "^7.4 || ^8.0",
-        "symfony/validator": "^7.4 || ^8.0",
         "symfony/http-client": "^7.4 || ^8.0",
         "symfony/http-kernel": "^7.4 || ^8.0",
         "symfony/messenger": "^7.4 || ^8.0",
         "symfony/routing": "^7.4 || ^8.0",
-        "symfony/security-bundle": "^7.4 || ^8.0",
         "symfony/scheduler": "^7.4 || ^8.0",
+        "symfony/security-bundle": "^7.4 || ^8.0",
         "symfony/serializer": "^7.4 || ^8.0",
         "symfony/translation": "^7.4 || ^8.0",
         "symfony/twig-bundle": "^7.4 || ^8.0",
-        "symfony/yaml": "^7.4 || ^8.0"
+        "symfony/validator": "^7.4 || ^8.0",
+        "symfony/yaml": "^7.4 || ^8.0",
+        "twig/extra-bundle": "^3.12",
+        "twig/string-extra": "^3.12"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.0",
@@ -68,7 +72,8 @@
         "symfony/dom-crawler": "^6.3 || ^7.0 || ^8.0",
         "symfony/mailer": "^6.3 || ^7.0 || ^8.0",
         "symfony/mercure": "^0.7.2",
-        "symfony/phpunit-bridge": "^6.3 || ^7.0 || ^8.0"
+        "symfony/phpunit-bridge": "^6.3 || ^7.0 || ^8.0",
+        "vincentlanglet/twig-cs-fixer": "^3.0"
     },
     "suggest": {
         "symfony/mailer": "For email notifications",
@@ -100,7 +105,10 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "archive": {
-        "exclude": ["/demo", "/.cursor"]
+        "exclude": [
+            "/demo",
+            "/.cursor"
+        ]
     },
     "scripts": {
         "test": "@php vendor/bin/phpunit --color=always",
@@ -118,7 +126,13 @@
         "rector": "@php vendor/bin/rector process",
         "rector-dry": "@php vendor/bin/rector process --dry-run --no-progress-bar",
         "phpstan": "@php vendor/bin/phpstan analyse --memory-limit=512M",
-        "qa": ["@cs-check", "@test"]
+        "qa": [
+            "@cs-check",
+            "@test"
+        ],
+        "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
+        "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
+        "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix"
     },
     "scripts-descriptions": {
         "test": "Run PHPUnit tests",

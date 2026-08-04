@@ -1,0 +1,34 @@
+{# Domain monitor open/edit actions (not generic UI — those live in UiKit). #}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+
+{% macro btn_edit_monitor(tenant_slug, monitor_id, return_target, label) %}
+    {% set edit_label = label|default('monitor.edit'|trans) %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <button type="button"
+                class="btn btn-outline-secondary btn-sm"
+                data-monitor-form-open
+                data-monitor-form-url="{{ path('nowo_uptime_monitor_edit', { tenantSlug: tenant_slug, id: monitor_id }) }}"
+                data-monitor-form-return="{{ return_target }}"
+                data-monitor-form-title="{{ 'monitor.edit'|trans|e('html_attr') }}">
+            {{ edit_label }}
+        </button>
+    {% else %}
+        <a href="{{ path('nowo_uptime_monitor_edit', { tenantSlug: tenant_slug, id: monitor_id }) }}" class="uptime-btn">{{ edit_label }}</a>
+    {% endif %}
+{% endmacro %}
+
+{% macro btn_new_monitor(tenant_slug, label) %}
+    {% set new_label = label|default('dashboard.add'|trans) %}
+    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+        <button type="button"
+                class="btn btn-primary btn-sm"
+                data-monitor-form-open
+                data-monitor-form-url="{{ path('nowo_uptime_monitor_new', { tenantSlug: tenant_slug }) }}"
+                data-monitor-form-return="dashboard"
+                data-monitor-form-title="{{ 'monitor.new'|trans|e('html_attr') }}">
+            {{ new_label }}
+        </button>
+    {% else %}
+        <a href="{{ path('nowo_uptime_monitor_new', { tenantSlug: tenant_slug }) }}" class="uptime-btn uptime-btn-primary">{{ new_label }}</a>
+    {% endif %}
+{% endmacro %}

@@ -1,8 +1,9 @@
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
 <!DOCTYPE html>
 {% set uptime_theme_resolved = uptime_theme|default('auto') %}
 {% set uptime_ui_framework = uptime_ui_framework|default('tabler') %}
+{% set kit_fw = uptime_ui_framework == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework %}
 <html lang="{{ app.request.locale }}"
       class="uptime-html uptime-ui--{{ uptime_ui_framework }}"
       {% if uptime_ui_framework == 'bootstrap' %}data-bs-theme="{{ uptime_theme_resolved }}"{% endif %}>
@@ -31,7 +32,12 @@
         <main>
             {% for label, messages in app.flashes %}
                 {% for message in messages %}
-                    {{ ui.flash(label, message) }}
+                    <div class="{{ ui.flash(label, kit_fw) }}" role="alert">
+                        {{ message }}
+                        {% if kit_fw in ['tabler', 'bootstrap5', 'bootstrap4'] %}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        {% endif %}
+                    </div>
                 {% endfor %}
             {% endfor %}
             {% block uptime_content %}{% endblock %}

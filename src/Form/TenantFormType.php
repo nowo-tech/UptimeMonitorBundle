@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Form;
 
-use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Nowo\FormKitBundle\Attribute\FormKitConfig;
+use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -13,23 +14,25 @@ use Symfony\Component\Validator\Constraints\Regex;
 /**
  * @extends AbstractUptimeFormType<array{slug: string, name: string}>
  */
+#[FormKitConfig('uptime_monitor')]
 final class TenantFormType extends AbstractUptimeFormType
 {
+    use FormOptionsTrait;
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $builder
-            ->add('slug', TextType::class, [
-                'label'       => 'form.tenant.slug',
-                'constraints' => [
-                    new NotBlank(),
-                    new Regex(pattern: '/^[a-z0-9\-]+$/', message: 'form.tenant.slug_regex'),
-                ],
-                'disabled' => $options['edit_slug'] ?? false,
-            ])
-            ->add('name', TextType::class, [
-                'label'       => 'form.tenant.name',
-                'constraints' => [new NotBlank()],
-            ]);
+        $this->addText($builder, 'slug', [
+            'label'       => 'form.tenant.slug',
+            'constraints' => [
+                new NotBlank(),
+                new Regex(pattern: '/^[a-z0-9\-]+$/', message: 'form.tenant.slug_regex'),
+            ],
+            'disabled' => $options['edit_slug'] ?? false,
+        ]);
+        $this->addText($builder, 'name', [
+            'label'       => 'form.tenant.name',
+            'constraints' => [new NotBlank()],
+        ]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

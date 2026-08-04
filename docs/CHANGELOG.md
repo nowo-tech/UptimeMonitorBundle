@@ -15,6 +15,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-04
+
+### Changed
+
+- **FormKitBundle:** depend on [`nowo-tech/form-kit-bundle`](https://github.com/nowo-tech/FormKitBundle) ^2.0. Admin form types use `FormOptionsTrait` + profile `uptime_monitor` (`#[FormKitConfig]`). Extension prepends that profile when missing; form types are tagged `form.type` so `FormOptionsMerger` is injected.
+
+### Added
+- **REQ-TWIG-004:** require `twig/extra-bundle` + `twig/string-extra`; `make check-twig-extra` in `release-check`; demos register `TwigExtraBundle`.
+- **Twig-CS-Fixer:** `vincentlanglet/twig-cs-fixer`, `.twig-cs-fixer.php`, `composer twig:lint` / `twig:fix`.
+
+### Changed
+
+- **REQ-UI-001-kit:** Twig screens import `@NowoUiKitBundle/macros/ui.html.twig` instead of a local `_ui_macros.html.twig` (deleted). Domain monitor open/edit actions live in `_monitor_actions.html.twig`. Requires `nowo-tech/ui-kit-bundle` `^1.4`. Extension seeds `nowo_ui_kit.css_framework` from `ui.framework` when the host has not configured UiKit.
+
+[1.3.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.0
+
 ## [1.2.0] - 2026-08-03
 
 ### Added

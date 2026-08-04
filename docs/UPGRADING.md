@@ -9,6 +9,8 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 ## Table of contents
 
+- [Unreleased](#unreleased)
+- [To 1.3.0](#to-130)
 - [Upgrading to 1.2.0 (2026-08-03)](#upgrading-to-120-2026-08-03)
 - [Upgrading to 1.1.1 (2026-07-30)](#upgrading-to-111-2026-07-30)
 - [Upgrading to 1.1.0 (2026-07-30)](#upgrading-to-110-2026-07-30)
@@ -24,6 +26,33 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [Upgrading to 1.0.2 (2026-07-06)](#upgrading-to-102-2026-07-06)
 - [Upgrading to 1.0.1 (2026-07-06)](#upgrading-to-101-2026-07-06)
 - [Upgrading to 1.0.0 (2026-07-06)](#upgrading-to-100-2026-07-06)
+
+
+## Unreleased
+
+## To 1.3.0
+
+From **1.2.0** — Adds FormKit and/or UiKit where applicable, Twig Extra (REQ-TWIG-004), and Twig-CS-Fixer. Register TwigExtraBundle, NowoFormKitBundle, and NowoUiKitBundle if Flex did not. See CHANGELOG.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console cache:clear
+```
+
+### Twig Extra Bundle (REQ-TWIG-004)
+
+Hosts that render this bundle's Twig templates must install:
+
+```bash
+composer require twig/extra-bundle twig/string-extra
+```
+
+and enable `Twig\Extra\TwigExtraBundle\TwigExtraBundle`. Flex recipes usually register it automatically.
+
+### Twig-CS-Fixer (maintainers)
+
+Package maintainers: `composer twig:lint` / `composer twig:fix` use `.twig-cs-fixer.php` over `src/` (and `templates/` when present).
+
 
 ## Upgrading to 1.2.0 (2026-08-03)
 
@@ -290,3 +319,6 @@ nowo_uptime_monitor:
 ### Breaking changes
 
 None. This is the first stable release.
+### FormKitBundle (admin forms)
+
+If you use admin/dashboard Symfony forms, ensure `nowo-tech/form-kit-bundle` ^2.0 is installed (pulled transitively) and `Nowo\FormKitBundle\NowoFormKitBundle` is registered. Form types use profile `uptime_monitor` via `#[FormKitConfig]`; the bundle prepends that profile when the host has not defined it.

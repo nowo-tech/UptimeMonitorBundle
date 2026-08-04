@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Form;
 
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
+use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Test\TypeTestCase;
 use Symfony\Component\Validator\Validation;
@@ -14,6 +15,16 @@ use Symfony\Component\Validator\Validation;
  */
 final class TenantFormTypeTest extends TypeTestCase
 {
+    /**
+     * @return list<object>
+     */
+    protected function getTypes(): array
+    {
+        return [
+            FormKitTestSupport::withMerger(new TenantFormType()),
+        ];
+    }
+
     /**
      * @return array<int, object>
      */

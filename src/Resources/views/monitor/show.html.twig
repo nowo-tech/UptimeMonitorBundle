@@ -1,5 +1,5 @@
 {% extends uptime_layout %}
-{% import '@NowoUptimeMonitorBundle/_ui_macros.html.twig' as ui %}
+{% import '@NowoUptimeMonitorBundle/_monitor_actions.html.twig' as monitor_actions %}
 
 {% block title %}{{ monitor.name }} — Detail{% endblock %}
 
@@ -16,12 +16,12 @@
         {% if uptime_ui_framework == 'tabler' %}
             <div class="btn-list">
                 <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}" class="btn btn-outline-secondary btn-sm">← {{ 'dashboard.back'|trans }}</a>
-                {{ ui.btn_edit_monitor(tenant_slug, monitor.id, 'show') }}
+                {{ monitor_actions.btn_edit_monitor(tenant_slug, monitor.id, 'show') }}
             </div>
         {% else %}
             <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}">← Dashboard</a>
             ·
-            {{ ui.btn_edit_monitor(tenant_slug, monitor.id, 'show') }}
+            {{ monitor_actions.btn_edit_monitor(tenant_slug, monitor.id, 'show') }}
         {% endif %}
     </nav>
 
