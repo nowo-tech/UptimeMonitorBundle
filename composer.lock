@@ -1035,16 +1035,16 @@
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
-            "version": "v1.4.0",
+            "version": "v1.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/UiKitBundle.git",
-                "reference": "30b65f6d7a7581a0e8708e138c6fc6fa7ab161d7"
+                "reference": "60935db1e13b438c79248350115e03aef30fe070"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/30b65f6d7a7581a0e8708e138c6fc6fa7ab161d7",
-                "reference": "30b65f6d7a7581a0e8708e138c6fc6fa7ab161d7",
+                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/60935db1e13b438c79248350115e03aef30fe070",
+                "reference": "60935db1e13b438c79248350115e03aef30fe070",
                 "shasum": ""
             },
             "require": {
@@ -1056,6 +1056,8 @@
                 "symfony/http-kernel": "^6.0 || ^7.0 || ^8.0",
                 "symfony/translation": "^6.0 || ^7.0 || ^8.0",
                 "symfony/twig-bundle": "^6.0 || ^7.0 || ^8.0",
+                "twig/extra-bundle": "^3.12",
+                "twig/string-extra": "^3.12",
                 "twig/twig": "^3.8"
             },
             "require-dev": {
@@ -1066,7 +1068,8 @@
                 "phpstan/phpstan-symfony": "^2.0",
                 "phpunit/phpunit": "^10.5 || ^11.0",
                 "rector/rector": "^2.0",
-                "symfony/yaml": "^6.0 || ^7.0 || ^8.0"
+                "symfony/yaml": "^6.0 || ^7.0 || ^8.0",
+                "vincentlanglet/twig-cs-fixer": "^3.0"
             },
             "suggest": {
                 "symfony/ux-icons": "For icon_set: ux_icon in row actions and icons"
@@ -1111,7 +1114,7 @@
                 "issues": "https://github.com/nowo-tech/UiKitBundle/issues",
                 "source": "https://github.com/nowo-tech/UiKitBundle"
             },
-            "time": "2026-08-04T06:40:35+00:00"
+            "time": "2026-08-04T23:04:44+00:00"
         },
         {
             "name": "psr/cache",
