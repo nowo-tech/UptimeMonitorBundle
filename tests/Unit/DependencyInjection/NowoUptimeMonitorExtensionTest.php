@@ -114,6 +114,136 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertFalse($container->hasExtension('doctrine'));
     }
 
+    public function testPrependUiKitDoesNotOverrideHostCssFramework(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension(new class extends Extension {
+            public function load(array $configs, ContainerBuilder $container): void
+            {
+            }
+
+            public function getAlias(): string
+            {
+                return 'nowo_ui_kit';
+            }
+        });
+        $container->prependExtensionConfig('nowo_ui_kit', ['css_framework' => 'none']);
+
+        (new UptimeMonitorExtension())->prepend($container);
+
+        $seeded = false;
+        foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
+            if (($cfg['css_framework'] ?? null) === 'tabler' || ($cfg['css_framework'] ?? null) === 'bootstrap5') {
+                $seeded = true;
+            }
+        }
+        self::assertFalse($seeded);
+    }
+
+    public function testPrependSeedsFormKitUptimeMonitorProfileWhenHostUnset(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension(new class extends Extension {
+            public function load(array $configs, ContainerBuilder $container): void
+            {
+            }
+
+            public function getAlias(): string
+            {
+                return 'nowo_form_kit';
+            }
+        });
+        $extension = new UptimeMonitorExtension();
+        $container->registerExtension($extension);
+
+        $extension->prepend($container);
+
+        $found = false;
+        foreach ($container->getExtensionConfig('nowo_form_kit') as $cfg) {
+            if (($cfg['css_framework'] ?? null) === 'bootstrap'
+                && isset($cfg['profiles']['uptime_monitor']['alias'])
+                && $cfg['profiles']['uptime_monitor']['alias'] === 'uptime_monitor'
+            ) {
+                $found = true;
+                self::assertSame('NowoUptimeMonitorBundle', $cfg['profiles']['uptime_monitor']['translation_domain']);
+                break;
+            }
+        }
+        self::assertTrue($found);
+    }
+
+    public function testPrependDoesNotOverrideExplicitFormKitHostConfig(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension(new class extends Extension {
+            public function load(array $configs, ContainerBuilder $container): void
+            {
+            }
+
+            public function getAlias(): string
+            {
+                return 'nowo_form_kit';
+            }
+        });
+        $container->prependExtensionConfig('nowo_form_kit', [
+            'css_framework' => 'none',
+            'profiles'      => [
+                'uptime_monitor' => [
+                    'alias'              => 'uptime_monitor',
+                    'translation_domain' => 'HostDomain',
+                ],
+            ],
+        ]);
+        $extension = new UptimeMonitorExtension();
+        $container->registerExtension($extension);
+
+        $extension->prepend($container);
+
+        $bootstrapSeed = false;
+        $profileReseed = false;
+        foreach ($container->getExtensionConfig('nowo_form_kit') as $cfg) {
+            if (($cfg['css_framework'] ?? null) === 'bootstrap') {
+                $bootstrapSeed = true;
+            }
+            if (($cfg['profiles']['uptime_monitor']['translation_domain'] ?? null) === 'NowoUptimeMonitorBundle') {
+                $profileReseed = true;
+            }
+        }
+        self::assertFalse($bootstrapSeed);
+        self::assertFalse($profileReseed);
+    }
+
+    public function testPrependSeedsUiKitFromUiFrameworkWhenHostUnset(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension(new class extends Extension {
+            public function load(array $configs, ContainerBuilder $container): void
+            {
+            }
+
+            public function getAlias(): string
+            {
+                return 'nowo_ui_kit';
+            }
+        });
+        $extension = new UptimeMonitorExtension();
+        $container->registerExtension($extension);
+        $container->prependExtensionConfig('nowo_uptime_monitor', [
+            'ui' => ['framework' => 'bootstrap'],
+        ]);
+
+        $extension->prepend($container);
+
+        $found = false;
+        foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
+            if (($cfg['css_framework'] ?? null) === 'bootstrap5') {
+                $found = true;
+                break;
+            }
+        }
+        self::assertTrue($found);
+    }
+
     private function containerWithSecurityBundle(): ContainerBuilder
     {
         $container = new ContainerBuilder();

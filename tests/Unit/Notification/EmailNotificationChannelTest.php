@@ -81,4 +81,20 @@ final class EmailNotificationChannelTest extends TestCase
         self::assertTrue($channel->send($alert));
         self::assertSame('email', $channel->getName());
     }
+
+    public function testSendReturnsFalseWhenChannelDisabled(): void
+    {
+        $mailer = $this->createMock(MailerInterface::class);
+        $mailer->expects(self::never())->method('send');
+        $channel = new EmailNotificationChannel(['enabled' => false], $mailer);
+
+        $alert = new UptimeAlert(
+            new Monitor(new Tenant('main', 'Main'), 'API', MonitorType::Https, 'https://x.test'),
+            UptimeAlert::TRANSITION_DOWN,
+            CheckStatus::Down,
+            CheckStatus::Up,
+        );
+
+        self::assertFalse($channel->send($alert));
+    }
 }
