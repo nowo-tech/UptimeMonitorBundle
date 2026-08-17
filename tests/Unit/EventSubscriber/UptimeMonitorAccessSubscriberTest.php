@@ -15,6 +15,7 @@ use ReflectionClass;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 /**
@@ -48,6 +49,62 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
         ]);
 
         $subscriber->onKernelController($event);
+    }
+
+    public function testGetSubscribedEvents(): void
+    {
+        self::assertSame(
+            [KernelEvents::CONTROLLER => ['onKernelController', 0]],
+            UptimeMonitorAccessSubscriber::getSubscribedEvents(),
+        );
+    }
+
+    public function testSkipsInvokableController(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::never())->method(self::anything());
+
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+        $kernel     = $this->createMock(HttpKernelInterface::class);
+        $event      = new ControllerEvent($kernel, static fn () => null, new Request(), HttpKernelInterface::MAIN_REQUEST);
+
+        $subscriber->onKernelController($event);
+    }
+
+    public function testSkipsUnprotectedController(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::never())->method(self::anything());
+
+        $dummy = new class {
+            public function index(): void
+            {
+            }
+        };
+
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+        $subscriber->onKernelController($this->controllerEvent([$dummy, 'index']));
+    }
+
+    public function testSkipsArrayControllerWithNonObjectFirstElement(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::never())->method(self::anything());
+
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+        $kernel     = $this->createMock(HttpKernelInterface::class);
+        $event      = new ControllerEvent(
+            $kernel,
+            [self::class, 'noopController'],
+            new Request(),
+            HttpKernelInterface::MAIN_REQUEST,
+        );
+
+        $subscriber->onKernelController($event);
+    }
+
+    public static function noopController(): void
+    {
     }
 
     public function testDashboardUsesCanAccessDashboard(): void
