@@ -16,6 +16,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 
 - ✅ HTTP/HTTPS, TCP, DNS, SSL certificate, and Ping (ICMP) checks
 - ✅ Symfony Scheduler + `nowo:uptime:run-due-checks`
+- ✅ Ops CLI: `nowo:uptime:rollup`, `nowo:uptime:purge-detail`, `nowo:uptime:clear-data` (plus `sync-schema` / `seed-demo`)
 - ✅ Doctrine entities: tenant, monitor, check result, aggregates, incidents
 - ✅ YAML retention (`detail_days`) + aggregates kept forever
 - ✅ REST summary API for dashboard polling (`?since=` delta support)
@@ -43,6 +44,7 @@ nowo_uptime_monitor:
 php bin/console nowo:uptime:sync-schema
 php bin/console nowo:uptime:seed-demo
 php bin/console nowo:uptime:run-due-checks
+# ops: nowo:uptime:rollup · nowo:uptime:purge-detail · nowo:uptime:clear-data
 ```
 
 Dashboard: `/uptime/{tenantSlug}` · Status page: `/status/{tenantSlug}` (default tenant `main`).
