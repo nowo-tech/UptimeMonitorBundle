@@ -10,6 +10,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.3.1](#to-131)
 - [To 1.3.0](#to-130)
 - [Upgrading to 1.2.0 (2026-08-03)](#upgrading-to-120-2026-08-03)
 - [Upgrading to 1.1.1 (2026-07-30)](#upgrading-to-111-2026-07-30)
@@ -29,6 +30,14 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 
 ## Unreleased
+
+## To 1.3.1
+
+From **1.3.0** — No application upgrade steps. **Demos only:** Hot Reload Bundle `^1.4` (FrankenPHP Mercure/`hot_reload`, `dev`/`test`). Shipped demos are Symfony 8 only (Symfony 6/7 demo apps removed).
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 ## To 1.3.0
 

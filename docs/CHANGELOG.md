@@ -15,6 +15,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-08-18
+
+### Changed
+
+- **Demos:** pin `nowo-tech/hot-reload-bundle` to `^1.4` with FrankenPHP Mercure/`hot_reload` (`dev`/`test` only).
+- **Demos:** Symfony 8 only; Symfony 6/7 demo apps removed.
+
+[1.3.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.1
+
 ## [1.3.0] - 2026-08-04
 
 ### Changed
@@ -246,7 +255,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.3.1...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
