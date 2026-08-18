@@ -48,7 +48,6 @@ Both demos ship with Mercure enabled:
 
 | Demo | App URL | Mercure hub (browser, same origin) |
 |------|---------|-----------------------------------|
-| symfony7 | http://localhost:8010/uptime/main | http://localhost:8010/.well-known/mercure |
 | symfony8 | http://localhost:8011/uptime/main | http://localhost:8011/.well-known/mercure |
 
 Demos proxy `/.well-known/mercure` through FrankenPHP so the **subscriber JWT cookie** is sent (private updates). Publishing still uses `MERCURE_URL=http://mercure/...` inside Docker.

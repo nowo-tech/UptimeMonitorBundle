@@ -19,7 +19,7 @@ make assets
 
 Styles live in `src/Resources/assets/scss/` (Sass). Vite compiles them to `src/Resources/public/*.css`. Edit SCSS, then run `make assets` (or `pnpm run build` inside the PHP container).
 
-Demos: `make -C demo up-symfony7` (port 8010) or `make -C demo up-symfony8` (port 8011).
+Demos: `make -C demo up-symfony8` (port 8010) or `make -C demo up-symfony8` (port 8011).
 
 ## Quality gates
 

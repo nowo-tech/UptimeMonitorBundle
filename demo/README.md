@@ -4,7 +4,6 @@ Two FrankenPHP demos with **Mercure** for real-time dashboard synchronization.
 
 | Demo | Symfony | Dashboard | Hub SSE (browser) |
 |------|---------|-----------|------------------------|
-| [symfony7](symfony7/) | 7.2 | http://localhost:8010/uptime/main | http://localhost:8010/.well-known/mercure |
 | [symfony8](symfony8/) | 8.0 | http://localhost:8011/uptime/main | http://localhost:8011/.well-known/mercure |
 
 Detailed Mercure documentation for the demos: **[MERCURE.md](MERCURE.md)** (architecture, JWT, Caddy proxy, troubleshooting).
@@ -16,7 +15,7 @@ Detailed Mercure documentation for the demos: **[MERCURE.md](MERCURE.md)** (arch
 make -C demo up-symfony8
 
 # Symfony 7 + Mercure
-make -C demo up-symfony7
+make -C demo up-symfony8
 ```
 
 The dashboard shows **Mercure · connected** when SSE is open. Each `up` runs **`reset-demo`**: 1 group `[demo]` + 2 HTTP monitors (`demo_uptime_ok`, `demo_uptime_flaky` → routes `/demo/uptime/ok` and `/demo/uptime/flaky/3`).
@@ -31,7 +30,7 @@ make -C demo clear-data-symfony8
 
 ## Mercure (summary)
 
-- Docker hub on port **3080** (symfony8) / **3081** (symfony7); the **browser** uses the proxy on **8011** / **8010** (same origin + JWT cookie).
+- Docker hub on port **3080** (symfony8); the **browser** uses the proxy on **8011** (same origin + JWT cookie).
 - **`checks-worker`**: publishes to Mercure after each check (`entrypoint: []` in compose).
 - **`MERCURE_PUBLIC_URL`**: must be `http://localhost:8011/.well-known/mercure` (not only `:3080`).
 - Config: `config/packages/nowo_uptime_monitor.yaml` → `sync: mercure`.
