@@ -1,5 +1,7 @@
 # Demo applications with FrankenPHP
 
+**REQ-DEMO-001:** FrankenPHP demos must install **Nowo Twig Inspector** and **Nowo Hot Reload** together (`nowo-tech/twig-inspector-bundle` + `nowo-tech/hot-reload-bundle` in `require-dev`). Caddyfile: Mercure + `hot_reload` (and `worker { file …; watch }` in worker mode). Do not enable Hot Reload in production.
+
 ## Table of contents
 
 - [Overview](#overview)
@@ -7,7 +9,7 @@
 - [FrankenPHP modes](#frankenphp-modes)
 - [Ports](#ports)
 
-The bundle ships **Symfony 7** and **Symfony 8** demos under `demo/symfony7/` and `demo/symfony8/` (not included in the Composer package archive).
+The bundle ships **Symfony 8** demos under `demo/symfony8/` (not included in the Composer package archive).
 
 ## Overview
 
@@ -21,7 +23,7 @@ The bundle ships **Symfony 7** and **Symfony 8** demos under `demo/symfony7/` an
 From the bundle root:
 
 ```bash
-make -C demo up-symfony7   # http://localhost:8010
+make -C demo up-symfony8   # http://localhost:8010
 make -C demo up-symfony8   # http://localhost:8011
 ```
 
@@ -45,7 +47,6 @@ Demos use **`dashboard.sync: mercure`** (see `config/packages/nowo_uptime_monito
 
 | Demo | `MERCURE_PUBLIC_URL` (browser, same origin) |
 |------|---------------------------------------------|
-| symfony7 | http://localhost:8010/.well-known/mercure |
 | symfony8 | http://localhost:8011/.well-known/mercure |
 
 ## Development vs production

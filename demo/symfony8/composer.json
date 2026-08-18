@@ -71,6 +71,7 @@
         }
     ],
     "require-dev": {
+        "nowo-tech/hot-reload-bundle": "^1.4",
         "nowo-tech/twig-inspector-bundle": "*",
         "symfony/debug-bundle": "^8.0",
         "symfony/var-dumper": "^8.0",

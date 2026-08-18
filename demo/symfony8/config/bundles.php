@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\FormKitBundle\NowoFormKitBundle;
+use Nowo\HotReloadBundle\NowoHotReloadBundle;
 use Nowo\TwigInspectorBundle\NowoTwigInspectorBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
@@ -22,6 +23,7 @@ return [
     DebugBundle::class             => ['dev' => true],
     WebProfilerBundle::class       => ['dev' => true],
     UptimeMonitorBundle::class     => ['all' => true],
+    NowoHotReloadBundle::class     => ['dev' => true, 'test' => true],
     NowoTwigInspectorBundle::class => ['dev' => true, 'test' => true],
     SecurityBundle::class          => ['all' => true],
     MercureBundle::class           => ['all' => true],
