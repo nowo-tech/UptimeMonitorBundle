@@ -42,7 +42,7 @@ composer qa && composer test-coverage-90
 
 | ID | Where | What it marks |
 | --- | --- | --- |
-| REQ-DEMO-005 | `demo/symfony7/Makefile`, `demo/symfony8/Makefile` | `make up` prints demo URL from `PORT` |
+| REQ-DEMO-005 | `demo/symfony8/Makefile`, `demo/symfony8/Makefile` | `make up` prints demo URL from `PORT` |
 | REQ-DEMO-007 | `demo/*/Makefile` `update-bundle` | Demo syncs path-mounted bundle |
 | REQ-TEST-006 | `Makefile` `test-coverage-90` | Coverage threshold ≥90% |
 | REQ-MAKE-002 | `Makefile` `release-check` | Pre-release QA chain |

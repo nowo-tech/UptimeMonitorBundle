@@ -1,8 +1,0 @@
-security:
-    firewalls:
-        dev:
-            pattern: ^/(_profiler|_wdt|assets)/
-            security: false
-        main:
-            lazy: true
-            security: false

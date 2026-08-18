@@ -19,7 +19,7 @@ help:
 	@echo "  release-check, release-check-demos, composer-sync, validate-translations"
 	@echo "  setup-hooks, clean, update, validate"
 	@echo ""
-	@echo "Demos: make -C demo up-symfony7 | up-symfony8 | clear-data-symfony8"
+	@echo "Demos: make -C demo up-symfony8 | clear-data-symfony8"
 
 up:
 	$(COMPOSE) build
