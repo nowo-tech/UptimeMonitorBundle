@@ -1,4 +1,5 @@
 {
+	order mercure after encode
 	skip_install_trust
 }
 
@@ -21,6 +22,8 @@
 		encode zstd br gzip
 		header Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
 		header Pragma "no-cache"
-		php_server
+		php_server {
+			hot_reload
+		}
 	}
 }
