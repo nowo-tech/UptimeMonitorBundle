@@ -7,13 +7,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
-- [1.2.0](#120---2026-08-03)
+- [1.3.3](#133---2026-08-19)
+- [1.3.2](#132---2026-08-19)
+- [1.3.1](#131---2026-08-18)
 - [1.1.1](#111---2026-07-30)
 - [1.1.0](#110---2026-07-30)
 - [1.0.11](#1011---2026-07-29)
 - [1.0.10](#1010---2026-07-22)
 
 ## [Unreleased]
+
+## [1.3.3] - 2026-08-19
+
+### Security
+
+- **CI:** run `composer audit --locked` after dependency install (REQ-SEC / P3).
+
+[1.3.3]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.3
+
+## [1.3.2] - 2026-08-19
+
+### Security
+
+- **Flex recipe `when@prod`:** enforce `checks.block_private_urls: true` to mitigate SSRF in uptime checks.
+
+[1.3.2]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.2
 
 ## [1.3.1] - 2026-08-18
 

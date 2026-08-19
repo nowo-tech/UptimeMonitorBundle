@@ -10,6 +10,8 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.3.3](#to-133)
+- [To 1.3.2](#to-132)
 - [To 1.3.1](#to-131)
 - [To 1.3.0](#to-130)
 - [Upgrading to 1.2.0 (2026-08-03)](#upgrading-to-120-2026-08-03)
@@ -30,6 +32,31 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 
 ## Unreleased
+
+## To 1.3.3
+
+From **1.3.2** — No application upgrade steps.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+## To 1.3.2
+
+From **1.3.1** — Review production config for SSRF hardening. Flex recipe `when@prod` sets:
+
+```yaml
+nowo_uptime_monitor:
+    checks:
+        block_private_urls: true
+```
+
+Replace placeholder `url_allowlist` entries before enabling checks against internal targets.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console cache:clear
+```
 
 ## To 1.3.1
 
