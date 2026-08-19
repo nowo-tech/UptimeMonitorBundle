@@ -1,0 +1,5 @@
+# Merged into security.access_control by Symfony (REQ-SEC-004).
+# Status page (/status) may stay public by design — protect /uptime admin UI.
+security:
+    access_control:
+        - { path: ^/uptime, roles: ROLE_ADMIN }
