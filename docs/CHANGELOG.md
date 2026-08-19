@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.3.4](#134---2026-08-19)
 - [1.3.3](#133---2026-08-19)
 - [1.3.2](#132---2026-08-19)
 - [1.3.1](#131---2026-08-18)
@@ -16,6 +17,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [1.0.10](#1010---2026-07-22)
 
 ## [Unreleased]
+
+## [1.3.4] - 2026-08-19
+
+### Security
+
+- **Flex recipe:** `security.access_control` for uptime monitor routes (REQ-SEC-004).
+
+[1.3.4]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.4
 
 ## [1.3.3] - 2026-08-19
 
