@@ -22,3 +22,8 @@ nowo_uptime_monitor:
     status_page:
         enabled: true
         path: /status
+
+when@prod:
+    nowo_uptime_monitor:
+        checks:
+            block_private_urls: true
