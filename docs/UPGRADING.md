@@ -10,6 +10,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.3.5](#to-135)
 - [To 1.3.4](#to-134)
 - [To 1.3.3](#to-133)
 - [To 1.3.2](#to-132)
@@ -33,6 +34,14 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 
 ## Unreleased
+
+## To 1.3.5
+
+Review Flex recipe `security_nowo_uptime_monitor.yaml` after update.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 ## To 1.3.4
 
