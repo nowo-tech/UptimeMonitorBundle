@@ -59,6 +59,23 @@ final class PingCheckRunnerTest extends TestCase
         self::assertStringContainsString('private', (string) $result->message);
     }
 
+    public function testRunAllowsPrivateHostWhenBlockDisabled(): void
+    {
+        if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin', 'BSD'], true)) {
+            self::markTestSkipped('Ping runner only tested on Unix-like systems');
+        }
+
+        $runner  = $this->runner(false);
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '127.0.0.1');
+        $monitor->setConfig(['host' => '127.0.0.1', 'timeout' => 1.0]);
+
+        $result = $runner->run($monitor);
+
+        // Local loopback may be up or down depending on ICMP; must not be the SSRF block message.
+        self::assertNotSame('Host targets a private or local network address (blocked).', (string) $result->message);
+        self::assertStringNotContainsStringIgnoringCase('private or local', (string) $result->message);
+    }
+
     public function testRunReturnsDownForUnreachableHost(): void
     {
         if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin', 'BSD'], true)) {

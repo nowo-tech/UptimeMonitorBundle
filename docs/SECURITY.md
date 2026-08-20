@@ -34,7 +34,7 @@ This bundle provides:
 
 ## Threat model and mitigations
 
-- **SSRF / outbound requests**: HTTP/HTTPS monitors use `MonitorUrlSsrfGuard` when `checks.block_private_urls` is `true` (default). Restrict who can create monitors; default UI roles require **`ROLE_ADMIN`**.
+- **SSRF / outbound requests**: HTTP/HTTPS monitors use `MonitorUrlSsrfGuard` when `checks.block_private_urls` is `true` (default). Restrict who can create monitors; default UI roles require **`ROLE_ADMIN`**. Regression coverage: `tests/Unit/Security/MonitorUrlSsrfGuardTest.php`, `HttpCheckRunnerTest`, `PingCheckRunnerTest`.
 - **Stored data**: Check results may contain response snippets and DNS/SSL metadata. Protect database access and backups.
 - **Public status page**: Exposes monitor names and last status only (paused monitors hidden). Disable via `status_page.enabled: false` if needed.
 - **ICMP ping**: Requires OS `ping` binary; hosts are validated and private/local targets are blocked under the same SSRF guard as HTTP when `block_private_urls` is enabled.

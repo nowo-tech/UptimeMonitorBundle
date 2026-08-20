@@ -107,12 +107,40 @@ final class HttpCheckRunnerTest extends TestCase
         self::assertFalse($runner->supports($monitor));
     }
 
-    private function createRunner(?HttpClientInterface $client = null): HttpCheckRunner
+    public function testRunReturnsDownWhenPrivateUrlBlocked(): void
+    {
+        $client = new MockHttpClient(static function (): never {
+            self::fail('HTTP client must not be called for blocked private URLs');
+        });
+        $runner  = $this->createRunner($client, true);
+        $monitor = $this->createMonitor(MonitorType::Http);
+        $monitor->setConfig(['url' => 'http://127.0.0.1/health']);
+
+        $result = $runner->run($monitor);
+
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertStringContainsString('private', (string) $result->message);
+    }
+
+    public function testRunAllowsPrivateUrlWhenBlockDisabled(): void
+    {
+        $client  = new MockHttpClient([new MockResponse('ok', ['http_code' => 200])]);
+        $runner  = $this->createRunner($client, false);
+        $monitor = $this->createMonitor(MonitorType::Http);
+        $monitor->setConfig(['url' => 'http://127.0.0.1/health']);
+
+        $result = $runner->run($monitor);
+
+        self::assertSame(CheckStatus::Up, $result->status);
+        self::assertSame(200, $result->statusCode);
+    }
+
+    private function createRunner(?HttpClientInterface $client = null, bool $blockPrivateUrls = false): HttpCheckRunner
     {
         return new HttpCheckRunner(
             $client,
             new MonitorUrlSsrfGuard(),
-            false,
+            $blockPrivateUrls,
         );
     }
 

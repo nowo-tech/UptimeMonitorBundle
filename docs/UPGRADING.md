@@ -10,6 +10,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.3.6](#to-136)
 - [To 1.3.5](#to-135)
 - [To 1.3.4](#to-134)
 - [To 1.3.3](#to-133)
@@ -34,6 +35,14 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 
 ## Unreleased
+
+## To 1.3.6
+
+From **1.3.5** — No application upgrade steps (SSRF regression tests only).
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 ## To 1.3.5
 

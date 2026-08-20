@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.3.6](#136---2026-08-20)
 - [1.3.5](#135---2026-08-19)
 - [1.3.4](#134---2026-08-19)
 - [1.3.3](#133---2026-08-19)
@@ -18,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [1.0.10](#1010---2026-07-22)
 
 ## [Unreleased]
+
+## [1.3.6] - 2026-08-20
+
+### Tests
+
+- **SSRF regression:** expand `MonitorUrlSsrfGuard` coverage (RFC1918, metadata, IPv6, empty host) and assert HTTP/Ping runners block private targets when `block_private_urls` is enabled (and allow when disabled).
 
 ## [1.3.5] - 2026-08-19
 
