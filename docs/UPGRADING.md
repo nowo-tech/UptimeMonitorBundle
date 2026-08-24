@@ -9,6 +9,8 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 ## Table of contents
 
+
+- [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
 - [To 1.3.6](#to-136)
 - [To 1.3.5](#to-135)
@@ -32,6 +34,22 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [Upgrading to 1.0.2 (2026-07-06)](#upgrading-to-102-2026-07-06)
 - [Upgrading to 1.0.1 (2026-07-06)](#upgrading-to-101-2026-07-06)
 - [Upgrading to 1.0.0 (2026-07-06)](#upgrading-to-100-2026-07-06)
+
+## From 1.3.6 to 1.3.7
+
+No breaking changes. **No application upgrade steps.**
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+## From 1.3.6 to 1.3.7
+
+No breaking changes. **No application upgrade steps.**
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 
 ## Unreleased

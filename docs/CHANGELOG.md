@@ -20,6 +20,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+
+## [1.3.7] - 2026-08-24
+
+### Changed
+
+- **Demos:** MySQL env policy in FrankenPHP stack (REQ-DEMO-011).
+- **QA:** add `phpstan-frankenphp` extension (REQ-CS-005).
+- **Docs:** PHP-FIG PSR evaluation (REQ-CS-007).
+- **Style:** PHP CS Fixer alignment.
+
+### Notes
+
+- **No API or configuration changes** for integrators unless noted above.
+
+[1.3.7]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.7
+
 ## [1.3.6] - 2026-08-20
 
 ### Tests
