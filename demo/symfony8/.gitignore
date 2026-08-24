@@ -42,3 +42,8 @@ coverage.xml
 *.tgz
 *.rar
 *.7z
+
+# SQLite artifacts (REQ-DEMO-011 — demos use MySQL)
+*.db
+*.sqlite
+*.sqlite3

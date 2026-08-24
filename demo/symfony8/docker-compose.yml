@@ -21,7 +21,7 @@ services:
       FRANKENPHP_MODE: ${FRANKENPHP_MODE:-worker}
       APP_DEBUG: "1"
       APP_SECRET: ${APP_SECRET:-demo-secret}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      DATABASE_URL: mysql://app:app@database:3306/app?serverVersion=8.4&charset=utf8mb4
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: http://localhost:${PORT:-8011}/.well-known/mercure
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
@@ -46,7 +46,7 @@ services:
       - ../..:/var/uptime-monitor-bundle
     environment:
       APP_ENV: dev
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      DATABASE_URL: mysql://app:app@database:3306/app?serverVersion=8.4&charset=utf8mb4
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: http://localhost:${PORT:-8011}/.well-known/mercure
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
@@ -83,18 +83,21 @@ services:
       - uptime-monitor-demo-network
 
   database:
-    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    image: mysql:8.4
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
-      POSTGRES_USER: ${POSTGRES_USER:-app}
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app}
     healthcheck:
-      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uapp", "-papp"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 20
     volumes:
-      - database_data:/var/lib/postgresql/data:rw
+      - database_data:/var/lib/mysql
+    expose:
+      - "3306"
     networks:
       - uptime-monitor-demo-network
 
