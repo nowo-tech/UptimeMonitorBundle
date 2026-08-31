@@ -15,7 +15,7 @@
     "chart.js": "^4.4.8"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@vitest/coverage-v8": "^2.1.9",
     "happy-dom": "^20.11.6",
     "sass": "^1.103.1",
