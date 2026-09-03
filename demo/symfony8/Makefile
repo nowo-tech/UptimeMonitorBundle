@@ -23,18 +23,19 @@ up:
 	@$(MAKE) link-bundle
 	@echo "Waiting for MySQL from PHP container..."
 	@i=0; \
-	while [ $$i -lt 30 ]; do \
-		if $(COMPOSE) exec -T php php bin/console nowo:uptime:sync-schema 2>/dev/null; then \
+	while [ $$i -lt 60 ]; do \
+		if $(COMPOSE) exec -T php php bin/console doctrine:database:create --if-not-exists 2>/dev/null; then \
 			break; \
 		fi; \
 		i=$$((i+1)); \
 		sleep 2; \
 	done; \
-	if [ $$i -ge 30 ]; then \
+	if [ $$i -ge 60 ]; then \
 		echo "MySQL not reachable from demo PHP container"; \
 		$(COMPOSE) logs --tail=50 database php || true; \
 		exit 1; \
 	fi
+	@$(COMPOSE) exec -T php php bin/console nowo:uptime:sync-schema
 	@$(MAKE) reset-demo
 	@PORT=$$(grep "^PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	[ -z "$$PORT" ] && PORT=$$(grep "^PORT=" .env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
