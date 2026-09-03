@@ -3,7 +3,7 @@
 FROM dunglas/frankenphp:1-php8.5-alpine
 
 RUN apk add --no-cache git unzip bash nodejs npm
-RUN install-php-extensions intl zip pdo_pgsql
+RUN install-php-extensions intl zip pdo_mysql
 RUN npm install -g pnpm
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

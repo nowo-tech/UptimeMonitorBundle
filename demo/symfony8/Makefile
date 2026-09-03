@@ -21,7 +21,20 @@ up:
 	@echo "Installing dependencies..."
 	@$(COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer update --no-interaction
 	@$(MAKE) link-bundle
-	@$(COMPOSE) exec -T php php bin/console nowo:uptime:sync-schema
+	@echo "Waiting for MySQL from PHP container..."
+	@i=0; \
+	while [ $$i -lt 30 ]; do \
+		if $(COMPOSE) exec -T php php bin/console nowo:uptime:sync-schema 2>/dev/null; then \
+			break; \
+		fi; \
+		i=$$((i+1)); \
+		sleep 2; \
+	done; \
+	if [ $$i -ge 30 ]; then \
+		echo "MySQL not reachable from demo PHP container"; \
+		$(COMPOSE) logs --tail=50 database php || true; \
+		exit 1; \
+	fi
 	@$(MAKE) reset-demo
 	@PORT=$$(grep "^PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	[ -z "$$PORT" ] && PORT=$$(grep "^PORT=" .env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
