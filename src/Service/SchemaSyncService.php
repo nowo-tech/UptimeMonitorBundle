@@ -126,6 +126,7 @@ final readonly class SchemaSyncService
             if (
                 str_contains($message, 'already exists')
                 || str_contains($message, 'duplicate key')
+                || str_contains($message, 'duplicate foreign key')
                 || str_contains($message, 'duplicate column')
             ) {
                 return true;
