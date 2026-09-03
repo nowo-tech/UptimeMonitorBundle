@@ -58,4 +58,17 @@ final class SchemaSyncServiceTest extends TestCase
 
         self::assertTrue($service->isDuplicateSchemaObjectException($exception));
     }
+
+    public function testIsDuplicateSchemaObjectExceptionDetectsDuplicateForeignKeyMessage(): void
+    {
+        $service = new SchemaSyncService(
+            $this->createMock(EntityManagerInterface::class),
+        );
+
+        $exception = new RuntimeException(
+            'SQLSTATE[HY000]: General error: 1826 Duplicate foreign key constraint name \'FK_test\'',
+        );
+
+        self::assertTrue($service->isDuplicateSchemaObjectException($exception));
+    }
 }
