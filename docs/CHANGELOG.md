@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.3.8](#138---2026-09-07)
+- [1.3.7](#137---2026-08-24)
 - [1.3.6](#136---2026-08-20)
 - [1.3.5](#135---2026-08-19)
 - [1.3.4](#134---2026-08-19)
@@ -20,6 +22,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.8] - 2026-09-07
+
+### Fixed
+
+- **Schema sync:** treat MySQL `duplicate foreign key` errors as already-applied so idempotent schema sync does not fail when constraints already exist.
+
+### Changed
+
+- **Deps (dev):** phpstan / rector / twig-cs-fixer / php-cs-fixer and frontend tooling bumps.
+- **Demos/CI:** stabilize demo-smoke MySQL boot and PDO setup.
+
+### Notes
+
+- **No API or configuration changes** for integrators.
+
+[1.3.8]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.8
 
 ## [1.3.7] - 2026-08-24
 
