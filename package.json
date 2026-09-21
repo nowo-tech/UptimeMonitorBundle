@@ -18,7 +18,7 @@
     "@types/node": "^26.6.1",
     "@vitest/coverage-v8": "^2.1.9",
     "happy-dom": "^20.14.3",
-    "sass": "^1.104.0",
+    "sass": "^1.104.1",
     "typescript": "^6.0.3",
     "vite": "^8.3.0",
     "vitest": "^2.1.9"
