@@ -1,4 +1,4 @@
-{% set uptime_ui_framework = uptime_ui_framework|default('tabler') %}
+{% set uptime_ui_framework = uptime_ui_framework() %}
 {% if uptime_ui_framework == 'tabler' and not uptime_tabler_skip_cdn|default(false) %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">

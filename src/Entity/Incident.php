@@ -72,6 +72,7 @@ class Incident
 
     public function resolve(DateTimeImmutable $endedAt = new DateTimeImmutable()): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->endedAt = $endedAt;
 
         return $this;

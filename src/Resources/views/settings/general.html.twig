@@ -1,6 +1,6 @@
 {% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
 {% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
-{% set kit_fw = uptime_ui_framework == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework|default('tabler') %}
+{% set kit_fw = uptime_ui_framework() == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework() %}
 
 {% block settings_body %}
     {% trans_default_domain 'NowoUptimeMonitorBundle' %}

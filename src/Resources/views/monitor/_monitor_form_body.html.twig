@@ -1,6 +1,6 @@
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
 {% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
-{% set kit_fw = uptime_ui_framework == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework|default('tabler') %}
+{% set kit_fw = uptime_ui_framework() == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework() %}
 
 {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
 {{ form_start(form, { attr: { class: 'uptime-monitor-form', 'data-monitor-form': '1' } }) }}
@@ -8,7 +8,7 @@
 
 <div class="uptime-form-actions">
     <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">{{ 'monitor.form.save'|trans }}</button>
-    {% if modal_mode|default(false) and uptime_ui_framework in ['tabler', 'bootstrap'] %}
+    {% if modal_mode|default(false) and uptime_ui_framework() in ['tabler', 'bootstrap'] %}
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ 'monitor.form.cancel'|trans }}</button>
     {% endif %}
 </div>

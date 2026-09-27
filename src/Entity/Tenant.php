@@ -58,6 +58,7 @@ class Tenant
 
     public function setEnabled(bool $enabled): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->enabled = $enabled;
 
         return $this;
@@ -72,6 +73,7 @@ class Tenant
     /** @param array<string, mixed> $settings */
     public function setSettings(array $settings): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->settings = $settings;
 
         return $this;

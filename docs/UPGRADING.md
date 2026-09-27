@@ -13,6 +13,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.3.9](#to-139)
 - [To 1.3.6](#to-136)
 - [To 1.3.5](#to-135)
 - [To 1.3.4](#to-134)
@@ -54,6 +55,19 @@ composer update nowo-tech/uptime-monitor-bundle
 
 
 ## Unreleased
+
+## To 1.3.9
+
+From **1.3.8** — REQ-CS-008 Igor FrankenPHP worker audit (igor-php require-dev, igor.json, make igor).
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console cache:clear
+```
+
+No configuration changes. If your own templates read the Twig globals `uptime_theme` or `uptime_ui_framework` to get the **tenant** theme / UI framework override, switch to the functions `uptime_theme()` and `uptime_ui_framework()`. The globals are now request-independent (configured `ui.framework` and `auto`) so they stay correct in FrankenPHP worker mode without a kernel reset. The bundle layout (`layout.html.twig`, `_stylesheets.html.twig`) still sets a local `uptime_ui_framework` variable from the function, so blocks rendered inside it keep working.
+- No application upgrade steps for require-dev Igor tooling (REQ-CS-008). Consumers do not pull `igor-php/igor-php` transitively.
+
 
 ## To 1.3.6
 

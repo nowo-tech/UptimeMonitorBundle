@@ -49,6 +49,7 @@ class Tag
 
     public function setName(string $name): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->name = trim($name);
 
         return $this;
@@ -61,7 +62,8 @@ class Tag
 
     public function setColor(?string $color): self
     {
-        $trimmed     = $color !== null ? trim($color) : null;
+        $trimmed = $color !== null ? trim($color) : null;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->color = $trimmed === '' ? null : $trimmed;
 
         return $this;

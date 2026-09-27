@@ -26,6 +26,7 @@ Demos: `make -C demo up-symfony8` (port 8010) or `make -C demo up-symfony8` (por
 Before opening a PR:
 
 ```bash
+make igor
 make release-check
 ```
 

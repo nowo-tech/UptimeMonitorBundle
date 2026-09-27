@@ -85,7 +85,8 @@ class Monitor
 
     public function setProject(?string $project): self
     {
-        $trimmed       = $project !== null ? trim($project) : null;
+        $trimmed = $project !== null ? trim($project) : null;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->project = $trimmed === '' ? null : $trimmed;
 
         return $this;
@@ -98,8 +99,10 @@ class Monitor
 
     public function setParent(?self $parent): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->parent = $parent;
         if ($parent instanceof self) {
+            // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
             $this->project = $parent->getName();
         }
 
@@ -120,6 +123,7 @@ class Monitor
 
     public function setRetries(int $retries): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->config['retries'] = max(0, $retries);
 
         return $this;
@@ -134,6 +138,7 @@ class Monitor
 
     public function setRetryIntervalSeconds(int $seconds): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->config['retry_interval_seconds'] = max(30, $seconds);
 
         return $this;
@@ -158,6 +163,7 @@ class Monitor
     /** @param array<string, mixed> $config */
     public function setConfig(array $config): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->config = $config;
 
         return $this;
@@ -170,6 +176,7 @@ class Monitor
 
     public function setIntervalSeconds(int $intervalSeconds): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->intervalSeconds = $intervalSeconds;
 
         return $this;
@@ -177,6 +184,7 @@ class Monitor
 
     public function setName(string $name): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->name = $name;
 
         return $this;
@@ -184,6 +192,7 @@ class Monitor
 
     public function setType(MonitorType $type): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->type = $type;
 
         return $this;
@@ -191,6 +200,7 @@ class Monitor
 
     public function setTarget(string $target): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->target = $target;
 
         return $this;
@@ -203,6 +213,7 @@ class Monitor
 
     public function setPaused(bool $paused): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->paused = $paused;
 
         return $this;
@@ -215,6 +226,7 @@ class Monitor
 
     public function setLastKnownStatus(?CheckStatus $lastKnownStatus): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->lastKnownStatus = $lastKnownStatus;
 
         return $this;
@@ -227,6 +239,7 @@ class Monitor
 
     public function setLastAlertAt(?DateTimeImmutable $lastAlertAt): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->lastAlertAt = $lastAlertAt;
 
         return $this;
@@ -239,6 +252,7 @@ class Monitor
 
     public function setNextCheckAt(?DateTimeImmutable $nextCheckAt): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->nextCheckAt = $nextCheckAt;
 
         return $this;
@@ -251,6 +265,7 @@ class Monitor
 
     public function scheduleNextCheck(DateTimeImmutable $from): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->nextCheckAt = $from->modify(sprintf('+%d seconds', $this->intervalSeconds));
 
         return $this;

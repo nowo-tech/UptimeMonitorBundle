@@ -68,10 +68,13 @@ class CheckAggregate
 
     public function recordCheck(bool $isUp, int $latencyMs): void
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         ++$this->checksTotal;
         if ($isUp) {
+            // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
             ++$this->checksUp;
         } else {
+            // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
             ++$this->checksDown;
         }
 
@@ -80,11 +83,16 @@ class CheckAggregate
 
     public function applyTotals(int $checksTotal, int $checksUp, int $latencyAvgMs): void
     {
-        $this->checksTotal  = $checksTotal;
-        $this->checksUp     = $checksUp;
-        $this->checksDown   = $checksTotal - $checksUp;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->checksTotal = $checksTotal;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->checksUp = $checksUp;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->checksDown = $checksTotal - $checksUp;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->latencyAvgMs = $latencyAvgMs;
-        $this->uptimeRatio  = $checksTotal > 0
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->uptimeRatio = $checksTotal > 0
             ? round($checksUp / $checksTotal, 4)
             : 0.0;
     }
@@ -116,10 +124,12 @@ class CheckAggregate
 
     private function recalculateMetrics(int $latencyMs): void
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->uptimeRatio = $this->checksTotal > 0
             ? round($this->checksUp / $this->checksTotal, 4)
             : 0.0;
 
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->latencyAvgMs = (int) round(
             (($this->latencyAvgMs * ($this->checksTotal - 1)) + $latencyMs) / $this->checksTotal,
         );

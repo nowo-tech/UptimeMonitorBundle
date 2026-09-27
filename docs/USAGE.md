@@ -122,6 +122,8 @@ Copy from `vendor/nowo-tech/uptime-monitor-bundle/src/Resources/views/` as a sta
 | `templates.layout` | `templates.layout_template` | `uptime_layout` **and** `nowo_uptime_layout_template` (same value) |
 | `ui.framework` | `ui.css_framework` | `uptime_ui_framework` |
 
+The `uptime_ui_framework` global holds the configured `ui.framework`. For the value of the current tenant (settings override) use the Twig function **`uptime_ui_framework()`**; the tenant theme (`light` / `dark` / `auto`) is **`uptime_theme()`**. Functions are evaluated per request, globals are cached by Twig for the worker lifetime.
+
 Admin pages `{% extends uptime_layout %}` (or `nowo_uptime_layout_template`) and fill `{% block uptime_content %}`. Prefer pointing the layout at your project layout (or a one-file bridge) instead of copying every page:
 
 ```yaml

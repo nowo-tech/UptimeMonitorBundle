@@ -1,5 +1,5 @@
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-{% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+{% if uptime_ui_framework() in ['tabler', 'bootstrap'] %}
 <div class="modal modal-blur fade uptime-monitor-form-modal" id="uptime-monitor-form-modal" tabindex="-1"
      aria-labelledby="uptime-monitor-form-modal-title" aria-hidden="true"
      data-uptime-monitor-form-modal>

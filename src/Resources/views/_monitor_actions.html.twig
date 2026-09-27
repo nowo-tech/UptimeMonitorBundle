@@ -3,7 +3,7 @@
 
 {% macro btn_edit_monitor(tenant_slug, monitor_id, return_target, label) %}
     {% set edit_label = label|default('monitor.edit'|trans) %}
-    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+    {% if uptime_ui_framework() in ['tabler', 'bootstrap'] %}
         <button type="button"
                 class="btn btn-outline-secondary btn-sm"
                 data-monitor-form-open
@@ -19,7 +19,7 @@
 
 {% macro btn_new_monitor(tenant_slug, label) %}
     {% set new_label = label|default('dashboard.add'|trans) %}
-    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+    {% if uptime_ui_framework() in ['tabler', 'bootstrap'] %}
         <button type="button"
                 class="btn btn-primary btn-sm"
                 data-monitor-form-open

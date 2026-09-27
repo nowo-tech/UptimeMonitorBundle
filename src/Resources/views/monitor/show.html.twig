@@ -13,7 +13,7 @@
     {% set status = latest ? latest.status.value : 'unknown' %}
 
     <nav class="uptime-nav uptime-nav--detail">
-        {% if uptime_ui_framework == 'tabler' %}
+        {% if uptime_ui_framework() == 'tabler' %}
             <div class="btn-list">
                 <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}" class="btn btn-outline-secondary btn-sm">← {{ 'dashboard.back'|trans }}</a>
                 {{ monitor_actions.btn_edit_monitor(tenant_slug, monitor.id, 'show') }}
@@ -47,7 +47,7 @@
 
         <header class="uptime-detail-header">
             <div class="uptime-detail-title">
-                <h2 class="{{ uptime_ui_framework == 'tabler' ? 'page-title mb-1' : '' }}">{{ monitor.name }}</h2>
+                <h2 class="{{ uptime_ui_framework() == 'tabler' ? 'page-title mb-1' : '' }}">{{ monitor.name }}</h2>
                 {% if monitor.parent %}
                     <span class="uptime-project-tag">Group: {{ monitor.parent.name }}</span>
                 {% elseif monitor.project %}

@@ -1,7 +1,7 @@
 {% extends uptime_layout %}
 {% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
 {% import '@NowoUptimeMonitorBundle/_monitor_actions.html.twig' as monitor_actions %}
-{% set kit_fw = uptime_ui_framework == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework|default('tabler') %}
+{% set kit_fw = uptime_ui_framework() == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework() %}
 
 {% block title %}
     {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -28,7 +28,7 @@
                 {% endif %}
             </div>
         </div>
-        <div class="uptime-toolbar-actions btn-list flex-wrap{% if uptime_ui_framework == 'bootstrap' %} d-flex flex-wrap gap-2{% elseif uptime_ui_framework == 'tailwind' %} flex flex-wrap gap-2{% endif %}">
+        <div class="uptime-toolbar-actions btn-list flex-wrap{% if uptime_ui_framework() == 'bootstrap' %} d-flex flex-wrap gap-2{% elseif uptime_ui_framework() == 'tailwind' %} flex flex-wrap gap-2{% endif %}">
             <a href="{{ path('nowo_uptime_settings_index', { tenantSlug: tenant_slug }) }}" class="{{ ui.btn('secondary', 'sm', kit_fw) }}">{{ 'dashboard.settings'|trans }}</a>
             <a href="{{ path('nowo_uptime_status_page', { tenantSlug: tenant_slug }) }}" class="{{ ui.btn('secondary', 'sm', kit_fw) }}">{{ 'dashboard.status_page'|trans }}</a>
             {{ monitor_actions.btn_new_monitor(tenant_slug) }}
@@ -98,13 +98,13 @@
                             {{ 'dashboard.filtered_by_monitor'|trans({ '%name%': '' }) }}
                         {% endif %}
                     </span>
-                    {% if uptime_ui_framework in ['tabler', 'bootstrap'] %}
+                    {% if uptime_ui_framework() in ['tabler', 'bootstrap'] %}
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-monitor-form-open data-events-edit-monitor hidden
                                 data-monitor-form-url=""
                                 data-monitor-form-return="dashboard"
                                 data-monitor-form-title="{{ 'monitor.edit'|trans|e('html_attr') }}">{{ 'monitor.edit'|trans }}</button>
                         <button type="button" class="btn btn-link btn-sm" data-events-clear-filter{% if not events_filter_monitor_id %} hidden{% endif %}>{{ 'dashboard.clear_filter'|trans }}</button>
-                    {% elseif uptime_ui_framework == 'tailwind' %}
+                    {% elseif uptime_ui_framework() == 'tailwind' %}
                         <button type="button" class="text-sm text-slate-400 hover:text-slate-200 underline-offset-2 hover:underline" data-events-clear-filter{% if not events_filter_monitor_id %} hidden{% endif %}>{{ 'dashboard.clear_filter'|trans }}</button>
                     {% else %}
                         <button type="button" class="uptime-btn-quiet" data-events-clear-filter{% if not events_filter_monitor_id %} hidden{% endif %}>{{ 'dashboard.clear_filter'|trans }}</button>

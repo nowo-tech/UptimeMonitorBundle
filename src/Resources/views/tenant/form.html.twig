@@ -1,6 +1,6 @@
 {% extends uptime_layout %}
 {% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
-{% set kit_fw = uptime_ui_framework == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework|default('tabler') %}
+{% set kit_fw = uptime_ui_framework() == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework() %}
 
 {% block title %}{{ title }}{% endblock %}
 

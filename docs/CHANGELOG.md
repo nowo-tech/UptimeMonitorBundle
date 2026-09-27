@@ -22,6 +22,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.9] - 2026-09-27
+
+### Added
+
+- **REQ-CS-008:** `igor-php/igor-php` (require-dev only), root `igor.json`, Composer/`Makefile` `igor` target, and `release-check` wiring for FrankenPHP worker-state audit.
+
+### Changed
+
+- **Worker safety (Igor):** justified `// @igor-ignore` annotations and/or `ResetInterface` / request-scoped fixes so `make igor` passes on package `src/`.
+
+### Fixed
+
+- **FrankenPHP worker mode (no kernel reset):** the `uptime_theme` / `uptime_ui_framework` Twig globals no longer depend on the current tenant (Twig caches globals for the whole worker). New Twig functions `uptime_theme()` and `uptime_ui_framework()` resolve the tenant values per request (memoized per `Request`, `UptimeUiExtension` implements `ResetInterface`); bundle templates use them.
+- **FrankenPHP worker mode:** new `ClosedEntityManagerSubscriber` resets a closed Doctrine manager before bundle routes run, and `MonitorBackupService::import()` resets a closed manager when the flush fails (new optional `ManagerRegistry` argument), so a failed flush no longer breaks later requests of the same worker.
+- Fixed PHPStan findings (0 errors at level 8).
+
+[1.3.9]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.9
+
 ## [1.3.8] - 2026-09-07
 
 ### Fixed

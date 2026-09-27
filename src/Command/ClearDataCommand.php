@@ -52,6 +52,7 @@ final class ClearDataCommand extends Command
         }
 
         try {
+            // @igor-ignore - Console command; not executed in FrankenPHP worker HTTP requests.
             $counts = $this->dataClearService->clear($tenantSlug);
         } catch (InvalidArgumentException $e) {
             $io->error($e->getMessage());

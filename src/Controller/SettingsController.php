@@ -235,6 +235,7 @@ final class SettingsController extends AbstractUptimeController
     {
         $this->requireTenant($tenantSlug);
         if ($this->isCsrfTokenValid('clear-stats', (string) $request->request->get('_token'))) {
+            // @igor-ignore - HTTP handler delegates to services; no controller worker state.
             $result = $this->dataClearService->clear($tenantSlug);
             $this->addFlash('success', $this->transMessage('flash.settings.cleared', [
                 '%checks%'     => $result['checks'],

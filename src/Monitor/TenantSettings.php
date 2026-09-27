@@ -139,6 +139,7 @@ final readonly class TenantSettings
      */
     public function merge(array $patch): void
     {
+        // @igor-ignore - Not shared worker service state.
         $this->tenant->setSettings(array_merge($this->tenant->getSettings(), $patch));
     }
 

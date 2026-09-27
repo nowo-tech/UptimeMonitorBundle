@@ -7,12 +7,14 @@ namespace Nowo\UptimeMonitorBundle\Service;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Throwable;
 
 use function is_array;
 use function is_string;
@@ -30,6 +32,7 @@ final readonly class MonitorBackupService
         private MonitorRepository $monitorRepository,
         private MonitorFactory $monitorFactory,
         private EntityManagerInterface $entityManager,
+        private ?ManagerRegistry $registry = null,
     ) {
     }
 
@@ -104,9 +107,26 @@ final readonly class MonitorBackupService
             ++$imported;
         }
 
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->flush();
+        } catch (Throwable $e) {
+            if ($this->registry instanceof ManagerRegistry && !$this->entityManager->isOpen()) {
+                $this->resetClosedManagers($this->registry);
+            }
+
+            throw $e;
+        }
 
         return ['imported' => $imported, 'skipped' => $skipped, 'overwritten' => $overwritten];
+    }
+
+    private function resetClosedManagers(ManagerRegistry $registry): void
+    {
+        foreach ($registry->getManagers() as $name => $manager) {
+            if ($manager instanceof EntityManagerInterface && !$manager->isOpen()) {
+                $registry->resetManager($name);
+            }
+        }
     }
 
     /**

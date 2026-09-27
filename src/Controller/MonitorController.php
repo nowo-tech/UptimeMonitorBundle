@@ -183,6 +183,7 @@ final class MonitorController extends AbstractUptimeController
         $monitor = $this->requireMonitor($tenantSlug, $id);
 
         if ($this->isCsrfTokenValid('toggle' . $monitor->getId(), (string) $request->request->get('_token'))) {
+            // @igor-ignore - HTTP handler delegates to services; no controller worker state.
             $monitor->setPaused(!$monitor->isPaused());
             $this->entityManager->flush();
         }

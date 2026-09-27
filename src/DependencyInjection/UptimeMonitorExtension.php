@@ -137,7 +137,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
 
         $hostHasCssFramework = false;
         foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
-            if (is_array($cfg) && array_key_exists('css_framework', $cfg)) {
+            if (array_key_exists('css_framework', $cfg)) {
                 $hostHasCssFramework = true;
                 break;
             }

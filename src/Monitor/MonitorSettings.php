@@ -148,6 +148,7 @@ final readonly class MonitorSettings
     {
         $config                           = $this->monitor->getConfig();
         $config[self::FAILURE_STREAK_KEY] = max(0, $streak);
+        // @igor-ignore - Not shared worker service state.
         $this->monitor->setConfig($config);
     }
 
