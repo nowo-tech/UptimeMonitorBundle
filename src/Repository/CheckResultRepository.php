@@ -9,6 +9,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use SortDirection;
 
 use function count;
 
@@ -27,7 +28,7 @@ class CheckResultRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('c')
             ->andWhere('c.monitor = :monitor')
             ->setParameter('monitor', $monitor)
-            ->orderBy('c.checkedAt', 'DESC')
+            ->orderBy('c.checkedAt', SortDirection::Descending)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -49,7 +50,7 @@ class CheckResultRepository extends ServiceEntityRepository
             ->innerJoin('c.monitor', 'm')
             ->andWhere('m.id IN (:ids)')
             ->setParameter('ids', $monitorIds)
-            ->orderBy('c.checkedAt', 'DESC')
+            ->orderBy('c.checkedAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
 
@@ -85,7 +86,7 @@ class CheckResultRepository extends ServiceEntityRepository
             ->andWhere('c.checkedAt >= :since')
             ->setParameter('ids', $monitorIds)
             ->setParameter('since', $since)
-            ->orderBy('c.checkedAt', 'DESC')
+            ->orderBy('c.checkedAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
 
@@ -112,7 +113,7 @@ class CheckResultRepository extends ServiceEntityRepository
             ->andWhere('c.checkedAt >= :since')
             ->setParameter('ids', $monitorIds)
             ->setParameter('since', $since)
-            ->orderBy('c.checkedAt', 'ASC')
+            ->orderBy('c.checkedAt', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 
@@ -139,7 +140,7 @@ class CheckResultRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('c')
             ->andWhere('c.monitor = :monitor')
             ->setParameter('monitor', $monitor)
-            ->orderBy('c.checkedAt', 'DESC')
+            ->orderBy('c.checkedAt', SortDirection::Descending)
             ->setMaxResults(max(1, $limit));
 
         if ($since instanceof DateTimeImmutable) {
@@ -164,7 +165,7 @@ class CheckResultRepository extends ServiceEntityRepository
             ->andWhere('c.checkedAt >= :since')
             ->setParameter('monitor', $monitor)
             ->setParameter('since', $since)
-            ->orderBy('c.checkedAt', 'ASC')
+            ->orderBy('c.checkedAt', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 
@@ -182,7 +183,7 @@ class CheckResultRepository extends ServiceEntityRepository
             ->innerJoin('m.tenant', 't')
             ->andWhere('t.slug = :slug')
             ->setParameter('slug', $tenantSlug)
-            ->orderBy('c.checkedAt', 'DESC')
+            ->orderBy('c.checkedAt', SortDirection::Descending)
             ->setMaxResults(max(1, $limit))
             ->getQuery()
             ->getResult();

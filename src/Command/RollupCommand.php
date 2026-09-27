@@ -11,6 +11,7 @@ use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
+use SortDirection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -61,7 +62,7 @@ final class RollupCommand extends Command
             ->innerJoin('c.monitor', 'm')
             ->andWhere('c.checkedAt >= :from')
             ->setParameter('from', $from)
-            ->orderBy('c.checkedAt', 'ASC')
+            ->orderBy('c.checkedAt', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 

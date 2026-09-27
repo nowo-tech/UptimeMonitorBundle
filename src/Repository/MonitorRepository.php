@@ -9,6 +9,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use SortDirection;
 
 /**
  * @extends ServiceEntityRepository<Monitor>
@@ -30,7 +31,7 @@ class MonitorRepository extends ServiceEntityRepository
             ->innerJoin('m.tenant', 't')
             ->andWhere('t.slug = :slug')
             ->setParameter('slug', $tenantSlug)
-            ->orderBy('m.name', 'ASC')
+            ->orderBy('m.name', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 
@@ -49,7 +50,7 @@ class MonitorRepository extends ServiceEntityRepository
             ->andWhere('m.type = :groupType')
             ->setParameter('slug', $tenantSlug)
             ->setParameter('groupType', MonitorType::Group)
-            ->orderBy('m.name', 'ASC')
+            ->orderBy('m.name', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 
@@ -66,7 +67,7 @@ class MonitorRepository extends ServiceEntityRepository
             ->innerJoin('m.parent', 'p')
             ->andWhere('p.id = :parentId')
             ->setParameter('parentId', $parentId)
-            ->orderBy('m.name', 'ASC')
+            ->orderBy('m.name', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 
@@ -83,7 +84,7 @@ class MonitorRepository extends ServiceEntityRepository
             ->andWhere('m.paused = false')
             ->andWhere('m.nextCheckAt IS NULL OR m.nextCheckAt <= :now')
             ->setParameter('now', $now)
-            ->orderBy('m.nextCheckAt', 'ASC')
+            ->orderBy('m.nextCheckAt', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 

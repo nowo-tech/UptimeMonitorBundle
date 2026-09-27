@@ -8,6 +8,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use SortDirection;
 
 /**
  * @extends ServiceEntityRepository<Tag>
@@ -27,7 +28,7 @@ final class TagRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('t')
             ->andWhere('t.tenant = :tenant')
             ->setParameter('tenant', $tenant)
-            ->orderBy('t.name', 'ASC')
+            ->orderBy('t.name', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }

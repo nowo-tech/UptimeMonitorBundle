@@ -10,6 +10,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
+use SortDirection;
 
 /**
  * @extends ServiceEntityRepository<CheckAggregate>
@@ -52,7 +53,7 @@ class CheckAggregateRepository extends ServiceEntityRepository
             ->setParameter('period', $period)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->orderBy('a.periodStart', 'ASC')
+            ->orderBy('a.periodStart', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 
@@ -80,7 +81,7 @@ class CheckAggregateRepository extends ServiceEntityRepository
             ->setParameter('period', $period)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->orderBy('a.periodStart', 'ASC')
+            ->orderBy('a.periodStart', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 
@@ -111,7 +112,7 @@ class CheckAggregateRepository extends ServiceEntityRepository
             ->setParameter('period', AggregatePeriod::Day)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->orderBy('a.periodStart', 'ASC')
+            ->orderBy('a.periodStart', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
 
