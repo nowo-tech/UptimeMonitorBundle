@@ -102,7 +102,7 @@ final class DashboardController extends AbstractController
             'mercure_topic'            => $mercureTopic,
         ]);
 
-        if ($sync === 'mercure' && $mercureHubUrl !== null && $mercureTopic !== null && $this->mercureAuthorization instanceof Authorization) {
+        if ($sync === 'mercure' && $mercureHubUrl !== null && $this->mercureAuthorization instanceof Authorization) {
             // @igor-ignore - HTTP handler delegates to services; no controller worker state.
             $this->mercureAuthorization->setCookie($request, [$mercureTopic]);
         }
