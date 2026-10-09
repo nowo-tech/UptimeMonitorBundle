@@ -13,6 +13,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.3.10](#to-1310)
 - [To 1.3.9](#to-139)
 - [To 1.3.6](#to-136)
 - [To 1.3.5](#to-135)
@@ -55,6 +56,17 @@ composer update nowo-tech/uptime-monitor-bundle
 
 
 ## Unreleased
+
+## To 1.3.10
+
+From **1.3.9** — asset fix and dependency refresh.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console assets:install public
+```
+
+- No breaking changes. Re-run `assets:install` (or your asset-copy step) so the previously missing `assets/monitor-form-modal-CDzwPBdm.js` chunk is published; older hashed chunks in the installed bundle `assets/` directory can be deleted.
 
 ## To 1.3.9
 

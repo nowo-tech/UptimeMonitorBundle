@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.3.10](#1310---2026-10-09)
+- [1.3.9](#139---2026-09-27)
 - [1.3.8](#138---2026-09-07)
 - [1.3.7](#137---2026-08-24)
 - [1.3.6](#136---2026-08-20)
@@ -22,10 +24,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.10] - 2026-10-09
+
 ### Changed
 
 - **Doctrine ORM SortDirection:** replace string `'ASC'`/`'DESC'` in `#[ORM\OrderBy]` and QueryBuilder `orderBy`/`addOrderBy` with `SortDirection::Ascending`/`Descending` (doctrine/orm deprecation, https://github.com/doctrine/orm/issues/11313); require `doctrine/orm` `^3.7` where applicable.
 
+### Fixed
+
+- **Assets:** the published bundle now ships `assets/monitor-form-modal-CDzwPBdm.js`, the chunk that `uptime-dashboard.js` / `uptime-monitor-detail.js` import for the monitor form modal (it was missing from the 2026-10-06 rebuild). Unreferenced hashed chunks from older builds were removed.
+- **Dashboard:** dropped an always-true Mercure topic `!== null` check (PHPStan 2.3); behaviour unchanged.
+
+### Dependencies
+
+- Dependabot: `doctrine/orm` 3.7.2, `doctrine/dbal` 4.5.0, `nowo-tech/form-kit-bundle` 2.5.3, `nowo-tech/ui-kit-bundle` 1.8.5, `igor-php/igor-php` `^0.10.0` (dev), `friendsofphp/php-cs-fixer` 3.95.27, phpstan group, `nowo-tech/phpstan-frankenphp` 1.2.1; JS dev tooling `vite` 8.3.2, `sass` 1.105.1, `happy-dom` 20.14.5, `@types/node` 26.6.4 (assets rebuilt).
+- Composer refresh: `nowo-tech/form-kit-bundle` 2.6.1, `nowo-tech/ui-kit-bundle` 1.9.2, `doctrine/orm` 3.7.4, Symfony 7.4.20 components (lockfile); dev tooling `phpstan/phpstan` 2.3.1, `rector/rector` 2.7.0.
+- Demo: Symfony 8.1.8, `doctrine/orm` 3.7.4, `doctrine/dbal` 4.5.0, `twig/twig` 3.30.0; regenerated `config/reference.php`.
+
+[1.3.10]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.10
 
 ## [1.3.9] - 2026-09-27
 
@@ -353,7 +369,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.3.10...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
