@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.6.0](#to-160)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
 - [To 1.3.11](#to-1311)
@@ -73,6 +74,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.6.0
+
+From **1.5.0** — unresolvable ping hosts reported Down; host translator settings no longer forced.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 - The bundle no longer forces `framework.translator.fallbacks: [en]` nor enables the translator. If you relied on that implicit `en` fallback (or on the translator being switched on by the bundle), set `framework.translator` (e.g. `fallbacks: ['en']`) in your application. Bundle translations still load automatically.
 - Ping monitors whose host does not resolve now record **Down** (`Could not resolve host …`) instead of running `ping` against the name. No action needed.

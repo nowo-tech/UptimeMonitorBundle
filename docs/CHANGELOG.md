@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.6.0] - 2026-10-13](#160---2026-10-13)
 - [[1.5.0] - 2026-10-13](#150---2026-10-13)
 - [[1.4.0] - 2026-10-13](#140---2026-10-13)
 - [[1.3.11] - 2026-10-13](#1311---2026-10-13)
@@ -39,10 +40,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-13
+
 ### Fixed
 
 - Ping checks report **Down** (`Could not resolve host …`) when DNS returns no addresses and private-URL blocking is on, like TCP/SSL. They no longer fall back to pinging the hostname, which re-resolved it after the SSRF check (DNS rebinding).
 - `prepend()` no longer prepends `framework.translator` (`paths`, `fallbacks: [en]`): it overrode the host's fallback order and enabled the translator when the host had not configured it. The bundle catalogue is auto-discovered (same change as UiKit 1.14).
+
+[1.6.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.6.0
 
 ## [1.5.0] - 2026-10-13
 
@@ -438,7 +443,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.6.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
