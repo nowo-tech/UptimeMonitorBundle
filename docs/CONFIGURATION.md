@@ -2,9 +2,9 @@
 
 ```yaml
 nowo_uptime_monitor:
-    enabled: true
+    enabled: true          # false = pause monitoring (no checks run); UI and data stay available
     connection: default
-    table_prefix: uptime_
+    # table_prefix: uptime_   # deprecated (1.5), no effect: tables are always uptime_*
     checks:
         min_latency_ms: 0   # floor for stored latency (ms); use e.g. 1 for localhost
     scheduler:
@@ -15,11 +15,11 @@ nowo_uptime_monitor:
         detail_days: 30
         purge_enabled: true
     aggregates:
-        keep_forever: true
+        # keep_forever: true   # deprecated (1.5), no effect: aggregates are always kept
         periods: [hour, day, month, year]
     multi_tenant:
-        enabled: true
-        header: X-Uptime-Tenant
+        # enabled: true                # deprecated (1.5), no effect
+        # header: X-Uptime-Tenant      # deprecated (1.5), no effect: tenant comes from the URL
         default_tenant: main
     tenants:
         list_enabled: true
@@ -60,6 +60,22 @@ nowo_uptime_monitor:
         manage_roles: [ROLE_ADMIN]
         settings_roles: [ROLE_ADMIN]
 ```
+
+### Monitoring switch and deprecated keys
+
+`enabled: false` pauses monitoring: the Scheduler provides no recurring message, and `nowo:uptime:run-due-checks` / `RunDueChecksMessage` execute nothing (cron and Messenger modes included). Dashboards, the status page and stored data keep working. Use it per environment, e.g. `when@test: { nowo_uptime_monitor: { enabled: false } }`.
+
+These keys were never read by the bundle. Since **1.5** setting them triggers a deprecation; they will be removed in the next major:
+
+| Key | Replacement |
+|-----|-------------|
+| `environments` | `enabled` per environment, or register the bundle only where needed in `config/bundles.php` |
+| `table_prefix` | none — tables are always `uptime_*` |
+| `aggregates.keep_forever` | none — aggregates are always kept; remove them with `nowo:uptime:clear-data` |
+| `multi_tenant.enabled` | none — tenants are resolved from the URL slug; for single-tenant apps use `tenants.list_enabled` / `tenants.redirect_when_single` |
+| `multi_tenant.header` | none — tenants are resolved from the URL slug, not a header |
+| `dashboard.prefix` | `dashboard.path` (URL prefix of every admin route) |
+| `dashboard.roles` | `security.dashboard_roles` |
 
 ### Security (REQ-UI-002)
 

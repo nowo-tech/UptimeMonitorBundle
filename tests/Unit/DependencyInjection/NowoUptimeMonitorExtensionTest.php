@@ -106,6 +106,37 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertArrayHasKey('orm', $doctrineConfigs[0]);
     }
 
+    public function testPrependDoesNotTouchHostLocales(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension(new FakeFrameworkExtension());
+
+        (new UptimeMonitorExtension())->prepend($container);
+
+        foreach ($container->getExtensionConfig('framework') as $config) {
+            self::assertArrayNotHasKey('default_locale', $config);
+            self::assertArrayNotHasKey('enabled_locales', $config);
+        }
+    }
+
+    public function testDisabledBundleTurnsOffScheduler(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['enabled' => false, 'scheduler' => ['mode' => 'scheduler', 'tick' => '5 minutes']]], $container);
+
+        self::assertFalse($container->getParameter('nowo_uptime_monitor.enabled'));
+        /** @var array<string, mixed> $scheduler */
+        $scheduler = $container->getParameter('nowo_uptime_monitor.scheduler');
+        self::assertFalse($scheduler['enabled']);
+        self::assertSame('5 minutes', $scheduler['tick']);
+
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[]], $container);
+        /** @var array<string, mixed> $scheduler */
+        $scheduler = $container->getParameter('nowo_uptime_monitor.scheduler');
+        self::assertTrue($scheduler['enabled']);
+    }
+
     public function testPrependSkipsWhenDoctrineMissing(): void
     {
         $container = new ContainerBuilder();

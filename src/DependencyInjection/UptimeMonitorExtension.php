@@ -40,8 +40,8 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
                     'paths'     => [__DIR__ . '/../Resources/translations'],
                     'fallbacks' => ['en'],
                 ],
-                'default_locale'  => 'en',
-                'enabled_locales' => ['en', 'es', 'de', 'fr', 'it', 'nl', 'pt'],
+                // No default_locale / enabled_locales: prepended values merge into the host's and would
+                // override its locale setup. Bundle translations ship for en, es, de, fr, it, nl, pt.
             ]);
         }
 
@@ -178,7 +178,8 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.environments', $config['environments']);
         $container->setParameter(Configuration::ALIAS . '.connection', $config['connection']);
         $container->setParameter(Configuration::ALIAS . '.table_prefix', $config['table_prefix']);
-        $container->setParameter(Configuration::ALIAS . '.scheduler', $config['scheduler']);
+        // enabled: false pauses monitoring: no scheduled checks, and DueChecksRunner is a no-op.
+        $container->setParameter(Configuration::ALIAS . '.scheduler', $config['enabled'] ? $config['scheduler'] : ['enabled' => false] + $config['scheduler']);
         $container->setParameter(Configuration::ALIAS . '.checks', $config['checks']);
         $container->setParameter(Configuration::ALIAS . '.checks.block_private_urls', $config['checks']['block_private_urls']);
         $container->setParameter(Configuration::ALIAS . '.retention', $config['retention']);

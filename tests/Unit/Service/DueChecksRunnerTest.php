@@ -61,4 +61,21 @@ final class DueChecksRunnerTest extends TestCase
 
         self::assertSame(0, $dueRunner->runDueChecks());
     }
+
+    public function testRunDueChecksIsNoOpWhenMonitoringDisabled(): void
+    {
+        $monitorRepository = $this->createMock(MonitorRepository::class);
+        $monitorRepository->expects(self::never())->method('findDue');
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('flush');
+
+        $dueRunner = new DueChecksRunner(
+            $monitorRepository,
+            $this->checkExecutorService([], $em),
+            enabled: false,
+        );
+
+        self::assertSame(0, $dueRunner->runDueChecks());
+    }
 }
