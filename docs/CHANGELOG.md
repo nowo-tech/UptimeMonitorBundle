@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.4.0](#140---2026-10-13)
 - [1.3.11](#1311---2026-10-13)
 - [1.3.10](#1310---2026-10-09)
 - [1.3.9](#139---2026-09-27)
@@ -25,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-13
+
 ### Security
 
 - **Access control:** creating tenants (`TenantController::new`, GET form and POST) now requires `canManageSettings` (`security.settings_roles`) instead of dashboard access; any other unsafe-method (POST/PUT/PATCH/DELETE) request to an unmapped protected action fails closed to `canManageSettings`.
@@ -32,6 +35,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **SSRF:** with `checks.block_private_urls: true`, HTTP checks use `NoPrivateNetworkHttpClient` (each redirect hop and the connected IP are re-validated, defeating redirect and DNS-rebinding bypasses) and reject a per-monitor `proxy` on a private network.
 - **SSRF:** TCP and SSL checks now honour `checks.block_private_urls`; TCP/SSL/ping connect to the validated, pinned address (SSL keeps SNI/name verification via `peer_name`).
 - **Ping:** hosts starting with `-` are rejected (`Invalid ping host`) to prevent option injection into the `ping` binary.
+
+[1.4.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.4.0
 
 ## [1.3.11] - 2026-10-13
 
@@ -397,7 +402,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.3.11...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.4.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0

@@ -12,6 +12,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.4.0](#to-140)
 - [To 1.3.11](#to-1311)
 - [To 1.3.10](#to-1310)
 - [To 1.3.9](#to-139)
@@ -55,6 +56,18 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.4.0
+
+From **1.3.11** — security: tenant creation gated, SSRF guard hardened, ping host validation.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+- Users with only dashboard roles can no longer create tenants or send unmapped write requests; they need `settings_roles`.
+- With `block_private_urls: true` (default), TCP/SSL monitors and HTTP redirects or proxies pointing at private/reserved addresses now report Down. Set `block_private_urls: false` for internal monitoring.
+- Ping hosts starting with `-` are rejected.
 
 ## To 1.3.11
 
