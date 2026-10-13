@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.3.11](#1311---2026-10-13)
 - [1.3.10](#1310---2026-10-09)
 - [1.3.9](#139---2026-09-27)
 - [1.3.8](#138---2026-09-07)
@@ -24,9 +25,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.11] - 2026-10-13
+
 ### Changed
 
 - Development: `composer.json` pins `config.platform.php` to 8.2.0 so the committed lock stays installable on the minimum PHP; CI overrides the platform per matrix cell.
+- Repository: `.twig-cs-fixer.cache` is now git-ignored.
+
+### Dependencies
+
+- `symfony/mercure` 0.8.0 → 0.9.0 (require-dev constraint + development lock; #97).
+- `@types/node` 26.6.4 → 26.6.5 (frontend tooling; #98).
+- `nowo-tech/ui-kit-bundle` 1.9.2 → 1.11.0 (development lock; #99).
+- `nowo-tech/form-kit-bundle` 2.6.1 → 2.7.1 (development lock; #100).
+- `doctrine/orm` 3.7.4 → 3.7.5 (development lock; #101).
+- `happy-dom` 20.14.5 → 20.14.6 (frontend tooling; #102).
+- `vite` 8.3.2 → 8.3.4 (frontend tooling; #103).
+
+[1.3.11]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.3.11
 
 ## [1.3.10] - 2026-10-09
 
@@ -373,7 +389,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.3.10...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.3.11...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0

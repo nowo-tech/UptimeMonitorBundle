@@ -9,10 +9,10 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
 ## Table of contents
 
-
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.3.11](#to-1311)
 - [To 1.3.10](#to-1310)
 - [To 1.3.9](#to-139)
 - [To 1.3.6](#to-136)
@@ -54,8 +54,17 @@ No breaking changes. **No application upgrade steps.**
 composer update nowo-tech/uptime-monitor-bundle
 ```
 
-
 ## Unreleased
+
+## To 1.3.11
+
+From **1.3.10** — dependency refresh and repository maintenance.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+- No breaking changes. No application upgrade steps.
 
 ## To 1.3.10
 
@@ -79,7 +88,6 @@ php bin/console cache:clear
 
 No configuration changes. If your own templates read the Twig globals `uptime_theme` or `uptime_ui_framework` to get the **tenant** theme / UI framework override, switch to the functions `uptime_theme()` and `uptime_ui_framework()`. The globals are now request-independent (configured `ui.framework` and `auto`) so they stay correct in FrankenPHP worker mode without a kernel reset. The bundle layout (`layout.html.twig`, `_stylesheets.html.twig`) still sets a local `uptime_ui_framework` variable from the function, so blocks rendered inside it keep working.
 - No application upgrade steps for require-dev Igor tooling (REQ-CS-008). Consumers do not pull `igor-php/igor-php` transitively.
-
 
 ## To 1.3.6
 
@@ -161,7 +169,6 @@ and enable `Twig\Extra\TwigExtraBundle\TwigExtraBundle`. Flex recipes usually re
 
 Package maintainers: `composer twig:lint` / `composer twig:fix` use `.twig-cs-fixer.php` over `src/` (and `templates/` when present).
 
-
 ## Upgrading to 1.2.0 (2026-08-03)
 
 Minor release: REQ-UI-002 completion — `security.access_roles` / `access_checker` / `allow_unauthenticated`, SecurityBundle compile-time guard, and `UptimeMonitorAccessSubscriber` enforcement on admin controllers.
@@ -202,7 +209,6 @@ Apps that used the dashboard without SecurityBundle (or without matching `ROLE_A
 ## Upgrading to 1.1.1 (2026-07-30)
 
 ### Behaviour change (backup import CSRF)
-
 
 Settings backup **import** POST now requires a CSRF token (REQ-SEC-005), same pattern as history purge / clear-stats.
 
