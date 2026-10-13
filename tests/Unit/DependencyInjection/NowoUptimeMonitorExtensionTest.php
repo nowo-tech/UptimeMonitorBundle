@@ -58,6 +58,37 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         ]], $container);
     }
 
+    public function testLoadDetectsSecurityBundleFromKernelBundlesWithoutExtension(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class]);
+        $extension = new UptimeMonitorExtension();
+        $extension->load([[
+            'dashboard' => ['enabled' => true],
+            'security'  => ['allow_unauthenticated' => false],
+        ]], $container);
+
+        self::assertSame(
+            ConfigurableUptimeMonitorAccessChecker::class,
+            $container->getDefinition('nowo_uptime_monitor.access_checker.default')->getClass(),
+        );
+    }
+
+    public function testLoadThrowsWhenKernelBundlesLacksSecurityBundle(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', []);
+        $extension = new UptimeMonitorExtension();
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('requires symfony/security-bundle');
+
+        $extension->load([[
+            'dashboard' => ['enabled' => true],
+            'security'  => ['allow_unauthenticated' => false],
+        ]], $container);
+    }
+
     public function testLoadAllowsMissingSecurityBundleWhenUnauthenticatedAllowed(): void
     {
         $container = new ContainerBuilder();
