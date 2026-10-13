@@ -2,13 +2,9 @@
 
 This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 
-## Current compatibility baseline
-
-- PHP: `>=8.2 <8.6`
-- Symfony components: `^7.4 || ^8.0`
-
 ## Table of contents
 
+- [Current compatibility baseline](#current-compatibility-baseline)
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
@@ -24,11 +20,20 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [To 1.3.2](#to-132)
 - [To 1.3.1](#to-131)
 - [To 1.3.0](#to-130)
+  - [Twig Extra Bundle (REQ-TWIG-004)](#twig-extra-bundle-req-twig-004)
+  - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 - [Upgrading to 1.2.0 (2026-08-03)](#upgrading-to-120-2026-08-03)
+  - [Install / update](#install--update)
+  - [Behaviour change (admin access)](#behaviour-change-admin-access)
+  - [Breaking changes](#breaking-changes)
 - [Upgrading to 1.1.1 (2026-07-30)](#upgrading-to-111-2026-07-30)
+  - [Behaviour change (backup import CSRF)](#behaviour-change-backup-import-csrf)
 - [Upgrading to 1.1.0 (2026-07-30)](#upgrading-to-110-2026-07-30)
+  - [REQ-UI-001 aliases and host layout stacking (optional)](#req-ui-001-aliases-and-host-layout-stacking-optional)
 - [Upgrading to 1.0.11 (2026-07-29)](#upgrading-to-1011-2026-07-29)
-- [Upgrading to 1.0.10 (2026-07-22)](#upgrading-to-110-2026-07-22)
+  - [Security defaults (UI-002)](#security-defaults-ui-002)
+  - [Ping SSRF](#ping-ssrf)
+- [Upgrading to 1.0.10 (2026-07-22)](#upgrading-to-1010-2026-07-22)
 - [Upgrading to 1.0.9 (2026-07-22)](#upgrading-to-109-2026-07-22)
 - [Upgrading to 1.0.8 (2026-07-16)](#upgrading-to-108-2026-07-16)
 - [Upgrading to 1.0.7 (2026-07-13)](#upgrading-to-107-2026-07-13)
@@ -39,6 +44,17 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [Upgrading to 1.0.2 (2026-07-06)](#upgrading-to-102-2026-07-06)
 - [Upgrading to 1.0.1 (2026-07-06)](#upgrading-to-101-2026-07-06)
 - [Upgrading to 1.0.0 (2026-07-06)](#upgrading-to-100-2026-07-06)
+  - [What's included](#whats-included)
+  - [Fresh install](#fresh-install)
+  - [Optional configuration](#optional-configuration)
+  - [Notes](#notes)
+  - [Breaking changes](#breaking-changes-1)
+  - [FormKitBundle (admin forms)](#formkitbundle-admin-forms)
+
+## Current compatibility baseline
+
+- PHP: `>=8.2 <8.6`
+- Symfony components: `^7.4 || ^8.0`
 
 ## From 1.3.7 to 1.3.8
 
