@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.6.1] - 2026-10-13](#161---2026-10-13)
 - [[1.6.0] - 2026-10-13](#160---2026-10-13)
 - [[1.5.0] - 2026-10-13](#150---2026-10-13)
 - [[1.4.0] - 2026-10-13](#140---2026-10-13)
@@ -40,9 +41,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-13
+
 ### Security
 
 - **SSRF / DNS:** DNS monitors now honour `checks.block_private_urls` (default `true`), like HTTP/TCP/SSL/ping. Private IP literals, `localhost`/`*.localhost` and metadata hostnames are rejected before the lookup, and an answer with a private/local A/AAAA address or a blocked CNAME/MX target is reported **Down** (`… (blocked)`) without storing or showing the resolved records. Previously any user able to create monitors could map internal (split-horizon) resolution and DNS-rebinding names through the dashboard.
+
+[1.6.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.6.1
 
 ## [1.6.0] - 2026-10-13
 
@@ -447,7 +452,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.6.1...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0

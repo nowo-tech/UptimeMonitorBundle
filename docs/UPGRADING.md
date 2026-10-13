@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.6.1](#to-161)
 - [To 1.6.0](#to-160)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
@@ -74,6 +75,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.6.1
+
+From **1.6.0** — DNS checks honour block_private_urls (no internal records exposed)
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 - With `checks.block_private_urls: true` (default), DNS monitors whose hostname is a private IP literal or `localhost`, or whose answer contains a private/local address, now report **Down** (`… (blocked)`) and no longer store the resolved records. Set `block_private_urls: false` to monitor internal DNS names.
 
