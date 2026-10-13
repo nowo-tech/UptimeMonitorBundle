@@ -10,18 +10,30 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
+use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
 use OpenSSLCertificate;
 
 use function is_string;
 use function sprintf;
+use function str_contains;
+use function trim;
 
 use const STREAM_CLIENT_CONNECT;
 
 /**
  * SSL certificate expiry check.
+ *
+ * When private targets are blocked, the host is resolved once, validated and the TLS socket is opened to that
+ * exact address with peer_name set to the original host (SNI + name verification, DNS rebinding safe).
  */
-final class SslCheckRunner implements CheckRunnerInterface
+final readonly class SslCheckRunner implements CheckRunnerInterface
 {
+    public function __construct(
+        private MonitorUrlSsrfGuard $ssrfGuard = new MonitorUrlSsrfGuard(),
+        private bool $blockPrivateUrls = true,
+    ) {
+    }
+
     public function supports(Monitor $monitor): bool
     {
         return $monitor->getType() === MonitorType::Ssl;
@@ -37,19 +49,37 @@ final class SslCheckRunner implements CheckRunnerInterface
             : 14;
         $timeout = isset($config['timeout']) && is_numeric($config['timeout']) ? (float) $config['timeout'] : 10.0;
 
+        $connectHost = $host;
+        if ($this->blockPrivateUrls) {
+            $addresses = $this->ssrfGuard->resolveAddresses($host);
+            if ($this->ssrfGuard->isBlockedResolution($host, $addresses)) {
+                return new CheckResultDto(
+                    CheckStatus::Down,
+                    0,
+                    null,
+                    'SSL host targets a private or local network address (blocked).',
+                );
+            }
+            if ($addresses === []) {
+                return new CheckResultDto(CheckStatus::Down, 0, null, sprintf('Could not resolve host %s', $host));
+            }
+            $connectHost = str_contains($addresses[0], ':') ? '[' . $addresses[0] . ']' : $addresses[0];
+        }
+
         $start   = hrtime(true);
         $context = stream_context_create([
             'ssl' => [
                 'capture_peer_cert' => true,
                 'verify_peer'       => true,
                 'verify_peer_name'  => true,
+                'peer_name'         => trim($host, '[]'),
             ],
         ]);
 
         $errno  = 0;
         $errstr = '';
         $client = @stream_socket_client(
-            sprintf('ssl://%s:%d', $host, $port),
+            sprintf('ssl://%s:%d', $connectHost, $port),
             $errno,
             $errstr,
             $timeout,

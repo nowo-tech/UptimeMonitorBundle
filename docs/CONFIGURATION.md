@@ -70,7 +70,7 @@ nowo_uptime_monitor:
 | `security.allow_unauthenticated` | `false` | DEV/DEMO only: skip bundle access checks (and allow missing SecurityBundle). **Never** in production. |
 | `security.dashboard_roles` | `[ROLE_ADMIN]` | Dashboard / read / polling API. Empty = no area check beyond `access_roles`. |
 | `security.manage_roles` | `[ROLE_ADMIN]` | Monitor CRUD mutations (`new` / `edit` / `delete` / pause). |
-| `security.settings_roles` | `[ROLE_ADMIN]` | Tenant settings UI. |
+| `security.settings_roles` | `[ROLE_ADMIN]` | Tenant settings UI, tenant creation (`/tenants/new`) and any unmapped unsafe-method (POST/PUT/PATCH/DELETE) admin action (fail closed). |
 
 Enforcement is via `UptimeMonitorAccessSubscriber` on `kernel.controller` (not Twig alone). The public status page (`status_page.path`, default `/status`) is **not** gated.
 

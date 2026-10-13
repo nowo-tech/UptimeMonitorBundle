@@ -4,23 +4,46 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Security;
 
-use function filter_var;
-use function gethostbyname;
-use function is_string;
-use function sprintf;
-use function str_starts_with;
-use function strtolower;
+use Symfony\Component\HttpFoundation\IpUtils;
 
-use const FILTER_FLAG_IPV4;
-use const FILTER_FLAG_IPV6;
+use function dns_get_record;
+use function explode;
+use function filter_var;
+use function gethostbynamel;
+use function is_array;
+use function is_string;
+use function rtrim;
+use function str_ends_with;
+use function strtolower;
+use function trim;
+
+use const DNS_AAAA;
 use const FILTER_VALIDATE_IP;
 use const PHP_URL_HOST;
 
 /**
  * Blocks monitor URLs / hosts that target private/local networks (SSRF mitigation).
+ *
+ * Every resolved address (A + AAAA) is checked against {@see self::BLOCKED_SUBNETS}; runners that open sockets
+ * themselves (TCP/SSL/ping) connect to the address returned by {@see self::resolveAddresses()} so the target
+ * cannot be re-resolved to a private address between the check and the connection (DNS rebinding).
  */
 final class MonitorUrlSsrfGuard
 {
+    /**
+     * IpUtils::PRIVATE_SUBNETS (loopback, RFC1918, link-local, 0.0.0.0/8, 100.64/10, fc00::/7, IPv4-mapped, ::, …)
+     * plus multicast/broadcast and IETF protocol assignments.
+     */
+    public const BLOCKED_SUBNETS = [
+        ...IpUtils::PRIVATE_SUBNETS,
+        '192.0.0.0/24',       // IETF protocol assignments (RFC 6890)
+        '224.0.0.0/4',        // Multicast
+        '255.255.255.255/32', // Broadcast
+        'ff00::/8',           // IPv6 multicast
+    ];
+
+    private const BLOCKED_HOSTNAMES = ['localhost', 'metadata.google.internal'];
+
     public function isBlocked(string $url): bool
     {
         $host = parse_url($url, PHP_URL_HOST);
@@ -32,46 +55,79 @@ final class MonitorUrlSsrfGuard
     }
 
     /**
-     * Whether a bare host/IP (e.g. ping target) resolves to a private/local address.
+     * Whether a bare host/IP (e.g. ping target) is or resolves to a private/local address.
+     *
+     * Unresolvable hostnames are not blocked here (the check itself will fail to connect).
      */
     public function isBlockedHost(string $host): bool
     {
-        $host      = trim($host, '[]');
-        $hostLower = strtolower($host);
+        return $this->isBlockedResolution($host, $this->resolveAddresses($host));
+    }
 
-        if ($hostLower === 'localhost'
-            || $hostLower === '::1'
-            || str_starts_with($hostLower, 'fe80:')
-            || $hostLower === 'metadata.google.internal'
-        ) {
+    /**
+     * Whether a host or any of its already-resolved addresses is private/local (no second DNS lookup).
+     *
+     * @param list<string> $addresses
+     */
+    public function isBlockedResolution(string $host, array $addresses): bool
+    {
+        if ($this->isBlockedHostname($host)) {
             return true;
         }
 
-        $ip = $host;
-        if (!filter_var($host, FILTER_VALIDATE_IP)) {
-            $resolved = gethostbyname($host);
-            if ($resolved === $host) {
-                return false;
-            }
-            $ip = $resolved;
-        }
-
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            $long = ip2long($ip);
-            if ($long === false) {
+        foreach ($addresses as $ip) {
+            if ($this->isBlockedIp($ip)) {
                 return true;
             }
-            $u = (float) sprintf('%u', $long);
-
-            return ($u >= 2130706432 && $u <= 2147483647)
-                || ($u >= 167772160 && $u <= 184549375)
-                || ($u >= 2886729728 && $u <= 2887778303)
-                || ($u >= 3232235520 && $u <= 3232301055)
-                || ($u >= 2851995648 && $u <= 2852061183);
         }
 
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            return str_starts_with($ip, '::1') || str_starts_with($ip, 'fe80:');
+        return false;
+    }
+
+    public function isBlockedIp(string $ip): bool
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+            return true;
+        }
+
+        return IpUtils::checkIp($ip, self::BLOCKED_SUBNETS);
+    }
+
+    /**
+     * Resolves a host (or IP literal, optionally bracketed) to all its A/AAAA addresses.
+     *
+     * @return list<string>
+     */
+    public function resolveAddresses(string $host): array
+    {
+        $host = explode('%', trim($host, '[]'), 2)[0];
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return [$host];
+        }
+
+        $addresses = gethostbynamel($host);
+        $addresses = is_array($addresses) ? $addresses : [];
+
+        $aaaa = @dns_get_record($host, DNS_AAAA);
+        if (is_array($aaaa)) {
+            foreach ($aaaa as $record) {
+                if (isset($record['ipv6']) && is_string($record['ipv6'])) {
+                    $addresses[] = $record['ipv6'];
+                }
+            }
+        }
+
+        return $addresses;
+    }
+
+    private function isBlockedHostname(string $host): bool
+    {
+        $hostLower = rtrim(strtolower(trim($host, '[]')), '.');
+
+        foreach (self::BLOCKED_HOSTNAMES as $blocked) {
+            if ($hostLower === $blocked || str_ends_with($hostLower, '.' . $blocked)) {
+                return true;
+            }
         }
 
         return false;

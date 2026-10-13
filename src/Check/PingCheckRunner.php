@@ -41,13 +41,18 @@ final readonly class PingCheckRunner implements CheckRunnerInterface
             return new CheckResultDto(CheckStatus::Unknown, 0, null, 'Invalid ping host');
         }
 
-        if ($this->blockPrivateUrls && $this->ssrfGuard->isBlockedHost($host)) {
-            return new CheckResultDto(
-                CheckStatus::Unknown,
-                0,
-                null,
-                'Ping host targets a private or local network address (blocked)',
-            );
+        if ($this->blockPrivateUrls) {
+            $addresses = $this->ssrfGuard->resolveAddresses($host);
+            if ($this->ssrfGuard->isBlockedResolution($host, $addresses)) {
+                return new CheckResultDto(
+                    CheckStatus::Unknown,
+                    0,
+                    null,
+                    'Ping host targets a private or local network address (blocked)',
+                );
+            }
+            // Ping the validated address, not the name (no re-resolution between check and ping).
+            $host = $addresses[0] ?? $host;
         }
 
         $command = $this->buildPingCommand($host, $timeout);
@@ -79,7 +84,8 @@ final readonly class PingCheckRunner implements CheckRunnerInterface
 
     private function isValidHost(string $host): bool
     {
-        return (bool) preg_match('/^[a-zA-Z0-9.\-:]+$/', $host);
+        // Leading "-" would be parsed by ping as an option (argument injection), even when shell-escaped.
+        return (bool) preg_match('/^[a-zA-Z0-9.:][a-zA-Z0-9.\-:]*$/', $host);
     }
 
     private function buildPingCommand(string $host, float $timeoutSeconds): ?string

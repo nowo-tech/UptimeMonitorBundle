@@ -10,6 +10,7 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -133,6 +134,66 @@ final class HttpCheckRunnerTest extends TestCase
 
         self::assertSame(CheckStatus::Up, $result->status);
         self::assertSame(200, $result->statusCode);
+    }
+
+    public function testRunBlocksRedirectToPrivateNetworkWhenEnabled(): void
+    {
+        $client = new MockHttpClient([
+            new MockResponse('', [
+                'http_code'        => 302,
+                'redirect_url'     => 'http://169.254.169.254/latest/meta-data/',
+                'response_headers' => ['Location' => 'http://169.254.169.254/latest/meta-data/'],
+            ]),
+            new MockResponse('secret', ['http_code' => 200]),
+        ]);
+        $runner  = $this->createRunner($client, true);
+        $monitor = $this->createMonitor(MonitorType::Http);
+        $monitor->setConfig(['url' => 'http://8.8.8.8/', 'max_redirects' => 5]);
+
+        $result = $runner->run($monitor);
+
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertStringContainsString('169.254.169.254', (string) $result->message);
+    }
+
+    public function testRunBlocksPrivateProxyWhenEnabled(): void
+    {
+        $client = new MockHttpClient(static function (): never {
+            self::fail('HTTP client must not be called with a private proxy');
+        });
+        $runner  = $this->createRunner($client, true);
+        $monitor = $this->createMonitor(MonitorType::Http);
+        $monitor->setConfig(['url' => 'http://8.8.8.8/', 'proxy' => 'http://10.0.0.1:3128']);
+
+        $result = $runner->run($monitor);
+
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertStringContainsString('proxy', (string) $result->message);
+    }
+
+    #[DataProvider('newlyBlockedUrlProvider')]
+    public function testRunBlocksReservedRangesWhenEnabled(string $url): void
+    {
+        $client = new MockHttpClient(static function (): never {
+            self::fail('HTTP client must not be called for blocked URLs');
+        });
+        $runner  = $this->createRunner($client, true);
+        $monitor = $this->createMonitor(MonitorType::Http);
+        $monitor->setConfig(['url' => $url]);
+
+        self::assertSame(CheckStatus::Down, $runner->run($monitor)->status);
+    }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function newlyBlockedUrlProvider(): iterable
+    {
+        yield '0.0.0.0' => ['http://0.0.0.0/'];
+        yield 'cgnat' => ['http://100.64.0.1/'];
+        yield 'ula' => ['http://[fd00::1]/'];
+        yield 'ipv4-mapped loopback' => ['http://[::ffff:127.0.0.1]/'];
+        yield 'unspecified ipv6' => ['http://[::]/'];
     }
 
     private function createRunner(?HttpClientInterface $client = null, bool $blockPrivateUrls = false): HttpCheckRunner

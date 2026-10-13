@@ -34,7 +34,7 @@ This bundle provides:
 
 ## Threat model and mitigations
 
-- **SSRF / outbound requests**: HTTP/HTTPS monitors use `MonitorUrlSsrfGuard` when `checks.block_private_urls` is `true` (default). Restrict who can create monitors; default UI roles require **`ROLE_ADMIN`**. Regression coverage: `tests/Unit/Security/MonitorUrlSsrfGuardTest.php`, `HttpCheckRunnerTest`, `PingCheckRunnerTest`.
+- **SSRF / outbound requests**: HTTP/HTTPS, TCP, SSL and ping monitors use `MonitorUrlSsrfGuard` when `checks.block_private_urls` is `true` (default). Blocked ranges are `IpUtils::PRIVATE_SUBNETS` (loopback, RFC1918, link-local, `0.0.0.0/8`, `100.64.0.0/10`, `fc00::/7`, IPv4-mapped IPv6, …) plus multicast/broadcast; every A/AAAA record is checked. HTTP checks run through `NoPrivateNetworkHttpClient`, so redirects and the connected IP are re-validated (DNS rebinding), and a private per-monitor `proxy` is rejected. TCP/SSL/ping connect to the validated, pinned IP. DNS monitors only query the system resolver and are not guarded. Restrict who can create monitors; default UI roles require **`ROLE_ADMIN`**. Regression coverage: `tests/Unit/Security/MonitorUrlSsrfGuardTest.php`, `HttpCheckRunnerTest`, `PingCheckRunnerTest`.
 - **Stored data**: Check results may contain response snippets and DNS/SSL metadata. Protect database access and backups.
 - **Public status page**: Exposes monitor names and last status only (paused monitors hidden). Disable via `status_page.enabled: false` if needed.
 - **ICMP ping**: Requires OS `ping` binary; hosts are validated and private/local targets are blocked under the same SSRF guard as HTTP when `block_private_urls` is enabled.
@@ -44,7 +44,7 @@ This bundle provides:
   - `security.access_roles` (default `[ROLE_ADMIN]`) — general gate
   - `security.access_checker` — optional custom `UptimeMonitorAccessCheckerInterface`
   - `security.allow_unauthenticated` (default `false`) — **demo/dev only**; never enable in production
-  - Area roles: `dashboard_roles` / `manage_roles` / `settings_roles` (defaults `ROLE_ADMIN`)
+  - Area roles: `dashboard_roles` / `manage_roles` / `settings_roles` (defaults `ROLE_ADMIN`). Tenant creation and any unmapped POST/PUT/PATCH/DELETE action require `settings_roles`.
   
   Enforcement: `UptimeMonitorAccessSubscriber` calls the access checker before admin controllers run. The public status page (`/status`) is excluded.
 

@@ -8,6 +8,7 @@ use Nowo\UptimeMonitorBundle\Controller\DashboardController;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Controller\StatusPageController;
+use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\EventSubscriber\UptimeMonitorAccessSubscriber;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use PHPUnit\Framework\TestCase;
@@ -170,15 +171,74 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
         ]));
     }
 
+    public function testTenantCreationRequiresManageSettings(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessDashboard')->willReturn(true);
+        $checker->expects(self::once())->method('canManageSettings')->willReturn(false);
+
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+
+        // Read-only dashboard users must not be able to create tenants (GET form or POST submit).
+        $this->expectException(AccessDeniedException::class);
+        $subscriber->onKernelController($this->controllerEvent([
+            $this->instanceWithoutConstructor(TenantController::class),
+            'new',
+        ], 'POST'));
+    }
+
+    public function testTenantCreationFormGetRequiresManageSettings(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::never())->method('canAccessDashboard');
+        $checker->expects(self::once())->method('canManageSettings')->willReturn(true);
+
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+        $subscriber->onKernelController($this->controllerEvent([
+            $this->instanceWithoutConstructor(TenantController::class),
+            'new',
+        ]));
+    }
+
+    public function testTenantIndexUsesDashboardAccess(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::once())->method('canAccessDashboard')->willReturn(true);
+        $checker->expects(self::never())->method('canManageSettings');
+
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+        $subscriber->onKernelController($this->controllerEvent([
+            $this->instanceWithoutConstructor(TenantController::class),
+            'index',
+        ]));
+    }
+
+    public function testUnmappedUnsafeMethodFailsClosedToManageSettings(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessDashboard')->willReturn(true);
+        $checker->expects(self::once())->method('canManageSettings')->willReturn(false);
+
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+
+        $this->expectException(AccessDeniedException::class);
+        $subscriber->onKernelController($this->controllerEvent([
+            $this->instanceWithoutConstructor(DashboardController::class),
+            'index',
+        ], 'POST'));
+    }
+
     /**
      * @param array{0: object, 1: string} $controller
      */
-    private function controllerEvent(array $controller): ControllerEvent
+    private function controllerEvent(array $controller, string $httpMethod = 'GET'): ControllerEvent
     {
-        $kernel = $this->createMock(HttpKernelInterface::class);
+        $kernel  = $this->createMock(HttpKernelInterface::class);
+        $request = new Request();
+        $request->setMethod($httpMethod);
 
         // Symfony accepts [controller, method]; PHPStan types ControllerEvent as callable(): mixed only.
-        return new ControllerEvent($kernel, $controller, new Request(), HttpKernelInterface::MAIN_REQUEST); // @phpstan-ignore argument.type
+        return new ControllerEvent($kernel, $controller, $request, HttpKernelInterface::MAIN_REQUEST); // @phpstan-ignore argument.type
     }
 
     /**

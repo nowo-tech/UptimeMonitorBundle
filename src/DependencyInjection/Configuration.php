@@ -58,7 +58,7 @@ final class Configuration implements ConfigurationInterface
                             ->min(0)
                         ->end()
                         ->booleanNode('block_private_urls')
-                            ->info('Block HTTP monitor URLs targeting private/local networks (SSRF mitigation).')
+                            ->info('Block HTTP/TCP/SSL/ping monitor targets (incl. redirects and proxies) on private/local networks (SSRF mitigation).')
                             ->defaultTrue()
                         ->end()
                     ->end()

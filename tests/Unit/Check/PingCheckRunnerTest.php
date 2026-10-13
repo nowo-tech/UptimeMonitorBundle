@@ -47,6 +47,29 @@ final class PingCheckRunnerTest extends TestCase
         self::assertSame(CheckStatus::Unknown, $result->status);
     }
 
+    public function testRunRejectsOptionInjectionHost(): void
+    {
+        foreach ([true, false] as $block) {
+            $runner  = $this->runner($block);
+            $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '-fc100000');
+            $monitor->setConfig(['host' => '-fc100000']);
+
+            $result = $runner->run($monitor);
+
+            self::assertSame(CheckStatus::Unknown, $result->status);
+            self::assertSame('Invalid ping host', $result->message);
+        }
+    }
+
+    public function testRunBlocksReservedRangeHostWhenEnabled(): void
+    {
+        $runner  = $this->runner(true);
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '100.64.0.1');
+        $monitor->setConfig(['host' => '100.64.0.1']);
+
+        self::assertStringContainsString('private', (string) $runner->run($monitor)->message);
+    }
+
     public function testRunBlocksPrivateHostWhenEnabled(): void
     {
         $runner  = $this->runner(true);

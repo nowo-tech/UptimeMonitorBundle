@@ -28,11 +28,19 @@ use function is_object;
  * Enforces UptimeMonitorAccessCheckerInterface on admin/manage controllers (REQ-UI-002).
  *
  * Public {@see StatusPageController} is excluded. When allow_unauthenticated is true, checks are skipped.
+ * Tenant creation requires canManageSettings; any other unsafe-method request (POST/PUT/PATCH/DELETE) to a
+ * protected action that is not explicitly mapped fails closed to canManageSettings as well.
  */
 final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInterface
 {
     /** MonitorController methods that mutate state (CRUD / pause). */
     private const MONITOR_MUTATIONS = ['new', 'edit', 'delete', 'togglePause'];
+
+    /** TenantController methods that mutate state (tenant creation). */
+    private const TENANT_MUTATIONS = ['new'];
+
+    /** HTTP methods treated as read-only for the default (unmapped) branch. */
+    private const SAFE_HTTP_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
     public function __construct(
         private UptimeMonitorAccessCheckerInterface $accessChecker,
@@ -80,7 +88,9 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
             $controllerObject instanceof MonitorController  => $this->isMonitorMutation($method)
                 ? $this->accessChecker->canManageMonitors($user)
                 : $this->accessChecker->canAccessDashboard($user),
-            default => $this->accessChecker->canAccessDashboard($user),
+            $controllerObject instanceof TenantController && in_array($method, self::TENANT_MUTATIONS, true) => $this->accessChecker->canManageSettings($user),
+            !in_array($event->getRequest()->getMethod(), self::SAFE_HTTP_METHODS, true)                      => $this->accessChecker->canManageSettings($user),
+            default                                                                                          => $this->accessChecker->canAccessDashboard($user),
         };
 
         if (!$allowed) {

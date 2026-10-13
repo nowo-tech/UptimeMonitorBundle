@@ -25,6 +25,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Access control:** creating tenants (`TenantController::new`, GET form and POST) now requires `canManageSettings` (`security.settings_roles`) instead of dashboard access; any other unsafe-method (POST/PUT/PATCH/DELETE) request to an unmapped protected action fails closed to `canManageSettings`.
+- **SSRF:** `MonitorUrlSsrfGuard` now blocks `IpUtils::PRIVATE_SUBNETS` plus multicast/broadcast/IETF ranges (adds `0.0.0.0/8`, `100.64.0.0/10`, `fc00::/7`, IPv4-mapped IPv6 such as `::ffff:127.0.0.1`, `::`, `*.localhost`, decimal IPv4 forms) and checks every A/AAAA record.
+- **SSRF:** with `checks.block_private_urls: true`, HTTP checks use `NoPrivateNetworkHttpClient` (each redirect hop and the connected IP are re-validated, defeating redirect and DNS-rebinding bypasses) and reject a per-monitor `proxy` on a private network.
+- **SSRF:** TCP and SSL checks now honour `checks.block_private_urls`; TCP/SSL/ping connect to the validated, pinned address (SSL keeps SNI/name verification via `peer_name`).
+- **Ping:** hosts starting with `-` are rejected (`Invalid ping host`) to prevent option injection into the `ping` binary.
+
 ## [1.3.11] - 2026-10-13
 
 ### Changed

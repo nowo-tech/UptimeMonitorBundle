@@ -12,6 +12,7 @@ use Nowo\UptimeMonitorBundle\Monitor\MonitorSettings;
 use Nowo\UptimeMonitorBundle\Monitor\StatusCodeMatcher;
 use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
 use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpClient\NoPrivateNetworkHttpClient;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -28,6 +29,9 @@ use const STREAM_CLIENT_CONNECT;
 
 /**
  * Executes HTTP/HTTPS monitor checks via Symfony HttpClient.
+ *
+ * When private targets are blocked, the client is wrapped in {@see NoPrivateNetworkHttpClient} so every redirect hop
+ * and the actually connected IP are re-validated (DNS rebinding), and a per-monitor proxy must be public too.
  */
 final readonly class HttpCheckRunner implements CheckRunnerInterface
 {
@@ -61,8 +65,21 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
             );
         }
 
+        $proxy = $settings->getProxyUrl();
+        if ($this->blockPrivateUrls && $proxy !== null && $this->ssrfGuard->isBlocked($proxy)) {
+            return new CheckResultDto(
+                CheckStatus::Down,
+                0,
+                null,
+                'Monitor proxy targets a private or local network address (blocked).',
+            );
+        }
+
         $client = $this->httpClient ?? HttpClient::create();
-        $start  = hrtime(true);
+        if ($this->blockPrivateUrls) {
+            $client = new NoPrivateNetworkHttpClient($client, MonitorUrlSsrfGuard::BLOCKED_SUBNETS);
+        }
+        $start = hrtime(true);
 
         try {
             $options = [
@@ -87,7 +104,6 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
                 $options['verify_host'] = false;
             }
 
-            $proxy = $settings->getProxyUrl();
             if ($proxy !== null) {
                 $options['proxy'] = $proxy;
             }

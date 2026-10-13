@@ -38,12 +38,16 @@ services:
         tags: ['nowo.uptime_monitor.check_runner']
 
     Nowo\UptimeMonitorBundle\Check\TcpCheckRunner:
+        arguments:
+            $blockPrivateUrls: '%nowo_uptime_monitor.checks.block_private_urls%'
         tags: ['nowo.uptime_monitor.check_runner']
 
     Nowo\UptimeMonitorBundle\Check\DnsCheckRunner:
         tags: ['nowo.uptime_monitor.check_runner']
 
     Nowo\UptimeMonitorBundle\Check\SslCheckRunner:
+        arguments:
+            $blockPrivateUrls: '%nowo_uptime_monitor.checks.block_private_urls%'
         tags: ['nowo.uptime_monitor.check_runner']
 
     Nowo\UptimeMonitorBundle\Check\PingCheckRunner:
