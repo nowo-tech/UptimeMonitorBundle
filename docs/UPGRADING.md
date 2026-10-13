@@ -57,6 +57,11 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- **Locales:** the bundle no longer prepends `framework.default_locale: en` and `framework.enabled_locales: [en, es, de, fr, it, nl, pt]`. Those values merged into the host config (Symfony merges `enabled_locales` lists and the bundle could win on `default_locale`). Set both in your own `config/packages/translation.yaml` / `framework.yaml`; include the locales you want the UI in (bundle translations: en, es, de, fr, it, nl, pt).
+- **`enabled: false`** now pauses monitoring (no scheduled checks; `nowo:uptime:run-due-checks` and `RunDueChecksMessage` run nothing). It was ignored before — if you had `enabled: false` set and still expect checks, remove it.
+- **Deprecated keys** (never read; setting them now triggers a deprecation): `environments`, `table_prefix`, `aggregates.keep_forever`, `multi_tenant.enabled`, `multi_tenant.header`, `dashboard.prefix`, `dashboard.roles`. Remove them; replacements are listed in [CONFIGURATION.md](CONFIGURATION.md#monitoring-switch-and-deprecated-keys) (`dashboard.roles` → `security.dashboard_roles`).
+- Dev dependencies: `symfony/browser-kit`, `dom-crawler` and `mailer` now `^7.4 || ^8.0`; CI no longer runs a Symfony 7.0 cell (composer already required 7.4+).
+
 ## To 1.4.0
 
 From **1.3.11** — security: tenant creation gated, SSRF guard hardened, ping host validation.

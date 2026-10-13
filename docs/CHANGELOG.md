@@ -26,6 +26,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `prepend()` no longer forces `framework.default_locale: en` and `framework.enabled_locales` on the host (they merged into the application's locale setup). Asset package, translator path and `en` fallback are still prepended.
+- Root `enabled` option is now honoured: `false` pauses monitoring (scheduler provides no schedule; `DueChecksRunner` — used by `nowo:uptime:run-due-checks` and `RunDueChecksMessage` — executes nothing). UI and data stay available.
+
+### Deprecated
+
+- Never-read options now trigger a deprecation when set (removal in the next major): `environments`, `table_prefix` (tables are always `uptime_*`), `aggregates.keep_forever` (aggregates are always kept), `multi_tenant.enabled`, `multi_tenant.header` (tenant comes from the URL), `dashboard.prefix` (use `dashboard.path`), `dashboard.roles` (use `security.dashboard_roles`). `docs/CONFIGURATION.md` documents the replacements.
+
+### Changed
+
+- CI: drop the Symfony 7.0 matrix cell (composer requires `^7.4`); the coverage step / job run on Symfony 7.4. Dev constraints `symfony/browser-kit`, `dom-crawler`, `mailer` aligned from `^6.3 || ^7.0 || ^8.0` to `^7.4 || ^8.0`.
+- Dev: `vitest` and `@vitest/coverage-v8` `^2.1.9` → `^4.1.11` (pnpm lock regenerated; config unchanged, shipped assets untouched). Vitest 4's AST-based V8 remapping counts differently: the reported TS summary moved from 16.98% to 6.31% (min metric) with the same 9 tests; no TS threshold is configured.
+
 ## [1.4.0] - 2026-10-13
 
 ### Security
