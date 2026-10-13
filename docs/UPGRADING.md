@@ -12,6 +12,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
 - [To 1.3.11](#to-1311)
 - [To 1.3.10](#to-1310)
@@ -56,6 +57,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.5.0
+
+From **1.4.0** — host locales no longer forced, enabled switch honoured, never-read keys deprecated, vitest 4.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 - **Locales:** the bundle no longer prepends `framework.default_locale: en` and `framework.enabled_locales: [en, es, de, fr, it, nl, pt]`. Those values merged into the host config (Symfony merges `enabled_locales` lists and the bundle could win on `default_locale`). Set both in your own `config/packages/translation.yaml` / `framework.yaml`; include the locales you want the UI in (bundle translations: en, es, de, fr, it, nl, pt).
 - **`enabled: false`** now pauses monitoring (no scheduled checks; `nowo:uptime:run-due-checks` and `RunDueChecksMessage` run nothing). It was ignored before — if you had `enabled: false` set and still expect checks, remove it.

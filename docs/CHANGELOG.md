@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.5.0](#150---2026-10-13)
 - [1.4.0](#140---2026-10-13)
 - [1.3.11](#1311---2026-10-13)
 - [1.3.10](#1310---2026-10-09)
@@ -26,6 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-13
+
 ### Fixed
 
 - `prepend()` no longer forces `framework.default_locale: en` and `framework.enabled_locales` on the host (they merged into the application's locale setup). Asset package, translator path and `en` fallback are still prepended.
@@ -39,6 +42,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - CI: drop the Symfony 7.0 matrix cell (composer requires `^7.4`); the coverage step / job run on Symfony 7.4. Dev constraints `symfony/browser-kit`, `dom-crawler`, `mailer` aligned from `^6.3 || ^7.0 || ^8.0` to `^7.4 || ^8.0`.
 - Dev: `vitest` and `@vitest/coverage-v8` `^2.1.9` → `^4.1.11` (pnpm lock regenerated; config unchanged, shipped assets untouched). Vitest 4's AST-based V8 remapping counts differently: the reported TS summary moved from 16.98% to 6.31% (min metric) with the same 9 tests; no TS threshold is configured.
+
+[1.5.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.5.0
 
 ## [1.4.0] - 2026-10-13
 
@@ -416,7 +421,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.5.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
