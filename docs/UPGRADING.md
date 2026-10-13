@@ -75,6 +75,8 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- With `checks.block_private_urls: true` (default), DNS monitors whose hostname is a private IP literal or `localhost`, or whose answer contains a private/local address, now report **Down** (`… (blocked)`) and no longer store the resolved records. Set `block_private_urls: false` to monitor internal DNS names.
+
 ## To 1.6.0
 
 From **1.5.0** — unresolvable ping hosts reported Down; host translator settings no longer forced.

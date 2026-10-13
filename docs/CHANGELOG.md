@@ -40,6 +40,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **SSRF / DNS:** DNS monitors now honour `checks.block_private_urls` (default `true`), like HTTP/TCP/SSL/ping. Private IP literals, `localhost`/`*.localhost` and metadata hostnames are rejected before the lookup, and an answer with a private/local A/AAAA address or a blocked CNAME/MX target is reported **Down** (`… (blocked)`) without storing or showing the resolved records. Previously any user able to create monitors could map internal (split-horizon) resolution and DNS-rebinding names through the dashboard.
+
 ## [1.6.0] - 2026-10-13
 
 ### Fixed

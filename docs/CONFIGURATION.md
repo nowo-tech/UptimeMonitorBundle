@@ -7,6 +7,7 @@ nowo_uptime_monitor:
     # table_prefix: uptime_   # deprecated (1.5), no effect: tables are always uptime_*
     checks:
         min_latency_ms: 0   # floor for stored latency (ms); use e.g. 1 for localhost
+        block_private_urls: true   # SSRF guard for HTTP/TCP/SSL/ping/DNS monitors; false to monitor private networks
     scheduler:
         enabled: true
         mode: scheduler   # scheduler | cron | messenger
