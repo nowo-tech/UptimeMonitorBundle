@@ -12,6 +12,7 @@ use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeDoctrineExtension;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeFrameworkExtension;
+use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -126,7 +127,6 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
 
         $frameworkConfigs = $container->getExtensionConfig('framework');
         self::assertNotEmpty($frameworkConfigs);
-        self::assertArrayHasKey('translator', $frameworkConfigs[0]);
         self::assertSame(
             '/bundles/uptimemonitor',
             $frameworkConfigs[0]['assets']['packages']['nowo_uptime_monitor']['base_path'],
@@ -148,6 +148,24 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
             self::assertArrayNotHasKey('default_locale', $config);
             self::assertArrayNotHasKey('enabled_locales', $config);
         }
+    }
+
+    public function testPrependDoesNotForceHostTranslatorSettings(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension(new FakeFrameworkExtension());
+
+        (new UptimeMonitorExtension())->prepend($container);
+
+        $configs = $container->getExtensionConfig('framework');
+        self::assertNotEmpty($configs);
+        foreach ($configs as $config) {
+            // Prepending translator.* would enable the translator and override the host's fallbacks.
+            self::assertArrayNotHasKey('translator', $config);
+        }
+
+        // Catalogue stays reachable through FrameworkBundle's bundle discovery (<bundle path>/Resources/translations).
+        self::assertFileExists((new UptimeMonitorBundle())->getPath() . '/Resources/translations/NowoUptimeMonitorBundle.en.yaml');
     }
 
     public function testDisabledBundleTurnsOffScheduler(): void

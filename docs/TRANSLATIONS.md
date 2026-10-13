@@ -36,7 +36,7 @@ Templates use `{% trans_default_domain 'NowoUptimeMonitorBundle' %}`.
 
 ## Host application
 
-Ensure the host enables the translator and loads bundle catalogues (Flex recipe / `framework.translator.paths` prepended by the bundle).
+Enable the translator in the host (`framework.translator`). The bundle does not prepend any translator settings: its catalogue (`src/Resources/translations`) is auto-discovered by FrameworkBundle, and the host's `fallbacks` / `default_locale` / `enabled_locales` are left untouched. Add `en` to `framework.translator.fallbacks` if you want English labels for locales the bundle does not ship.
 
 To add a locale:
 

@@ -74,6 +74,9 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- The bundle no longer forces `framework.translator.fallbacks: [en]` nor enables the translator. If you relied on that implicit `en` fallback (or on the translator being switched on by the bundle), set `framework.translator` (e.g. `fallbacks: ['en']`) in your application. Bundle translations still load automatically.
+- Ping monitors whose host does not resolve now record **Down** (`Could not resolve host …`) instead of running `ping` against the name. No action needed.
+
 ## To 1.5.0
 
 From **1.4.0** — host locales no longer forced, enabled switch honoured, never-read keys deprecated, vitest 4.

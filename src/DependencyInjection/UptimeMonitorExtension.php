@@ -36,12 +36,9 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
                         ],
                     ],
                 ],
-                'translator' => [
-                    'paths'     => [__DIR__ . '/../Resources/translations'],
-                    'fallbacks' => ['en'],
-                ],
-                // No default_locale / enabled_locales: prepended values merge into the host's and would
-                // override its locale setup. Bundle translations ship for en, es, de, fr, it, nl, pt.
+                // No translator / default_locale / enabled_locales: prepended values merge into the host's
+                // and would override its translator enablement, fallback order and locale setup. The bundle
+                // catalogue (src/Resources/translations: en, es, de, fr, it, nl, pt) is auto-discovered.
             ]);
         }
 

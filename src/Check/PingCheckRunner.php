@@ -51,8 +51,12 @@ final readonly class PingCheckRunner implements CheckRunnerInterface
                     'Ping host targets a private or local network address (blocked)',
                 );
             }
+            if ($addresses === []) {
+                // Like TCP/SSL: never fall back to the name (ping would re-resolve it → DNS rebinding).
+                return new CheckResultDto(CheckStatus::Down, 0, null, sprintf('Could not resolve host %s', $host));
+            }
             // Ping the validated address, not the name (no re-resolution between check and ping).
-            $host = $addresses[0] ?? $host;
+            $host = $addresses[0];
         }
 
         $command = $this->buildPingCommand($host, $timeout);

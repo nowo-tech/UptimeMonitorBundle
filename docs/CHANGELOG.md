@@ -39,6 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Ping checks report **Down** (`Could not resolve host …`) when DNS returns no addresses and private-URL blocking is on, like TCP/SSL. They no longer fall back to pinging the hostname, which re-resolved it after the SSRF check (DNS rebinding).
+- `prepend()` no longer prepends `framework.translator` (`paths`, `fallbacks: [en]`): it overrode the host's fallback order and enabled the translator when the host had not configured it. The bundle catalogue is auto-discovered (same change as UiKit 1.14).
+
 ## [1.5.0] - 2026-10-13
 
 ### Fixed

@@ -82,6 +82,20 @@ final class PingCheckRunnerTest extends TestCase
         self::assertStringContainsString('private', (string) $result->message);
     }
 
+    public function testRunReturnsDownWhenHostUnresolvable(): void
+    {
+        $runner  = $this->runner(true);
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'Unresolvable', MonitorType::Ping, 'does-not-exist.invalid');
+        $monitor->setConfig(['host' => 'does-not-exist.invalid', 'timeout' => 1.0]);
+
+        $result = $runner->run($monitor);
+
+        // No fallback to the hostname: ping would re-resolve it after the SSRF check (DNS rebinding).
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertSame(0, $result->latencyMs);
+        self::assertSame('Could not resolve host does-not-exist.invalid', $result->message);
+    }
+
     public function testRunAllowsPrivateHostWhenBlockDisabled(): void
     {
         if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin', 'BSD'], true)) {
