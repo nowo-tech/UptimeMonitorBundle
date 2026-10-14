@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use InvalidArgumentException;
+use Nowo\UptimeMonitorBundle\Doctrine\KeysetBatchDelete;
 use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
@@ -15,19 +16,27 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 use function count;
 use function sprintf;
 
 /**
  * Removes uptime operational records (checks, aggregates, incidents) and resets monitor status hints.
+ *
+ * Rows are deleted in keyset batches of retention.purge_batch_size (see {@see KeysetBatchDelete}).
  */
 final readonly class UptimeDataClearService
 {
+    /**
+     * @param array<string, mixed> $retentionConfig
+     */
     public function __construct(
         private EntityManagerInterface $entityManager,
         private TenantRepository $tenantRepository,
         private MonitorRepository $monitorRepository,
+        #[Autowire('%nowo_uptime_monitor.retention%')]
+        private array $retentionConfig = [],
     ) {
     }
 
@@ -57,32 +66,32 @@ final readonly class UptimeDataClearService
 
     private function deleteCheckResults(?string $tenantSlug): int
     {
-        $qb = $this->entityManager->createQueryBuilder()
-            ->delete(CheckResult::class, 'c');
-
-        $this->applyTenantFilter($qb, 'c', $tenantSlug);
-
-        return (int) $qb->getQuery()->execute();
+        return $this->deleteInBatches(CheckResult::class, $tenantSlug);
     }
 
     private function deleteAggregates(?string $tenantSlug): int
     {
-        $qb = $this->entityManager->createQueryBuilder()
-            ->delete(CheckAggregate::class, 'a');
-
-        $this->applyTenantFilter($qb, 'a', $tenantSlug);
-
-        return (int) $qb->getQuery()->execute();
+        return $this->deleteInBatches(CheckAggregate::class, $tenantSlug);
     }
 
     private function deleteIncidents(?string $tenantSlug): int
     {
-        $qb = $this->entityManager->createQueryBuilder()
-            ->delete(Incident::class, 'i');
+        return $this->deleteInBatches(Incident::class, $tenantSlug);
+    }
 
-        $this->applyTenantFilter($qb, 'i', $tenantSlug);
-
-        return (int) $qb->getQuery()->execute();
+    /**
+     * @param class-string $entityClass
+     */
+    private function deleteInBatches(string $entityClass, ?string $tenantSlug): int
+    {
+        return KeysetBatchDelete::run(
+            $this->entityManager,
+            $entityClass,
+            function (QueryBuilder $qb, string $alias) use ($tenantSlug): void {
+                $this->applyTenantFilter($qb, $alias, $tenantSlug);
+            },
+            KeysetBatchDelete::batchSizeFrom($this->retentionConfig),
+        );
     }
 
     private function resetMonitors(?string $tenantSlug): int

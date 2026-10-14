@@ -205,9 +205,7 @@ class CheckResultRepository extends ServiceEntityRepository
                 continue;
             }
 
-            if (!isset($grouped[$monitorId])) {
-                $grouped[$monitorId] = [];
-            }
+            $grouped[$monitorId] ??= [];
 
             if (count($grouped[$monitorId]) >= $maxPerMonitor) {
                 continue;

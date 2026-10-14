@@ -67,6 +67,7 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
+| `Doctrine/KeysetBatchDelete.php` | Keyset batch delete (retention purge, clear-data) | FR-RET-001, FR-RET-002 |
 | `Entity/CheckAggregate.php` | Persistence model | FR-ENTITY-001 |
 | `Entity/CheckResult.php` | Persistence model | FR-ENTITY-001 |
 | `Entity/Incident.php` | Persistence model | FR-ENTITY-001 |
@@ -300,7 +301,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Check runners | 10 | 10 |
 | Controllers | 8 | 8 |
 | REST API | 3 | 3 |
-| Persistence | 12 | 12 |
+| Persistence | 13 | 13 |
 | Forms | 15 | 15 |
 | Domain models | 4 | 4 |
 | Application services | 23 | 23 |
@@ -316,6 +317,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | Symfony config | 2 | 2 |
 | Translations | 14 | 14 |
 | Twig views | 31 | 31 |
-| **Total production sources** | **180** | **180** |
+| **Total production sources** | **181** | **181** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l`

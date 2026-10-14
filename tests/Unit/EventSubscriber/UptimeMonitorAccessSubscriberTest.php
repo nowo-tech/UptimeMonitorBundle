@@ -67,7 +67,7 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
 
         $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
         $kernel     = $this->createMock(HttpKernelInterface::class);
-        $event      = new ControllerEvent($kernel, static fn () => null, new Request(), HttpKernelInterface::MAIN_REQUEST);
+        $event      = new ControllerEvent($kernel, static fn (): null => null, new Request(), HttpKernelInterface::MAIN_REQUEST);
 
         $subscriber->onKernelController($event);
     }

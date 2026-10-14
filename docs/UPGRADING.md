@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.7.0](#to-170)
 - [To 1.6.1](#to-161)
 - [To 1.6.0](#to-160)
 - [To 1.5.0](#to-150)
@@ -75,6 +76,25 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.7.0
+
+From **1.6.1** — retention purge and clear-data delete in keyset batches.
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+- No action needed. The detail purge and `nowo:uptime:clear-data` now delete in batches of `retention.purge_batch_size` rows (default `1000`) instead of one statement; the deleted rows and reported counts are the same.
+- Optional: tune the batch size (smaller = shorter locks, more round-trips):
+
+  ```yaml
+  nowo_uptime_monitor:
+      retention:
+          purge_batch_size: 1000
+  ```
+
+- Purging is no longer one atomic statement: if it is interrupted, the batches already run stay deleted (run it again to finish).
 
 ## To 1.6.1
 

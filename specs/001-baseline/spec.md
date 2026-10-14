@@ -92,6 +92,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-ENTITY-001 / FR-REPO-002**: Doctrine entities and repositories for monitors, results, aggregates, incidents, tags, tenants.
 - **FR-AGG-001 / FR-AGG-002**: Rollup aggregates and chart payload builder.
 - **FR-RET-001**: Detail retention purge aligned with tenant settings.
+- **FR-RET-002**: Retention purge and clear-data delete in keyset batches of `retention.purge_batch_size` (see [`002-keyset-batch-purge`](../002-keyset-batch-purge/spec.md)).
 
 ### Notifications & security
 
@@ -123,7 +124,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 
 ## Success Criteria
 
-- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (180/180 mapped).
+- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (181/181 mapped).
 - **SC-002**: Configuration keys in `docs/CONFIGURATION.md` match `Configuration.php`.
 - **SC-003**: `composer qa` / `make release-check` pass in CI (PHPUnit, PHPStan, Vitest where applicable).
 - **SC-004**: No Packagist-visible behavior change without spec, inventory, and test updates.

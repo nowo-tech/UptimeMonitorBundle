@@ -57,12 +57,10 @@ final readonly class AggregateChartService
         foreach ($rows as $aggregate) {
             $monitorId = $aggregate->getMonitor()->getId() ?? 0;
             $key       = (string) $monitorId;
-            if (!isset($byMonitor[$key])) {
-                $byMonitor[$key] = [
-                    'name'   => $aggregate->getMonitor()->getName(),
-                    'points' => [],
-                ];
-            }
+            $byMonitor[$key] ??= [
+                'name'   => $aggregate->getMonitor()->getName(),
+                'points' => [],
+            ];
             $byMonitor[$key]['points'][] = $aggregate;
         }
 

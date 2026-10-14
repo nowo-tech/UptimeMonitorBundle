@@ -7,6 +7,7 @@ services:
         resource: '../../'
         exclude:
             - '../../DependencyInjection/'
+            - '../../Doctrine/'
             - '../../Entity/'
             - '../../Notification/Channel/'
             - '../../UptimeMonitorBundle.php'

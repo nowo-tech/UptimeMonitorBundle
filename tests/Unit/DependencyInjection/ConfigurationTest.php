@@ -31,6 +31,7 @@ final class ConfigurationTest extends TestCase
         self::assertTrue($config['enabled']);
         self::assertSame('default', $config['connection']);
         self::assertSame(30, $config['retention']['detail_days']);
+        self::assertSame(1000, $config['retention']['purge_batch_size']);
         self::assertTrue($config['aggregates']['keep_forever']);
         self::assertSame('polling', $config['dashboard']['sync']);
         self::assertSame('scheduler', $config['scheduler']['mode']);

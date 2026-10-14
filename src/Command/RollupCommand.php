@@ -77,17 +77,15 @@ final class RollupCommand extends Command
                 $start = $this->bucketStart($result->getCheckedAt(), $period);
                 $key   = sprintf('%d-%s-%s', $monitor->getId(), $period->value, $start->format('c'));
 
-                if (!isset($buckets[$key])) {
-                    $buckets[$key] = [
-                        'monitor'     => $monitor,
-                        'period'      => $period,
-                        'start'       => $start,
-                        'up'          => 0,
-                        'down'        => 0,
-                        'latency_sum' => 0,
-                        'total'       => 0,
-                    ];
-                }
+                $buckets[$key] ??= [
+                    'monitor'     => $monitor,
+                    'period'      => $period,
+                    'start'       => $start,
+                    'up'          => 0,
+                    'down'        => 0,
+                    'latency_sum' => 0,
+                    'total'       => 0,
+                ];
 
                 ++$buckets[$key]['total'];
                 if ($isUp) {

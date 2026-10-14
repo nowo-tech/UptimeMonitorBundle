@@ -6,7 +6,10 @@ namespace Nowo\UptimeMonitorBundle\Service;
 
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
+use Nowo\UptimeMonitorBundle\Doctrine\KeysetBatchDelete;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -16,6 +19,9 @@ use function sprintf;
 
 /**
  * Removes detailed check rows older than {@see Configuration} retention.detail_days.
+ *
+ * Rows are deleted in keyset batches of retention.purge_batch_size (see {@see KeysetBatchDelete}) so a large
+ * check-detail table is never locked by one unbounded DELETE.
  */
 final readonly class DetailRetentionService
 {
@@ -57,14 +63,18 @@ final readonly class DetailRetentionService
 
         $cutoff = new DateTimeImmutable(sprintf('-%d days', $days));
 
-        return (int) $this->entityManager->createQueryBuilder()
-            ->delete(CheckResult::class, 'c')
-            ->andWhere('c.checkedAt < :cutoff')
-            ->andWhere('c.monitor IN (SELECT m FROM Nowo\UptimeMonitorBundle\Entity\Monitor m JOIN m.tenant t WHERE t.slug = :slug)')
-            ->setParameter('cutoff', $cutoff)
-            ->setParameter('slug', $tenantSlug)
-            ->getQuery()
-            ->execute();
+        return KeysetBatchDelete::run(
+            $this->entityManager,
+            CheckResult::class,
+            static function (QueryBuilder $qb, string $alias) use ($cutoff, $tenantSlug): void {
+                $qb
+                    ->andWhere($alias . '.checkedAt < :cutoff')
+                    ->andWhere(sprintf('%s.monitor IN (SELECT m FROM %s m JOIN m.tenant t WHERE t.slug = :slug)', $alias, Monitor::class))
+                    ->setParameter('cutoff', $cutoff)
+                    ->setParameter('slug', $tenantSlug);
+            },
+            KeysetBatchDelete::batchSizeFrom($this->retentionConfig),
+        );
     }
 
     private function resolveDetailDays(string $tenantSlug): ?int

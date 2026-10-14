@@ -70,6 +70,7 @@ This repository uses [GitHub Spec Kit](https://github.com/github/spec-kit) with 
 | **Operator manual** (install, init, usage) | [`SPEC-KIT.md`](SPEC-KIT.md) |
 | Baseline spec | [`specs/001-baseline/spec.md`](../specs/001-baseline/spec.md) |
 | Code inventory (100%) | [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md) |
+| Feature spec: keyset batch purge (1.7.0) | [`specs/002-keyset-batch-purge/spec.md`](../specs/002-keyset-batch-purge/spec.md) |
 | Constitution | [`.specify/memory/constitution.md`](../.specify/memory/constitution.md) |
 | Cursor Agent skills | [`.cursor/skills/`](../.cursor/skills/) (`speckit-*`) |
 

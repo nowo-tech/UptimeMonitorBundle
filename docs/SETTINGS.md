@@ -98,7 +98,7 @@ Monitors can still store tag names in `monitor.config.tags` (comma-separated on 
 
 Actions:
 
-- **Purge expired detail rows** — deletes `CheckResult` rows older than the effective retention for the tenant.
+- **Purge expired detail rows** — deletes `CheckResult` rows older than the effective retention for the tenant (in batches of `retention.purge_batch_size`).
 - **Clear all statistics** — removes checks, aggregates, and incidents for the tenant; resets monitor status hints.
 
 Global retention is documented in [CONFIGURATION.md](CONFIGURATION.md).

@@ -82,7 +82,7 @@ HTTP/HTTPS monitors support Uptime Kuma–compatible options (retries, `200-299`
 | `nowo:uptime:seed-demo` | Seed default tenant + sample monitors |
 | `nowo:uptime:run-due-checks` | Run checks that are due now |
 | `nowo:uptime:rollup` | Build hourly/daily aggregates from detail rows |
-| `nowo:uptime:purge-detail` | Purge old `CheckResult` rows per retention |
+| `nowo:uptime:purge-detail` | Purge old `CheckResult` rows per retention (keyset batches of `retention.purge_batch_size`) |
 | `nowo:uptime:clear-data` | Delete all checks, aggregates, and incidents (keeps tenants/monitors; `--tenant`, `-n`) |
 
 Production: enable Symfony Scheduler and consume `scheduler_default` (see [SCHEDULING.md](SCHEDULING.md)).

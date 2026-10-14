@@ -161,7 +161,7 @@ final readonly class SummaryPayloadBuilder
 
         $max = UptimeMetricsService::HISTORY_BAR_MAX_CHECKS;
         if (count($historyChecks) > $max) {
-            $historyChecks = array_slice($historyChecks, -$max);
+            return array_slice($historyChecks, -$max);
         }
 
         return $historyChecks;

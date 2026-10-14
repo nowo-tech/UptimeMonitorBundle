@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.7.0] - 2026-10-14](#170---2026-10-14)
 - [[1.6.1] - 2026-10-13](#161---2026-10-13)
 - [[1.6.0] - 2026-10-13](#160---2026-10-13)
 - [[1.5.0] - 2026-10-13](#150---2026-10-13)
@@ -40,6 +41,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.7.0] - 2026-10-14
+
+### Changed
+
+- **Retention purge in keyset batches:** `nowo:uptime:purge-detail`, **Settings → Monitor history → Purge** and the scheduled purge no longer run one unbounded `DELETE` over `uptime_check_result`. Expired rows are removed in batches (`SELECT id … AND id > :afterId ORDER BY id` with the platform limit, then `DELETE … WHERE id IN (…)`), each a short autocommit statement, so large check-detail tables are not locked and the binlog is not flooded. Same rows deleted, same counts and command output.
+- `nowo:uptime:clear-data` deletes check results, aggregates and incidents with the same batches.
+- Maintenance: applied pending Rector rewrites (null-coalescing assignment, arrow-function return type, non-static local call, early return) in `RollupCommand`, `CheckResultRepository`, `AggregateChartService`, `SummaryPayloadBuilder` and two tests; no behaviour change.
+
+### Added
+
+- `retention.purge_batch_size` (default `1000`, min `1`): rows per batch for the detail purge and clear-data.
+
+[1.7.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.7.0
 
 ## [1.6.1] - 2026-10-13
 

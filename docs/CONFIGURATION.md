@@ -15,6 +15,7 @@ nowo_uptime_monitor:
     retention:
         detail_days: 30
         purge_enabled: true
+        purge_batch_size: 1000   # rows per DELETE batch (purge-detail, clear-data); min 1
     aggregates:
         # keep_forever: true   # deprecated (1.5), no effect: aggregates are always kept
         periods: [hour, day, month, year]
@@ -176,5 +177,9 @@ Per-tenant override: **Settings → Appearance → UI framework** (`settings.ui_
 ### Retention: infinite detail history
 
 Set `retention.detail_days` to `0` to disable automatic purge (Uptime Kuma: “0 = infinite retention”). Per-tenant overrides are available in **Settings → Monitor history**; see [SETTINGS.md](SETTINGS.md).
+
+### Retention: purge batch size
+
+The detail purge (`nowo:uptime:purge-detail`, **Settings → Monitor history → Purge**) and `nowo:uptime:clear-data` delete in keyset batches instead of one unbounded `DELETE`: each batch selects up to `retention.purge_batch_size` ids (`id > last id`, ordered by id, platform `LIMIT`) and deletes them by id list in a short autocommit statement, until a short batch. This avoids long table locks and huge binlog/undo entries on large `uptime_check_result` tables. Default `1000`; lower it for busier tables, raise it to reduce round-trips.
 
 See also [SCHEDULING.md](SCHEDULING.md), [MERCURE.md](MERCURE.md), [SETTINGS.md](SETTINGS.md), and [MONITOR-CONFIGURATION.md](MONITOR-CONFIGURATION.md).
