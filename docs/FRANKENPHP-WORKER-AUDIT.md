@@ -9,6 +9,19 @@
 | **Verdict** | ✅ **Viable under scenario B** — bundle services are stateless or self-invalidating per request; tenant UI values are Twig functions, closed Doctrine managers are recovered. Clearing the Doctrine identity map between requests remains the application's responsibility (W-02) |
 | Remediation (2026-09-23) | W-01 resolved (Twig functions `uptime_theme()` / `uptime_ui_framework()`, request-independent globals); W-02 resolved for closed managers (`ClosedEntityManagerSubscriber`, `MonitorBackupService`), identity-map staleness accepted as app responsibility; W-03 / W-04 accepted. Regression tests: `tests/Unit/Twig/UptimeUiExtensionTest.php`, `tests/Unit/EventSubscriber/ClosedEntityManagerSubscriberTest.php`, `tests/Unit/Service/MonitorBackupServiceTest.php` |
 
+## Table of contents
+
+- [Execution model assumed](#execution-model-assumed)
+- [Summary](#summary)
+- [Services reviewed](#services-reviewed)
+- [Findings](#findings)
+  - [W-01 — Tenant-dependent Twig globals are cached by Twig across requests (Medium)](#w-01--tenant-dependent-twig-globals-are-cached-by-twig-across-requests-medium)
+  - [W-02 — Doctrine EntityManager state survives between requests without the Doctrine resetter (Medium)](#w-02--doctrine-entitymanager-state-survives-between-requests-without-the-doctrine-resetter-medium)
+  - [W-03 — DNS and ICMP checks rely on system timeouts (Low)](#w-03--dns-and-icmp-checks-rely-on-system-timeouts-low)
+  - [W-04 — Check loop does not clear the EntityManager (Info)](#w-04--check-loop-does-not-clear-the-entitymanager-info)
+- [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
+- [Re-audit triggers](#re-audit-triggers)
+
 ## Execution model assumed
 
 FrankenPHP worker mode boots the Symfony kernel once per worker and serves many requests with the same container. This audit assumes the **strict** variant: the kernel is **not** rebooted between requests, so every shared service, static property and PHP global survives from one request to the next. Two scenarios are evaluated:

@@ -7,6 +7,7 @@
 - [Composer](#composer)
 - [Symfony Flex recipe](#symfony-flex-recipe)
 - [Manual setup](#manual-setup)
+- [Twig Extra Bundle (REQ-TWIG-004)](#twig-extra-bundle-req-twig-004)
 
 ## Composer
 

@@ -10,6 +10,7 @@
 - [Commands](#commands)
 - [Notifications](#notifications)
 - [Overriding templates](#overriding-templates)
+  - [Layout and CSS stack (REQ-UI-001 naming, BC preserved)](#layout-and-css-stack-req-ui-001-naming-bc-preserved)
 
 ## Dashboard
 

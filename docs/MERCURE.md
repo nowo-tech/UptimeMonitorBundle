@@ -2,6 +2,14 @@
 
 When `dashboard.sync` is set to `mercure`, the dashboard receives monitor updates over **Server-Sent Events** instead of HTTP polling.
 
+## Table of contents
+
+- [Requirements](#requirements)
+- [Bundle configuration](#bundle-configuration)
+- [Publishing](#publishing)
+- [Demos (Symfony 7 & 8)](#demos-symfony-7--8)
+- [Switching back to polling](#switching-back-to-polling)
+
 ## Requirements
 
 ```bash

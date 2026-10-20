@@ -8,6 +8,17 @@ In this repository, **spec-driven development** has three layers that stay in sy
 
 There is no separate executable spec language (for example Gherkin); Spec Kit specs, tests, and static analysis are the mechanical proof alongside this document.
 
+## Table of contents
+
+- [User stories](#user-stories)
+- [Functional scope](#functional-scope)
+- [Validating the spec](#validating-the-spec)
+- [Requirement identifiers (`REQ-*`)](#requirement-identifiers-req-)
+- [Suggested workflow for contributors](#suggested-workflow-for-contributors)
+- [Relationship to Engram](#relationship-to-engram)
+- [GitHub Spec Kit (summary)](#github-spec-kit-summary)
+- [See also](#see-also)
+
 ## User stories
 
 | ID | Story |
@@ -60,6 +71,11 @@ composer qa && composer test-coverage-90
 
 ---
 
+## Relationship to Engram
+
+[`ENGRAM.md`](ENGRAM.md) is the org-wide checklist / memory plane (MCP server in `.cursor/mcp.json`, persisted decisions). It does not define product behavior: this document and the Spec Kit baseline state what the bundle guarantees and how it is proven, while Engram points back here for local `REQ-*` traceability.
+
+---
 
 ## GitHub Spec Kit (summary)
 

@@ -6,10 +6,12 @@
 
 - [Overview](#overview)
 - [Quick start](#quick-start)
-- [FrankenPHP modes](#frankenphp-modes)
-- [Ports](#ports)
-
-The bundle ships **Symfony 8** demos under `demo/symfony8/` (not included in the Composer package archive).
+- [URLs](#urls)
+- [Development vs production](#development-vs-production)
+- [Demo monitors (one group + local probes)](#demo-monitors-one-group--local-probes)
+- [Reset check history only](#reset-check-history-only)
+- [Switching classic vs worker (`FRANKENPHP_MODE`)](#switching-classic-vs-worker-frankenphp_mode)
+- [Troubleshooting](#troubleshooting)
 
 ## Overview
 

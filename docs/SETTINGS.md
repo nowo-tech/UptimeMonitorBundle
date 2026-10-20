@@ -2,6 +2,22 @@
 
 Per-tenant settings mirror the **Settings** screen in [Uptime Kuma](https://github.com/louislam/uptime-kuma). Values are stored as JSON on the `uptime_tenant.settings` column and edited in the Twig UI.
 
+## Table of contents
+
+- [URL](#url)
+- [Schema sync](#schema-sync)
+- [General](#general)
+- [Appearance](#appearance)
+- [Notifications](#notifications)
+- [Reverse proxy](#reverse-proxy)
+- [Tags](#tags)
+- [Monitor history](#monitor-history)
+- [Backup](#backup)
+  - [Export](#export)
+  - [Import](#import)
+- [Not implemented (Uptime Kuma only)](#not-implemented-uptime-kuma-only)
+- [Programmatic access](#programmatic-access)
+
 ## URL
 
 ```

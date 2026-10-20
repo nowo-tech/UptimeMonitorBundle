@@ -1,5 +1,12 @@
 # Scheduling checks
 
+## Table of contents
+
+- [Recommended: Symfony Scheduler (default)](#recommended-symfony-scheduler-default)
+- [Alternative: system cron](#alternative-system-cron)
+- [Alternative: Messenger async](#alternative-messenger-async)
+- [Alternative: dedicated daemon](#alternative-dedicated-daemon)
+
 ## Recommended: Symfony Scheduler (default)
 
 ```yaml

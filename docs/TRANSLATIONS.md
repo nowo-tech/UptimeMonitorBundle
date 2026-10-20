@@ -6,8 +6,7 @@
 - [Locale (session)](#locale-session)
 - [Forms](#forms)
 - [Twig](#twig)
-
-The bundle UI uses Symfony Translation with domain **`NowoUptimeMonitorBundle`** (catalogue files) and validator domain messages. Locales: **en**, **es**, **de**, **fr**, **it**, **nl**, **pt**.
+- [Host application](#host-application)
 
 ## Files
 

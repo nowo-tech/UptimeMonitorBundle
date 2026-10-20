@@ -99,6 +99,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-NOTIF-001–004**: Pluggable notification channels (email, webhook) and alert dispatch.
 - **FR-SEC-001**: Configurable dashboard access checker.
 - **FR-SEC-004**: `MonitorUrlSsrfGuard` blocks private/reserved targets for HTTP checks.
+- **FR-WORKER-001**: Under FrankenPHP workers without kernel reset, a closed EntityManager is replaced before a bundle route runs (`ClosedEntityManagerSubscriber`); see [`docs/FRANKENPHP-WORKER-AUDIT.md`](../../docs/FRANKENPHP-WORKER-AUDIT.md).
 
 ### UI & i18n
 
@@ -124,7 +125,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 
 ## Success Criteria
 
-- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (181/181 mapped).
+- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (180/180 mapped, audited 2026-10-20).
 - **SC-002**: Configuration keys in `docs/CONFIGURATION.md` match `Configuration.php`.
 - **SC-003**: `composer qa` / `make release-check` pass in CI (PHPUnit, PHPStan, Vitest where applicable).
 - **SC-004**: No Packagist-visible behavior change without spec, inventory, and test updates.

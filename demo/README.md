@@ -8,6 +8,8 @@ Two FrankenPHP demos with **Mercure** for real-time dashboard synchronization.
 
 Detailed Mercure documentation for the demos: **[MERCURE.md](MERCURE.md)** (architecture, JWT, Caddy proxy, troubleshooting).
 
+FrankenPHP runtime (development and production start, `FRANKENPHP_MODE` switching, troubleshooting): **[docs/DEMO-FRANKENPHP.md](../docs/DEMO-FRANKENPHP.md)**.
+
 ## Quick start
 
 ```bash

@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/uptime-monitor-bundle`  
-**Last audited**: 2026-07-07
+**Last audited**: 2026-10-20
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -151,7 +151,9 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
+| `Security/AllowAllUptimeMonitorAccessChecker.php` | Permissive checker when `security.allow_unauthenticated` is true (demo/dev only) | FR-SEC-001 |
 | `Security/ConfigurableUptimeMonitorAccessChecker.php` | Configurable access checker | FR-SEC-001 |
+| `EventSubscriber/UptimeMonitorAccessSubscriber.php` | Enforces the access checker on admin/manage controllers (public status page excluded) | FR-SEC-001 |
 | `Security/MonitorUrlSsrfGuard.php` | URL/HTML policy | FR-SEC-004 |
 | `Security/UptimeMonitorAccessCheckerInterface.php` | Access checker contract | FR-SEC-001 |
 | `Service/MonitorRetryService.php` | Monitor retry policy | FR-MON-003 |
@@ -167,6 +169,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Service/SchemaSyncService.php` | Schema sync | FR-CLI-003 |
+| `EventSubscriber/ClosedEntityManagerSubscriber.php` | Replaces a closed EntityManager before a bundle route runs (workers without kernel reset) | FR-ENTITY-001, FR-WORKER-001 |
 
 ## Async messaging
 
@@ -198,11 +201,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/src/uptime-dashboard.ts` | Dashboard entrypoint | FR-UI-010 |
 | `Resources/assets/src/uptime-logger.ts` | Frontend logger | FR-UI-012 |
 | `Resources/assets/src/vite-env.d.ts` | Vite type shims | FR-BUILD-002 |
-| `Resources/public/assets/auto--seiLA4z.js` | Built frontend asset | FR-BUILD-001 |
-| `Resources/public/assets/history-bar-Ce8RTvcF.js` | Built frontend asset | FR-BUILD-001 |
-| `Resources/public/assets/history-bar-ClVHg2uN.js` | Built frontend asset | FR-BUILD-001 |
-| `Resources/public/assets/monitor-form-modal-B0e9H_EM.js` | Built frontend asset | FR-BUILD-001 |
-| `Resources/public/assets/monitor-form-modal-jRo8vHvQ.js` | Built frontend asset | FR-BUILD-001 |
+| `Resources/public/assets/monitor-form-modal-CDzwPBdm.js` | Built frontend asset (hashed Vite chunk) | FR-BUILD-001 |
 | `Resources/public/auto.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/history-bar.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-dashboard.css` | Built frontend asset | FR-BUILD-001 |
@@ -263,7 +262,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/_form_theme.html.twig` | Shared partial template | FR-VIEW-010 |
 | `Resources/views/_history_bar.html.twig` | Shared partial template | FR-VIEW-010 |
 | `Resources/views/_stylesheets.html.twig` | Shared partial template | FR-VIEW-010 |
-| `Resources/views/_ui_macros.html.twig` | Shared partial template | FR-VIEW-010 |
+| `Resources/views/_monitor_actions.html.twig` | Monitor open/edit action links (domain partial; generic UI lives in UiKit) | FR-VIEW-010 |
 | `Resources/views/dashboard/_events_body.html.twig` | Dashboard template | FR-VIEW-003 |
 | `Resources/views/dashboard/_layout_fragment.html.twig` | Layout template | FR-VIEW-001 |
 | `Resources/views/dashboard/_quick_stats.html.twig` | Dashboard template | FR-VIEW-003 |
@@ -306,17 +305,17 @@ This file proves that **every production source artifact** under `src/` is refer
 | Domain models | 4 | 4 |
 | Application services | 23 | 23 |
 | Notifications | 4 | 4 |
-| Security | 4 | 4 |
+| Security | 6 | 6 |
 | Twig PHP | 1 | 1 |
-| Persistence integration | 1 | 1 |
+| Persistence integration | 2 | 2 |
 | Async messaging | 2 | 2 |
 | Scheduler | 1 | 1 |
 | Monitor helpers | 4 | 4 |
-| Frontend TypeScript | 17 | 17 |
+| Frontend TypeScript | 13 | 13 |
 | SCSS themes | 13 | 13 |
 | Symfony config | 2 | 2 |
 | Translations | 14 | 14 |
 | Twig views | 31 | 31 |
-| **Total production sources** | **181** | **181** |
+| **Total production sources** | **180** | **180** |
 
-Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l`
+Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **180** (2026-10-20; co-located `*.test.ts` excluded).

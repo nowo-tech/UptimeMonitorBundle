@@ -1,4 +1,4 @@
-name: uptime-monitor-demo-symfony8
+name: uptime-monitor-bundle-demo-symfony-8
 
 services:
   php:

@@ -9,6 +9,21 @@ Create or edit monitors at:
 /uptime/{tenantSlug}/monitors/{id}/edit
 ```
 
+## Table of contents
+
+- [Entity fields (not in JSON)](#entity-fields-not-in-json)
+- [General (all HTTP/HTTPS monitors)](#general-all-httphttps-monitors)
+- [Advanced](#advanced)
+- [HTTP options](#http-options)
+- [Runtime behaviour](#runtime-behaviour)
+  - [Status code ranges](#status-code-ranges)
+  - [Retries before down](#retries-before-down)
+  - [Upside down](#upside-down)
+  - [Notifications](#notifications)
+- [Example config (CDN asset monitor)](#example-config-cdn-asset-monitor)
+- [Programmatic access](#programmatic-access)
+- [Other monitor types](#other-monitor-types)
+
 ## Entity fields (not in JSON)
 
 | Field | Kuma label | Default | Description |
