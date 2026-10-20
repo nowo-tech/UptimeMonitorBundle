@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.7.2] - 2026-10-20](#172---2026-10-20)
 - [[1.7.1] - 2026-10-18](#171---2026-10-18)
 - [[1.7.0] - 2026-10-14](#170---2026-10-14)
 - [[1.6.1] - 2026-10-13](#161---2026-10-13)
@@ -43,11 +44,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-10-20
+
+Dependency refresh (bundle and demos), php-cs-fixer ParallelConfig(2). See [UPGRADING](UPGRADING.md#to-172).
+
 ### Changed
 
 - Dependencies refreshed (Composer and pnpm/npm lock files of the bundle and its demos, campaign 2026-10-19); shipped assets rebuilt.
 - `.php-cs-fixer.dist.php`: `new ParallelConfig(2)` (REQ-CS-001).
 - Documentation: wave-1 REQ compliance — README Symfony badge label (7.4 | 8.0 | 8.1+), GitHub stars image and documentation list order, canonical issue templates (bug report no longer references another repository), CONTRIBUTING clone URL `UptimeMonitorBundle` and Cursor Agent settings (REQ-IDE-006), tables of contents, SPEC-DRIVEN-DEVELOPMENT Engram relationship, demo README links the FrankenPHP guide, commented demo `.env.example` (MySQL DSN), demo compose project name `uptime-monitor-bundle-demo-symfony-8`, Spec Kit inventory refresh (180/180).
+
+[1.7.2]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.7.2
 
 ## [1.7.1] - 2026-10-18
 
@@ -484,7 +491,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.7.2...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
