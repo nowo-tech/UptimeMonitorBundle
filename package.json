@@ -12,17 +12,17 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "chart.js": "^4.4.8"
+    "chart.js": "^4.5.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "happy-dom": "^21.0.3",
     "sass": "^1.105.2",
     "typescript": "^6.0.3",
     "vite": "^8.3.4",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
-  "author": "H\u00e9ctor Franco Aceituno <hectorfranco@nowo.tech>",
+  "author": "Héctor Franco Aceituno <hectorfranco@nowo.tech>",
   "license": "MIT"
 }

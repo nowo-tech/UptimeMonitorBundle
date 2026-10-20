@@ -1003,16 +1003,16 @@
         },
         {
             "name": "nowo-tech/form-kit-bundle",
-            "version": "v2.12.0",
+            "version": "v2.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/FormKitBundle.git",
-                "reference": "92ef7e392f0eacd38a42f6472ef51898b83604ee"
+                "reference": "9cabfcc084804dc053120b28f73bb9461fd83900"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/FormKitBundle/zipball/92ef7e392f0eacd38a42f6472ef51898b83604ee",
-                "reference": "92ef7e392f0eacd38a42f6472ef51898b83604ee",
+                "url": "https://api.github.com/repos/nowo-tech/FormKitBundle/zipball/9cabfcc084804dc053120b28f73bb9461fd83900",
+                "reference": "9cabfcc084804dc053120b28f73bb9461fd83900",
                 "shasum": ""
             },
             "require": {
@@ -1033,12 +1033,15 @@
                 "friendsofphp/php-cs-fixer": "^3.95.11",
                 "igor-php/igor-php": "^0.10.0",
                 "nowo-tech/phpstan-frankenphp": "^1.0",
+                "nowo-tech/ui-kit-bundle": "^2.5.2",
                 "phpstan/extension-installer": "^1.2",
                 "phpstan/phpstan": "^2.0",
                 "phpstan/phpstan-phpunit": "^2.0",
                 "phpstan/phpstan-symfony": "^2.0",
                 "phpunit/phpunit": "^10.0",
                 "rector/rector": "^2.0",
+                "symfony/css-selector": "^7.4 || ^8.0",
+                "symfony/dom-crawler": "^7.4 || ^8.0",
                 "symfony/framework-bundle": "^7.4 || ^8.0",
                 "symfony/security-csrf": "^7.4 || ^8.0",
                 "vincentlanglet/twig-cs-fixer": "^4.0"
@@ -1056,6 +1059,7 @@
                 "nowo-tech/slide-to-confirm-bundle": "For addSlideToConfirm() / addSlideToConfirmField() / addSlideToConfirmFieldType()",
                 "nowo-tech/tag-input-bundle": "For addTagInput() / addTagInputField() / addTagInputFieldType()",
                 "nowo-tech/tiptap-editor-bundle": "For addTiptapEditor() / addTiptapEditorField() / addTiptapEditorFieldType()",
+                "nowo-tech/ui-kit-bundle": "^2.5.2: locale tabs (locale_tabs option, TranslatableMapType, _locale_tabs include) render through the UiKit locale_tabs partial (WAI-ARIA tabs, no-JS fieldsets, keyboard, browser validation, Live Component safe); without it FormKit keeps its neutral markup",
                 "symfony/ux-autocomplete": "Entity autocomplete fields; use addAutocompleteField() / addAutocompleteFieldType() with your autocomplete FormType FQCN",
                 "symfony/ux-cropperjs": "For addCropper() / addCropperField() / addCropperFieldType() (image crop widget)",
                 "symfony/ux-dropzone": "For addDropzone() / addDropzoneField() / addDropzoneFieldType() (drag-and-drop file upload)",
@@ -1108,20 +1112,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-13T14:36:41+00:00"
+            "time": "2026-10-19T11:19:58+00:00"
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
-            "version": "v2.2.0",
+            "version": "v2.5.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/UiKitBundle.git",
-                "reference": "aa13a2f8845017ba7a07e48ee74ce63a44326698"
+                "reference": "840fa7f3601d5a94d5ae63b608dd3548c9a0b6d2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/aa13a2f8845017ba7a07e48ee74ce63a44326698",
-                "reference": "aa13a2f8845017ba7a07e48ee74ce63a44326698",
+                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/840fa7f3601d5a94d5ae63b608dd3548c9a0b6d2",
+                "reference": "840fa7f3601d5a94d5ae63b608dd3548c9a0b6d2",
                 "shasum": ""
             },
             "require": {
@@ -1147,6 +1151,8 @@
                 "phpstan/phpstan-symfony": "^2.0",
                 "phpunit/phpunit": "^10.5 || ^11.0",
                 "rector/rector": "^2.0",
+                "symfony/css-selector": "^7.4 || ^8.0",
+                "symfony/dom-crawler": "^7.4 || ^8.0",
                 "symfony/form": "^7.4 || ^8.0",
                 "symfony/http-client": "^7.4 || ^8.0",
                 "symfony/validator": "^7.4 || ^8.0",
@@ -1200,7 +1206,7 @@
                 "issues": "https://github.com/nowo-tech/UiKitBundle/issues",
                 "source": "https://github.com/nowo-tech/UiKitBundle"
             },
-            "time": "2026-10-18T08:32:49+00:00"
+            "time": "2026-10-19T11:17:50+00:00"
         },
         {
             "name": "nowo-tech/uptime-monitor-bundle",
@@ -1208,7 +1214,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "3d6549f3688a1aa2bb6eef35cc5b8da99a4d0029"
+                "reference": "29e5c5ae5c42e51d77cdad09edb92eb0d7424796"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",
