@@ -45,6 +45,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Dependencies refreshed (Composer and pnpm/npm lock files of the bundle and its demos, campaign 2026-10-19); shipped assets rebuilt.
+- `.php-cs-fixer.dist.php`: `new ParallelConfig(2)` (REQ-CS-001).
 - Documentation: wave-1 REQ compliance — README Symfony badge label (7.4 | 8.0 | 8.1+), GitHub stars image and documentation list order, canonical issue templates (bug report no longer references another repository), CONTRIBUTING clone URL `UptimeMonitorBundle` and Cursor Agent settings (REQ-IDE-006), tables of contents, SPEC-DRIVEN-DEVELOPMENT Engram relationship, demo README links the FrankenPHP guide, commented demo `.env.example` (MySQL DSN), demo compose project name `uptime-monitor-bundle-demo-symfony-8`, Spec Kit inventory refresh (180/180).
 
 ## [1.7.1] - 2026-10-18
