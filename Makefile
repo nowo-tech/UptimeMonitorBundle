@@ -94,7 +94,7 @@ qa: ensure-up
 
 composer-sync: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer validate --strict
-	$(COMPOSE) exec -T $(SERVICE_PHP) composer update --lock --no-install --no-interaction
+	$(COMPOSE) exec -T $(SERVICE_PHP) composer install --no-interaction --prefer-dist
 
 release-check-demos:
 	@$(MAKE) -C demo release-check
