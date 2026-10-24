@@ -110,7 +110,8 @@ check-twig-extra:
 # Run Igor worker-state audit (REQ-CS-008)
 igor: ensure-up
 	$(COMPOSE) exec -T php composer igor
-release-check: check-no-cursor-coauthor check-open-prs check-twig-extra ensure-up composer-sync cs-fix cs-check rector-dry phpstan igor test-coverage-90 release-check-demos test-ts
+# check-no-raw-html-form (REQ-TWIG-005) is wired once the remaining raw form markup is migrated
+release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra composer-sync cs-fix cs-check rector-dry phpstan igor test-coverage-90 release-check-demos test-ts
 
 clean:
 	rm -rf vendor coverage coverage-ts .phpunit.cache coverage-php.txt coverage-ts.txt node_modules
