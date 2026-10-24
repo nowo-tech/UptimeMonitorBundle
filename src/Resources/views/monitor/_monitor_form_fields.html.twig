@@ -1,4 +1,6 @@
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+{# Grouped layout (REQ-TWIG-003 rule 3): the fieldsets are toggled per monitor type (data-monitor-fields), so each
+   renders its children explicitly; the child loop at the end renders any remaining field. #}
 <fieldset class="uptime-form-section">
     <legend>{{ 'monitor.form.section.general'|trans }}</legend>
     {{ form_row(form.type, { attr: { 'data-monitor-type-select': '1' } }) }}
@@ -63,3 +65,9 @@
     <legend>{{ 'monitor.form.section.ssl'|trans }}</legend>
     {{ form_row(form.daysBeforeExpiry) }}
 </fieldset>
+
+{% for child in form %}
+    {% if not child.rendered %}
+        {{ form_row(child) }}
+    {% endif %}
+{% endfor %}

@@ -14,7 +14,11 @@
     {% endif %}
 
     {{ form_start(form) }}
-        {{ form_row(form.otp) }}
+        {% for child in form %}
+            {% if not child.rendered %}
+                {{ form_row(child) }}
+            {% endif %}
+        {% endfor %}
         <button class="btn btn-primary mt-3 px-4" type="submit">Submit OTP</button>
     {{ form_end(form) }}
 

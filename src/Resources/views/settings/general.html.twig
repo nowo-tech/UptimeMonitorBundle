@@ -6,6 +6,7 @@
     {% trans_default_domain 'NowoUptimeMonitorBundle' %}
     {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
     {{ form_start(form, { attr: { class: 'uptime-settings-form uptime-settings-form--general' } }) }}
+    {# Grouped layout (REQ-TWIG-003 rule 3): each section renders its children; the child loop below renders any remaining field. #}
 
     <section class="uptime-settings-group">
         <h4 class="uptime-settings-group__title">{{ 'form.settings.group.regional'|trans }}</h4>
@@ -34,8 +35,14 @@
         </div>
     </section>
 
+    {% for child in form %}
+        {% if not child.rendered %}
+            {{ form_row(child) }}
+        {% endif %}
+    {% endfor %}
+
     <div class="uptime-form-actions">
         <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">{{ 'settings.save'|trans }}</button>
     </div>
-    {{ form_end(form, { render_rest: false }) }}
+    {{ form_end(form) }}
 {% endblock %}

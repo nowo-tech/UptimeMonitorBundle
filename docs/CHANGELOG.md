@@ -44,6 +44,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Views: `settings/general.html.twig`, `monitor/_monitor_form_fields.html.twig` and `tenant/form.html.twig` render
+  their form body through the child loop (`{% for child in form %}` + `not child.rendered` + `form_row(child)`),
+  per REQ-TWIG-003. The grouped settings sections and the per-type monitor fieldsets keep their explicit layout
+  (rule 3) and a final loop renders any remaining child (e.g. fields added to the FormType or the CSRF token), so
+  `general.html.twig` no longer closes the form with `render_rest: false`. Demo: the `otp_demo/show.html.twig`
+  template uses the same loop.
+
 ## [1.7.2] - 2026-10-20
 
 Dependency refresh (bundle and demos), php-cs-fixer ParallelConfig(2). See [UPGRADING](UPGRADING.md#to-172).

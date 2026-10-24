@@ -11,8 +11,11 @@
     <h2>{{ title }}</h2>
     {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
     {{ form_start(form) }}
-        {{ form_row(form.slug) }}
-        {{ form_row(form.name) }}
+        {% for child in form %}
+            {% if not child.rendered %}
+                {{ form_row(child) }}
+            {% endif %}
+        {% endfor %}
         <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">Create tenant</button>
     {{ form_end(form) }}
 {% endblock %}
