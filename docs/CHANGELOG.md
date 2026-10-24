@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.7.3] - 2026-10-24](#173---2026-10-24)
 - [[1.7.2] - 2026-10-20](#172---2026-10-20)
 - [[1.7.1] - 2026-10-18](#171---2026-10-18)
 - [[1.7.0] - 2026-10-14](#170---2026-10-14)
@@ -44,6 +45,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.7.3] - 2026-10-24
+
+Bundle views render form bodies through the child loop (REQ-TWIG-003). See [UPGRADING](UPGRADING.md#to-173).
+
 ### Changed
 
 - Views: `settings/general.html.twig`, `monitor/_monitor_form_fields.html.twig` and `tenant/form.html.twig` render
@@ -52,6 +57,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (rule 3) and a final loop renders any remaining child (e.g. fields added to the FormType or the CSRF token), so
   `general.html.twig` no longer closes the form with `render_rest: false`. Demo: the `otp_demo/show.html.twig`
   template uses the same loop.
+
+[1.7.3]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.7.3
 
 ## [1.7.2] - 2026-10-20
 
@@ -500,7 +507,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.7.2...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.7.3...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
