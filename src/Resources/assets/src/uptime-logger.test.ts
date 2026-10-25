@@ -7,12 +7,12 @@ describe('uptime-logger', () => {
     vi.restoreAllMocks();
   });
 
-  it('scriptLoaded uses colored prefix and build time', () => {
+  it('scriptLoaded uses colored prefix and build id', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     createBundleLogger('uptime', { buildTime: '2026-01-01T00:00:00.000Z', alwaysLog: true }).scriptLoaded();
 
     expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('%c📦 [uptime] script loaded, build time: %c'),
+      expect.stringContaining('%c📦 [uptime] script loaded, build: %c'),
       'color:#0ea5e9;font-weight:bold',
       'color:#059669',
     );
