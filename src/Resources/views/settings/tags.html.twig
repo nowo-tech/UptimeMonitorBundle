@@ -14,10 +14,16 @@
                             <span class="uptime-tag-swatch" style="background: {{ tag.color }}"></span>
                         {% endif %}
                         {{ tag.name }}
-                        <form method="post" action="{{ path('nowo_uptime_settings_tag_delete', { tenantSlug: tenant_slug, id: tag.id }) }}" class="uptime-inline-form">
-                            <input type="hidden" name="_token" value="{{ csrf_token('delete-tag-' ~ tag.id) }}">
+                        {# REQ-TWIG-005: one CSRF-only form per tag (tag_delete_forms, built by SettingsController). #}
+                        {% set delete_form = tag_delete_forms[tag.id] %}
+                        {{ form_start(delete_form, { attr: { class: 'uptime-inline-form' } }) }}
+                            {% for child in delete_form %}
+                                {% if not child.rendered %}
+                                    {{ form_row(child) }}
+                                {% endif %}
+                            {% endfor %}
                             <button type="submit" class="uptime-btn-quiet">{{ 'settings.tags.delete'|trans }}</button>
-                        </form>
+                        {{ form_end(delete_form) }}
                     </li>
                 {% endfor %}
             </ul>

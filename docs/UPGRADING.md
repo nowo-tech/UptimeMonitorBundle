@@ -81,6 +81,19 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+### Forms rendered through Form Types (REQ-TWIG-005)
+
+The controllers now pass Symfony forms for every action that used hand-rolled markup. They are always passed, so the shipped templates need no fallback; **if you override one of these templates**, replace the raw `<form>` / `<input>` markup with `form_start` / the child loop / `form_end` on these variables:
+
+| Template | New variable | Form Type |
+| -------- | ------------ | --------- |
+| `settings/history.html.twig` | `purge_form`, `clear_form` | `CsrfActionFormType` (token ids `purge-history`, `clear-stats`) |
+| `settings/tags.html.twig` | `tag_delete_forms` (map tag id → `FormView`) | `CsrfActionFormType` (token id `delete-tag-<id>`) |
+| `settings/backup.html.twig` | `form` | `BackupImportFormType` (`action`, `import_mode`, `backup`, `_token`; token id `backup-import`) |
+| `dashboard/index.html.twig` | `monitor_search_form` | `MonitorSearchFormType` (`q`, `data-monitor-search`) |
+
+The posted payload is unchanged (flat `_token` and the same field names), so an old override keeps working until you migrate it, but `make check-no-raw-html-form` and REQ-TWIG-005 expect the Form helpers.
+
 ## To 1.7.4
 
 From **1.7.3**:

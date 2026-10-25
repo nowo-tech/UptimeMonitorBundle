@@ -16,14 +16,22 @@
 
     <p>{{ 'settings.history.intro'|trans|raw }}</p>
 
-    <form method="post" action="{{ path('nowo_uptime_settings_history_purge', { tenantSlug: tenant_slug }) }}" class="uptime-settings-action">
-        <input type="hidden" name="_token" value="{{ csrf_token('purge-history') }}">
+    {# REQ-TWIG-005: CSRF-only Form Types built by SettingsController (purge_form / clear_form). #}
+    {{ form_start(purge_form, { attr: { class: 'uptime-settings-action' } }) }}
+        {% for child in purge_form %}
+            {% if not child.rendered %}
+                {{ form_row(child) }}
+            {% endif %}
+        {% endfor %}
         <button type="submit" class="uptime-btn">{{ 'settings.history.purge'|trans }}</button>
-    </form>
+    {{ form_end(purge_form) }}
 
-    <form method="post" action="{{ path('nowo_uptime_settings_history_clear', { tenantSlug: tenant_slug }) }}" class="uptime-settings-action"
-          onsubmit="return confirm('{{ 'settings.history.clear_confirm'|trans|e('js') }}');">
-        <input type="hidden" name="_token" value="{{ csrf_token('clear-stats') }}">
+    {{ form_start(clear_form, { attr: { class: 'uptime-settings-action', onsubmit: "return confirm('" ~ ('settings.history.clear_confirm'|trans|e('js')) ~ "');" } }) }}
+        {% for child in clear_form %}
+            {% if not child.rendered %}
+                {{ form_row(child) }}
+            {% endif %}
+        {% endfor %}
         <button type="submit" class="uptime-btn uptime-btn-danger">{{ 'settings.history.clear'|trans }}</button>
-    </form>
+    {{ form_end(clear_form) }}
 {% endblock %}

@@ -10,6 +10,7 @@
 - [Commands](#commands)
 - [Notifications](#notifications)
 - [Overriding templates](#overriding-templates)
+  - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
   - [Layout and CSS stack (REQ-UI-001 naming, BC preserved)](#layout-and-css-stack-req-ui-001-naming-bc-preserved)
 
 ## Dashboard
@@ -115,6 +116,23 @@ templates/bundles/NowoUptimeMonitorBundle/
 ```
 
 Copy from `vendor/nowo-tech/uptime-monitor-bundle/src/Resources/views/` as a starting point.
+
+### Forms in templates (REQ-TWIG-005)
+
+Every form in the bundle views is a PHP Symfony Form Type (Form Kit `uptime_monitor` profile) created by the controller and rendered with `form_start` / the child loop / `form_end`. CSRF-only actions (purge history, clear statistics, delete tag) use `CsrfActionFormType`; the backup import uses `BackupImportFormType` (`FileType`, multipart); the dashboard sidebar filter uses `MonitorSearchFormType` (client-side only, never submitted). Field names and CSRF token ids are unchanged (`_token`, `action`, `import_mode`, `backup`).
+
+```twig
+{{ form_start(purge_form, { attr: { class: 'uptime-settings-action' } }) }}
+    {% for child in purge_form %}
+        {% if not child.rendered %}
+            {{ form_row(child) }}
+        {% endif %}
+    {% endfor %}
+    <button type="submit" class="uptime-btn">…</button>
+{{ form_end(purge_form) }}
+```
+
+Template overrides and the demo **must not** reintroduce raw `<form>`, `<input>`, `<textarea>` or `<select>` markup; `make check-no-raw-html-form` (part of `release-check`) fails when they do. The form variables each view receives are listed in [UPGRADING](UPGRADING.md#unreleased).
 
 ### Layout and CSS stack (REQ-UI-001 naming, BC preserved)
 

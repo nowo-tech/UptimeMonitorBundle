@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Controller;
 
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Form\MonitorSearchFormType;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -100,6 +101,7 @@ final class DashboardController extends AbstractController
             'overview_chart_json'      => json_encode($overview, JSON_THROW_ON_ERROR),
             'mercure_hub_url'          => $mercureHubUrl,
             'mercure_topic'            => $mercureTopic,
+            'monitor_search_form'      => $this->createForm(MonitorSearchFormType::class),
         ]);
 
         if ($sync === 'mercure' && $mercureHubUrl !== null && $this->mercureAuthorization instanceof Authorization) {

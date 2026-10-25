@@ -46,6 +46,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Bundle views render every form through Symfony Form Types (REQ-TWIG-005): `settings/history.html.twig` (purge / clear statistics → `CsrfActionFormType`), `settings/tags.html.twig` (per-tag delete → `CsrfActionFormType`), `settings/backup.html.twig` (JSON import → `BackupImportFormType` with `FileType`) and the dashboard sidebar filter (`MonitorSearchFormType`, client-side only). Posted field names and CSRF token ids are unchanged; the settings controller validates the purge, clear, delete-tag and import POSTs through the Form (CSRF listener) instead of `isCsrfTokenValid()`. Template overrides of these views must render the new form variables (see UPGRADING).
+
+### Added
+
+- `make check-no-raw-html-form` (REQ-TWIG-005) fails on raw `<form>` / `<input>` / `<textarea>` / `<select>` in bundle and demo Twig; it runs in `release-check`.
+
 ## [1.7.4] - 2026-10-25
 
 Reproducible JS bundle: the build stamp is a hash of the sources instead of the build time. See [UPGRADING](UPGRADING.md#to-174).

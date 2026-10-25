@@ -84,8 +84,9 @@ final class TenantControllerTest extends TestCase
 
         $request = Request::create('/tenants/new', 'POST', [
             'tenant_form' => [
-                'slug' => 'acme',
-                'name' => 'Acme',
+                'slug'   => 'acme',
+                'name'   => 'Acme',
+                '_token' => 'valid',
             ],
         ]);
         $request->headers->set('Content-Type', 'application/x-www-form-urlencoded');

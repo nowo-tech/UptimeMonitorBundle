@@ -79,7 +79,15 @@
 
         <aside class="uptime-sidebar" data-sidebar>
             <div class="uptime-sidebar-search">
-                <input type="search" class="uptime-search-input" placeholder="{{ 'dashboard.search_placeholder'|trans }}" data-monitor-search aria-label="{{ 'dashboard.search_aria'|trans }}" autocomplete="off">
+                {# REQ-TWIG-005: client-side filter (MonitorSearchFormType, never submitted; JS reads [data-monitor-search]). #}
+                {{ form_start(monitor_search_form, { attr: { role: 'search', onsubmit: 'return false;' } }) }}
+                    {{ form_widget(monitor_search_form.q, { attr: monitor_search_form.q.vars.attr|merge({ 'aria-label': 'dashboard.search_aria'|trans }) }) }}
+                    {% for child in monitor_search_form %}
+                        {% if not child.rendered %}
+                            {{ form_row(child) }}
+                        {% endif %}
+                    {% endfor %}
+                {{ form_end(monitor_search_form) }}
             </div>
 
             {% include '@NowoUptimeMonitorBundle/dashboard/_sidebar_tree.html.twig' %}

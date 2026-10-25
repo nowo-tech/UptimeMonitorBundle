@@ -1,4 +1,4 @@
-.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix phpstan igor rector rector-dry qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra
+.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix phpstan igor rector rector-dry qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form
 
 COMPOSE_FILE ?= docker-compose.yml
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -17,6 +17,7 @@ help:
 	@echo "  test-with-db, test-coverage-with-db"
 	@echo "  cs-check, cs-fix, phpstan, rector, rector-dry, qa"
 	@echo "  release-check, release-check-demos, composer-sync, validate-translations"
+	@echo "  check-no-raw-html-form   Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)"
 	@echo "  setup-hooks, clean, update, validate"
 	@echo ""
 	@echo "Demos: make -C demo up-symfony8 | clear-data-symfony8"
@@ -110,8 +111,11 @@ check-twig-extra:
 # Run Igor worker-state audit (REQ-CS-008)
 igor: ensure-up
 	$(COMPOSE) exec -T php composer igor
-# check-no-raw-html-form (REQ-TWIG-005) is wired once the remaining raw form markup is migrated
-release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra composer-sync cs-fix cs-check rector-dry phpstan igor test-coverage-90 release-check-demos test-ts
+check-no-raw-html-form:
+	@chmod +x .scripts/check-no-raw-html-form.sh
+	@./.scripts/check-no-raw-html-form.sh
+
+release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form composer-sync cs-fix cs-check rector-dry phpstan igor test-coverage-90 release-check-demos test-ts
 
 clean:
 	rm -rf vendor coverage coverage-ts .phpunit.cache coverage-php.txt coverage-ts.txt node_modules

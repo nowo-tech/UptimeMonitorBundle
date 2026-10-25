@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Support;
 
+use Nowo\UptimeMonitorBundle\Form\BackupImportFormType;
+use Nowo\UptimeMonitorBundle\Form\CsrfActionFormType;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
+use Nowo\UptimeMonitorBundle\Form\MonitorSearchFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsAppearanceFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsGeneralFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsHistoryFormType;
@@ -14,6 +17,7 @@ use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Container;
+use Symfony\Component\Form\Extension\Csrf\CsrfExtension;
 use Symfony\Component\Form\Extension\HttpFoundation\HttpFoundationExtension;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Forms;
@@ -44,6 +48,7 @@ trait ControllerContainerTrait
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new HttpFoundationExtension())
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
+            ->addExtension(new CsrfExtension($csrf))
             ->addType(FormKitTestSupport::withMerger(new MonitorFormType()))
             ->addType(FormKitTestSupport::withMerger(new TenantFormType()))
             ->addType(FormKitTestSupport::withMerger(new TagFormType()))
@@ -51,6 +56,9 @@ trait ControllerContainerTrait
             ->addType(FormKitTestSupport::withMerger(new SettingsAppearanceFormType()))
             ->addType(FormKitTestSupport::withMerger(new SettingsHistoryFormType()))
             ->addType(FormKitTestSupport::withMerger(new SettingsReverseProxyFormType()))
+            ->addType(FormKitTestSupport::withMerger(new CsrfActionFormType()))
+            ->addType(FormKitTestSupport::withMerger(new BackupImportFormType()))
+            ->addType(FormKitTestSupport::withMerger(new MonitorSearchFormType()))
             ->getFormFactory();
 
         $container = new Container();

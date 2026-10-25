@@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use JsonException;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Form\BackupImportFormType;
+use Nowo\UptimeMonitorBundle\Form\CsrfActionFormType;
 use Nowo\UptimeMonitorBundle\Form\Model\TagFormData;
 use Nowo\UptimeMonitorBundle\Form\SettingsAppearanceFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsGeneralFormType;
@@ -23,6 +25,7 @@ use Nowo\UptimeMonitorBundle\Service\TenantSettingsMapper;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -33,6 +36,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Throwable;
 
 use function is_array;
+use function is_string;
 use function sprintf;
 
 use const JSON_THROW_ON_ERROR;
@@ -165,11 +169,19 @@ final class SettingsController extends AbstractUptimeController
             return $this->redirectToRoute('nowo_uptime_settings_tags', ['tenantSlug' => $tenantSlug]);
         }
 
+        $tags = $this->tagRepository->findByTenant($tenant);
+        /** @var array<int, FormView> $deleteForms */
+        $deleteForms = [];
+        foreach ($tags as $tag) {
+            $deleteForms[(int) $tag->getId()] = $this->createTagDeleteForm($tenantSlug, (int) $tag->getId())->createView();
+        }
+
         return $this->render('@NowoUptimeMonitorBundle/settings/tags.html.twig', array_merge($this->baseViewParams($tenant), [
-            'section'       => 'tags',
-            'section_title' => 'settings.section.tags',
-            'tags'          => $this->tagRepository->findByTenant($tenant),
-            'form'          => $form,
+            'section'          => 'tags',
+            'section_title'    => 'settings.section.tags',
+            'tags'             => $tags,
+            'form'             => $form,
+            'tag_delete_forms' => $deleteForms,
         ]));
     }
 
@@ -182,7 +194,7 @@ final class SettingsController extends AbstractUptimeController
             throw $this->createNotFoundException();
         }
 
-        if ($this->isCsrfTokenValid('delete-tag-' . $id, (string) $request->request->get('_token'))) {
+        if ($this->isCsrfActionSubmitted($this->createTagDeleteForm($tenantSlug, $id), $request)) {
             $this->entityManager->remove($tag);
             $this->entityManager->flush();
             $this->addFlash('success', $this->transMessage('flash.settings.tag_deleted'));
@@ -215,6 +227,8 @@ final class SettingsController extends AbstractUptimeController
             'section_title'      => 'settings.section.history',
             'form'               => $form,
             'global_detail_days' => $globalDays,
+            'purge_form'         => $this->createPurgeHistoryForm($tenantSlug),
+            'clear_form'         => $this->createClearStatsForm($tenantSlug),
         ]));
     }
 
@@ -222,7 +236,7 @@ final class SettingsController extends AbstractUptimeController
     public function purgeHistory(string $tenantSlug, Request $request): RedirectResponse
     {
         $this->requireTenant($tenantSlug);
-        if ($this->isCsrfTokenValid('purge-history', (string) $request->request->get('_token'))) {
+        if ($this->isCsrfActionSubmitted($this->createPurgeHistoryForm($tenantSlug), $request)) {
             $deleted = $this->detailRetentionService->purgeExpiredDetailForTenant($tenantSlug);
             $this->addFlash('success', $this->transMessage('flash.settings.purged', ['%count%' => $deleted]));
         }
@@ -234,7 +248,7 @@ final class SettingsController extends AbstractUptimeController
     public function clearStats(string $tenantSlug, Request $request): RedirectResponse
     {
         $this->requireTenant($tenantSlug);
-        if ($this->isCsrfTokenValid('clear-stats', (string) $request->request->get('_token'))) {
+        if ($this->isCsrfActionSubmitted($this->createClearStatsForm($tenantSlug), $request)) {
             // @igor-ignore - HTTP handler delegates to services; no controller worker state.
             $result = $this->dataClearService->clear($tenantSlug);
             $this->addFlash('success', $this->transMessage('flash.settings.cleared', [
@@ -251,14 +265,19 @@ final class SettingsController extends AbstractUptimeController
     public function backup(string $tenantSlug, Request $request): Response
     {
         $tenant = $this->requireTenant($tenantSlug);
+        $form   = $this->createForm(BackupImportFormType::class, null, [
+            'action' => $this->generateUrl('nowo_uptime_settings_backup', ['tenantSlug' => $tenantSlug]),
+        ]);
+        $form->handleRequest($request);
 
-        if ($request->isMethod('POST') && $request->request->get('action') === 'import') {
-            return $this->handleImport($tenant, $request);
+        if ($form->isSubmitted()) {
+            return $this->handleImport($tenant, $form);
         }
 
         return $this->render('@NowoUptimeMonitorBundle/settings/backup.html.twig', array_merge($this->baseViewParams($tenant), [
             'section'       => 'backup',
             'section_title' => 'settings.section.backup',
+            'form'          => $form,
         ]));
     }
 
@@ -288,10 +307,13 @@ final class SettingsController extends AbstractUptimeController
         ]));
     }
 
-    private function handleImport(Tenant $tenant, Request $request): RedirectResponse
+    /**
+     * @param FormInterface<mixed> $form
+     */
+    private function handleImport(Tenant $tenant, FormInterface $form): RedirectResponse
     {
-        if ($this->isCsrfTokenValid('backup-import', (string) $request->request->get('_token'))) {
-            $file = $request->files->get('backup');
+        if ($form->isValid()) {
+            $file = $form->get('backup')->getData();
             if (!$file instanceof UploadedFile) {
                 $this->addFlash('error', $this->transMessage('flash.settings.backup_no_file'));
 
@@ -304,7 +326,8 @@ final class SettingsController extends AbstractUptimeController
                     throw new JsonException('Invalid JSON root.');
                 }
 
-                $mode   = (string) $request->request->get('import_mode', MonitorBackupService::IMPORT_SKIP);
+                $mode   = $form->get('import_mode')->getData();
+                $mode   = is_string($mode) && $mode !== '' ? $mode : MonitorBackupService::IMPORT_SKIP;
                 $result = $this->backupService->import($tenant, $payload, $mode);
                 $this->addFlash('success', $this->transMessage('flash.settings.backup_imported', [
                     '%imported%'    => $result['imported'],
@@ -317,6 +340,62 @@ final class SettingsController extends AbstractUptimeController
         }
 
         return $this->redirectToRoute('nowo_uptime_settings_backup', ['tenantSlug' => $tenant->getSlug()]);
+    }
+
+    /**
+     * @return FormInterface<mixed>
+     */
+    private function createTagDeleteForm(string $tenantSlug, int $id): FormInterface
+    {
+        return $this->createCsrfActionForm(
+            $this->generateUrl('nowo_uptime_settings_tag_delete', ['tenantSlug' => $tenantSlug, 'id' => $id]),
+            'delete-tag-' . $id,
+        );
+    }
+
+    /**
+     * @return FormInterface<mixed>
+     */
+    private function createPurgeHistoryForm(string $tenantSlug): FormInterface
+    {
+        return $this->createCsrfActionForm(
+            $this->generateUrl('nowo_uptime_settings_history_purge', ['tenantSlug' => $tenantSlug]),
+            'purge-history',
+        );
+    }
+
+    /**
+     * @return FormInterface<mixed>
+     */
+    private function createClearStatsForm(string $tenantSlug): FormInterface
+    {
+        return $this->createCsrfActionForm(
+            $this->generateUrl('nowo_uptime_settings_history_clear', ['tenantSlug' => $tenantSlug]),
+            'clear-stats',
+        );
+    }
+
+    /**
+     * @return FormInterface<mixed>
+     */
+    private function createCsrfActionForm(string $action, string $csrfTokenId): FormInterface
+    {
+        return $this->createForm(CsrfActionFormType::class, null, [
+            'action'        => $action,
+            'csrf_token_id' => $csrfTokenId,
+        ]);
+    }
+
+    /**
+     * @param FormInterface<mixed> $form
+     */
+    private function isCsrfActionSubmitted(FormInterface $form, Request $request): bool
+    {
+        // A nameless CSRF-only form has no children, so handleRequest() never auto-submits it: submit the flat POST
+        // body explicitly and let the CSRF listener validate "_token" (same field and token id as before).
+        $form->submit($request->request->all());
+
+        return $form->isValid();
     }
 
     /**

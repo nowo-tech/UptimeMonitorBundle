@@ -10,19 +10,15 @@
 
     <section class="uptime-settings-block">
         <h4>{{ 'settings.backup.import_title'|trans }}</h4>
-        <form method="post" enctype="multipart/form-data" class="uptime-settings-form">
-            <input type="hidden" name="action" value="import">
-            <input type="hidden" name="_token" value="{{ csrf_token('backup-import') }}">
-            <fieldset>
-                <legend>{{ 'settings.backup.import_mode'|trans }}</legend>
-                <label><input type="radio" name="import_mode" value="skip" checked> {{ 'settings.backup.import_skip'|trans }}</label>
-                <label><input type="radio" name="import_mode" value="keep"> {{ 'settings.backup.import_keep'|trans }}</label>
-                <label><input type="radio" name="import_mode" value="overwrite"> {{ 'settings.backup.import_overwrite'|trans }}</label>
-            </fieldset>
-            <p>
-                <input type="file" name="backup" accept="application/json,.json" required>
-            </p>
+        {# REQ-TWIG-005: BackupImportFormType (flat names action / import_mode / backup / _token, multipart via FileType). #}
+        {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
+        {{ form_start(form, { attr: { class: 'uptime-settings-form' } }) }}
+            {% for child in form %}
+                {% if not child.rendered %}
+                    {{ form_row(child) }}
+                {% endif %}
+            {% endfor %}
             <button type="submit" class="uptime-btn">{{ 'settings.backup.import_button'|trans }}</button>
-        </form>
+        {{ form_end(form) }}
     </section>
 {% endblock %}
