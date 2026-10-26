@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.4] - 2026-10-26](#194---2026-10-26)
 - [[1.9.3] - 2026-10-26](#193---2026-10-26)
 - [[1.9.2] - 2026-10-26](#192---2026-10-26)
 - [[1.9.1] - 2026-10-26](#191---2026-10-26)
@@ -50,6 +51,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.9.4] - 2026-10-26
+
+### Fixed
+
+- **Host forms re-styled by `uptime-dashboard.css`**: its unscoped `form label`, `form input`, `form select` and
+  `form button[type=submit]` rules (1.5rem side margins, 480px inputs) applied to every form of a page that loads the
+  stylesheet — host pages and embedded hosts included (inputs pushed out of their rows). They now apply to the
+  bundle's own pages only (`.uptime-app` without `.uptime-app--embedded`), with the same specificity.
 
 ## [1.9.3] - 2026-10-26
 

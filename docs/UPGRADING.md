@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.9.4](#to-194)
 - [To 1.9.3](#to-193)
 - [To 1.9.2](#to-192)
 - [To 1.9.1](#to-191)
@@ -86,6 +87,11 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.9.4
+
+From **1.9.3**: no change needed (CSS fix). A host that relied on the bundle stylesheet's side margins on its own form
+fields keeps its own styles now.
 
 ## To 1.9.3
 

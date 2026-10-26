@@ -145,21 +145,26 @@
   color: #b91c1c;
 }
 
-form label {
-  display: block;
-  margin: 0.75rem 1.5rem 0.25rem;
-  font-weight: 600;
-}
+// The bundle's own pages only: unscoped, these rules re-styled every form of a host page that loads this stylesheet
+// (embedded hosts render their forms with their own styles). `:where()` keeps their old specificity, so the bundle's
+// framework rules still win over them.
+:where(.uptime-app:not(.uptime-app--embedded)) {
+  form label {
+    display: block;
+    margin: 0.75rem 1.5rem 0.25rem;
+    font-weight: 600;
+  }
 
-form input,
-form select {
-  margin: 0 1.5rem;
-  padding: 0.4rem 0.5rem;
-  width: min(480px, calc(100% - 3rem));
-}
+  form input,
+  form select {
+    margin: 0 1.5rem;
+    padding: 0.4rem 0.5rem;
+    width: min(480px, calc(100% - 3rem));
+  }
 
-form button[type='submit'] {
-  margin: 1rem 1.5rem 1.5rem;
+  form button[type='submit'] {
+    margin: 1rem 1.5rem 1.5rem;
+  }
 }
 
 .uptime-sync-badge {
