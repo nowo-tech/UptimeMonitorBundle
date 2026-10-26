@@ -9,11 +9,10 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Notification\UptimeAlert
- */
+#[CoversClass(UptimeAlert::class)]
 final class UptimeAlertTest extends TestCase
 {
     public function testGettersExposeMonitorAndStatuses(): void

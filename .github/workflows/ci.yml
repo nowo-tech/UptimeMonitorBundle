@@ -75,6 +75,7 @@ jobs:
         run: |
           SYMFONY="${{ matrix.symfony }}"
           composer require \
+            symfony/clock:^${SYMFONY} \
             symfony/config:^${SYMFONY} \
             symfony/console:^${SYMFONY} \
             symfony/dependency-injection:^${SYMFONY} \
@@ -280,6 +281,7 @@ jobs:
         run: |
           SYMFONY="7.4"
           composer require \
+            symfony/clock:^${SYMFONY} \
             symfony/config:^${SYMFONY} \
             symfony/console:^${SYMFONY} \
             symfony/dependency-injection:^${SYMFONY} \
@@ -308,11 +310,11 @@ jobs:
             --no-interaction --no-update
           composer update --with-all-dependencies --no-interaction --prefer-dist --no-progress
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (fails below 100%)
         run: |
-          echo "🧪 Running tests with coverage..."
+          echo "🧪 Running tests with coverage (gate: 100% lines, REQ-TEST-003)..."
           rm -rf .phpunit.cache
-          composer test-coverage
+          composer test-coverage-100
           if [ $? -ne 0 ]; then
             echo "❌ ERROR: Tests failed"
             exit 1

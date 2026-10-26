@@ -8,11 +8,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\TenantProvisioner;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\TenantProvisioner
- */
+#[CoversClass(TenantProvisioner::class)]
 final class TenantProvisionerTest extends TestCase
 {
     public function testEnsureCreatesOnceAndKeepsAnExistingTenant(): void

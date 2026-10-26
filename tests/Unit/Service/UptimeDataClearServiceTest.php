@@ -15,11 +15,10 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\UptimeDataClearService
- */
+#[CoversClass(UptimeDataClearService::class)]
 final class UptimeDataClearServiceTest extends TestCase
 {
     public function testClearDeletesInBatchesAndResetsMonitors(): void

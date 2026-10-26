@@ -11,12 +11,11 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\MonitorBackupService;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\MonitorBackupService
- */
+#[CoversClass(MonitorBackupService::class)]
 final class MonitorBackupServiceTest extends TestCase
 {
     public function testFailedFlushResetsClosedManagerAndRethrows(): void

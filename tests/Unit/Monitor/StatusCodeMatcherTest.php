@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Nowo\UptimeMonitorBundle\Tests\Monitor;
+namespace Nowo\UptimeMonitorBundle\Tests\Unit\Monitor;
 
 use Nowo\UptimeMonitorBundle\Monitor\StatusCodeMatcher;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
+#[CoversClass(StatusCodeMatcher::class)]
 final class StatusCodeMatcherTest extends TestCase
 {
     public function testParsesRangesAndLists(): void
@@ -25,5 +27,13 @@ final class StatusCodeMatcherTest extends TestCase
 
         self::assertTrue(StatusCodeMatcher::matches(204, $allowed));
         self::assertFalse(StatusCodeMatcher::matches(404, $allowed));
+    }
+
+    public function testSkipsEmptyPartsSwapsReversedRangesAndFallsBackTo200(): void
+    {
+        self::assertSame([204, 205, 206], StatusCodeMatcher::parse('206-204, ,'));
+        self::assertSame([200], StatusCodeMatcher::parse(' , 42, 700'));
+        self::assertTrue(StatusCodeMatcher::matches(205, [204, 205]));
+        self::assertFalse(StatusCodeMatcher::matches(500, [204, 205]));
     }
 }

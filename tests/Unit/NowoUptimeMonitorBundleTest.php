@@ -6,12 +6,11 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit;
 
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\UptimeMonitorBundle
- */
+#[CoversClass(UptimeMonitorBundle::class)]
 final class NowoUptimeMonitorBundleTest extends TestCase
 {
     public function testGetContainerExtension(): void

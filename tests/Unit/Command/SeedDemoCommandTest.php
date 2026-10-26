@@ -11,12 +11,11 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\DemoSeedService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Command\SeedDemoCommand
- */
+#[CoversClass(SeedDemoCommand::class)]
 final class SeedDemoCommandTest extends TestCase
 {
     use SyncDispatcherTestTrait;

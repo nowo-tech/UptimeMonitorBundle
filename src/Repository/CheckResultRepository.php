@@ -119,10 +119,8 @@ class CheckResultRepository extends ServiceEntityRepository
 
         $grouped = [];
         foreach ($results as $result) {
-            $monitorId = $result->getMonitor()->getId();
-            if ($monitorId === null) {
-                continue;
-            }
+            // Rows are loaded through their (persisted) monitor, so the id is never null.
+            $monitorId             = (int) $result->getMonitor()->getId();
             $grouped[$monitorId][] = $result;
         }
 
@@ -200,10 +198,8 @@ class CheckResultRepository extends ServiceEntityRepository
     {
         $grouped = [];
         foreach ($results as $result) {
-            $monitorId = $result->getMonitor()->getId();
-            if ($monitorId === null) {
-                continue;
-            }
+            // Rows are loaded through their (persisted) monitor, so the id is never null.
+            $monitorId = (int) $result->getMonitor()->getId();
 
             $grouped[$monitorId] ??= [];
 

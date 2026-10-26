@@ -10,11 +10,10 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Entity\Monitor
- */
+#[CoversClass(Monitor::class)]
 final class MonitorTest extends TestCase
 {
     use EntityIdTrait;

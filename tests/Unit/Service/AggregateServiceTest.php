@@ -16,11 +16,10 @@ use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use Nowo\UptimeMonitorBundle\Service\AggregateService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\DoctrineQueryBuilderTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\AggregateService
- */
+#[CoversClass(AggregateService::class)]
 final class AggregateServiceTest extends TestCase
 {
     use DoctrineQueryBuilderTrait;

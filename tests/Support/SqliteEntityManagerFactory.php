@@ -42,7 +42,7 @@ final class SqliteEntityManagerFactory
 {
     public const DATABASE_URL_ENV = 'UPTIME_TEST_DATABASE_URL';
 
-    public static function create(?\Doctrine\DBAL\Configuration $dbalConfig = null): EntityManagerInterface
+    public static function create(?\Doctrine\DBAL\Configuration $dbalConfig = null, bool $createSchema = true): EntityManagerInterface
     {
         $config = new Configuration();
         $config->setMetadataDriverImpl(new AttributeDriver([__DIR__ . '/../../src/Entity']));
@@ -61,7 +61,9 @@ final class SqliteEntityManagerFactory
         $metadata = $em->getMetadataFactory()->getAllMetadata();
         $tool     = new SchemaTool($em);
         $tool->dropSchema($metadata);
-        $tool->createSchema($metadata);
+        if ($createSchema) {
+            $tool->createSchema($metadata);
+        }
 
         return $em;
     }

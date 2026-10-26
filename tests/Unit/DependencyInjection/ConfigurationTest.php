@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\ArrayNode;
@@ -12,9 +13,7 @@ use Symfony\Component\Config\Definition\BaseNode;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\DependencyInjection\Configuration
- */
+#[CoversClass(Configuration::class)]
 final class ConfigurationTest extends TestCase
 {
     public function testConfigTreeBuilderUsesAliasAsRoot(): void

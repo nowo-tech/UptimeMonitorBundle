@@ -9,13 +9,12 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use Nowo\UptimeMonitorBundle\Command\SyncSchemaCommand;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Console\Tester\CommandTester;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Command\SyncSchemaCommand
- */
+#[CoversClass(SyncSchemaCommand::class)]
 final class SyncSchemaCommandTest extends TestCase
 {
     public function testConfigureDefinesForceOption(): void

@@ -8,15 +8,14 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\FormExtensionInterface;
 use Symfony\Component\Form\Forms;
 use Symfony\Component\Form\Test\TypeTestCase;
 use Symfony\Component\Validator\Validation;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Form\MonitorFormType
- */
+#[CoversClass(MonitorFormType::class)]
 final class MonitorFormTypeTest extends TypeTestCase
 {
     /**

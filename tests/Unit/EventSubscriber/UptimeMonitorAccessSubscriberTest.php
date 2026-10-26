@@ -12,6 +12,7 @@ use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\EventSubscriber\UptimeMonitorAccessSubscriber;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,9 +21,7 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\EventSubscriber\UptimeMonitorAccessSubscriber
- */
+#[CoversClass(UptimeMonitorAccessSubscriber::class)]
 final class UptimeMonitorAccessSubscriberTest extends TestCase
 {
     public function testSkipsWhenAllowUnauthenticated(): void

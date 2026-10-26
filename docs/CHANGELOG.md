@@ -147,6 +147,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   raw exception messages (REQ-OBS-001). `RunDueChecksMessageHandler` logs the scan result and rethrows failures for
   the Messenger retry strategy (REQ-MSG-001).
 - Linux ping checks add a hard `-w` deadline next to `-W` (REQ-RUNTIME-001).
+- **Injected clock (REQ-DI-001)**: services, check runners, the webhook channel and the rollup command read the time
+  from `Symfony\Component\Clock\ClockInterface` (the framework `clock` service; `NativeClock` when constructed by
+  hand) instead of `new DateTimeImmutable()` / `time()`. `symfony/clock` is now a direct requirement.
+  `DueChecksRunner::runDueChecks()` takes `?DateTimeImmutable $now = null` (defaults to the clock).
+  `CheckResult` and `Incident` accept an optional timestamp as last constructor argument (default: now).
+  Check latency keeps using `hrtime()` (a monotonic duration, not wall-clock time).
+- **Network seams for checks**: TCP, SSL and the HTTPS certificate-expiry check open sockets through
+  `Check\Network\SocketConnectorInterface` (default `StreamSocketConnector`); `MonitorUrlSsrfGuard` takes optional
+  A/AAAA lookup closures; `PingCheckRunner` takes an optional command executor and OS family. Defaults are unchanged.
+- **Coverage gate (REQ-TEST-003)**: PHPUnit measures every `src/` directory except `src/Controller` and `src/Twig`
+  (temporary, pending the UiKit UI refactor); `make release-check` and CI run `test-coverage-100`. Repository, schema
+  sync, dashboard read-model and command tests run against a real Doctrine ORM + SQLite schema (`db` group); network
+  checks are tested offline (MockHttpClient, fake connector/DNS, loopback TLS fixture).
 
 ### Fixed
 
@@ -155,6 +168,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   removed), with explicit PHP / Caddy / `max_wait_time` deadlines. The Flex leftover `compose.override.yaml` that
   published ports `5432` / `80` was removed (REQ-DEMO-006); the `dns:` block carries its explanatory comment
   (REQ-DEMO-009). `make up` rebuilds the (cached) image.
+- **SSL check**: a peer certificate that cannot be parsed now reports "Could not parse certificate" directly (the
+  intermediate PEM export step and its unreachable error are gone).
 
 ## [1.9.4] - 2026-10-26
 

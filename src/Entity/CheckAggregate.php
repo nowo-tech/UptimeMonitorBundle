@@ -125,9 +125,8 @@ class CheckAggregate
     private function recalculateMetrics(int $latencyMs): void
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->uptimeRatio = $this->checksTotal > 0
-            ? round($this->checksUp / $this->checksTotal, 4)
-            : 0.0;
+        // Only called right after recordCheck() incremented checksTotal, so it is never zero here.
+        $this->uptimeRatio = round($this->checksUp / $this->checksTotal, 4);
 
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->latencyAvgMs = (int) round(

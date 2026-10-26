@@ -8,12 +8,11 @@ use Nowo\UptimeMonitorBundle\Command\RunDueChecksCommand;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\DueChecksRunner;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Command\RunDueChecksCommand
- */
+#[CoversClass(RunDueChecksCommand::class)]
 final class RunDueChecksCommandTest extends TestCase
 {
     use SyncDispatcherTestTrait;

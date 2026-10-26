@@ -11,11 +11,10 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\DemoSeedService;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\DemoSeedService
- */
+#[CoversClass(DemoSeedService::class)]
 final class DemoSeedServiceTest extends TestCase
 {
     public function testSeedCreatesTenantAndMonitors(): void

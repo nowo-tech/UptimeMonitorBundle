@@ -14,12 +14,11 @@ use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Command\ClearDataCommand
- */
+#[CoversClass(ClearDataCommand::class)]
 final class ClearDataCommandTest extends TestCase
 {
     use SyncDispatcherTestTrait;

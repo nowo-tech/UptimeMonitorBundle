@@ -12,15 +12,14 @@ use Nowo\UptimeMonitorBundle\Notification\Channel\WebhookNotificationChannel;
 use Nowo\UptimeMonitorBundle\Notification\NotificationDeliveryException;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Notification\Channel\WebhookNotificationChannel
- */
+#[CoversClass(WebhookNotificationChannel::class)]
 final class WebhookNotificationChannelTest extends TestCase
 {
     use EntityIdTrait;

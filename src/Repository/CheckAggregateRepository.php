@@ -118,10 +118,8 @@ class CheckAggregateRepository extends ServiceEntityRepository
 
         $grouped = [];
         foreach ($rows as $row) {
-            $monitorId = $row->getMonitor()->getId();
-            if ($monitorId === null) {
-                continue;
-            }
+            // Rows are loaded through their (persisted) monitor, so the id is never null.
+            $monitorId             = (int) $row->getMonitor()->getId();
             $grouped[$monitorId][] = $row;
         }
 

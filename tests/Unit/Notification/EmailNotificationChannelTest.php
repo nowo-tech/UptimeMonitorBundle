@@ -10,12 +10,11 @@ use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Notification\Channel\EmailNotificationChannel;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Mailer\MailerInterface;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Notification\Channel\EmailNotificationChannel
- */
+#[CoversClass(EmailNotificationChannel::class)]
 final class EmailNotificationChannelTest extends TestCase
 {
     public function testIsEnabledRequiresMailerAndConfig(): void

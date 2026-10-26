@@ -8,13 +8,12 @@ use Nowo\UptimeMonitorBundle\Form\BackupImportFormType;
 use Nowo\UptimeMonitorBundle\Form\CsrfActionFormType;
 use Nowo\UptimeMonitorBundle\Form\MonitorSearchFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Component\Form\Test\TypeTestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Form\BackupImportFormType
- * @covers \Nowo\UptimeMonitorBundle\Form\CsrfActionFormType
- * @covers \Nowo\UptimeMonitorBundle\Form\MonitorSearchFormType
- */
+#[CoversClass(BackupImportFormType::class)]
+#[CoversClass(CsrfActionFormType::class)]
+#[CoversClass(MonitorSearchFormType::class)]
 final class BackupImportFormTypeTest extends TypeTestCase
 {
     /**
