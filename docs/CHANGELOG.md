@@ -53,6 +53,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Demo Playwright e2e (REQ-DEMO-013): `demo/symfony8/e2e` happy path (dashboard, monitor create + detail, public status page, settings) and a screenshots project; `make test-e2e` / `make demo-screenshots` (root and demo Makefiles, PNG → WebP with `sharp`). `release-check` runs `test-e2e`.
+- README **Screenshots** section with `docs/images/demo/dashboard.webp` and `docs/images/demo/monitor-detail.webp`.
+- Demo-only `app:uptime:demo-history` command: three extra local-probe monitors and 24 h of deterministic check history for every monitor and the group (one resolved outage, one latency spike); `reset-demo` runs it plus `nowo:uptime:rollup`.
+
+### Fixed
+
+- Demo: `checks.block_private_urls: false` in the demo config so the local probe monitors (`http://php/demo/uptime/*` over the Compose network) are not blocked by the SSRF guard and report Down.
+
 ## [1.10.0] - 2026-10-27
 
 ### Added

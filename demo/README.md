@@ -21,6 +21,21 @@ make -C demo up-symfony8
 ```
 
 The dashboard shows **Mercure · connected** when SSE is open. Each `up` runs **`reset-demo`**: 1 group `[demo]` + 2 HTTP monitors (`demo_uptime_ok`, `demo_uptime_flaky` → routes `/demo/uptime/ok` and `/demo/uptime/flaky/3`).
+`reset-demo` then runs the demo-only `app:uptime:demo-history` command: three extra local-probe monitors
+(`Storefront`, `Checkout API`, `Search API` → `/demo/uptime/ok?service=…`) and 24 h of deterministic check
+history (one resolved `Checkout API` outage) followed by `nowo:uptime:rollup`, so the dashboard, monitor page
+and status page are not empty. No monitor targets the public internet.
+
+## Playwright e2e and README screenshots (REQ-DEMO-013)
+
+```bash
+make -C demo/symfony8 test-e2e           # dashboard, monitor create + show, status page, settings
+make -C demo/symfony8 demo-screenshots   # reseed, capture PNG, convert to WebP → docs/images/demo/*.webp
+```
+
+Both run Playwright in the official Docker image (`mcr.microsoft.com/playwright`, host network) against the
+running demo on `PORT` and reseed the data first (`reset-demo`), so runs are repeatable. Specs live in
+`symfony8/e2e/tests/` (`demo.spec.ts` happy path, `screenshots.spec.ts` README captures).
 
 ```bash
 # Re-seed from scratch

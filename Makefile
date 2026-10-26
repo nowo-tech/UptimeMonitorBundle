@@ -1,4 +1,4 @@
-.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix rector rector-dry phpstan igor qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form twig-lint
+.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix rector rector-dry phpstan igor qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form twig-lint test-e2e demo-screenshots
 
 COMPOSE_FILE ?= docker-compose.yml
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -66,6 +66,8 @@ help:
 	@echo "Demos:"
 	@echo "  release-check-demos   Demo release-check (update bundle, tests, HTTP verify)"
 	@echo "  demo-smoke            Boot demo/symfony8 and expect HTTP 200 on /uptime/main (REQ-TEST-011)"
+	@echo "  test-e2e              Playwright e2e against demo/symfony8: dashboard, monitors, status page, settings (REQ-DEMO-013)"
+	@echo "  demo-screenshots      Reseed the demo and refresh README screenshots docs/images/demo/*.webp (REQ-DEMO-013)"
 	@echo "  make -C demo up-symfony8 | down-symfony8 | reset-demo-symfony8 | clear-data-symfony8"
 
 up:
@@ -156,6 +158,13 @@ release-check-demos:
 demo-smoke:
 	@$(MAKE) -C demo demo-smoke
 
+# REQ-DEMO-013: Playwright e2e + WebP README screenshots (demo/symfony8/e2e, Playwright Docker image).
+test-e2e:
+	@$(MAKE) -C demo/symfony8 test-e2e
+
+demo-screenshots:
+	@$(MAKE) -C demo/symfony8 demo-screenshots
+
 
 check-twig-extra:
 	@chmod +x .scripts/check-twig-extra.sh
@@ -168,7 +177,7 @@ check-no-raw-html-form:
 	@chmod +x .scripts/check-no-raw-html-form.sh
 	@./.scripts/check-no-raw-html-form.sh
 
-release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form composer-sync cs-fix cs-check rector-dry phpstan igor validate-translations test-coverage-90 release-check-demos test-ts
+release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form composer-sync cs-fix cs-check rector-dry phpstan igor validate-translations test-coverage-90 release-check-demos test-e2e test-ts
 
 clean:
 	rm -rf vendor coverage coverage-ts .phpunit.cache coverage-php.txt coverage-ts.txt node_modules

@@ -37,6 +37,8 @@ Database-backed tests use in-memory SQLite by default (`tests/Support/SqliteEnti
 Demos: `make -C demo up-symfony8` (port 8011). `make demo-smoke` boots it and expects HTTP 200 on `/uptime/main`
 (REQ-TEST-011; also a CI job).
 
+Demo e2e (REQ-DEMO-013): `make test-e2e` (Playwright against the FrankenPHP demo: dashboard, monitor create + detail, public status page, settings) and `make demo-screenshots` (reseeds the demo with 24 h of local-probe history and refreshes the README WebP screenshots in `docs/images/demo/`). Both run Playwright in the official Docker image; specs live in `demo/symfony8/e2e/tests/`. Use roles, labels and visible text in selectors (no bundle CSS classes) so template changes do not break the suite.
+
 ## Quality gates
 
 Before opening a PR:
