@@ -23,14 +23,14 @@
     {% set _b = page.bundle %}
     <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
         <section class="uptime-settings-block">
-            <h3 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'settings.backup.export_title'|trans }}</h3>
+            <h3 class="uptime-settings-subtitle {{ nowo_ui_class('card_title', _b) }}">{{ 'settings.backup.export_title'|trans }}</h3>
             <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'settings.backup.export_intro'|trans }}</p>
             <div class="{{ nowo_ui_class('toolbar', _b) }}"{{ nowo_ui_attrs('toolbar', _b) }}>
                 {{ include(nowo_ui_partial('action', _b), {action: export_action, context: 'toolbar', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
             </div>
         </section>
         <section class="uptime-settings-block">
-            <h3 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'settings.backup.import_title'|trans }}</h3>
+            <h3 class="uptime-settings-subtitle {{ nowo_ui_class('card_title', _b) }}">{{ 'settings.backup.import_title'|trans }}</h3>
             {# REQ-TWIG-005: BackupImportFormType (flat names action / import_mode / backup / _token, multipart via FileType). #}
             {{ parent() }}
         </section>

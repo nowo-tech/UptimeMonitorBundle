@@ -1,0 +1,11 @@
+{#
+  Demo guest layout (REQ-UI-003 nowo_ui_kit.layouts.guest, public status page): the UiKit guest layout with the demo
+  framework assets.
+#}
+{% extends '@NowoUiKit/layout/guest.html.twig' %}
+
+{% block nowo_ui_styles %}
+    {{ include('layouts/_framework.html.twig') }}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('demo.css') }}">
+{% endblock %}

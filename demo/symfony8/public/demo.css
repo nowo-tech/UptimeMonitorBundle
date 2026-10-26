@@ -1,33 +1,38 @@
-/* Demo host chrome only (the bundle pages are themed through nowo_ui_kit.theme tokens). */
-body {
-  margin: 0;
-  background: var(--nowo-ui-surface-muted, #f8fafc);
-  color: var(--nowo-ui-text, #0f172a);
-}
-
+/* Demo host chrome only (the bundle pages are themed through nowo_ui_kit: css_framework, theme tokens). */
 .demo-masthead {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem 2rem;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid var(--nowo-ui-border, #dde3ea);
+  gap: 0.75rem 2rem;
+  padding: 0.75rem 2rem;
+  border-bottom: 1px solid var(--nowo-ui-border, #dee2e6);
   background: var(--nowo-ui-surface, #fff);
 }
+
 .demo-masthead__brand {
   font-weight: 600;
   color: var(--nowo-ui-text, inherit);
   text-decoration: none;
 }
+
 .demo-masthead__nav {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.25rem;
 }
+
 .demo-masthead__nav a {
-  color: var(--nowo-ui-muted, #5b6472);
+  color: var(--nowo-ui-muted, #6c757d);
   text-decoration: none;
 }
+
 .demo-masthead__nav a:hover {
-  color: var(--nowo-ui-primary, #0b5fff);
+  color: var(--nowo-ui-primary, #0d6efd);
+}
+
+.nowo-ui-page--admin #nowo-ui-content {
+  max-width: 88rem;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
 }

@@ -23,7 +23,6 @@
 {% block nowo_ui_settings_section %}
     {% set _b = page.bundle %}
     <div class="uptime-app uptime-app--embedded uptime-settings-body uptime-settings-tags" data-testid="uptime-settings-{{ section.id }}">
-        <h3 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'settings.tags.list'|trans }}</h3>
         {% if tags is empty %}
             {{ include(nowo_ui_partial('empty', _b), {message: 'settings.tags.empty'|trans, bundle: _b}, false) }}
         {% else %}
@@ -41,7 +40,7 @@
                 {% endfor %}
             </ul>
         {% endif %}
-        <h3 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'settings.tags.add'|trans }}</h3>
+        <h3 class="uptime-settings-subtitle {{ nowo_ui_class('card_title', _b) }}">{{ 'settings.tags.add'|trans }}</h3>
         {{ parent() }}
     </div>
 {% endblock %}

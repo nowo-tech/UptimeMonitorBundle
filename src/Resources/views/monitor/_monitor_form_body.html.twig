@@ -7,6 +7,7 @@
 {% if uptime_form_themes|default([]) is not empty %}
     {% form_theme form with uptime_form_themes %}
 {% endif %}
+<div class="uptime-app uptime-app--embedded uptime-monitor-form-fields">
 {{ form_start(form, {attr: {class: ('uptime-monitor-form ' ~ nowo_ui_class('form', _b))|trim, 'data-monitor-form': '1'}}) }}
     {{ include('@NowoUptimeMonitorBundle/monitor/_monitor_form_fields.html.twig') }}
     <div class="uptime-form-actions {{ nowo_ui_class('form_actions', _b) }}"{{ nowo_ui_attrs('form_actions', _b) }}>
@@ -14,3 +15,4 @@
         <button type="button" class="{{ nowo_ui_class('btn_secondary', _b) }}" data-nowo-ui-dialog-close>{{ 'monitor.form.cancel'|trans }}</button>
     </div>
 {{ form_end(form) }}
+</div>
