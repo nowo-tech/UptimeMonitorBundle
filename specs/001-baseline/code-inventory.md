@@ -68,6 +68,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Doctrine/KeysetBatchDelete.php` | Keyset batch delete (retention purge, clear-data) | FR-RET-001, FR-RET-002 |
+| `Doctrine/TablePrefixListener.php` | `doctrine.table_prefix` metadata listener (REQ-ORM-002) | FR-ENTITY-001, FR-CFG-001 |
 | `Entity/CheckAggregate.php` | Persistence model | FR-ENTITY-001 |
 | `Entity/CheckResult.php` | Persistence model | FR-ENTITY-001 |
 | `Entity/Incident.php` | Persistence model | FR-ENTITY-001 |
@@ -145,6 +146,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Notification/Channel/EmailNotificationChannel.php` | Notification channel impl | FR-NOTIF-002 |
 | `Notification/Channel/WebhookNotificationChannel.php` | Notification channel impl | FR-NOTIF-002 |
 | `Notification/NotificationChannelInterface.php` | Notification channel contract | FR-NOTIF-001 |
+| `Notification/NotificationDeliveryException.php` | Redacted delivery failure (REQ-OBS-001) | FR-NOTIF-002 |
 | `Notification/UptimeAlert.php` | Notification payload | FR-NOTIF-003 |
 
 ## Security
@@ -247,13 +249,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/translations/NowoUptimeMonitorBundle.it.yaml` | i18n messages | FR-I18N-004 |
 | `Resources/translations/NowoUptimeMonitorBundle.nl.yaml` | i18n messages | FR-I18N-004 |
 | `Resources/translations/NowoUptimeMonitorBundle.pt.yaml` | i18n messages | FR-I18N-004 |
-| `Resources/translations/validators.de.yaml` | i18n messages | FR-I18N-004 |
-| `Resources/translations/validators.en.yaml` | i18n messages | FR-I18N-004 |
-| `Resources/translations/validators.es.yaml` | i18n messages | FR-I18N-004 |
-| `Resources/translations/validators.fr.yaml` | i18n messages | FR-I18N-004 |
-| `Resources/translations/validators.it.yaml` | i18n messages | FR-I18N-004 |
-| `Resources/translations/validators.nl.yaml` | i18n messages | FR-I18N-004 |
-| `Resources/translations/validators.pt.yaml` | i18n messages | FR-I18N-004 |
 
 ## Twig views
 
@@ -300,11 +295,11 @@ This file proves that **every production source artifact** under `src/` is refer
 | Check runners | 10 | 10 |
 | Controllers | 8 | 8 |
 | REST API | 3 | 3 |
-| Persistence | 13 | 13 |
+| Persistence | 14 | 14 |
 | Forms | 15 | 15 |
 | Domain models | 4 | 4 |
 | Application services | 23 | 23 |
-| Notifications | 4 | 4 |
+| Notifications | 5 | 5 |
 | Security | 6 | 6 |
 | Twig PHP | 1 | 1 |
 | Persistence integration | 2 | 2 |
@@ -314,8 +309,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | Frontend TypeScript | 13 | 13 |
 | SCSS themes | 13 | 13 |
 | Symfony config | 2 | 2 |
-| Translations | 14 | 14 |
+| Translations | 7 | 7 |
 | Twig views | 31 | 31 |
-| **Total production sources** | **180** | **180** |
+| **Total production sources** | **175** | **175** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **180** (2026-10-20; co-located `*.test.ts` excluded).

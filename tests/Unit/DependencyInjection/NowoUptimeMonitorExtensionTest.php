@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 use LogicException;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
+use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -15,6 +16,7 @@ use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeFrameworkExtension;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 
@@ -322,6 +324,34 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
             }
         }
         self::assertTrue($found);
+    }
+
+    public function testTablePrefixDefaultsToEmptyAndRegistersTheMetadataListener(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[]], $container);
+
+        self::assertSame('', $container->getParameter('nowo_uptime_monitor.doctrine.table_prefix'));
+        self::assertFalse($container->hasParameter('nowo_uptime_monitor.table_prefix'));
+
+        $definition = $container->getDefinition(TablePrefixListener::class);
+        self::assertSame('%nowo_uptime_monitor.doctrine.table_prefix%', $definition->getArgument('$tablePrefix'));
+        self::assertSame([['event' => 'loadClassMetadata']], $definition->getTag('doctrine.event_listener'));
+    }
+
+    public function testTablePrefixIsExposedAsParameter(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['doctrine' => ['table_prefix' => 'app_']]], $container);
+
+        self::assertSame('app_', $container->getParameter('nowo_uptime_monitor.doctrine.table_prefix'));
+    }
+
+    public function testTablePrefixRejectsUnsafeCharacters(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        (new UptimeMonitorExtension())->load([['doctrine' => ['table_prefix' => 'app-; DROP']]], $this->containerWithSecurityBundle());
     }
 
     private function containerWithSecurityBundle(): ContainerBuilder

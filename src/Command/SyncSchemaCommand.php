@@ -40,7 +40,8 @@ final class SyncSchemaCommand extends Command
             ->setHelp(
                 <<<'HELP'
 Creates or updates bundle tables (idempotent): uptime_tenant, uptime_monitor, uptime_check_result,
-uptime_check_aggregate, uptime_tag, uptime_incident, etc.
+uptime_check_aggregate, uptime_tag, uptime_incident, etc. Names are prefixed with
+<comment>nowo_uptime_monitor.doctrine.table_prefix</comment> when it is set (e.g. app_uptime_monitor).
 
 <info>php %command.full_name%</info> — create missing tables, then apply additive schema updates (safe)
 

@@ -168,6 +168,22 @@ final class PingCheckRunnerTest extends TestCase
         self::assertNotNull($command);
         self::assertStringContainsString('127.0.0.1', $command);
         self::assertStringContainsString('ping', $command);
+        if (PHP_OS_FAMILY === 'Linux') {
+            // Reply wait and hard deadline both rounded up from the monitor timeout (REQ-RUNTIME-001).
+            self::assertStringContainsString('-W 3 -w 3 ', $command);
+        }
+    }
+
+    public function testPingTimeoutIsClampedToThirtySeconds(): void
+    {
+        if (PHP_OS_FAMILY !== 'Linux') {
+            self::markTestSkipped('Linux ping flags only');
+        }
+
+        $command = (new ReflectionMethod(PingCheckRunner::class, 'buildPingCommand'))->invoke($this->runner(), '192.0.2.1', 600.0);
+
+        self::assertIsString($command);
+        self::assertStringContainsString('-W 30 -w 30 ', $command);
     }
 
     public function testRunUsesTargetWhenHostConfigMissing(): void

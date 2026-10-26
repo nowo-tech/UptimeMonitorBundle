@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use LogicException;
+use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -174,7 +175,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.enabled', $config['enabled']);
         $container->setParameter(Configuration::ALIAS . '.environments', $config['environments']);
         $container->setParameter(Configuration::ALIAS . '.connection', $config['connection']);
-        $container->setParameter(Configuration::ALIAS . '.table_prefix', $config['table_prefix']);
+        $container->setParameter(Configuration::ALIAS . '.doctrine.table_prefix', $config['doctrine']['table_prefix']);
         // enabled: false pauses monitoring: no scheduled checks, and DueChecksRunner is a no-op.
         $container->setParameter(Configuration::ALIAS . '.scheduler', $config['enabled'] ? $config['scheduler'] : ['enabled' => false] + $config['scheduler']);
         $container->setParameter(Configuration::ALIAS . '.checks', $config['checks']);
@@ -197,11 +198,23 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         );
 
         $this->registerAccessChecker($container, $config['security']);
+        $this->registerTablePrefixListener($container);
     }
 
     public function getAlias(): string
     {
         return Configuration::ALIAS;
+    }
+
+    /**
+     * Applies doctrine.table_prefix to the bundle entity metadata (REQ-ORM-002); no-op while the prefix is empty.
+     */
+    private function registerTablePrefixListener(ContainerBuilder $container): void
+    {
+        $container->setDefinition(TablePrefixListener::class, (new Definition(TablePrefixListener::class))
+            ->setArgument('$tablePrefix', '%' . Configuration::ALIAS . '.doctrine.table_prefix%')
+            ->addTag('doctrine.event_listener', ['event' => 'loadClassMetadata'])
+            ->setPublic(false));
     }
 
     /** @param array<string, mixed> $security */

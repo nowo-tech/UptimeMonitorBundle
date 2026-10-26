@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Support;
 use DateTimeImmutable;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Tools\DsnParser;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Configuration;
 use Doctrine\ORM\EntityManager;
@@ -22,6 +23,8 @@ use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 
 use function array_map;
+use function getenv;
+use function is_string;
 use function sprintf;
 use function sys_get_temp_dir;
 
@@ -29,10 +32,16 @@ use const CASE_LOWER;
 use const PHP_VERSION_ID;
 
 /**
- * In-memory SQLite EntityManager with the bundle schema, for tests that need real DQL / batching behaviour.
+ * EntityManager with the bundle schema, for tests that need real DQL / batching behaviour.
+ *
+ * Default: in-memory SQLite. When {@see self::DATABASE_URL_ENV} is set (`make test-with-db`, REQ-TEST-005) the same
+ * tests run against that real database (MySQL / PostgreSQL from the root docker-compose.yml): the bundle tables are
+ * dropped and recreated on every call, so each test starts from an empty schema.
  */
 final class SqliteEntityManagerFactory
 {
+    public const DATABASE_URL_ENV = 'UPTIME_TEST_DATABASE_URL';
+
     public static function create(?\Doctrine\DBAL\Configuration $dbalConfig = null): EntityManagerInterface
     {
         $config = new Configuration();
@@ -43,8 +52,16 @@ final class SqliteEntityManagerFactory
         // ORM 3.4+ on PHP 8.4+: proxies need native lazy objects when symfony/var-exporter LazyGhost is unavailable.
         $config->enableNativeLazyObjects(PHP_VERSION_ID >= 80400);
 
-        $em = new EntityManager(DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $dbalConfig), $config);
-        (new SchemaTool($em))->createSchema($em->getMetadataFactory()->getAllMetadata());
+        $url    = getenv(self::DATABASE_URL_ENV);
+        $params = is_string($url) && $url !== ''
+            ? (new DsnParser(['mysql' => 'pdo_mysql', 'postgresql' => 'pdo_pgsql', 'postgres' => 'pdo_pgsql', 'pgsql' => 'pdo_pgsql']))->parse($url)
+            : ['driver' => 'pdo_sqlite', 'memory' => true];
+
+        $em       = new EntityManager(DriverManager::getConnection($params, $dbalConfig), $config);
+        $metadata = $em->getMetadataFactory()->getAllMetadata();
+        $tool     = new SchemaTool($em);
+        $tool->dropSchema($metadata);
+        $tool->createSchema($metadata);
 
         return $em;
     }

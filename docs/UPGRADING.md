@@ -88,6 +88,27 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- **Table prefix (REQ-ORM-002)**: new `nowo_uptime_monitor.doctrine.table_prefix` (default `''`). The default keeps
+  the historical `uptime_*` table and index names, so **nothing changes unless you set it**. Setting it (e.g. `app_`)
+  renames every bundle table, index and unique constraint (`app_uptime_monitor`, `app_idx_uptime_monitor_tenant_next`,
+  …) in the Doctrine metadata only: rename the existing tables first (or generate a migration with
+  `doctrine:migrations:diff` and review it), then run `nowo:uptime:sync-schema`. The deprecated root `table_prefix`
+  key stays ignored; its unused `nowo_uptime_monitor.table_prefix` container parameter was removed (read
+  `nowo_uptime_monitor.doctrine.table_prefix` instead).
+- **Constraint messages (REQ-I18N-003)**: the `validators.<locale>.yaml` catalogues were removed. The tenant slug
+  message `form.tenant.slug_regex` is now read from the `NowoUptimeMonitorBundle` domain (it was already there). If you
+  overrode it in your app's `translations/validators.<locale>.yaml`, move the override to
+  `translations/NowoUptimeMonitorBundle.<locale>.yaml`.
+- **Webhook / Slack delivery**: new `notifications.http_timeout` (default `10` seconds, as before) now caps the whole
+  delivery (`max_duration`) and not only the idle time. A non-2xx answer is now reported as a delivery failure (logged
+  at `error`, the endpoint origin only) instead of being ignored.
+- **Logging**: notification failures are logged with a redacted message or the exception class (never the raw
+  exception message, which may contain the webhook URL); successes are logged at `info`. See
+  [SECURITY.md → Logging policy](SECURITY.md#logging-policy).
+- **Demo** (contributors only): the demo uses the Mercure hub built into FrankenPHP (no `mercure` container, no host
+  port `3080`); `MERCURE_URL` is `http://php/.well-known/mercure`. Re-copy `demo/symfony8/.env.example` to `.env` (or
+  drop `MERCURE_PORT` and update `MERCURE_URL`) and run `make -C demo up-symfony8`.
+
 ## To 1.9.4
 
 From **1.9.3**: no change needed (CSS fix). A host that relied on the bundle stylesheet's side margins on its own form

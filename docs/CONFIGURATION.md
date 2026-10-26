@@ -4,7 +4,9 @@
 nowo_uptime_monitor:
     enabled: true          # false = pause monitoring (no checks run); UI and data stay available
     connection: default
-    # table_prefix: uptime_   # deprecated (1.5), no effect: tables are always uptime_*
+    # table_prefix: uptime_   # deprecated (1.5), no effect: use doctrine.table_prefix
+    doctrine:
+        table_prefix: ''      # prepended to every bundle table/index name; 'app_' => app_uptime_monitor
     checks:
         min_latency_ms: 0   # floor for stored latency (ms); use e.g. 1 for localhost
         block_private_urls: true   # SSRF guard for HTTP/TCP/SSL/ping/DNS monitors; false to monitor private networks
@@ -52,6 +54,7 @@ nowo_uptime_monitor:
     notifications:
         enabled: false
         cooldown_seconds: 300
+        http_timeout: 10      # webhook/Slack delivery deadline (s): HttpClient timeout + max_duration
     templates:
         layout: '@NowoUptimeMonitorBundle/layout.html.twig'
     security:
@@ -72,12 +75,70 @@ These keys were never read by the bundle. Since **1.5** setting them triggers a 
 | Key | Replacement |
 |-----|-------------|
 | `environments` | `enabled` per environment, or register the bundle only where needed in `config/bundles.php` |
-| `table_prefix` | none — tables are always `uptime_*` |
+| `table_prefix` | `doctrine.table_prefix` — prepended to the `uptime_*` names (see [Doctrine table prefix](#doctrine-table-prefix)) |
 | `aggregates.keep_forever` | none — aggregates are always kept; remove them with `nowo:uptime:clear-data` |
 | `multi_tenant.enabled` | none — tenants are resolved from the URL slug; for single-tenant apps use `tenants.list_enabled` / `tenants.redirect_when_single` |
 | `multi_tenant.header` | none — tenants are resolved from the URL slug, not a header |
 | `dashboard.prefix` | `dashboard.path` (URL prefix of every admin route) |
 | `dashboard.roles` | `security.dashboard_roles` |
+
+### Doctrine table prefix
+
+`doctrine.table_prefix` (REQ-ORM-002) namespaces every bundle-owned table so several applications or bundles can share
+one database. It is prepended by a Doctrine `loadClassMetadata` listener (`Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener`)
+that only touches the bundle entities (`Nowo\UptimeMonitorBundle\Entity\*`). Index and unique-constraint names get
+the same prefix (PostgreSQL index names are schema-wide). Allowed characters: letters, digits and `_`.
+
+| `doctrine.table_prefix` | Tables | Example index |
+|-------------------------|--------|---------------|
+| `''` (default) | `uptime_tenant`, `uptime_monitor`, `uptime_check_result`, `uptime_check_aggregate`, `uptime_incident`, `uptime_tag` | `idx_uptime_monitor_tenant_next` |
+| `'app_'` | `app_uptime_tenant`, `app_uptime_monitor`, `app_uptime_check_result`, `app_uptime_check_aggregate`, `app_uptime_incident`, `app_uptime_tag` | `app_idx_uptime_monitor_tenant_next` |
+
+```yaml
+nowo_uptime_monitor:
+    doctrine:
+        table_prefix: 'app_'
+```
+
+`nowo:uptime:sync-schema` and `doctrine:schema:update` / Doctrine Migrations read the same metadata, so they create the
+prefixed names. Changing the prefix on an existing database does **not** rename tables: rename them yourself (or
+migrate the data) before deploying the new prefix — see [UPGRADING.md](UPGRADING.md). The effective value is exposed as
+the `nowo_uptime_monitor.doctrine.table_prefix` container parameter. The legacy root `table_prefix` key stays
+deprecated and ignored.
+
+### Timeouts (FrankenPHP-safe, REQ-RUNTIME-001)
+
+Monitor checks are the only blocking outbound I/O of the bundle, and they never run inside a web request: they run in
+the CLI / worker processes (`nowo:uptime:run-due-checks`, `messenger:consume scheduler_uptime_monitor`). Dashboards,
+JSON APIs and the status page only read the database. Every outbound call has an explicit deadline:
+
+| Blocking call | Deadline | Configured by |
+|---------------|----------|---------------|
+| HTTP/HTTPS check (Symfony HttpClient) | `timeout` (idle) = monitor timeout; `max_duration` (total) = monitor timeout + 2 s | Monitor form **Timeout** (`config.request_timeout_seconds` / `config.timeout`, min 1 s; 48 s preset in the form, 10 s when unset) |
+| HTTPS certificate-expiry probe (`check_cert_expiry`) | 5 s connect + TLS handshake | constant |
+| TCP check (`stream_socket_client`) | connect timeout | monitor `config.timeout` (default 10 s) |
+| SSL check (`ssl://` connect + handshake) | connect/handshake timeout | monitor `config.timeout` (default 10 s) |
+| Ping check (`ping` binary) | Linux `-W` reply wait **and** `-w` hard deadline; macOS `-t`; BSD `-W` (ms) | monitor `config.timeout` (default 5 s), clamped to 1–30 s |
+| DNS check / SSRF guard lookups (`dns_get_record`) | system resolver deadline (`/etc/resolv.conf` `options timeout:N attempts:N`; glibc default 5 s × 2 per nameserver) | host OS — PHP offers no per-call timeout |
+| Webhook / Slack notification (HttpClient) | `timeout` = `max_duration` = `notifications.http_timeout` | `notifications.http_timeout` (default 10 s, min 1 s) |
+| E-mail notification (Symfony Mailer) | transport socket timeout (`default_socket_timeout`, PHP default 60 s) | host Mailer config — prefer an async (Messenger) mailer transport |
+| Mercure publish (`dashboard.sync: mercure`) | host `http_client` defaults | `framework.http_client.default_options.timeout` / `max_duration` |
+
+Hierarchy (innermost fires first; raise the outer layers in the same change when you raise an inner one):
+
+| Layer | Default | Rule |
+|-------|---------|------|
+| Operation (table above) | 5–50 s per check, 10 s per webhook | Fires first; the check is stored as `down` with the transport error |
+| Scan budget | sum of the due checks of one tick | Keep `scheduler.tick` and the number of slow monitors so a scan ends before the next tick |
+| PHP `max_execution_time` | `0` in CLI | Workers are bounded by the operation deadlines; recycle them with `messenger:consume --time-limit=3600 --memory-limit=256M` |
+| Web requests (FrankenPHP / FPM) | host | Bundle pages do no outbound I/O; if you trigger `run-due-checks` from HTTP, keep PHP `max_execution_time` strictly above the slowest scan and the proxy write timeout above PHP |
+| FrankenPHP `max_wait_time` | demo: 30 s | Caps the wait for a free PHP thread (504 instead of an endless queue) |
+
+Messenger transport, retry and failure-transport policy for `RunDueChecksMessage`:
+[SCHEDULING.md → Messenger transport, retries and failures](SCHEDULING.md#messenger-transport-retries-and-failures).
+
+The FrankenPHP demo values (PHP 60 s < Caddy `servers.timeouts.write` 75 s, `max_wait_time` 30 s) are documented in
+[DEMO-FRANKENPHP.md](DEMO-FRANKENPHP.md#timeouts).
 
 ### Security (REQ-UI-002)
 

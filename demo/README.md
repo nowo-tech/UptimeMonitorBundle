@@ -32,9 +32,9 @@ make -C demo clear-data-symfony8
 
 ## Mercure (summary)
 
-- Docker hub on port **3080** (symfony8); the **browser** uses the proxy on **8011** (same origin + JWT cookie).
-- **`checks-worker`**: publishes to Mercure after each check (`entrypoint: []` in compose).
-- **`MERCURE_PUBLIC_URL`**: must be `http://localhost:8011/.well-known/mercure` (not only `:3080`).
+- Hub built into the demo FrankenPHP server: the **browser** uses it on **8011** (same origin + JWT cookie); it also serves `hot_reload`.
+- **`checks-worker`**: publishes to the hub (`MERCURE_URL=http://php/.well-known/mercure`) after each check (`entrypoint: []` in compose).
+- **`MERCURE_PUBLIC_URL`**: `http://localhost:8011/.well-known/mercure`.
 - Config: `config/packages/nowo_uptime_monitor.yaml` → `sync: mercure`.
 
 See [MERCURE.md](MERCURE.md) for diagram, variables, security, and common errors.

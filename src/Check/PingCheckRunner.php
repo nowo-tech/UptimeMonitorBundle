@@ -98,8 +98,9 @@ final readonly class PingCheckRunner implements CheckRunnerInterface
         $escapedHost    = escapeshellarg($host);
 
         return match (PHP_OS_FAMILY) {
+            // -W: wait for the reply; -w: hard deadline for the whole run (incl. name resolution) — REQ-RUNTIME-001.
             'Linux' => sprintf(
-                'ping -c 1 -W %d %s',
+                'ping -c 1 -W %1$d -w %1$d %2$s',
                 (int) ceil($timeoutSeconds),
                 $escapedHost,
             ),

@@ -22,9 +22,11 @@ services:
       APP_DEBUG: "1"
       APP_SECRET: ${APP_SECRET:-demo-secret}
       DATABASE_URL: mysql://app:app@database:3306/app?serverVersion=8.4&charset=utf8mb4
-      MERCURE_URL: http://mercure/.well-known/mercure
+      MERCURE_URL: http://php/.well-known/mercure
       MERCURE_PUBLIC_URL: http://localhost:${PORT:-8011}/.well-known/mercure
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+    # Mitigate Docker/WSL DNS failures resolving repo.packagist.org (composer curl error 6) — REQ-DEMO-009.
+    # Do not remove; on networks that block public DNS, replace with your resolvers in an uncommitted override.
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -47,7 +49,7 @@ services:
     environment:
       APP_ENV: dev
       DATABASE_URL: mysql://app:app@database:3306/app?serverVersion=8.4&charset=utf8mb4
-      MERCURE_URL: http://mercure/.well-known/mercure
+      MERCURE_URL: http://php/.well-known/mercure
       MERCURE_PUBLIC_URL: http://localhost:${PORT:-8011}/.well-known/mercure
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
     command:
@@ -63,22 +65,6 @@ services:
         condition: service_healthy
       php:
         condition: service_started
-      mercure:
-        condition: service_started
-    networks:
-      - uptime-monitor-demo-network
-
-  mercure:
-    image: dunglas/mercure
-    restart: unless-stopped
-    environment:
-      SERVER_NAME: ':80'
-      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      MERCURE_EXTRA_DIRECTIVES: |
-        cors_origins http://localhost:8011 http://127.0.0.1:8011 http://localhost:3080
-    ports:
-      - "${MERCURE_PORT:-3080}:80"
     networks:
       - uptime-monitor-demo-network
 
@@ -96,6 +82,7 @@ services:
       retries: 20
     volumes:
       - database_data:/var/lib/mysql
+    # No `ports:` mapping (REQ-DEMO-006): MySQL is reachable only on the Compose network as `database:3306`.
     expose:
       - "3306"
     networks:

@@ -30,7 +30,12 @@ make assets
 
 Styles live in `src/Resources/assets/scss/` (Sass). Vite compiles them to `src/Resources/public/*.css`. Edit SCSS, then run `make assets` (or `pnpm run build` inside the PHP container).
 
-Demos: `make -C demo up-symfony8` (port 8010) or `make -C demo up-symfony8` (port 8011).
+Database-backed tests use in-memory SQLite by default (`tests/Support/SqliteEntityManagerFactory`). `make test-with-db`
+(and `make test-coverage-with-db`) runs the same suite against the MySQL and PostgreSQL services of the root
+`docker-compose.yml` by setting `UPTIME_TEST_DATABASE_URL` from `DATABASE_URL` / `DATABASE_URL_PG` (REQ-TEST-005).
+
+Demos: `make -C demo up-symfony8` (port 8011). `make demo-smoke` boots it and expects HTTP 200 on `/uptime/main`
+(REQ-TEST-011; also a CI job).
 
 ## Quality gates
 
@@ -41,7 +46,7 @@ make igor
 make release-check
 ```
 
-This runs code style, PHPStan, Rector dry-run, PHPUnit coverage (≥90%), demo healthchecks, and Vitest.
+This runs code style, PHPStan, Rector dry-run, Igor, `validate-translations`, PHPUnit coverage (≥90%), demo healthchecks, and Vitest.
 
 ## Coding standards
 

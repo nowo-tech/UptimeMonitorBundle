@@ -1,10 +1,12 @@
 # REQ-TEST-011 — Demo smoke: boot FrankenPHP demo and assert HTTP 200.
+# Every push/PR runs the same job in ci.yml; this workflow re-runs it nightly against main (catches drift from
+# `composer update` in the demo and new FrankenPHP/Mercure images) and on release tags.
 name: Demo smoke
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 7 * * 1"
+    - cron: "0 5 * * *"
   push:
     tags:
       - 'v*'
