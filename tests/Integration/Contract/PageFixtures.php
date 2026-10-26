@@ -52,8 +52,6 @@ use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
 use Symfony\Component\Form\FormView;
-use Symfony\Component\Security\Csrf\CsrfToken;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Translation\Loader\YamlFileLoader;
 use Symfony\Component\Translation\Translator;
 use Symfony\Component\Validator\Validation;
@@ -446,30 +444,8 @@ final class PageFixtures
 
     private static function forms(): FormFactoryInterface
     {
-        $csrf = new class implements CsrfTokenManagerInterface {
-            public function getToken(string $tokenId): CsrfToken
-            {
-                return new CsrfToken($tokenId, 'token-' . $tokenId);
-            }
-
-            public function refreshToken(string $tokenId): CsrfToken
-            {
-                return $this->getToken($tokenId);
-            }
-
-            public function removeToken(string $tokenId): ?string
-            {
-                return null;
-            }
-
-            public function isTokenValid(CsrfToken $token): bool
-            {
-                return true;
-            }
-        };
-
         return Forms::createFormFactoryBuilder()
-            ->addExtension(new CsrfExtension($csrf))
+            ->addExtension(new CsrfExtension(new FixedCsrfTokenManager()))
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(self::withMerger(new MonitorFormType()))
             ->addType(self::withMerger(new TenantFormType()))

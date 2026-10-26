@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Contract;
 
+use LogicException;
 use Nowo\UiKitBundle\Test\PageContractTestCase;
 use Nowo\UiKitBundle\Test\PageFixture;
+use Nowo\UiKitBundle\Test\RenderedPage;
 use Nowo\UiKitBundle\View\ListPage;
+use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Twig\Environment;
 use Twig\TwigFunction;
 
+use function array_map;
 use function dirname;
+use function is_string;
+use function str_starts_with;
+use function substr;
 use function substr_count;
 
 /**
@@ -23,27 +30,90 @@ final class PageContractTest extends PageContractTestCase
 {
     private const VIEWS = '@NowoUptimeMonitorBundle/';
 
+    private const FIXTURE_KEY = 'uptime_fixture';
+
     /** Tenant theme returned by the uptime_theme() stub. */
     private string $theme = 'auto';
 
+    /**
+     * Fixtures carry only a key (`uptime_fixture`): the contexts hold FormViews with closures, which PHPUnit cannot
+     * serialize under --process-isolation; {@see self::renderPage()} builds the context in the test process.
+     */
     public static function pageFixtures(): iterable
     {
-        yield 'tenants' => new PageFixture(self::VIEWS . 'tenant/index.html.twig', PageFixtures::tenantIndex());
-        yield 'tenants (empty)' => new PageFixture(self::VIEWS . 'tenant/index.html.twig', PageFixtures::tenantIndex(true));
-        yield 'new tenant' => new PageFixture(self::VIEWS . 'tenant/form.html.twig', PageFixtures::tenantForm());
-        yield 'dashboard' => new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboard());
-        yield 'dashboard (empty)' => new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboard(true));
-        yield 'dashboard (filtered, Mercure)' => new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboard(false, true));
-        yield 'monitor detail' => new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShow());
-        yield 'monitor detail (group)' => new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShow(true));
-        yield 'new monitor' => new PageFixture(self::VIEWS . 'monitor/form.html.twig', PageFixtures::monitorForm());
-        yield 'edit monitor' => new PageFixture(self::VIEWS . 'monitor/form.html.twig', PageFixtures::monitorForm(true));
-        foreach (PageFixtures::settingsPages() as $section => $context) {
-            yield 'settings ' . $section => new PageFixture(self::VIEWS . 'settings/' . self::settingsTemplate($section), $context);
+        foreach (self::fixtureTemplates() as $name => $template) {
+            yield $name => new PageFixture($template, [self::FIXTURE_KEY => $name]);
         }
-        yield 'settings tags (empty)' => new PageFixture(self::VIEWS . 'settings/tags.html.twig', PageFixtures::settingsPages(true)['tags']);
-        yield 'status page' => new PageFixture(self::VIEWS . 'status/index.html.twig', PageFixtures::status());
-        yield 'status page (no monitors)' => new PageFixture(self::VIEWS . 'status/index.html.twig', PageFixtures::status(true));
+    }
+
+    protected function renderPage(PageFixture $fixture, string $framework = 'none'): RenderedPage
+    {
+        return parent::renderPage(self::resolve($fixture), $framework);
+    }
+
+    protected function assertExtendsScaffoldOrUnique(PageFixture $fixture): void
+    {
+        parent::assertExtendsScaffoldOrUnique(self::resolve($fixture));
+    }
+
+    /**
+     * @return array<string, string> fixture name => template
+     */
+    private static function fixtureTemplates(): array
+    {
+        $templates = [
+            'tenants'                       => 'tenant/index.html.twig',
+            'tenants (empty)'               => 'tenant/index.html.twig',
+            'new tenant'                    => 'tenant/form.html.twig',
+            'dashboard'                     => 'dashboard/index.html.twig',
+            'dashboard (empty)'             => 'dashboard/index.html.twig',
+            'dashboard (filtered, Mercure)' => 'dashboard/index.html.twig',
+            'monitor detail'                => 'monitor/show.html.twig',
+            'monitor detail (group)'        => 'monitor/show.html.twig',
+            'new monitor'                   => 'monitor/form.html.twig',
+            'edit monitor'                  => 'monitor/form.html.twig',
+        ];
+        foreach (UptimeAreaNav::SETTINGS_SECTIONS as $section => $route) {
+            $templates['settings ' . $section] = 'settings/' . self::settingsTemplate($section);
+        }
+        $templates['settings tags (empty)']     = 'settings/tags.html.twig';
+        $templates['status page']               = 'status/index.html.twig';
+        $templates['status page (no monitors)'] = 'status/index.html.twig';
+
+        return array_map(static fn (string $t): string => self::VIEWS . $t, $templates);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function context(string $name): array
+    {
+        if (str_starts_with($name, 'settings ')) {
+            return $name === 'settings tags (empty)' ? PageFixtures::settingsPages(true)['tags'] : PageFixtures::settingsPages()[substr($name, 9)];
+        }
+
+        return match ($name) {
+            'tenants'                       => PageFixtures::tenantIndex(),
+            'tenants (empty)'               => PageFixtures::tenantIndex(true),
+            'new tenant'                    => PageFixtures::tenantForm(),
+            'dashboard'                     => PageFixtures::dashboard(),
+            'dashboard (empty)'             => PageFixtures::dashboard(true),
+            'dashboard (filtered, Mercure)' => PageFixtures::dashboard(false, true),
+            'monitor detail'                => PageFixtures::monitorShow(),
+            'monitor detail (group)'        => PageFixtures::monitorShow(true),
+            'new monitor'                   => PageFixtures::monitorForm(),
+            'edit monitor'                  => PageFixtures::monitorForm(true),
+            'status page'                   => PageFixtures::status(),
+            'status page (no monitors)'     => PageFixtures::status(true),
+            default                         => throw new LogicException('Unknown page fixture ' . $name),
+        };
+    }
+
+    private static function resolve(PageFixture $fixture): PageFixture
+    {
+        $name = $fixture->context[self::FIXTURE_KEY] ?? null;
+
+        return is_string($name) ? new PageFixture($fixture->template, self::context($name)) : $fixture;
     }
 
     public function testDashboardKeepsTheLiveDashboardContract(): void
