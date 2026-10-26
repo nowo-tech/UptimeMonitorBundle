@@ -1,52 +1,33 @@
-{% extends uptime_layout %}
-{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
+{#
+  Monitor create / edit (REQ-UI-003): UiKit form scaffold. Variables: page (View\FormPage from MonitorController:
+  header monitor.new / monitor.edit, back link to the dashboard; form = MonitorFormType; submit monitor.form.save,
+  cancel = dashboard; formThemes = web_ui.form_themes), and the 1.x variables tenant_slug, form, title, monitor.
+  Data blocks filled: nowo_ui_form_body (type-dependent fieldsets, then the REQ-TWIG-003 child loop),
+  nowo_ui_form_aside (group monitors hint).
+#}
+{% extends '@NowoUiKit/page/form.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block title %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    {{ title|trans }} — {{ tenant_slug }}
-{% endblock %}
-
-{% block javascripts %}
+{% block nowo_ui_styles %}
     {{ parent() }}
-    <script>
-        (function () {
-            const typeSelect = document.querySelector('[data-monitor-type-select]');
-            if (!typeSelect) return;
-
-            const group = 'group';
-            const httpTypes = ['http', 'https'];
-            const tcpTypes = ['tcp', 'ping', 'ssl'];
-            const dns = 'dns';
-
-            const sections = document.querySelectorAll('[data-monitor-fields]');
-            const toggle = () => {
-                const value = typeSelect.value;
-                sections.forEach((el) => {
-                    const key = el.getAttribute('data-monitor-fields');
-                    let show = false;
-                    if (key === 'check') show = value !== group;
-                    else if (key === 'http' || key === 'http-advanced' || key === 'http-options') show = httpTypes.includes(value);
-                    else if (key === 'tcp') show = tcpTypes.includes(value);
-                    else if (key === 'dns') show = value === dns;
-                    else if (key === 'ssl') show = value === 'ssl';
-                    el.hidden = !show;
-                });
-            };
-
-            typeSelect.addEventListener('change', toggle);
-            toggle();
-        })();
-    </script>
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
 {% endblock %}
 
-{% block uptime_content %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    <div class="uptime-page-shell uptime-page-shell--form">
-        <nav class="uptime-nav uptime-nav--form">
-            <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant_slug }) }}">{{ 'dashboard.back'|trans }}</a>
-        </nav>
-        <h1 class="uptime-page-title">{{ title|trans }}</h1>
+{% block nowo_ui_scripts %}
+    {{ parent() }}
+    {# uptime-dashboard.js shows the fieldsets of the selected monitor type ([data-monitor-type-select]) #}
+    <script type="module" src="{{ asset('uptime-dashboard.js', 'nowo_uptime_monitor') }}"></script>
+{% endblock %}
 
-        {% include '@NowoUptimeMonitorBundle/monitor/_monitor_form_body.html.twig' %}
+{% block nowo_ui_form_body %}
+    {% set _theme = uptime_theme() %}
+    <div class="uptime-app uptime-app--embedded uptime-theme-{{ _theme }} uptime-monitor-form-fields"{% if _theme != 'auto' %} data-theme="{{ _theme }}"{% endif %}>
+        {{ include('@NowoUptimeMonitorBundle/monitor/_monitor_form_fields.html.twig') }}
     </div>
+{% endblock %}
+
+{% block nowo_ui_form_aside %}
+    <aside class="uptime-form-hint {{ nowo_ui_class('card', page.bundle) }}"{{ nowo_ui_attrs('card', page.bundle) }}>
+        <p class="{{ nowo_ui_class('muted', page.bundle) }}">{{ 'monitor.form.hint'|trans|raw }}</p>
+    </aside>
 {% endblock %}

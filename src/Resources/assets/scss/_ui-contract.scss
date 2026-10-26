@@ -1,0 +1,179 @@
+@use 'host-theme';
+
+/**
+ * UiKit page contract (REQ-UI-003): the bundle pages are UiKit scaffolds inside the host layout. Every data block
+ * wraps its widgets in `.uptime-app.uptime-app--embedded`: colours follow the --nowo-ui-* tokens (with or without a
+ * theme attribute on an ancestor), the scaffold owns spacing, headers, cards and buttons.
+ */
+.uptime-app.uptime-app--embedded {
+  @include host-theme.uptime-host-light-tokens;
+
+  background: transparent;
+  color: inherit;
+}
+
+/* `hidden` wins over the UiKit button display (dashboard filter buttons toggled by uptime-dashboard.js). */
+.uptime-app--embedded [hidden] {
+  display: none;
+}
+
+.uptime-app--embedded .nowo-ui-btn[hidden] {
+  display: none;
+}
+
+/* The live dashboard spans the whole cards grid of the dashboard scaffold. */
+.nowo-ui-cards > .uptime-page--dashboard {
+  grid-column: 1 / -1;
+}
+
+.uptime-app--embedded {
+  .uptime-sync-bar {
+    margin: 0 0 0.75rem;
+  }
+
+  .uptime-sync-badge {
+    margin: 0;
+  }
+
+  .uptime-dashboard-kuma,
+  .uptime-detail {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .uptime-events-panel-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+  }
+
+  .uptime-events-panel-actions {
+    margin: 0 0 0 auto;
+  }
+
+  .uptime-detail-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 1rem;
+  }
+
+  .uptime-chart-box {
+    min-width: 0;
+  }
+
+  .uptime-chart-box canvas {
+    max-height: 14rem;
+  }
+
+  .uptime-group-children,
+  .uptime-detail-history-section {
+    padding: 1rem;
+  }
+
+  .uptime-detail > * + * {
+    margin-top: 1rem;
+  }
+
+  .uptime-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .uptime-tag-list {
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  .uptime-tag-list__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--nowo-ui-border, #e2e8f0);
+  }
+
+  .uptime-tag-list__name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .uptime-tag-swatch {
+    display: inline-flex;
+    width: 0.75rem;
+    height: 0.75rem;
+    background: none;
+  }
+
+  .uptime-settings-group {
+    margin: 0 0 1rem;
+    padding: 0;
+    border: 0;
+  }
+
+  .uptime-settings-group__title {
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+  }
+
+  .uptime-settings-divider {
+    margin: 1.25rem 0;
+    border: 0;
+    border-top: 1px solid var(--nowo-ui-border, #e2e8f0);
+  }
+
+  .uptime-settings-block + .uptime-settings-block {
+    margin-top: 1.5rem;
+  }
+
+  .uptime-form-section {
+    margin: 0 0 1rem;
+    padding: 0;
+    border: 0;
+  }
+
+  .uptime-form-section > legend {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+}
+
+/* Public status page (guest layout): the 1.x standalone page rules (background, font) give way to the host. */
+.uptime-status-page {
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  display: grid;
+  gap: 1rem;
+
+  .uptime-status-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .uptime-status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--nowo-ui-border, #e2e8f0);
+  }
+
+  .uptime-status-item-body {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+  }
+
+  .uptime-status-footer {
+    text-align: center;
+  }
+}

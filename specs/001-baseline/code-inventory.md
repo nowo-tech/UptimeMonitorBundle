@@ -137,7 +137,9 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Service/TenantSettingsMapper.php` | Tenant settings mapping | FR-TENANT-003 |
 | `Service/UptimeMetricsService.php` | Prometheus-style metrics | FR-METRICS-001 |
 | `Translation/UptimeTranslation.php` | Translation helper | FR-I18N-003 |
-| `Ui/UiFramework.php` | UI framework selector | FR-UI-002 |
+| `Ui/UiFramework.php` | UI framework selector (deprecated: pages follow nowo_ui_kit.css_framework) | FR-UI-002 |
+| `Ui/UptimePages.php` | UiKit page contract plumbing: layout, per-page templates, form themes (REQ-UI-003) | FR-UI-002 |
+| `Ui/UptimeAreaNav.php` | UiKit area-nav provider (tenant + settings navigation) | FR-UI-002 |
 
 ## Notifications
 
@@ -210,8 +212,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/public/uptime-dashboard.js` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-monitor-detail.js` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-theme.css` | Built frontend asset | FR-BUILD-001 |
-| `Resources/public/uptime-ui-bootstrap.css` | Built frontend asset | FR-BUILD-001 |
-| `Resources/public/uptime-ui-tailwind.css` | Built frontend asset | FR-BUILD-001 |
 
 ## SCSS themes
 
@@ -227,9 +227,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/scss/_settings.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/_variables.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/uptime-dashboard.scss` | SCSS partial/theme | FR-STYLE-001 |
+| `Resources/assets/scss/_ui-contract.scss` | SCSS partial/theme (UiKit page contract tokens / layout) | FR-STYLE-001 |
 | `Resources/assets/scss/uptime-theme.scss` | SCSS partial/theme | FR-STYLE-001 |
-| `Resources/assets/scss/uptime-ui-bootstrap.scss` | SCSS partial/theme | FR-STYLE-001 |
-| `Resources/assets/scss/uptime-ui-tailwind.scss` | SCSS partial/theme | FR-STYLE-001 |
 
 ## Symfony config
 
@@ -254,10 +253,10 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Resources/views/_form_theme.html.twig` | Shared partial template | FR-VIEW-010 |
 | `Resources/views/_history_bar.html.twig` | Shared partial template | FR-VIEW-010 |
+| `Resources/views/_legacy_layout.html.twig` | Deprecated bridge around a 1.x layout (uptime_content) | FR-VIEW-001 |
+| `Resources/views/_robots.html.twig` | Shared partial template (noindex meta) | FR-VIEW-010 |
 | `Resources/views/_stylesheets.html.twig` | Shared partial template | FR-VIEW-010 |
-| `Resources/views/_monitor_actions.html.twig` | Monitor open/edit action links (domain partial; generic UI lives in UiKit) | FR-VIEW-010 |
 | `Resources/views/dashboard/_events_body.html.twig` | Dashboard template | FR-VIEW-003 |
 | `Resources/views/dashboard/_layout_fragment.html.twig` | Layout template | FR-VIEW-001 |
 | `Resources/views/dashboard/_quick_stats.html.twig` | Dashboard template | FR-VIEW-003 |
@@ -265,15 +264,12 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/dashboard/_sidebar_row.html.twig` | Dashboard template | FR-VIEW-003 |
 | `Resources/views/dashboard/_sidebar_tree.html.twig` | Dashboard template | FR-VIEW-003 |
 | `Resources/views/dashboard/index.html.twig` | Dashboard template | FR-VIEW-003 |
-| `Resources/views/layout.html.twig` | Layout template | FR-VIEW-001 |
 | `Resources/views/monitor/_monitor_edit_modal.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/_monitor_form_body.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/_monitor_form_fields.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/_monitor_form_modal.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/form.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/show.html.twig` | Monitor UI template | FR-VIEW-004 |
-| `Resources/views/settings/_layout.html.twig` | Layout template | FR-VIEW-001 |
-| `Resources/views/settings/_nav.html.twig` | Settings UI template | FR-VIEW-002 |
 | `Resources/views/settings/about.html.twig` | Settings UI template | FR-VIEW-002 |
 | `Resources/views/settings/appearance.html.twig` | Settings UI template | FR-VIEW-002 |
 | `Resources/views/settings/backup.html.twig` | Settings UI template | FR-VIEW-002 |

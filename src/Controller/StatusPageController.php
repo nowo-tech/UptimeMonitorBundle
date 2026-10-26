@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Controller;
 
+use Nowo\UiKitBundle\View\PageHeader;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -11,6 +12,7 @@ use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Response;
@@ -33,6 +35,7 @@ final class StatusPageController extends AbstractController
         private readonly CheckResultRepository $checkResultRepository,
         #[Autowire('%nowo_uptime_monitor.status_page%')]
         private readonly array $statusPageConfig,
+        private readonly UptimePages $pages = new UptimePages(),
     ) {
     }
 
@@ -73,15 +76,18 @@ final class StatusPageController extends AbstractController
             ];
         }
 
-        return $this->render('@NowoUptimeMonitorBundle/status/index.html.twig', [
+        $title = is_string($this->statusPageConfig['title'] ?? null) && $this->statusPageConfig['title'] !== ''
+            ? $this->statusPageConfig['title']
+            : $tenant->getName();
+
+        return $this->render($this->pages->template('status', '@NowoUptimeMonitorBundle/status/index.html.twig'), [
+            'header'         => new PageHeader($title, breadcrumbsMode: 'own'),
             'tenant'         => $tenant,
             'tenant_slug'    => $tenantSlug,
             'rows'           => $rows,
             'overall_status' => $this->resolveOverallStatus($rows),
             'show_latency'   => (bool) ($this->statusPageConfig['show_latency'] ?? true),
-            'title'          => is_string($this->statusPageConfig['title'] ?? null)
-                ? $this->statusPageConfig['title']
-                : $tenant->getName(),
+            'title'          => $title,
         ]);
     }
 

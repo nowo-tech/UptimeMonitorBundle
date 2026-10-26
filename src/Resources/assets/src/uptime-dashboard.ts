@@ -21,7 +21,7 @@ import {
 } from './dashboard-ui';
 import { subscribeMercure } from './mercure-subscriber';
 import { createBundleLogger, setBundleLogger, getLogger } from './uptime-logger';
-import { initMonitorFormModal } from './monitor-form-modal';
+import { initMonitorFormModal, initMonitorFormTypeToggle } from './monitor-form-modal';
 
 async function syncFromSummary(root: HTMLElement, apiUrl: string): Promise<void> {
   const data = await fetchSummary(apiUrl);
@@ -123,6 +123,8 @@ function bootstrapMercure(root: HTMLElement, hubUrl: string, topic: string): voi
 function bootstrap(): void {
   const root = document.getElementById('uptime-dashboard-root');
   if (root === null) {
+    // Monitor form page: show the fieldsets of the selected monitor type.
+    initMonitorFormTypeToggle(document);
     return;
   }
 

@@ -11,12 +11,12 @@
         {% if monitor.paused %}—{% elseif row.uptime_24h is not null %}{{ row.uptime_24h|number_format(0) }}%{% else %}—{% endif %}
     </span>
     <span class="uptime-sidebar-label">
-        <a href="{{ path('nowo_uptime_monitor_show', { tenantSlug: tenant_slug, id: monitor.id }) }}" class="uptime-sidebar-name" data-sidebar-name>{{ monitor.name }}</a>
+        <a href="{{ path('nowo_uptime_monitor_show', {tenantSlug: tenant_slug, id: monitor.id}) }}" class="uptime-sidebar-name" data-sidebar-name>{{ monitor.name }}</a>
     </span>
     <span class="uptime-sidebar-history" data-history-container>
-        {% include '@NowoUptimeMonitorBundle/_history_bar.html.twig' with {
+        {{ include('@NowoUptimeMonitorBundle/_history_bar.html.twig', {
             history: row.history,
             bar_theme: heartbeat_bar_theme|default('normal'),
-        } %}
+        }) }}
     </span>
 </div>

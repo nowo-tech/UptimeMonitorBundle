@@ -1,5 +1,6 @@
 /**
- * Host shell integration: the host's theme attribute (Tabler / Bootstrap `data-bs-theme`, or `data-theme` as
+ * Host shell integration (REQ-UI-001 tokens): colours come from the UiKit --nowo-ui-* tokens first, then the host's
+ * Tabler --tblr-* tokens, then the bundle defaults. The host's theme attribute (Tabler / Bootstrap `data-bs-theme`, or `data-theme` as
  * UiKit / Tailwind hosts set it) on an ancestor; the embedded rules outrank the framework stylesheet.
  * Apply class `uptime-app--embedded` on the root wrapper when the bundle UI
  * is rendered inside a host layout that already provides Tabler + branding tokens.
@@ -7,46 +8,46 @@
 
 @mixin uptime-host-light-tokens {
   --uptime-shell-bg: transparent;
-  --uptime-shell-text: var(--tblr-body-color, #0f172a);
-  --uptime-header-bg: var(--tblr-bg-surface, #ffffff);
-  --uptime-header-border: var(--tblr-border-color, #e2e8f0);
-  --uptime-link: var(--tblr-primary, var(--brand-primary, #2563eb));
-  --uptime-bg: var(--tblr-body-bg, #f1f5f9);
-  --uptime-surface: var(--tblr-bg-surface, #ffffff);
-  --uptime-border: var(--tblr-border-color, #e2e8f0);
-  --uptime-text: var(--tblr-body-color, #0f172a);
-  --uptime-muted: var(--tblr-secondary, #64748b);
-  --uptime-sidebar-bg: var(--tblr-bg-surface, #ffffff);
-  --uptime-sidebar-hover: color-mix(in oklab, var(--tblr-primary, #2563eb) 8%, transparent);
-  --uptime-sidebar-selected: color-mix(in oklab, var(--tblr-primary, #2563eb) 12%, transparent);
-  --uptime-sidebar-link: var(--tblr-secondary, #334155);
-  --uptime-sidebar-name: var(--tblr-body-color, #0f172a);
-  --uptime-input-bg: var(--tblr-bg-forms, #ffffff);
-  --uptime-input-border: var(--tblr-border-color, #cbd5e1);
-  --uptime-events-bg: var(--tblr-bg-surface, #ffffff);
-  --uptime-table-head-bg: var(--tblr-bg-surface-secondary, #f1f5f9);
+  --uptime-shell-text: var(--nowo-ui-text, var(--tblr-body-color, #0f172a));
+  --uptime-header-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #ffffff));
+  --uptime-header-border: var(--nowo-ui-border, var(--tblr-border-color, #e2e8f0));
+  --uptime-link: var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary, #2563eb)));
+  --uptime-bg: var(--nowo-ui-surface-muted, var(--tblr-body-bg, #f1f5f9));
+  --uptime-surface: var(--nowo-ui-surface, var(--tblr-bg-surface, #ffffff));
+  --uptime-border: var(--nowo-ui-border, var(--tblr-border-color, #e2e8f0));
+  --uptime-text: var(--nowo-ui-text, var(--tblr-body-color, #0f172a));
+  --uptime-muted: var(--nowo-ui-muted, var(--tblr-secondary, #64748b));
+  --uptime-sidebar-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #ffffff));
+  --uptime-sidebar-hover: color-mix(in oklab, var(--nowo-ui-primary, var(--tblr-primary, #2563eb)) 8%, transparent);
+  --uptime-sidebar-selected: color-mix(in oklab, var(--nowo-ui-primary, var(--tblr-primary, #2563eb)) 12%, transparent);
+  --uptime-sidebar-link: var(--nowo-ui-muted, var(--tblr-secondary, #334155));
+  --uptime-sidebar-name: var(--nowo-ui-text, var(--tblr-body-color, #0f172a));
+  --uptime-input-bg: var(--nowo-ui-surface, var(--tblr-bg-forms, #ffffff));
+  --uptime-input-border: var(--nowo-ui-border, var(--tblr-border-color, #cbd5e1));
+  --uptime-events-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #ffffff));
+  --uptime-table-head-bg: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, #f1f5f9));
 }
 
 @mixin uptime-host-dark-tokens {
   --uptime-shell-bg: transparent;
-  --uptime-shell-text: var(--tblr-body-color, #e8eaed);
-  --uptime-header-bg: var(--tblr-bg-surface, #1e2229);
-  --uptime-header-border: var(--tblr-border-color, #2a2f3a);
-  --uptime-link: var(--tblr-primary, var(--brand-primary, #7ec8cf));
-  --uptime-bg: var(--tblr-body-bg, #1a1d23);
-  --uptime-surface: var(--tblr-bg-surface, #252830);
-  --uptime-border: var(--tblr-border-color, #3a3f4b);
-  --uptime-text: var(--tblr-body-color, #e8eaed);
-  --uptime-muted: var(--tblr-secondary, #9aa0a6);
-  --uptime-sidebar-bg: var(--tblr-bg-surface, #1e2229);
-  --uptime-sidebar-hover: color-mix(in oklab, var(--tblr-primary, #7ec8cf) 10%, transparent);
-  --uptime-sidebar-selected: color-mix(in oklab, var(--tblr-primary, #7ec8cf) 14%, transparent);
-  --uptime-sidebar-link: var(--tblr-secondary, #9aa0a6);
-  --uptime-sidebar-name: var(--tblr-body-color, #e8eaed);
-  --uptime-input-bg: var(--tblr-bg-forms, #252830);
-  --uptime-input-border: var(--tblr-border-color, #3a3f4b);
-  --uptime-events-bg: var(--tblr-bg-surface, #252830);
-  --uptime-table-head-bg: var(--tblr-bg-surface-secondary, #1a1d23);
+  --uptime-shell-text: var(--nowo-ui-text, var(--tblr-body-color, #e8eaed));
+  --uptime-header-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #1e2229));
+  --uptime-header-border: var(--nowo-ui-border, var(--tblr-border-color, #2a2f3a));
+  --uptime-link: var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary, #7ec8cf)));
+  --uptime-bg: var(--nowo-ui-surface-muted, var(--tblr-body-bg, #1a1d23));
+  --uptime-surface: var(--nowo-ui-surface, var(--tblr-bg-surface, #252830));
+  --uptime-border: var(--nowo-ui-border, var(--tblr-border-color, #3a3f4b));
+  --uptime-text: var(--nowo-ui-text, var(--tblr-body-color, #e8eaed));
+  --uptime-muted: var(--nowo-ui-muted, var(--tblr-secondary, #9aa0a6));
+  --uptime-sidebar-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #1e2229));
+  --uptime-sidebar-hover: color-mix(in oklab, var(--nowo-ui-primary, var(--tblr-primary, #7ec8cf)) 10%, transparent);
+  --uptime-sidebar-selected: color-mix(in oklab, var(--nowo-ui-primary, var(--tblr-primary, #7ec8cf)) 14%, transparent);
+  --uptime-sidebar-link: var(--nowo-ui-muted, var(--tblr-secondary, #9aa0a6));
+  --uptime-sidebar-name: var(--nowo-ui-text, var(--tblr-body-color, #e8eaed));
+  --uptime-input-bg: var(--nowo-ui-surface, var(--tblr-bg-forms, #252830));
+  --uptime-input-border: var(--nowo-ui-border, var(--tblr-border-color, #3a3f4b));
+  --uptime-events-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #252830));
+  --uptime-table-head-bg: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, #1a1d23));
 }
 
 :is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded.uptime-theme-auto,
@@ -60,46 +61,46 @@
 }
 
 @mixin uptime-host-panel-tokens-light {
-  --uptime-bg: var(--tblr-body-bg, #f1f5f9);
-  --uptime-surface: var(--tblr-bg-surface, #ffffff);
-  --uptime-border: var(--tblr-border-color, #e2e8f0);
-  --uptime-text: var(--tblr-body-color, #0f172a);
-  --uptime-muted: var(--tblr-secondary, #64748b);
-  --uptime-sidebar-bg: var(--tblr-bg-surface, #ffffff);
-  --uptime-sidebar-name: var(--tblr-body-color, #0f172a);
-  --uptime-input-bg: var(--tblr-bg-forms, #ffffff);
-  --uptime-input-border: var(--tblr-border-color, #cbd5e1);
-  --uptime-events-bg: var(--tblr-bg-surface, #ffffff);
-  --uptime-table-head-bg: var(--tblr-bg-surface-secondary, #f1f5f9);
+  --uptime-bg: var(--nowo-ui-surface-muted, var(--tblr-body-bg, #f1f5f9));
+  --uptime-surface: var(--nowo-ui-surface, var(--tblr-bg-surface, #ffffff));
+  --uptime-border: var(--nowo-ui-border, var(--tblr-border-color, #e2e8f0));
+  --uptime-text: var(--nowo-ui-text, var(--tblr-body-color, #0f172a));
+  --uptime-muted: var(--nowo-ui-muted, var(--tblr-secondary, #64748b));
+  --uptime-sidebar-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #ffffff));
+  --uptime-sidebar-name: var(--nowo-ui-text, var(--tblr-body-color, #0f172a));
+  --uptime-input-bg: var(--nowo-ui-surface, var(--tblr-bg-forms, #ffffff));
+  --uptime-input-border: var(--nowo-ui-border, var(--tblr-border-color, #cbd5e1));
+  --uptime-events-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #ffffff));
+  --uptime-table-head-bg: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, #f1f5f9));
   --uptime-up: var(--tblr-success, #22c55e);
-  --uptime-down: var(--tblr-danger, #ef4444);
+  --uptime-down: var(--nowo-ui-danger, var(--tblr-danger, #ef4444));
   --uptime-degraded: var(--tblr-warning, #eab308);
-  --uptime-unknown: var(--tblr-secondary, #64748b);
+  --uptime-unknown: var(--nowo-ui-muted, var(--tblr-secondary, #64748b));
 }
 
 @mixin uptime-host-panel-tokens-dark {
-  --uptime-bg: var(--tblr-body-bg, #1a1d23);
-  --uptime-surface: var(--tblr-bg-surface, #252830);
-  --uptime-border: var(--tblr-border-color, #3a3f4b);
-  --uptime-text: var(--tblr-body-color, #e8eaed);
-  --uptime-muted: var(--tblr-secondary, #9aa0a6);
-  --uptime-sidebar-bg: var(--tblr-bg-surface, #1e2229);
-  --uptime-sidebar-name: var(--tblr-body-color, #e8eaed);
-  --uptime-input-bg: var(--tblr-bg-forms, #252830);
-  --uptime-input-border: var(--tblr-border-color, #3a3f4b);
-  --uptime-events-bg: var(--tblr-bg-surface, #252830);
-  --uptime-table-head-bg: var(--tblr-bg-surface-secondary, #1a1d23);
+  --uptime-bg: var(--nowo-ui-surface-muted, var(--tblr-body-bg, #1a1d23));
+  --uptime-surface: var(--nowo-ui-surface, var(--tblr-bg-surface, #252830));
+  --uptime-border: var(--nowo-ui-border, var(--tblr-border-color, #3a3f4b));
+  --uptime-text: var(--nowo-ui-text, var(--tblr-body-color, #e8eaed));
+  --uptime-muted: var(--nowo-ui-muted, var(--tblr-secondary, #9aa0a6));
+  --uptime-sidebar-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #1e2229));
+  --uptime-sidebar-name: var(--nowo-ui-text, var(--tblr-body-color, #e8eaed));
+  --uptime-input-bg: var(--nowo-ui-surface, var(--tblr-bg-forms, #252830));
+  --uptime-input-border: var(--nowo-ui-border, var(--tblr-border-color, #3a3f4b));
+  --uptime-events-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #252830));
+  --uptime-table-head-bg: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, #1a1d23));
   --uptime-up: var(--tblr-success, #22c55e);
-  --uptime-down: var(--tblr-danger, #ef4444);
+  --uptime-down: var(--nowo-ui-danger, var(--tblr-danger, #ef4444));
   --uptime-degraded: var(--tblr-warning, #eab308);
-  --uptime-unknown: var(--tblr-secondary, #64748b);
+  --uptime-unknown: var(--nowo-ui-muted, var(--tblr-secondary, #64748b));
 }
 
 :is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-dashboard-kuma,
 :is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-detail,
 :is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-kuma-layout {
   @include uptime-host-panel-tokens-light;
-  background: var(--tblr-bg-surface, var(--uptime-surface));
+  background: var(--nowo-ui-surface, var(--tblr-bg-surface, var(--uptime-surface)));
   color: var(--uptime-text);
 }
 
@@ -107,19 +108,19 @@
 :is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-detail,
 :is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-kuma-layout {
   @include uptime-host-panel-tokens-dark;
-  background: var(--tblr-bg-surface, var(--uptime-surface));
+  background: var(--nowo-ui-surface, var(--tblr-bg-surface, var(--uptime-surface)));
   color: var(--uptime-text);
 }
 
 :is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-btn-primary,
 :is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-btn-primary {
-  background: var(--tblr-primary, var(--brand-primary, #2563eb));
-  border-color: var(--tblr-primary, var(--brand-primary, #2563eb));
+  background: var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary, #2563eb)));
+  border-color: var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary, #2563eb)));
 }
 
 :is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-btn-link,
 :is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-btn-link {
-  color: var(--tblr-primary, var(--brand-primary, #2563eb));
+  color: var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary, #2563eb)));
 }
 
 /* Embedded shell layout (nowo-devkit platform) */
@@ -147,7 +148,7 @@
   }
 
   .uptime-live-indicator {
-    background: var(--tblr-bg-surface-secondary, var(--uptime-surface));
+    background: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, var(--uptime-surface)));
     color: var(--uptime-muted);
   }
 
@@ -162,7 +163,7 @@
     padding: 0;
     border: 1px solid var(--uptime-border);
     border-radius: var(--tblr-border-radius-lg, 0.5rem);
-    background: var(--tblr-bg-surface, var(--uptime-bg));
+    background: var(--nowo-ui-surface, var(--tblr-bg-surface, var(--uptime-bg)));
     box-shadow: var(--tblr-box-shadow-card, none);
     overflow: hidden;
   }
@@ -192,8 +193,8 @@
 
     &:focus {
       outline: none;
-      border-color: var(--tblr-primary, var(--brand-primary));
-      box-shadow: 0 0 0 0.15rem color-mix(in oklab, var(--tblr-primary, var(--brand-primary)) 20%, transparent);
+      border-color: var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary)));
+      box-shadow: 0 0 0 0.15rem color-mix(in oklab, var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary))) 20%, transparent);
     }
   }
 
@@ -334,7 +335,7 @@
     gap: 0.5rem;
     padding: 0.75rem 0 0.25rem;
     margin-top: 0.5rem;
-    background: var(--tblr-bg-surface, var(--uptime-surface));
+    background: var(--nowo-ui-surface, var(--tblr-bg-surface, var(--uptime-surface)));
     border-top: 1px solid var(--uptime-border);
   }
 
@@ -347,7 +348,7 @@
 
   .uptime-events-header {
     padding: 0.75rem 1rem;
-    background: var(--tblr-bg-surface-secondary, var(--uptime-surface));
+    background: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, var(--uptime-surface)));
     border-bottom: 1px solid var(--uptime-border);
   }
 
@@ -357,7 +358,7 @@
   }
 
   .uptime-events-table th {
-    background: var(--tblr-bg-surface-secondary, var(--uptime-table-head-bg));
+    background: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, var(--uptime-table-head-bg)));
   }
 
   .uptime-events-table th,
@@ -377,12 +378,12 @@
 
   .uptime-settings-nav a.is-active,
   .uptime-settings-nav a:hover {
-    background: color-mix(in oklab, var(--tblr-primary, var(--brand-primary)) 10%, transparent);
-    color: var(--tblr-primary, var(--brand-primary));
+    background: color-mix(in oklab, var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary))) 10%, transparent);
+    color: var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary)));
   }
 
   .uptime-settings-content {
-    background: var(--tblr-bg-surface, var(--uptime-surface));
+    background: var(--nowo-ui-surface, var(--tblr-bg-surface, var(--uptime-surface)));
     border: 1px solid var(--uptime-border);
     color: var(--uptime-text);
     box-shadow: var(--tblr-box-shadow-card, none);
@@ -405,7 +406,7 @@
   }
 
   .uptime-form-section {
-    background: var(--tblr-bg-surface-secondary, var(--uptime-surface));
+    background: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, var(--uptime-surface)));
     border: 1px solid var(--uptime-border);
     color: var(--uptime-text);
   }
@@ -415,6 +416,6 @@
   }
 
   .uptime-nav--settings a {
-    color: var(--tblr-primary, var(--brand-primary));
+    color: var(--nowo-ui-primary, var(--tblr-primary, var(--brand-primary)));
   }
 }

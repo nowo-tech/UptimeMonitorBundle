@@ -12,7 +12,7 @@
 - [Host integration (tenants, access, events)](#host-integration-tenants-access-events)
 - [Overriding templates](#overriding-templates)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
-  - [Layout and CSS stack (REQ-UI-001 naming, BC preserved)](#layout-and-css-stack-req-ui-001-naming-bc-preserved)
+  - [Layout and CSS stack (REQ-UI-001 / REQ-UI-003)](#layout-and-css-stack-req-ui-001--req-ui-003)
 
 ## Dashboard
 
@@ -138,52 +138,61 @@ The bundle registers the Twig namespace **`@NowoUptimeMonitorBundle/`**. **`Twig
 templates/bundles/NowoUptimeMonitorBundle/
 ├── dashboard/index.html.twig
 ├── monitor/show.html.twig
-├── status/index.html.twig
-└── layout.html.twig
+└── status/index.html.twig
 ```
 
-Copy from `vendor/nowo-tech/uptime-monitor-bundle/src/Resources/views/` as a starting point.
+Prefer **not** copying pages: since 1.10 they are UiKit page scaffolds (REQ-UI-003). Theme every page once through
+`nowo_ui_kit` (layouts, `css_framework`, `theme`), and for a bundle-specific change point
+`nowo_uptime_monitor.web_ui.templates.<page>` at a thin template that extends the bundle page and overrides one data
+block — see [TEMPLATES.md](TEMPLATES.md) for the pages, view models and data blocks:
+
+```twig
+{# templates/uptime/dashboard.html.twig — web_ui.templates.dashboard #}
+{% extends '@NowoUptimeMonitorBundle/dashboard/index.html.twig' %}
+{% block nowo_ui_dashboard_cards %}
+    <p class="{{ nowo_ui_class('muted', page.bundle) }}">Maintenance window every Sunday 02:00 UTC.</p>
+    {{ parent() }}
+{% endblock %}
+```
 
 ### Forms in templates (REQ-TWIG-005)
 
 Every form in the bundle views is a PHP Symfony Form Type (Form Kit `uptime_monitor` profile) created by the controller and rendered with `form_start` / the child loop / `form_end`. CSRF-only actions (purge history, clear statistics, delete tag) use `CsrfActionFormType`; the backup import uses `BackupImportFormType` (`FileType`, multipart); the dashboard sidebar filter uses `MonitorSearchFormType` (client-side only, never submitted). Field names and CSRF token ids are unchanged (`_token`, `action`, `import_mode`, `backup`).
 
 ```twig
-{{ form_start(purge_form, { attr: { class: 'uptime-settings-action' } }) }}
-    {% for child in purge_form %}
-        {% if not child.rendered %}
-            {{ form_row(child) }}
-        {% endif %}
+{# settings/history.html.twig: the section form through the scaffold, CSRF actions through the UiKit action partial #}
+{% block nowo_ui_settings_section %}
+    {{ parent() }}
+    {% for action in history_actions %}
+        {{ include(nowo_ui_partial('action', page.bundle), { action: action, bundle: page.bundle }, false) }}
     {% endfor %}
-    <button type="submit" class="uptime-btn">…</button>
-{{ form_end(purge_form) }}
+{% endblock %}
 ```
 
 Template overrides and the demo **must not** reintroduce raw `<form>`, `<input>`, `<textarea>` or `<select>` markup; `make check-no-raw-html-form` (part of `release-check`) fails when they do. The form variables each view receives are listed in [UPGRADING](UPGRADING.md#unreleased).
 
-### Layout and CSS stack (REQ-UI-001 naming, BC preserved)
+### Layout and CSS stack (REQ-UI-001 / REQ-UI-003)
 
-| Canonical (current) | Equivalent alias | Twig globals |
-|---------------------|------------------|--------------|
-| `templates.layout` | `templates.layout_template` | `uptime_layout` **and** `nowo_uptime_layout_template` (same value) |
-| `ui.framework` | `ui.css_framework` | `uptime_ui_framework` |
+| Concern | Key (1.10+) | Deprecated 1.x key |
+|---------|-------------|--------------------|
+| Admin layout | `nowo_ui_kit.layouts.admin`, or `nowo_uptime_monitor.web_ui.layout_template` (null = UiKit) | `templates.layout` / `templates.layout_template` |
+| CSS stack, row actions, theme | `nowo_ui_kit.css_framework`, `nowo_ui_kit.theme` | `ui.framework` / `ui.css_framework` (seed only) |
+| Form theme | `web_ui.form_themes` (default UiKit `nowo_ui_layout`) | per-framework `_form_theme.html.twig` (removed) |
+| Per-page template | `web_ui.templates.<page>` | copying pages into `templates/bundles/` |
 
-The `uptime_ui_framework` global holds the configured `ui.framework`. For the value of the current tenant (settings override) use the Twig function **`uptime_ui_framework()`**; the tenant theme (`light` / `dark` / `auto`) is **`uptime_theme()`**. Functions are evaluated per request, globals are cached by Twig for the worker lifetime.
+Pages extend the UiKit scaffolds and fill the canonical blocks: the layout renders `nowo_ui_document_title`,
+`nowo_ui_head`, `nowo_ui_styles`, `nowo_ui_navigation`, `nowo_ui_page_header`, `nowo_ui_flashes`, `nowo_ui_content`,
+`nowo_ui_modals` and `nowo_ui_scripts`; bundle CSS / JS stack with **`{{ parent() }}`** in `nowo_ui_styles` /
+`nowo_ui_scripts`, so host assets stay. The bundle ships no layout and loads no CDN. The public status page is a
+unique page on `nowo_ui_kit.layouts.guest`.
 
-Admin pages `{% extends uptime_layout %}` (or `nowo_uptime_layout_template`) and fill `{% block uptime_content %}`. Prefer pointing the layout at your project layout (or a one-file bridge) instead of copying every page:
+The Twig globals `uptime_layout` / `nowo_uptime_layout_template` (deprecated `templates.layout`) and
+`uptime_ui_framework` are kept for 1.x host templates but no bundle page reads them. The tenant theme (`light` /
+`dark` / `auto`) is the function **`uptime_theme()`** (evaluated per request).
 
-```yaml
-nowo_uptime_monitor:
-    templates:
-        # either key works:
-        layout: 'base.html.twig'
-        # layout_template: 'base.html.twig'
-    ui:
-        # either key works:
-        framework: tabler
-        # css_framework: tabler
-```
+Row actions, the monitor dialog (native `<dialog>`, UiKit `dialog` partial) and the confirm dialogs (Clear all
+statistics, delete tag) are UiKit partials driven by `View\Action` / `View\Confirm`; include the UiKit scripts in
+your layout (`nowo_ui_partial('scripts')`, already in the UiKit layouts). The bundle navigation is published to the
+UiKit area-nav registry (`nowo_ui_area_nav('uptime_monitor', {tenantSlug: …})`, `uptime_monitor_settings`).
 
-Pages that add CSS/JS stack with **`{{ parent() }}`** in `stylesheets` / `javascripts` so host assets remain when you use a project layout. The default `@NowoUptimeMonitorBundle/layout.html.twig` is a **demo** full HTML document (Tabler / framework CDN via `_stylesheets.html.twig`); the public status page stays standalone.
-
-See also [CONFIGURATION.md](CONFIGURATION.md) for `ui.*` / `templates.*` details.
+See also [CONFIGURATION.md](CONFIGURATION.md) for `web_ui.*` details and [TEMPLATES.md](TEMPLATES.md) for every page.

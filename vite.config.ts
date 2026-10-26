@@ -49,8 +49,6 @@ export default defineConfig({
         'uptime-dashboard': resolve(srcDir, 'uptime-dashboard.ts'),
         'uptime-monitor-detail': resolve(srcDir, 'uptime-monitor-detail.ts'),
         'uptime-theme': resolve(scssDir, 'uptime-theme.scss'),
-        'uptime-ui-bootstrap': resolve(scssDir, 'uptime-ui-bootstrap.scss'),
-        'uptime-ui-tailwind': resolve(scssDir, 'uptime-ui-tailwind.scss'),
       },
       output: {
         entryFileNames: '[name].js',

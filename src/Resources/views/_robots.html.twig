@@ -1,0 +1,4 @@
+{# noindex meta when the tenant setting "search engine index" is off (variable uptime_search_index, set by the controllers). #}
+{% if uptime_search_index is defined and uptime_search_index is same as(false) %}
+    <meta name="robots" content="noindex, nofollow">
+{% endif %}

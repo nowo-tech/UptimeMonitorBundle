@@ -1,0 +1,22 @@
+{#
+  Demo host layout (REQ-UI-003 nowo_ui_kit.layouts.admin): the UiKit admin layout plus a small demo masthead in
+  nowo_ui_navigation. Every Uptime Monitor admin page (UiKit scaffolds) renders inside it; no bundle layout, no CDN.
+#}
+{% extends '@NowoUiKit/layout/admin.html.twig' %}
+
+{% block nowo_ui_navigation %}
+    <header class="demo-masthead">
+        <a class="demo-masthead__brand" href="{{ path('demo_home') }}">Uptime Monitor demo</a>
+        <nav class="demo-masthead__nav" aria-label="Demo">
+            <a href="{{ path('nowo_uptime_tenant_index') }}">Tenants</a>
+            <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: 'main' }) }}">Dashboard</a>
+            <a href="{{ path('nowo_uptime_settings_index', { tenantSlug: 'main' }) }}">Settings</a>
+            <a href="{{ path('nowo_uptime_status_page', { tenantSlug: 'main' }) }}">Status page</a>
+        </nav>
+    </header>
+{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('demo.css') }}">
+{% endblock %}

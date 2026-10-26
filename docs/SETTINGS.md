@@ -68,7 +68,7 @@ This adds `uptime_tenant.settings` and the `uptime_tag` table when missing (idem
 | `theme` | Theme | `auto` | `light`, `dark`, or `auto` |
 | `heartbeat_bar_theme` | Heartbeat bar | `normal` | `normal`, `bottom`, or `none` |
 | `elapsed_time` | Elapsed time | `show` | `show`, `show_line`, or `none` |
-| `ui_framework` | UI framework | (global YAML) | `default`, `custom`, `bootstrap`, or `tailwind`; see [CONFIGURATION.md](CONFIGURATION.md#ui-framework-bootstrap--tailwind) |
+| `ui_framework` | UI framework | (global YAML) | `default`, `custom`, `bootstrap`, or `tailwind`; since 1.10 stored but no longer changes the markup (pages follow `nowo_ui_kit.css_framework`), see [CONFIGURATION.md](CONFIGURATION.md#ui-framework-deprecated-ui) |
 
 **Interface language** is not stored per tenant; it follows the host app **session locale** (Symfony routing / locale switcher). Appearance shows the active locale read-only. **Theme** and other appearance options apply on the dashboard and settings UI. See [TRANSLATIONS.md](TRANSLATIONS.md).
 

@@ -1,16 +1,25 @@
-{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
-{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
-{% set kit_fw = uptime_ui_framework() == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework() %}
+{#
+  Settings → Reverse proxy (and any other plain settings form) (REQ-UI-003): UiKit settings scaffold.
+  Variables: page (View\SettingsPage from SettingsController: header settings.title with a back link to the dashboard;
+  one section per settings screen with its href (section tabs), current = this screen), and the 1.x variables
+  tenant, tenant_slug, section, section_title. Section: form = the section Form Type, submit settings.save.
+  Data block filled: nowo_ui_settings_section (parent(): the section form with the REQ-TWIG-003 child loop).
+#}
+{% extends '@NowoUiKit/page/settings.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block settings_body %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
-    {{ form_start(form, { attr: { class: 'uptime-settings-form' } }) }}
-        <div class="uptime-settings-form-grid">
-            {{ form_widget(form) }}
-        </div>
-        <div class="uptime-form-actions">
-            <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">{{ 'settings.save'|trans }}</button>
-        </div>
-    {{ form_end(form) }}
+{% block nowo_ui_head %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_robots.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_settings_section %}
+    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+        {{ parent() }}
+    </div>
 {% endblock %}

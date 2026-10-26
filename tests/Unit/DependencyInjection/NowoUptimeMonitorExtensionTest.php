@@ -248,6 +248,9 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
             ) {
                 $found = true;
                 self::assertSame('NowoUptimeMonitorBundle', $cfg['profiles']['uptime_monitor']['translation_domain']);
+                // REQ-UI-003: no framework classes, convention keys only when translated
+                self::assertTrue($cfg['profiles']['uptime_monitor']['convention_requires_translation']);
+                self::assertSame(['attr' => [], 'row_attr' => []], $cfg['profiles']['uptime_monitor']['defaults']);
                 break;
             }
         }
@@ -370,5 +373,36 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class]);
 
         return $container;
+    }
+
+    public function testCanonicalWebUiAndRoleKeysResolveTheParameters(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[
+            'web_ui'   => ['path_prefix' => '/projects/{tenantSlug}/uptime', 'layout_template' => 'layouts/admin.html.twig'],
+            'security' => ['roles' => ['manage' => ['ROLE_OPS']]],
+        ]], $container);
+
+        self::assertSame('/projects/{tenantSlug}/uptime', $container->getParameter('nowo_uptime_monitor.dashboard.path'));
+        /** @var array<string, mixed> $webUi */
+        $webUi = $container->getParameter('nowo_uptime_monitor.web_ui');
+        self::assertTrue($webUi['enabled']);
+        self::assertSame('/projects/{tenantSlug}/uptime', $webUi['path_prefix']);
+        self::assertSame('layouts/admin.html.twig', $webUi['layout_template']);
+        $checker = $container->getDefinition('nowo_uptime_monitor.access_checker.default');
+        self::assertSame(['ROLE_OPS'], $checker->getArgument('$manageRoles'));
+        self::assertSame(['ROLE_ADMIN'], $checker->getArgument('$dashboardRoles'));
+    }
+
+    public function testDeprecatedDashboardKeysStillApply(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[
+            'dashboard' => ['path' => '/monitoring'],
+            'security'  => ['settings_roles' => ['ROLE_OWNER']],
+        ]], $container);
+
+        self::assertSame('/monitoring', $container->getParameter('nowo_uptime_monitor.dashboard.path'));
+        self::assertSame(['ROLE_OWNER'], $container->getDefinition('nowo_uptime_monitor.access_checker.default')->getArgument('$settingsRoles'));
     }
 }

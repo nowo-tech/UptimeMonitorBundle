@@ -28,19 +28,15 @@ nowo_uptime_monitor:
     tenants:
         list_enabled: true
         redirect_when_single: false
-    ui:
-        framework: tabler          # tabler | custom | bootstrap | tailwind
-        tabler:
-            skip_cdn: false        # true when host app serves Tabler (e.g. nowo-devkit Vite)
-        bootstrap:
-            css_url: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
-            js_url: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'
-        tailwind:
-            cdn_script: 'https://cdn.tailwindcss.com'   # Play CDN (dev/prototyping)
-            css_url: null                               # optional compiled CSS URL (production)
+    web_ui:                    # UiKit page contract (REQ-UI-003)
+        enabled: null          # null = dashboard.enabled (true)
+        path_prefix: null      # URL prefix of the admin routes, may hold {tenantSlug}; null = dashboard.path (/uptime)
+        layout_template: null  # null = nowo_ui_kit.layouts.admin; else a layout rendering the UiKit canonical blocks
+        templates: {}          # per-page override, e.g. { dashboard: 'uptime/dashboard.html.twig' } (ids: docs/TEMPLATES.md)
+        form_themes: ['@NowoUiKitBundle/form/nowo_ui_layout.html.twig']   # [] = only twig.form_themes
     dashboard:
-        enabled: true
-        path: /uptime
+        # enabled: true        # deprecated (1.10): web_ui.enabled
+        # path: /uptime        # deprecated (1.10): web_ui.path_prefix
         sync: polling          # polling | mercure (requires symfony/mercure-bundle)
         poll_interval_ms: 30000
         # More URL prefixes for the tenant pages, by tenant slug prefix (dashboard.path must hold {tenantSlug}).
@@ -61,16 +57,19 @@ nowo_uptime_monitor:
         enabled: false
         cooldown_seconds: 300
         http_timeout: 10      # webhook/Slack delivery deadline (s): HttpClient timeout + max_duration
-    templates:
-        layout: '@NowoUptimeMonitorBundle/layout.html.twig'
     security:
         access_roles: [ROLE_ADMIN]   # general gate (REQ-UI-002)
         # access_checker: App\Security\MyUptimeMonitorAccessChecker
         allow_unauthenticated: false # DEV/DEMO only when true
-        dashboard_roles: [ROLE_ADMIN]
-        manage_roles: [ROLE_ADMIN]
-        settings_roles: [ROLE_ADMIN]
+        roles:                       # null = the deprecated *_roles key (default [ROLE_ADMIN])
+            dashboard: [ROLE_ADMIN]   # was security.dashboard_roles (deprecated 1.10)
+            manage: [ROLE_ADMIN]      # was security.manage_roles
+            settings: [ROLE_ADMIN]    # was security.settings_roles
 ```
+
+Deprecated since **1.10** (REQ-UI-003 vocabulary, removed in 2.0): `templates.layout` / `templates.layout_template`,
+`ui.*`, `dashboard.enabled`, `dashboard.path`, `security.dashboard_roles` / `manage_roles` / `settings_roles` — see
+[UPGRADING](UPGRADING.md#configuration-req-ui-003-vocabulary).
 
 ### Monitoring switch and deprecated keys
 
@@ -170,31 +169,43 @@ security:
 
 When `dashboard.enabled` is `true` and `allow_unauthenticated` is `false`, the bundle requires `symfony/security-bundle` to be registered (compile-time `LogicException` otherwise).
 
-### Host app layout (nowo-devkit)
+### Host layout and theme (UiKit page contract, REQ-UI-003)
 
-Override the bundle layout in your app to embed screens in your shell:
-
-```twig
-{# templates/bundles/NowoUptimeMonitorBundle/layout.html.twig #}
-{% extends 'base.html.twig' %}
-{# … include _stylesheets, wrap {% block uptime_content %}, skip bundle header … #}
-```
+The admin pages are UiKit page scaffolds ([TEMPLATES.md](TEMPLATES.md)). They render inside
+`nowo_ui_kit.layouts.admin` (public status page: `nowo_ui_kit.layouts.guest`); set your project layout (or a one-file
+bridge that renders the UiKit canonical blocks) there once for every Nowo bundle, or only for this bundle:
 
 ```yaml
+nowo_ui_kit:
+    css_framework: bootstrap5      # bootstrap5 | bootstrap4 | tailwind | foundation | tabler | custom | none
+    layouts:
+        admin: 'layouts/admin.html.twig'
+    theme:
+        tokens: { primary: '#0b5fff' }
+
 nowo_uptime_monitor:
-    ui:
-        framework: tabler
-        tabler:
-            skip_cdn: true
-    templates:
-        layout: '@NowoUptimeMonitorBundle/layout.html.twig'
+    web_ui:
+        layout_template: null      # or 'layouts/uptime.html.twig' for this bundle only
+        templates:
+            dashboard: 'uptime/dashboard.html.twig'   # extends @NowoUptimeMonitorBundle/dashboard/index.html.twig
 ```
 
-Bundle admin templates extend the configurable `uptime_layout` global (alias: `nowo_uptime_layout_template`) and fill `{% block uptime_content %}`. Config: `templates.layout` ≡ `templates.layout_template`. The public status page stays standalone.
+The bundle loads no CSS framework and no CDN: its stylesheet (`uptime-dashboard.css`, `uptime-theme.css`, asset
+package `nowo_uptime_monitor`) is stacked by the pages in `nowo_ui_styles` after `{{ parent() }}`, its scripts in
+`nowo_ui_scripts`. Bootstrap, Tailwind, Foundation or `custom` markup comes from `nowo_ui_kit.css_framework` and
+`nowo_ui_kit.theme.classes` (theme slots); per-bundle exceptions go in
+`nowo_ui_kit.theme.bundles.NowoUptimeMonitorBundle`.
+
+A 1.x layout that renders `{% block uptime_content %}` (deprecated `templates.layout`, or an override of the former
+`@NowoUptimeMonitorBundle/layout.html.twig`) is wrapped by the deprecated bridge
+`@NowoUptimeMonitorBundle/_legacy_layout.html.twig`.
 
 ### Embedded host theme
 
-When the UI is rendered inside a host app shell (nowo-devkit), add class `uptime-app--embedded` on the root `.uptime-app` wrapper. The bundle maps `--uptime-*` tokens to `--tblr-*` / `--brand-*` via `[data-bs-theme]` or `[data-theme]` (since 1.9.1) on the host document; a host without Tabler defines the `--tblr-*` tokens it wants on `.uptime-app--embedded`.
+The bundle widgets (monitor tree, history bars, charts, status badges) are wrapped in `.uptime-app.uptime-app--embedded`
+and take their colours from the UiKit `--nowo-ui-*` tokens (then the Tabler `--tblr-*` tokens, then the bundle
+defaults). They follow `data-theme` / `data-bs-theme` on an ancestor; a tenant that forces `light` or `dark` in
+Settings → Appearance sets `data-theme` on the widgets.
 
 ### Tenant list UI
 
@@ -226,20 +237,13 @@ Per-monitor override (monitor `config` JSON / advanced setup):
 min_latency_ms: 5
 ```
 
-### UI framework (Bootstrap / Tailwind)
+### UI framework (deprecated `ui.*`)
 
-`ui.framework` selects the styling stack for Twig screens (alias: `ui.css_framework` — same value):
-
-| Value | Description |
-|-------|-------------|
-| `tabler` | Tabler CDN (unless `ui.tabler.skip_cdn`) + bundle CSS — default for nowo-devkit |
-| `custom` | Bundle BEM CSS only (`uptime-dashboard.css` + `uptime-theme.css`) |
-| `bootstrap` | Above + `uptime-ui-bootstrap.css` and Bootstrap 5 CDN + `bootstrap_5_layout` form theme |
-| `tailwind` | Above + `uptime-ui-tailwind.css` and Tailwind CDN (or `ui.tailwind.css_url`) + `tailwind_2_layout` form theme |
-
-Sources: `src/Resources/assets/scss/` (compiled with `pnpm run build` / `make assets`). Do not edit the generated CSS in `public/` by hand.
-
-Per-tenant override: **Settings → Appearance → UI framework** (`settings.ui_framework` in tenant JSON). Use `default` to inherit the global YAML value.
+Since **1.10** the markup follows `nowo_ui_kit.css_framework` (no per-framework templates, no CDN). `ui.framework`
+(alias `ui.css_framework`: `tabler`, `custom`, `bootstrap`, `tailwind`) only seeds `nowo_ui_kit.css_framework` when
+the host does not set it (`bootstrap` → `bootstrap5`); `ui.tabler.*`, `ui.bootstrap.*` and `ui.tailwind.*` have no
+effect. The tenant setting **Settings → Appearance → UI framework** is kept in the tenant JSON but no longer changes
+the markup.
 
 ### Retention: infinite detail history
 

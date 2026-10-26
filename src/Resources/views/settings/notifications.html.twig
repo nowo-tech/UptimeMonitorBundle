@@ -1,19 +1,29 @@
-{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+{#
+  Settings → Notifications (REQ-UI-003): UiKit settings scaffold.
+  Variables: page (View\SettingsPage from SettingsController: header settings.title with a back link to the dashboard;
+  one section per settings screen with its href (section tabs), current = this screen), and the 1.x variables
+  tenant, tenant_slug, section, section_title. Section "notifications" (no form); notification_items (list<View\DetailItem>: enabled, cooldown,
+  email, webhook, Slack), 1.x notifications_config.
+  Data block filled: nowo_ui_settings_section (notes + the UiKit `detail_list` partial).
+#}
+{% extends '@NowoUiKit/page/settings.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block settings_body %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    <p class="uptime-settings-note">{{ 'settings.notifications.intro'|trans|raw }}</p>
-    <dl class="uptime-settings-dl">
-        <dt>{{ 'settings.notifications.enabled'|trans }}</dt>
-        <dd>{{ notifications_config.enabled ? ('settings.notifications.yes'|trans) : ('settings.notifications.no'|trans) }}</dd>
-        <dt>{{ 'settings.notifications.cooldown'|trans }}</dt>
-        <dd>{{ 'settings.notifications.cooldown_seconds'|trans({ '%seconds%': notifications_config.cooldown_seconds ?? 300 }) }}</dd>
-        <dt>{{ 'settings.notifications.email'|trans }}</dt>
-        <dd>{{ notifications_config.email.enabled|default(false) ? ('settings.notifications.yes'|trans) : ('settings.notifications.no'|trans) }}</dd>
-        <dt>{{ 'settings.notifications.webhook'|trans }}</dt>
-        <dd>{{ notifications_config.webhook.enabled|default(false) ? ('settings.notifications.yes'|trans) : ('settings.notifications.no'|trans) }}</dd>
-        <dt>{{ 'settings.notifications.slack'|trans }}</dt>
-        <dd>{{ notifications_config.slack.enabled|default(false) ? ('settings.notifications.yes'|trans) : ('settings.notifications.no'|trans) }}</dd>
-    </dl>
-    <p class="uptime-settings-note">{{ 'settings.notifications.per_monitor'|trans }}</p>
+{% block nowo_ui_head %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_robots.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_settings_section %}
+    {% set _b = page.bundle %}
+    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'settings.notifications.intro'|trans|raw }}</p>
+        {{ include(nowo_ui_partial('detail_list', _b), {items: notification_items, bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'settings.notifications.per_monitor'|trans }}</p>
+    </div>
 {% endblock %}

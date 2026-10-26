@@ -5,9 +5,17 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\UiKitBundle\View\Action;
+use Nowo\UiKitBundle\View\BackLink;
+use Nowo\UiKitBundle\View\Column;
+use Nowo\UiKitBundle\View\EmptyState;
+use Nowo\UiKitBundle\View\FormPage;
+use Nowo\UiKitBundle\View\ListPage;
+use Nowo\UiKitBundle\View\PageHeader;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -31,6 +39,7 @@ final class TenantController extends AbstractController
         private readonly array $tenantsConfig,
         #[Autowire('%nowo_uptime_monitor.multi_tenant%')]
         private readonly array $multiTenantConfig,
+        private readonly UptimePages $pages = new UptimePages(),
     ) {
     }
 
@@ -47,9 +56,25 @@ final class TenantController extends AbstractController
             return $this->redirectToDashboard($tenants[0]->getSlug());
         }
 
-        return $this->render('@NowoUptimeMonitorBundle/tenant/index.html.twig', [
+        $page = new ListPage(
+            new PageHeader(UptimePages::label('tenant.index.title'), null, [
+                Action::create($this->generateUrl('nowo_uptime_tenant_new'), UptimePages::label('tenant.index.new')),
+            ]),
+            [
+                new Column('name', UptimePages::label('tenant.col.name')),
+                new Column('slug', UptimePages::label('tenant.col.slug')),
+            ],
+            $tenants,
+            empty: new EmptyState(UptimePages::label('tenant.index.empty')),
+            bundle: UptimePages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'uptime-tenants'],
+        );
+
+        return $this->render($this->pages->template('tenant_index', '@NowoUptimeMonitorBundle/tenant/index.html.twig'), $this->pages->context([
+            'page'    => $page,
             'tenants' => $tenants,
-        ]);
+        ]));
     }
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
@@ -69,10 +94,23 @@ final class TenantController extends AbstractController
             return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenant->getSlug()]);
         }
 
-        return $this->render('@NowoUptimeMonitorBundle/tenant/form.html.twig', [
+        $indexUrl = $this->generateUrl('nowo_uptime_tenant_index');
+        $page     = new FormPage(
+            new PageHeader(UptimePages::label('tenant.new.title'), back: new BackLink($indexUrl, UptimePages::label('tenant.back'))),
+            $form->createView(),
+            UptimePages::label('tenant.form.create'),
+            $indexUrl,
+            bundle: UptimePages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'uptime-tenant-form'],
+            formThemes: $this->pages->formThemes(),
+        );
+
+        return $this->render($this->pages->template('tenant_form', '@NowoUptimeMonitorBundle/tenant/form.html.twig'), $this->pages->context([
+            'page'  => $page,
             'form'  => $form,
-            'title' => 'New tenant',
-        ]);
+            'title' => 'tenant.new.title',
+        ]));
     }
 
     private function isTenantListEnabled(): bool

@@ -3,7 +3,7 @@
    renders its children explicitly; the child loop at the end renders any remaining field. #}
 <fieldset class="uptime-form-section">
     <legend>{{ 'monitor.form.section.general'|trans }}</legend>
-    {{ form_row(form.type, { attr: { 'data-monitor-type-select': '1' } }) }}
+    {{ form_row(form.type, {attr: {'data-monitor-type-select': '1'}}) }}
     {{ form_row(form.name) }}
     {{ form_row(form.parentId) }}
     {{ form_row(form.project) }}

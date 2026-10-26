@@ -1,18 +1,20 @@
-{% extends uptime_layout %}
+{#
+  Tenants (REQ-UI-003): UiKit list scaffold. Variables: page (View\ListPage from TenantController::index(): header
+  tenant.index.title with the action New tenant; columns name, slug; rows = list<Tenant>; EmptyState
+  tenant.index.empty), and the 1.x variable tenants.
+  Data block filled: nowo_ui_list_row (name → tenant dashboard, slug in the `code` slot).
+#}
+{% extends '@NowoUiKit/page/list.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block title %}Tenants{% endblock %}
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
 
-{% block uptime_content %}
-    <h2>Tenants</h2>
-    <p><a href="{{ path('nowo_uptime_tenant_new') }}" class="uptime-btn">New tenant</a></p>
-    <ul class="uptime-tenant-list">
-        {% for tenant in tenants %}
-            <li>
-                <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: tenant.slug }) }}">{{ tenant.name }}</a>
-                <code>{{ tenant.slug }}</code>
-            </li>
-        {% else %}
-            <li>No tenants yet.</li>
-        {% endfor %}
-    </ul>
+{% block nowo_ui_list_row %}
+    {% set _b = page.bundle %}
+    {% set _cell = nowo_ui_class('table_cell', _b) %}
+    <td class="{{ _cell }}" data-label="{{ 'tenant.col.name'|trans }}"><a href="{{ path('nowo_uptime_dashboard', {tenantSlug: row.slug}) }}">{{ row.name }}</a></td>
+    <td class="{{ _cell }}" data-label="{{ 'tenant.col.slug'|trans }}"><code class="{{ nowo_ui_class('code', _b) }}">{{ row.slug }}</code></td>
 {% endblock %}

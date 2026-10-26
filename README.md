@@ -88,6 +88,7 @@ make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md)
+- [Templates (UiKit page contract)](docs/TEMPLATES.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](docs/CHANGELOG.md)

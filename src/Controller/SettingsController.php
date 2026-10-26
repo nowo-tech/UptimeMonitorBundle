@@ -6,6 +6,14 @@ namespace Nowo\UptimeMonitorBundle\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
 use JsonException;
+use Nowo\UiKitBundle\View\Action;
+use Nowo\UiKitBundle\View\BackLink;
+use Nowo\UiKitBundle\View\Confirm;
+use Nowo\UiKitBundle\View\DetailItem;
+use Nowo\UiKitBundle\View\Label;
+use Nowo\UiKitBundle\View\PageHeader;
+use Nowo\UiKitBundle\View\SettingsPage;
+use Nowo\UiKitBundle\View\SettingsSection;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\BackupImportFormType;
@@ -23,6 +31,8 @@ use Nowo\UptimeMonitorBundle\Service\DetailRetentionService;
 use Nowo\UptimeMonitorBundle\Service\MonitorBackupService;
 use Nowo\UptimeMonitorBundle\Service\TenantSettingsMapper;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
+use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
+use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
@@ -35,6 +45,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Throwable;
 
+use function array_merge;
 use function is_array;
 use function is_string;
 use function sprintf;
@@ -62,6 +73,7 @@ final class SettingsController extends AbstractUptimeController
         /** @var array<string, mixed> $notificationsConfig */
         #[Autowire('%nowo_uptime_monitor.notifications%')]
         private readonly array $notificationsConfig,
+        private readonly UptimePages $pages = new UptimePages(),
     ) {
         parent::__construct($translator);
     }
@@ -88,11 +100,9 @@ final class SettingsController extends AbstractUptimeController
             return $this->redirectToRoute('nowo_uptime_settings_general', ['tenantSlug' => $tenantSlug]);
         }
 
-        return $this->render('@NowoUptimeMonitorBundle/settings/general.html.twig', array_merge($this->baseViewParams($tenant), [
-            'section'       => 'general',
-            'section_title' => 'settings.section.general',
-            'form'          => $form,
-        ]));
+        return $this->renderSettings($tenant, 'general', '@NowoUptimeMonitorBundle/settings/general.html.twig', $form, null, [
+            'form' => $form,
+        ]);
     }
 
     #[Route('/appearance', name: 'appearance', methods: ['GET', 'POST'])]
@@ -111,11 +121,9 @@ final class SettingsController extends AbstractUptimeController
             return $this->redirectToRoute('nowo_uptime_settings_appearance', ['tenantSlug' => $tenantSlug]);
         }
 
-        return $this->render('@NowoUptimeMonitorBundle/settings/appearance.html.twig', array_merge($this->baseViewParams($tenant), [
-            'section'       => 'appearance',
-            'section_title' => 'settings.section.appearance',
-            'form'          => $form,
-        ]));
+        return $this->renderSettings($tenant, 'appearance', '@NowoUptimeMonitorBundle/settings/appearance.html.twig', $form, null, [
+            'form' => $form,
+        ]);
     }
 
     #[Route('/notifications', name: 'notifications', methods: ['GET'])]
@@ -123,11 +131,10 @@ final class SettingsController extends AbstractUptimeController
     {
         $tenant = $this->requireTenant($tenantSlug);
 
-        return $this->render('@NowoUptimeMonitorBundle/settings/notifications.html.twig', array_merge($this->baseViewParams($tenant), [
-            'section'              => 'notifications',
-            'section_title'        => 'settings.section.notifications',
+        return $this->renderSettings($tenant, 'notifications', '@NowoUptimeMonitorBundle/settings/notifications.html.twig', null, null, [
             'notifications_config' => $this->notificationsConfig,
-        ]));
+            'notification_items'   => $this->notificationItems(),
+        ]);
     }
 
     #[Route('/reverse-proxy', name: 'reverse_proxy', methods: ['GET', 'POST'])]
@@ -146,7 +153,9 @@ final class SettingsController extends AbstractUptimeController
             return $this->redirectToRoute('nowo_uptime_settings_reverse_proxy', ['tenantSlug' => $tenantSlug]);
         }
 
-        return $this->renderSection($tenant, 'reverse_proxy', 'settings.section.reverse_proxy', $form);
+        return $this->renderSettings($tenant, 'reverse_proxy', '@NowoUptimeMonitorBundle/settings/section.html.twig', $form, null, [
+            'form' => $form,
+        ]);
     }
 
     #[Route('/tags', name: 'tags', methods: ['GET', 'POST'])]
@@ -172,17 +181,30 @@ final class SettingsController extends AbstractUptimeController
         $tags = $this->tagRepository->findByTenant($tenant);
         /** @var array<int, FormView> $deleteForms */
         $deleteForms = [];
+        /** @var array<int, Action> $deleteActions */
+        $deleteActions = [];
         foreach ($tags as $tag) {
-            $deleteForms[(int) $tag->getId()] = $this->createTagDeleteForm($tenantSlug, (int) $tag->getId())->createView();
+            $tagId                 = (int) $tag->getId();
+            $deleteForms[$tagId]   = $this->createTagDeleteForm($tenantSlug, $tagId)->createView();
+            $deleteActions[$tagId] = Action::delete(
+                $this->generateUrl('nowo_uptime_settings_tag_delete', ['tenantSlug' => $tenantSlug, 'id' => $tagId]),
+                null,
+                new Confirm(
+                    UptimePages::label('settings.tags.delete_confirm_title'),
+                    UptimePages::label('settings.tags.delete_confirm', ['%name%' => $tag->getName()]),
+                    UptimePages::label('settings.tags.delete'),
+                ),
+                UptimePages::label('settings.tags.delete'),
+                $deleteForms[$tagId],
+            );
         }
 
-        return $this->render('@NowoUptimeMonitorBundle/settings/tags.html.twig', array_merge($this->baseViewParams($tenant), [
-            'section'          => 'tags',
-            'section_title'    => 'settings.section.tags',
-            'tags'             => $tags,
-            'form'             => $form,
-            'tag_delete_forms' => $deleteForms,
-        ]));
+        return $this->renderSettings($tenant, 'tags', '@NowoUptimeMonitorBundle/settings/tags.html.twig', $form, UptimePages::label('settings.tags.add_button'), [
+            'tags'               => $tags,
+            'form'               => $form,
+            'tag_delete_forms'   => $deleteForms,
+            'tag_delete_actions' => $deleteActions,
+        ]);
     }
 
     #[Route('/tags/{id}/delete', name: 'tag_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
@@ -222,14 +244,39 @@ final class SettingsController extends AbstractUptimeController
             return $this->redirectToRoute('nowo_uptime_settings_history', ['tenantSlug' => $tenantSlug]);
         }
 
-        return $this->render('@NowoUptimeMonitorBundle/settings/history.html.twig', array_merge($this->baseViewParams($tenant), [
-            'section'            => 'history',
-            'section_title'      => 'settings.section.history',
+        $purgeForm = $this->createPurgeHistoryForm($tenantSlug);
+        $clearForm = $this->createClearStatsForm($tenantSlug);
+
+        return $this->renderSettings($tenant, 'history', '@NowoUptimeMonitorBundle/settings/history.html.twig', $form, null, [
             'form'               => $form,
             'global_detail_days' => $globalDays,
-            'purge_form'         => $this->createPurgeHistoryForm($tenantSlug),
-            'clear_form'         => $this->createClearStatsForm($tenantSlug),
-        ]));
+            'purge_form'         => $purgeForm,
+            'clear_form'         => $clearForm,
+            'history_actions'    => [
+                new Action(
+                    'custom',
+                    UptimePages::label('settings.history.purge'),
+                    $this->generateUrl('nowo_uptime_settings_history_purge', ['tenantSlug' => $tenantSlug]),
+                    method: 'POST',
+                    variant: 'secondary',
+                    attributes: ['data-testid' => 'uptime-history-purge'],
+                    form: $purgeForm->createView(),
+                ),
+                new Action(
+                    'delete',
+                    UptimePages::label('settings.history.clear'),
+                    $this->generateUrl('nowo_uptime_settings_history_clear', ['tenantSlug' => $tenantSlug]),
+                    method: 'POST',
+                    confirm: new Confirm(
+                        UptimePages::label('settings.history.clear'),
+                        UptimePages::label('settings.history.clear_confirm'),
+                        UptimePages::label('settings.history.clear'),
+                    ),
+                    attributes: ['data-testid' => 'uptime-history-clear'],
+                    form: $clearForm->createView(),
+                ),
+            ],
+        ]);
     }
 
     #[Route('/history/purge', name: 'history_purge', methods: ['POST'])]
@@ -274,11 +321,16 @@ final class SettingsController extends AbstractUptimeController
             return $this->handleImport($tenant, $form);
         }
 
-        return $this->render('@NowoUptimeMonitorBundle/settings/backup.html.twig', array_merge($this->baseViewParams($tenant), [
-            'section'       => 'backup',
-            'section_title' => 'settings.section.backup',
+        return $this->renderSettings($tenant, 'backup', '@NowoUptimeMonitorBundle/settings/backup.html.twig', $form, UptimePages::label('settings.backup.import_button'), [
             'form'          => $form,
-        ]));
+            'export_action' => new Action(
+                'export',
+                UptimePages::label('settings.backup.export_button'),
+                $this->generateUrl('nowo_uptime_settings_backup_export', ['tenantSlug' => $tenantSlug]),
+                variant: 'primary',
+                attributes: ['data-testid' => 'uptime-backup-export'],
+            ),
+        ]);
     }
 
     #[Route('/backup/export', name: 'backup_export', methods: ['GET'])]
@@ -301,10 +353,13 @@ final class SettingsController extends AbstractUptimeController
     {
         $tenant = $this->requireTenant($tenantSlug);
 
-        return $this->render('@NowoUptimeMonitorBundle/settings/about.html.twig', array_merge($this->baseViewParams($tenant), [
-            'section'       => 'about',
-            'section_title' => 'settings.section.about',
-        ]));
+        return $this->renderSettings($tenant, 'about', '@NowoUptimeMonitorBundle/settings/about.html.twig', null, null, [
+            'about_items' => [
+                new DetailItem(UptimePages::label('settings.about.product'), UptimePages::label('settings.about.product_value')),
+                new DetailItem(UptimePages::label('settings.about.style'), UptimePages::label('settings.about.style_value')),
+                new DetailItem(UptimePages::label('settings.about.tenant'), sprintf('%s (%s)', $tenant->getName(), $tenant->getSlug())),
+            ],
+        ]);
     }
 
     /**
@@ -399,19 +454,66 @@ final class SettingsController extends AbstractUptimeController
     }
 
     /**
-     * @param FormInterface<mixed> $form
+     * Renders a settings screen on the UiKit settings scaffold: one section per screen (tabs), the current one with
+     * its form (submit label: settings.save unless given).
+     *
+     * @param FormInterface<mixed>|null $form
+     * @param array<string, mixed> $vars page variables
      */
-    private function renderSection(
-        Tenant $tenant,
-        string $section,
-        string $title,
-        FormInterface $form,
-    ): Response {
-        return $this->render('@NowoUptimeMonitorBundle/settings/section.html.twig', array_merge($this->baseViewParams($tenant), [
+    private function renderSettings(Tenant $tenant, string $section, string $template, ?FormInterface $form, ?Label $submitLabel, array $vars): Response
+    {
+        $tenantSlug = $tenant->getSlug();
+        $sections   = [];
+        foreach (UptimeAreaNav::SETTINGS_SECTIONS as $id => $route) {
+            $current    = $id === $section;
+            $sections[] = new SettingsSection(
+                $id,
+                UptimePages::label('settings.nav.' . $id),
+                $this->generateUrl($route, ['tenantSlug' => $tenantSlug]),
+                $current ? $form?->createView() : null,
+                null,
+                $current ? ($submitLabel ?? UptimePages::label('settings.save')) : null,
+                $this->pages->formThemes(),
+            );
+        }
+
+        $page = new SettingsPage(
+            new PageHeader(
+                UptimePages::label('settings.title'),
+                $tenant->getName(),
+                back: new BackLink($this->generateUrl('nowo_uptime_dashboard', ['tenantSlug' => $tenantSlug]), UptimePages::label('nav.dashboard')),
+            ),
+            $sections,
+            $section,
+            UptimePages::BUNDLE,
+            $this->pages->layout(),
+            ['data-testid' => 'uptime-settings'],
+        );
+
+        return $this->render($this->pages->template('settings_' . $section, $template), $this->pages->context(array_merge($this->baseViewParams($tenant), [
+            'page'          => $page,
             'section'       => $section,
-            'section_title' => $title,
-            'form'          => $form,
-        ]));
+            'section_title' => 'settings.section.' . $section,
+        ], $vars)));
+    }
+
+    /**
+     * Notification channel summary (YAML configuration) for the Notifications screen.
+     *
+     * @return list<DetailItem>
+     */
+    private function notificationItems(): array
+    {
+        $yesNo = static fn (mixed $enabled): Label => UptimePages::label((bool) $enabled ? 'settings.notifications.yes' : 'settings.notifications.no');
+        $cfg   = $this->notificationsConfig;
+
+        return [
+            new DetailItem(UptimePages::label('settings.notifications.enabled'), $yesNo($cfg['enabled'] ?? false)),
+            new DetailItem(UptimePages::label('settings.notifications.cooldown'), UptimePages::label('settings.notifications.cooldown_seconds', ['%seconds%' => (int) ($cfg['cooldown_seconds'] ?? 300)])),
+            new DetailItem(UptimePages::label('settings.notifications.email'), $yesNo(is_array($cfg['email'] ?? null) ? ($cfg['email']['enabled'] ?? false) : false)),
+            new DetailItem(UptimePages::label('settings.notifications.webhook'), $yesNo(is_array($cfg['webhook'] ?? null) ? ($cfg['webhook']['enabled'] ?? false) : false)),
+            new DetailItem(UptimePages::label('settings.notifications.slack'), $yesNo(is_array($cfg['slack'] ?? null) ? ($cfg['slack']['enabled'] ?? false) : false)),
+        ];
     }
 
     /**

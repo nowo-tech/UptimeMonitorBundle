@@ -1,0 +1,32 @@
+{#
+  BC bridge (deprecated since 1.10, removed in 2.0): wraps a 1.x layout that renders `{% block uptime_content %}`
+  (and optionally `title`, `stylesheets`, `javascripts`) instead of the UiKit canonical blocks. UptimePages::layout()
+  selects it when the deprecated templates.layout points at such a layout, or when the application overrides the
+  former default @NowoUptimeMonitorBundle/layout.html.twig. Variable: nowo_uptime_legacy_layout.
+#}
+{% extends nowo_uptime_legacy_layout %}
+
+{% block title %}{% block nowo_ui_document_title %}{% endblock %}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('css/nowo-ui.css', 'nowo_ui_kit') }}">
+    {% block nowo_ui_head %}{% endblock %}
+    {% block nowo_ui_styles %}{% endblock %}
+{% endblock %}
+
+{% block uptime_content %}
+    {% set _bundle = nowo_ui_bundle|default(null) %}
+    {% block nowo_ui_navigation %}{% endblock %}
+    <div class="{{ nowo_ui_class('content', _bundle) }}"{% if _bundle %} data-nowo-ui-bundle="{{ _bundle }}"{% endif %}>
+        {% block nowo_ui_page_header %}{% endblock %}
+        {% block nowo_ui_flashes %}{{ include(nowo_ui_partial('flashes', _bundle), {bundle: _bundle}) }}{% endblock %}
+        {% block nowo_ui_content %}{% endblock %}
+    </div>
+    {% block nowo_ui_modals %}{% endblock %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% block nowo_ui_scripts %}{{ include(nowo_ui_partial('scripts', nowo_ui_bundle|default(null))) }}{% endblock %}
+{% endblock %}

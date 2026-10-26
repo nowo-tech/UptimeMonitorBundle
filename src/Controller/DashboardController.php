@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Controller;
 
+use Nowo\UiKitBundle\View\Action;
+use Nowo\UiKitBundle\View\DashboardPage;
+use Nowo\UiKitBundle\View\PageHeader;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\MonitorSearchFormType;
@@ -13,6 +16,7 @@ use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
+use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,6 +26,7 @@ use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 use function sprintf;
+use function strtolower;
 
 use const JSON_THROW_ON_ERROR;
 
@@ -45,6 +50,7 @@ final class DashboardController extends AbstractController
         private readonly ?HubInterface $mercureHub = null,
         #[Autowire('@?Symfony\Component\Mercure\Authorization')]
         private readonly ?Authorization $mercureAuthorization = null,
+        private readonly UptimePages $pages = new UptimePages(),
     ) {
     }
 
@@ -82,7 +88,8 @@ final class DashboardController extends AbstractController
 
         $tenantSettings = TenantSettings::from($tenant);
 
-        $response = $this->render('@NowoUptimeMonitorBundle/dashboard/index.html.twig', [
+        $response = $this->render($this->pages->template('dashboard', '@NowoUptimeMonitorBundle/dashboard/index.html.twig'), $this->pages->context([
+            'page'                     => $this->buildPage($tenant, $tenantSlug),
             'tenant'                   => $tenant,
             'tenant_slug'              => $tenantSlug,
             'uptime_theme'             => $tenantSettings->getTheme(),
@@ -102,7 +109,7 @@ final class DashboardController extends AbstractController
             'mercure_hub_url'          => $mercureHubUrl,
             'mercure_topic'            => $mercureTopic,
             'monitor_search_form'      => $this->createForm(MonitorSearchFormType::class),
-        ]);
+        ]));
 
         if ($sync === 'mercure' && $mercureHubUrl !== null && $this->mercureAuthorization instanceof Authorization) {
             // @igor-ignore - HTTP handler delegates to services; no controller worker state.
@@ -132,6 +139,7 @@ final class DashboardController extends AbstractController
         $eventsFilterMonitor = $this->resolveEventsFilterMonitor($tenantSlug, $request);
 
         $response = $this->render('@NowoUptimeMonitorBundle/dashboard/_layout_fragment.html.twig', [
+            'nowo_ui_bundle'       => UptimePages::BUNDLE,
             'tenant_slug'          => $tenantSlug,
             'heartbeat_bar_theme'  => $tenantSettings->getHeartbeatBarTheme(),
             'elapsed_time_display' => $tenantSettings->getElapsedTimeDisplay(),
@@ -147,6 +155,35 @@ final class DashboardController extends AbstractController
         $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
         return $response;
+    }
+
+    /**
+     * Dashboard view model: tenant name (slug as intro when it differs) and the Settings / Status page / New monitor
+     * actions; the last one opens the monitor form dialog (uptime-dashboard.js) and is a plain link without JavaScript.
+     */
+    private function buildPage(Tenant $tenant, string $tenantSlug): DashboardPage
+    {
+        $newUrl = $this->generateUrl('nowo_uptime_monitor_new', ['tenantSlug' => $tenantSlug]);
+
+        return new DashboardPage(
+            new PageHeader(
+                $tenant->getName(),
+                strtolower($tenantSlug) !== strtolower($tenant->getName()) ? $tenantSlug : null,
+                [
+                    new Action('custom', UptimePages::label('dashboard.settings'), $this->generateUrl('nowo_uptime_settings_index', ['tenantSlug' => $tenantSlug]), icon: 'config', attributes: ['data-testid' => 'uptime-dashboard-settings']),
+                    new Action('view', UptimePages::label('dashboard.status_page'), $this->generateUrl('nowo_uptime_status_page', ['tenantSlug' => $tenantSlug]), attributes: ['data-testid' => 'uptime-dashboard-status-page']),
+                    new Action('create', UptimePages::label('monitor.new'), $newUrl, variant: 'primary', attributes: [
+                        'data-monitor-form-open'   => true,
+                        'data-monitor-form-url'    => $newUrl,
+                        'data-monitor-form-return' => 'dashboard',
+                        'data-testid'              => 'uptime-monitor-new',
+                    ]),
+                ],
+            ),
+            bundle: UptimePages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'uptime-dashboard'],
+        );
     }
 
     private function resolveEventsFilterMonitor(string $tenantSlug, Request $request): ?Monitor
