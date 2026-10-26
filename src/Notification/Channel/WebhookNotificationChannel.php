@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Notification\Channel;
 
-use DateTimeImmutable;
 use DateTimeInterface;
 use Nowo\UptimeMonitorBundle\Notification\NotificationChannelInterface;
 use Nowo\UptimeMonitorBundle\Notification\NotificationDeliveryException;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use ReflectionClass;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -34,6 +35,7 @@ final readonly class WebhookNotificationChannel implements NotificationChannelIn
         private array $notificationsConfig,
         private HttpClientInterface $httpClient,
         private string $channelKey = self::CHANNEL_GENERIC,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -129,7 +131,7 @@ final readonly class WebhookNotificationChannel implements NotificationChannelIn
             'status'          => $alert->getCurrentStatus()->value,
             'previous_status' => $alert->getPreviousStatus()?->value,
             'message'         => $alert->getMessage(),
-            'timestamp'       => (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
+            'timestamp'       => $this->clock->now()->format(DateTimeInterface::ATOM),
         ];
     }
 

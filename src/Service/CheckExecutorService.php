@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Service;
 
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Check\CheckRunnerInterface;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
@@ -12,6 +11,8 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
 use function sprintf;
@@ -33,6 +34,7 @@ final readonly class CheckExecutorService
         private DashboardSyncDispatcher $dashboardSyncDispatcher,
         private CheckLatencyNormalizer $latencyNormalizer,
         private MonitorRetryService $monitorRetryService,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -43,7 +45,7 @@ final readonly class CheckExecutorService
             $monitor,
             $this->monitorRetryService->normalizeResult($monitor, $raw),
         );
-        $now = new DateTimeImmutable();
+        $now = $this->clock->now();
 
         $result = new CheckResult(
             $monitor,
@@ -52,6 +54,7 @@ final readonly class CheckExecutorService
             $dto->statusCode,
             $dto->message,
             $dto->metadata,
+            $now,
         );
 
         $this->entityManager->persist($result);

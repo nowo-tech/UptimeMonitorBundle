@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Service;
 
-use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -14,6 +13,8 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Throwable;
 
 use function is_array;
@@ -33,6 +34,7 @@ final readonly class MonitorBackupService
         private MonitorFactory $monitorFactory,
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -52,7 +54,7 @@ final readonly class MonitorBackupService
 
         return [
             'version'     => 1,
-            'exported_at' => (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
+            'exported_at' => $this->clock->now()->format(DateTimeInterface::ATOM),
             'tenant'      => $tenant->getSlug(),
             'monitors'    => $monitors,
         ];

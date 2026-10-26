@@ -16,6 +16,8 @@ use Nowo\UptimeMonitorBundle\Monitor\MonitorSettings;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Nowo\UptimeMonitorBundle\Repository\IncidentRepository;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 use function in_array;
@@ -36,6 +38,7 @@ final readonly class StatusTransitionService
         #[Autowire('%nowo_uptime_monitor.notifications%')]
         private array $notificationsConfig,
         private ?EventDispatcherInterface $eventDispatcher = null,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -92,7 +95,7 @@ final readonly class StatusTransitionService
         );
 
         if ($this->notificationService->notify($alert) > 0) {
-            $monitor->setLastAlertAt(new DateTimeImmutable());
+            $monitor->setLastAlertAt($this->clock->now());
         }
     }
 
@@ -113,7 +116,7 @@ final readonly class StatusTransitionService
         $alert = new UptimeAlert($monitor, $transition, $current, $previous, $message);
 
         if ($this->notificationService->notify($alert) > 0) {
-            $monitor->setLastAlertAt(new DateTimeImmutable());
+            $monitor->setLastAlertAt($this->clock->now());
         }
     }
 
@@ -132,7 +135,7 @@ final readonly class StatusTransitionService
 
         if ($status === CheckStatus::Up) {
             if ($open instanceof Incident) {
-                $open->resolve();
+                $open->resolve($this->clock->now());
                 $this->eventDispatcher?->dispatch(new MonitorRecoveredEvent($monitor, $open));
             }
 
@@ -140,7 +143,7 @@ final readonly class StatusTransitionService
         }
 
         if (in_array($status, [CheckStatus::Down, CheckStatus::Degraded], true) && !$open instanceof Incident) {
-            $incident = new Incident($monitor, $status, $message);
+            $incident = new Incident($monitor, $status, $message, $this->clock->now());
             $this->entityManager->persist($incident);
             $this->eventDispatcher?->dispatch(new MonitorWentDownEvent($monitor, $incident, $message));
         }
@@ -159,6 +162,6 @@ final readonly class StatusTransitionService
             return true;
         }
 
-        return $last->modify(sprintf('+%d seconds', $cooldown)) <= new DateTimeImmutable();
+        return $last->modify(sprintf('+%d seconds', $cooldown)) <= $this->clock->now();
     }
 }

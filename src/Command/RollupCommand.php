@@ -12,6 +12,8 @@ use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use SortDirection;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -40,6 +42,7 @@ final class RollupCommand extends Command
         private readonly CheckAggregateRepository $aggregateRepository,
         #[Autowire('%nowo_uptime_monitor.aggregates%')]
         private readonly array $aggregatesConfig,
+        private readonly ClockInterface $clock = new NativeClock(),
     ) {
         parent::__construct();
     }
@@ -53,7 +56,7 @@ final class RollupCommand extends Command
     {
         $io   = new SymfonyStyle($input, $output);
         $days = max(1, (int) $input->getOption('days'));
-        $from = new DateTimeImmutable(sprintf('-%d days', $days));
+        $from = $this->clock->now()->modify(sprintf('-%d days', $days));
 
         /** @var list<CheckResult> $results */
         $results = $this->entityManager->createQueryBuilder()

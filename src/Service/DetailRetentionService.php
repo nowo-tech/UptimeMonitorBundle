@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Service;
 
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Nowo\UptimeMonitorBundle\Doctrine\KeysetBatchDelete;
@@ -13,6 +12,8 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 use function sprintf;
@@ -33,6 +34,7 @@ final readonly class DetailRetentionService
         private TenantRepository $tenantRepository,
         #[Autowire('%nowo_uptime_monitor.retention%')]
         private array $retentionConfig,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -61,7 +63,7 @@ final readonly class DetailRetentionService
             return 0;
         }
 
-        $cutoff = new DateTimeImmutable(sprintf('-%d days', $days));
+        $cutoff = $this->clock->now()->modify(sprintf('-%d days', $days));
 
         return KeysetBatchDelete::run(
             $this->entityManager,
