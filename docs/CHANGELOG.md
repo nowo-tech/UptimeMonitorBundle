@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.3] - 2026-10-26](#193---2026-10-26)
 - [[1.9.2] - 2026-10-26](#192---2026-10-26)
 - [[1.9.1] - 2026-10-26](#191---2026-10-26)
 - [[1.9.0] - 2026-10-26](#190---2026-10-26)
@@ -49,6 +50,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.9.3] - 2026-10-26
+
+### Fixed
+
+- **Tag colour left empty** answered HTTP 500 (`Expected argument of type "string", "null" given at property path
+  "color"`): the colour field submits `''` when empty, like the text fields since 1.9.2.
 
 ## [1.9.2] - 2026-10-26
 

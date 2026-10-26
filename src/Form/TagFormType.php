@@ -20,8 +20,9 @@ final class TagFormType extends AbstractUptimeFormType
     {
         $this->addText($builder, 'name', ['label' => 'form.settings.tag_name']);
         $this->addWithDefaults($builder, 'color', ColorType::class, [
-            'label'    => 'form.settings.tag_color',
-            'required' => false,
+            'label'      => 'form.settings.tag_color',
+            'required'   => false,
+            'empty_data' => '',
         ]);
     }
 
