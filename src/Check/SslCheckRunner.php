@@ -4,21 +4,23 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Check;
 
-use DateTimeImmutable;
 use DateTimeInterface;
+use Nowo\UptimeMonitorBundle\Check\Network\SocketConnectorInterface;
+use Nowo\UptimeMonitorBundle\Check\Network\StreamSocketConnector;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
 use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
 use OpenSSLCertificate;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 
+use function is_array;
 use function is_string;
 use function sprintf;
 use function str_contains;
 use function trim;
-
-use const STREAM_CLIENT_CONNECT;
 
 /**
  * SSL certificate expiry check.
@@ -31,6 +33,8 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
     public function __construct(
         private MonitorUrlSsrfGuard $ssrfGuard = new MonitorUrlSsrfGuard(),
         private bool $blockPrivateUrls = true,
+        private ClockInterface $clock = new NativeClock(),
+        private SocketConnectorInterface $connector = new StreamSocketConnector(),
     ) {
     }
 
@@ -66,8 +70,8 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
             $connectHost = str_contains($addresses[0], ':') ? '[' . $addresses[0] . ']' : $addresses[0];
         }
 
-        $start   = hrtime(true);
-        $context = stream_context_create([
+        $start      = hrtime(true);
+        $connection = $this->connector->connect(sprintf('ssl://%s:%d', $connectHost, $port), $timeout, [
             'ssl' => [
                 'capture_peer_cert' => true,
                 'verify_peer'       => true,
@@ -75,49 +79,31 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
                 'peer_name'         => trim($host, '[]'),
             ],
         ]);
-
-        $errno  = 0;
-        $errstr = '';
-        $client = @stream_socket_client(
-            sprintf('ssl://%s:%d', $connectHost, $port),
-            $errno,
-            $errstr,
-            $timeout,
-            STREAM_CLIENT_CONNECT,
-            $context,
-        );
-
         $latencyMs = (int) ((hrtime(true) - $start) / 1_000_000);
 
-        if ($client === false) {
+        if (!$connection->connected) {
             return new CheckResultDto(
                 CheckStatus::Down,
                 $latencyMs,
                 null,
-                $errstr !== '' ? $errstr : sprintf('SSL handshake failed (errno %d)', $errno),
+                $connection->errorMessage !== ''
+                    ? $connection->errorMessage
+                    : sprintf('SSL handshake failed (errno %d)', $connection->errorCode),
             );
         }
 
-        $params = stream_context_get_params($client);
-        fclose($client);
-
-        $cert = $params['options']['ssl']['peer_certificate'] ?? null;
+        $cert = $connection->peerCertificate;
         if (!is_string($cert) && !$cert instanceof OpenSSLCertificate) {
             return new CheckResultDto(CheckStatus::Unknown, $latencyMs, null, 'Could not capture peer certificate');
         }
 
-        $certPem = '';
-        if (!openssl_x509_export($cert, $certPem)) {
-            return new CheckResultDto(CheckStatus::Unknown, $latencyMs, null, 'Could not export certificate');
-        }
-
-        $parsed = openssl_x509_parse($certPem);
-        if ($parsed === false || !isset($parsed['validTo_time_t'])) {
+        $parsed = @openssl_x509_parse($cert);
+        if (!is_array($parsed) || !isset($parsed['validTo_time_t'])) {
             return new CheckResultDto(CheckStatus::Unknown, $latencyMs, null, 'Could not parse certificate');
         }
 
-        $expiresAt = (new DateTimeImmutable())->setTimestamp((int) $parsed['validTo_time_t']);
-        $daysLeft  = (int) floor(($expiresAt->getTimestamp() - time()) / 86400);
+        $expiresAt = $this->clock->now()->setTimestamp((int) $parsed['validTo_time_t']);
+        $daysLeft  = (int) floor(($expiresAt->getTimestamp() - $this->clock->now()->getTimestamp()) / 86400);
 
         $metadata = [
             'expires_at' => $expiresAt->format(DateTimeInterface::ATOM),

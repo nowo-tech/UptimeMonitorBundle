@@ -14,7 +14,13 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+use function strtolower;
+
 use const DNS_A;
+use const DNS_AAAA;
+use const DNS_CNAME;
+use const DNS_MX;
+use const DNS_TXT;
 
 #[CoversClass(DnsCheckRunner::class)]
 final class DnsCheckRunnerTest extends TestCase
@@ -28,69 +34,42 @@ final class DnsCheckRunnerTest extends TestCase
         self::assertTrue($runner->supports($monitor));
     }
 
-    public function testRunReturnsDownForUnresolvableHost(): void
+    public function testEmptyOrFailedLookupIsDown(): void
     {
-        $runner  = new DnsCheckRunner();
-        $monitor = new Monitor(
-            new Tenant('main', 'Main'),
-            'DNS fail',
-            MonitorType::Dns,
-            'this-host-should-not-exist-uptime-monitor.invalid.',
-        );
-        $monitor->setConfig([
-            'hostname'    => 'this-host-should-not-exist-uptime-monitor.invalid.',
-            'record_type' => 'A',
-        ]);
+        foreach ([false, []] as $records) {
+            $result = $this->runnerReturning($records)->run($this->dnsMonitor('gone.example'));
 
-        $result = $runner->run($monitor);
-
-        self::assertSame(CheckStatus::Down, $result->status);
-    }
-
-    public function testRunReturnsUpForKnownHost(): void
-    {
-        if (!gethostbyname('example.com') || gethostbyname('example.com') === 'example.com') {
-            self::markTestSkipped('DNS resolution unavailable in this environment');
-        }
-
-        $runner  = new DnsCheckRunner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'DNS ok', MonitorType::Dns, 'example.com');
-        $monitor->setConfig(['hostname' => 'example.com', 'record_type' => 'A']);
-
-        $result = $runner->run($monitor);
-
-        self::assertSame(CheckStatus::Up, $result->status);
-    }
-
-    public function testRunReturnsDownWhenExpectedValueMissing(): void
-    {
-        if (!gethostbyname('example.com') || gethostbyname('example.com') === 'example.com') {
-            self::markTestSkipped('DNS resolution unavailable in this environment');
-        }
-
-        $runner  = new DnsCheckRunner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'DNS', MonitorType::Dns, 'example.com');
-        $monitor->setConfig([
-            'hostname'       => 'example.com',
-            'record_type'    => 'A',
-            'expected_value' => '255.255.255.255',
-        ]);
-
-        $result = $runner->run($monitor);
-
-        self::assertSame(CheckStatus::Down, $result->status);
-    }
-
-    public function testRunSupportsAlternateRecordTypes(): void
-    {
-        $runner  = new DnsCheckRunner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'DNS', MonitorType::Dns, 'example.com');
-
-        foreach (['AAAA', 'CNAME', 'MX', 'TXT'] as $type) {
-            $monitor->setConfig(['hostname' => 'invalid.invalid.', 'record_type' => $type]);
-            $result = $runner->run($monitor);
             self::assertSame(CheckStatus::Down, $result->status);
+            self::assertSame('No A records for gone.example', $result->message);
         }
+    }
+
+    public function testExpectedValueMissingIsDownWithRecords(): void
+    {
+        $records = [['host' => 'x.example', 'type' => 'A', 'ip' => '93.184.215.14'], ['host' => 'x.example', 'type' => 'TXT', 'txt' => 7]];
+
+        $result = $this->runnerReturning($records)->run($this->dnsMonitor('x.example', 'A', '93.184.216.1'));
+
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertSame('Expected value "93.184.216.1" not found in DNS response', $result->message);
+        self::assertSame(['records' => $records], $result->metadata);
+    }
+
+    public function testRecordTypesMapToDnsFlagsAndConfigFallsBackToTarget(): void
+    {
+        $expected = ['AAAA' => DNS_AAAA, 'CNAME' => DNS_CNAME, 'MX' => DNS_MX, 'TXT' => DNS_TXT, 'SOA' => DNS_A];
+
+        foreach ($expected as $type => $flag) {
+            $calls  = [];
+            $runner = $this->runnerReturning([['host' => 'x.example', 'type' => $type, 'target' => 'mail.example']], true, $calls);
+            self::assertSame(CheckStatus::Up, $runner->run($this->dnsMonitor('x.example', strtolower($type)))->status);
+            self::assertSame([['x.example', $flag]], $calls);
+        }
+
+        $calls   = [];
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'DNS', MonitorType::Dns, 'target.example');
+        $this->runnerReturning([['host' => 'target.example', 'type' => 'A', 'ip' => '93.184.215.14']], true, $calls)->run($monitor);
+        self::assertSame([['target.example', DNS_A]], $calls);
     }
 
     /**

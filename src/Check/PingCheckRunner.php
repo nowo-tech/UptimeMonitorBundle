@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Check;
 
+use Closure;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -20,10 +21,27 @@ use const PHP_OS_FAMILY;
  */
 final readonly class PingCheckRunner implements CheckRunnerInterface
 {
+    /** @var Closure(string): array{0: int, 1: list<string>} */
+    private Closure $executor;
+
+    /**
+     * @param (Closure(string): array{0: int, 1: list<string>})|null $executor Runs the ping command and returns
+     *                                                                         [exit code, output lines] (defaults to exec())
+     * @param string $osFamily PHP_OS_FAMILY value used to build the command
+     */
     public function __construct(
         private MonitorUrlSsrfGuard $ssrfGuard,
         private bool $blockPrivateUrls = true,
+        ?Closure $executor = null,
+        private string $osFamily = PHP_OS_FAMILY,
     ) {
+        $this->executor = $executor ?? static function (string $command): array {
+            $output   = [];
+            $exitCode = 0;
+            exec($command . ' 2>&1', $output, $exitCode);
+
+            return [$exitCode, $output];
+        };
     }
 
     public function supports(Monitor $monitor): bool
@@ -69,11 +87,9 @@ final readonly class PingCheckRunner implements CheckRunnerInterface
             );
         }
 
-        $start    = hrtime(true);
-        $output   = [];
-        $exitCode = 0;
-        exec($command . ' 2>&1', $output, $exitCode);
-        $elapsedMs = (int) ((hrtime(true) - $start) / 1_000_000);
+        $start               = hrtime(true);
+        [$exitCode, $output] = ($this->executor)($command);
+        $elapsedMs           = (int) ((hrtime(true) - $start) / 1_000_000);
 
         if ($exitCode !== 0) {
             $message = $output !== [] ? implode("\n", $output) : sprintf('Ping failed (exit code %d)', $exitCode);
@@ -97,7 +113,7 @@ final readonly class PingCheckRunner implements CheckRunnerInterface
         $timeoutSeconds = max(1.0, min(30.0, $timeoutSeconds));
         $escapedHost    = escapeshellarg($host);
 
-        return match (PHP_OS_FAMILY) {
+        return match ($this->osFamily) {
             // -W: wait for the reply; -w: hard deadline for the whole run (incl. name resolution) — REQ-RUNTIME-001.
             'Linux' => sprintf(
                 'ping -c 1 -W %1$d -w %1$d %2$s',

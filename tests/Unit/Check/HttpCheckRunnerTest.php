@@ -5,21 +5,23 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Check;
 
 use Nowo\UptimeMonitorBundle\Check\HttpCheckRunner;
+use Nowo\UptimeMonitorBundle\Check\Network\SocketConnection;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
-use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
+use Nowo\UptimeMonitorBundle\Tests\Support\FakeSocketConnector;
+use Nowo\UptimeMonitorBundle\Tests\Support\OfflineDns;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Check\HttpCheckRunner
- */
+#[CoversClass(HttpCheckRunner::class)]
 final class HttpCheckRunnerTest extends TestCase
 {
     public function testSupportsHttpTypes(): void
@@ -196,12 +198,133 @@ final class HttpCheckRunnerTest extends TestCase
         yield 'unspecified ipv6' => ['http://[::]/'];
     }
 
-    private function createRunner(?HttpClientInterface $client = null, bool $blockPrivateUrls = false): HttpCheckRunner
+    public function testRequestOptionsCarryBodyHeadersProxyAuthAndTls(): void
     {
+        $seen   = [];
+        $client = new MockHttpClient(static function (string $method, string $url, array $options) use (&$seen): MockResponse {
+            $seen[] = ['method' => $method, 'url' => $url, 'options' => $options];
+
+            return new MockResponse('all good', ['http_code' => 201]);
+        });
+        $monitor = $this->createMonitor(MonitorType::Https);
+        $monitor->setConfig([
+            'url'                   => 'https://example.test/api',
+            'method'                => 'post',
+            'body'                  => '<a/>',
+            'body_encoding'         => 'xml',
+            'ignore_tls'            => true,
+            'proxy'                 => 'http://proxy.example:3128',
+            'auth_method'           => 'basic',
+            'auth_username'         => 'user',
+            'auth_password'         => 'secret',
+            'keyword'               => 'good',
+            'expected_status_codes' => '201',
+            'timeout'               => 5,
+        ]);
+
+        $result = $this->createRunner($client)->run($monitor);
+
+        self::assertSame(CheckStatus::Up, $result->status);
+        self::assertSame('POST', $seen[0]['method']);
+        self::assertSame('<a/>', $seen[0]['options']['body']);
+        self::assertContains('Content-Type: application/xml', $seen[0]['options']['headers']);
+        self::assertSame('http://proxy.example:3128', $seen[0]['options']['proxy']);
+        self::assertContains('Authorization: Basic ' . base64_encode('user:secret'), $seen[0]['options']['headers']);
+        self::assertFalse($seen[0]['options']['verify_peer']);
+        self::assertFalse($seen[0]['options']['verify_host']);
+        self::assertSame(5.0, $seen[0]['options']['timeout']);
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: array<string, string>, 2: string}>
+     */
+    public static function bodyEncodingProvider(): iterable
+    {
+        yield 'json' => ['json', [], 'Content-Type: application/json'];
+        yield 'text' => ['form', [], 'Content-Type: text/plain'];
+        yield 'explicit content type wins' => ['json', ['content-type' => 'application/x-custom'], 'content-type: application/x-custom'];
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    #[DataProvider('bodyEncodingProvider')]
+    public function testBodyEncodingSetsContentType(string $encoding, array $headers, string $expectedHeader): void
+    {
+        $seen   = [];
+        $client = new MockHttpClient(static function (string $method, string $url, array $options) use (&$seen): MockResponse {
+            $seen = (array) $options['headers'];
+
+            return new MockResponse('ok');
+        });
+        $monitor = $this->createMonitor(MonitorType::Http);
+        $monitor->setConfig(['body' => 'payload', 'body_encoding' => $encoding, 'headers' => $headers]);
+
+        $this->createRunner($client)->run($monitor);
+
+        self::assertContains($expectedHeader, $seen);
+        self::assertCount(1, array_filter($seen, static fn (string $h): bool => stripos($h, 'content-type:') === 0));
+    }
+
+    public function testUnexpectedStatusListsShortOrCountsLongExpectations(): void
+    {
+        $monitor = $this->createMonitor(MonitorType::Http);
+
+        $monitor->setConfig(['expected_status_codes' => '200,204']);
+        $short = $this->createRunner(new MockHttpClient([new MockResponse('', ['http_code' => 500])]))->run($monitor);
+        self::assertSame('Unexpected status code 500 (expected 200,204)', $short->message);
+
+        $monitor->setConfig(['expected_status_codes' => '200-299']);
+        $long = $this->createRunner(new MockHttpClient([new MockResponse('', ['http_code' => 500])]))->run($monitor);
+        self::assertSame('Unexpected status code 500 (expected 100 codes)', $long->message);
+    }
+
+    public function testCertificateExpiryCheckDegradesNearExpiry(): void
+    {
+        $connector = new FakeSocketConnector(new SocketConnection(true, peerCertificate: FakeSocketConnector::fixtureCertificate()));
+        $monitor   = $this->createMonitor(MonitorType::Https);
+        $monitor->setConfig(['url' => 'https://secure.example:8443/', 'check_cert_expiry' => true]);
+
+        $near = $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, '2126-09-25 00:00:00', $connector)->run($monitor);
+        self::assertSame(CheckStatus::Degraded, $near->status);
+        self::assertSame('TLS certificate expires in 7 day(s)', $near->message);
+        self::assertSame('ssl://secure.example:8443', $connector->calls[0]['remote']);
+        self::assertFalse($connector->calls[0]['options']['ssl']['verify_peer']);
+
+        $expired = $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, '2127-01-01 00:00:00', $connector)->run($monitor);
+        self::assertSame('TLS certificate expires in 0 day(s)', $expired->message);
+
+        $far = $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, '2126-01-01 00:00:00', $connector)->run($monitor);
+        self::assertSame(CheckStatus::Up, $far->status);
+    }
+
+    public function testCertificateExpiryCheckIgnoresMissingCertificateAndPlainHttp(): void
+    {
+        $connector = new FakeSocketConnector(new SocketConnection(false, 111, 'refused'));
+        $monitor   = $this->createMonitor(MonitorType::Https);
+        $monitor->setConfig(['url' => 'https://secure.example/', 'check_cert_expiry' => true]);
+
+        self::assertSame(CheckStatus::Up, $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, 'now', $connector)->run($monitor)->status);
+        self::assertSame('ssl://secure.example:443', $connector->calls[0]['remote']);
+
+        $http = $this->createMonitor(MonitorType::Http);
+        $http->setConfig(['url' => 'http://secure.example/', 'check_cert_expiry' => true]);
+        $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, 'now', $connector)->run($http);
+        self::assertCount(1, $connector->calls);
+    }
+
+    private function createRunner(
+        ?HttpClientInterface $client = null,
+        bool $blockPrivateUrls = false,
+        string $now = 'now',
+        ?FakeSocketConnector $connector = null,
+    ): HttpCheckRunner {
         return new HttpCheckRunner(
             $client,
-            new MonitorUrlSsrfGuard(),
+            OfflineDns::guard(['example.test' => ['93.184.215.14']]),
             $blockPrivateUrls,
+            new MockClock($now === 'now' ? 'now' : $now . ' UTC'),
+            $connector ?? new FakeSocketConnector(new SocketConnection(false)),
         );
     }
 

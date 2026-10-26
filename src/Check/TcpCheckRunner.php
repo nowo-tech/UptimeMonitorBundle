@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Check;
 
+use Nowo\UptimeMonitorBundle\Check\Network\SocketConnectorInterface;
+use Nowo\UptimeMonitorBundle\Check\Network\StreamSocketConnector;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -25,6 +27,7 @@ final readonly class TcpCheckRunner implements CheckRunnerInterface
     public function __construct(
         private MonitorUrlSsrfGuard $ssrfGuard = new MonitorUrlSsrfGuard(),
         private bool $blockPrivateUrls = true,
+        private SocketConnectorInterface $connector = new StreamSocketConnector(),
     ) {
     }
 
@@ -57,28 +60,20 @@ final readonly class TcpCheckRunner implements CheckRunnerInterface
             $connectHost = str_contains($addresses[0], ':') ? '[' . $addresses[0] . ']' : $addresses[0];
         }
 
-        $start  = hrtime(true);
-        $errno  = 0;
-        $errstr = '';
-        $socket = @stream_socket_client(
-            sprintf('tcp://%s:%d', $connectHost, $port),
-            $errno,
-            $errstr,
-            $timeout,
-        );
+        $start      = hrtime(true);
+        $connection = $this->connector->connect(sprintf('tcp://%s:%d', $connectHost, $port), $timeout);
+        $latencyMs  = (int) ((hrtime(true) - $start) / 1_000_000);
 
-        $latencyMs = (int) ((hrtime(true) - $start) / 1_000_000);
-
-        if ($socket === false) {
+        if (!$connection->connected) {
             return new CheckResultDto(
                 CheckStatus::Down,
                 $latencyMs,
                 null,
-                $errstr !== '' ? $errstr : sprintf('TCP connection failed (errno %d)', $errno),
+                $connection->errorMessage !== ''
+                    ? $connection->errorMessage
+                    : sprintf('TCP connection failed (errno %d)', $connection->errorCode),
             );
         }
-
-        fclose($socket);
 
         return new CheckResultDto(CheckStatus::Up, $latencyMs);
     }

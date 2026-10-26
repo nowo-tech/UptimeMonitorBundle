@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Security;
 
+use Closure;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 use function dns_get_record;
@@ -43,6 +44,24 @@ final class MonitorUrlSsrfGuard
     ];
 
     private const BLOCKED_HOSTNAMES = ['localhost', 'metadata.google.internal'];
+
+    /** @var Closure(string): (false|list<string>) */
+    private readonly Closure $ipv4Lookup;
+
+    /** @var Closure(string, int): (array<int, array<string, mixed>>|false) */
+    private readonly Closure $recordLookup;
+
+    /**
+     * The lookups are the guard's DNS seam (tests resolve names without network access).
+     *
+     * @param (Closure(string): (false|list<string>))|null $ipv4Lookup A lookup (defaults to gethostbynamel)
+     * @param (Closure(string, int): (array<int, array<string, mixed>>|false))|null $recordLookup Record lookup (defaults to dns_get_record)
+     */
+    public function __construct(?Closure $ipv4Lookup = null, ?Closure $recordLookup = null)
+    {
+        $this->ipv4Lookup   = $ipv4Lookup ?? gethostbynamel(...);
+        $this->recordLookup = $recordLookup ?? static fn (string $host, int $type): array|false => @dns_get_record($host, $type);
+    }
 
     public function isBlocked(string $url): bool
     {
@@ -105,10 +124,10 @@ final class MonitorUrlSsrfGuard
             return [$host];
         }
 
-        $addresses = gethostbynamel($host);
+        $addresses = ($this->ipv4Lookup)($host);
         $addresses = is_array($addresses) ? $addresses : [];
 
-        $aaaa = @dns_get_record($host, DNS_AAAA);
+        $aaaa = ($this->recordLookup)($host, DNS_AAAA);
         if (is_array($aaaa)) {
             foreach ($aaaa as $record) {
                 if (isset($record['ipv6']) && is_string($record['ipv6'])) {

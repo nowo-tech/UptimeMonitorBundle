@@ -9,195 +9,144 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
-use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
+use Nowo\UptimeMonitorBundle\Tests\Support\OfflineDns;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
 
-use function in_array;
-
-use const PHP_OS_FAMILY;
-
-/**
- * @covers \Nowo\UptimeMonitorBundle\Check\PingCheckRunner
- */
+#[CoversClass(PingCheckRunner::class)]
 final class PingCheckRunnerTest extends TestCase
 {
-    private function runner(bool $blockPrivateUrls = true): PingCheckRunner
+    /** @var list<string> */
+    private array $commands = [];
+
+    /**
+     * @param array{0: int, 1: list<string>} $answer
+     */
+    private function runner(bool $block = true, array $answer = [0, []], string $os = 'Linux'): PingCheckRunner
     {
-        return new PingCheckRunner(new MonitorUrlSsrfGuard(), $blockPrivateUrls);
+        $this->commands = [];
+
+        return new PingCheckRunner(
+            OfflineDns::guard(['public.example' => ['93.184.216.9'], 'private.example' => ['10.0.0.9']]),
+            $block,
+            function (string $command) use ($answer): array {
+                $this->commands[] = $command;
+
+                return $answer;
+            },
+            $os,
+        );
     }
 
-    public function testSupportsPingType(): void
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function monitor(array $config = [], string $target = 'public.example', MonitorType $type = MonitorType::Ping): Monitor
     {
-        $runner  = $this->runner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '8.8.8.8');
-        $monitor->setConfig(['host' => '8.8.8.8']);
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', $type, $target);
+        $monitor->setConfig($config);
 
-        self::assertTrue($runner->supports($monitor));
+        return $monitor;
     }
 
-    public function testRunReturnsUnknownForInvalidHost(): void
+    public function testSupportsOnlyPing(): void
     {
-        $runner  = $this->runner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, 'bad host');
-        $monitor->setConfig(['host' => 'bad host']);
-
-        $result = $runner->run($monitor);
-
-        self::assertSame(CheckStatus::Unknown, $result->status);
+        self::assertTrue($this->runner()->supports($this->monitor()));
+        self::assertFalse($this->runner()->supports($this->monitor([], 'x', MonitorType::Http)));
     }
 
-    public function testRunRejectsOptionInjectionHost(): void
+    public function testUpParsesLatencyAndPingsTheResolvedAddress(): void
     {
-        foreach ([true, false] as $block) {
-            $runner  = $this->runner($block);
-            $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '-fc100000');
-            $monitor->setConfig(['host' => '-fc100000']);
+        $runner = $this->runner(true, [0, ['64 bytes from 93.184.216.9: icmp_seq=1 ttl=56 time=12.5 ms']]);
 
-            $result = $runner->run($monitor);
+        $result = $runner->run($this->monitor());
 
+        self::assertSame(CheckStatus::Up, $result->status);
+        self::assertSame(13, $result->latencyMs);
+        self::assertSame(["ping -c 1 -W 5 -w 5 '93.184.216.9'"], $this->commands);
+    }
+
+    public function testUpWithoutTimingFallsBackToElapsedTime(): void
+    {
+        $result = $this->runner(false, [0, ['no timing here']])->run($this->monitor(['host' => '127.0.0.1', 'timeout' => 0.1]));
+
+        self::assertSame(CheckStatus::Up, $result->status);
+        self::assertGreaterThanOrEqual(0, $result->latencyMs);
+        self::assertSame(["ping -c 1 -W 1 -w 1 '127.0.0.1'"], $this->commands);
+    }
+
+    public function testNonZeroExitIsDown(): void
+    {
+        $withOutput = $this->runner(true, [1, ['100% packet loss', 'done']])->run($this->monitor());
+        self::assertSame(CheckStatus::Down, $withOutput->status);
+        self::assertSame("100% packet loss\ndone", $withOutput->message);
+
+        $silent = $this->runner(true, [2, []])->run($this->monitor());
+        self::assertSame('Ping failed (exit code 2)', $silent->message);
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string|null}>
+     */
+    public static function osProvider(): iterable
+    {
+        yield 'Linux' => ['Linux', "ping -c 1 -W 30 -w 30 '93.184.216.9'"];
+        yield 'Darwin' => ['Darwin', "ping -c 1 -t 30 '93.184.216.9'"];
+        yield 'BSD' => ['BSD', "ping -c 1 -W 30000 '93.184.216.9'"];
+        yield 'Windows' => ['Windows', null];
+    }
+
+    #[DataProvider('osProvider')]
+    public function testCommandDependsOnTheOperatingSystem(string $os, ?string $expected): void
+    {
+        $result = $this->runner(true, [0, ['time<1ms']], $os)->run($this->monitor(['timeout' => 90]));
+
+        if ($expected === null) {
+            self::assertSame(CheckStatus::Unknown, $result->status);
+            self::assertSame('ICMP ping is not supported on this operating system', $result->message);
+            self::assertSame([], $this->commands);
+
+            return;
+        }
+
+        self::assertSame([$expected], $this->commands);
+    }
+
+    public function testInvalidOrOptionInjectingHostIsUnknown(): void
+    {
+        foreach (['-c 100 public.example', 'bad host', ''] as $host) {
+            $result = $this->runner()->run($this->monitor(['host' => $host]));
             self::assertSame(CheckStatus::Unknown, $result->status);
             self::assertSame('Invalid ping host', $result->message);
         }
+
+        self::assertSame([], $this->commands);
     }
 
-    public function testRunBlocksReservedRangeHostWhenEnabled(): void
-    {
-        $runner  = $this->runner(true);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '100.64.0.1');
-        $monitor->setConfig(['host' => '100.64.0.1']);
-
-        self::assertStringContainsString('private', (string) $runner->run($monitor)->message);
-    }
-
-    public function testRunBlocksPrivateHostWhenEnabled(): void
-    {
-        $runner  = $this->runner(true);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '127.0.0.1');
-        $monitor->setConfig(['host' => '127.0.0.1']);
-
-        $result = $runner->run($monitor);
-
-        self::assertSame(CheckStatus::Unknown, $result->status);
-        self::assertStringContainsString('private', (string) $result->message);
-    }
-
-    public function testRunReturnsDownWhenHostUnresolvable(): void
-    {
-        $runner  = $this->runner(true);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Unresolvable', MonitorType::Ping, 'does-not-exist.invalid');
-        $monitor->setConfig(['host' => 'does-not-exist.invalid', 'timeout' => 1.0]);
-
-        $result = $runner->run($monitor);
-
-        // No fallback to the hostname: ping would re-resolve it after the SSRF check (DNS rebinding).
-        self::assertSame(CheckStatus::Down, $result->status);
-        self::assertSame(0, $result->latencyMs);
-        self::assertSame('Could not resolve host does-not-exist.invalid', $result->message);
-    }
-
-    public function testRunAllowsPrivateHostWhenBlockDisabled(): void
-    {
-        if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin', 'BSD'], true)) {
-            self::markTestSkipped('Ping runner only tested on Unix-like systems');
-        }
-
-        $runner  = $this->runner(false);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '127.0.0.1');
-        $monitor->setConfig(['host' => '127.0.0.1', 'timeout' => 1.0]);
-
-        $result = $runner->run($monitor);
-
-        // Local loopback may be up or down depending on ICMP; must not be the SSRF block message.
-        self::assertNotSame('Host targets a private or local network address (blocked).', (string) $result->message);
-        self::assertStringNotContainsStringIgnoringCase('private or local', (string) $result->message);
-    }
-
-    public function testRunReturnsDownForUnreachableHost(): void
-    {
-        if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin', 'BSD'], true)) {
-            self::markTestSkipped('Ping runner only tested on Unix-like systems');
-        }
-
-        $runner  = $this->runner(false);
-        $monitor = new Monitor(
-            new Tenant('main', 'Main'),
-            'Ping fail',
-            MonitorType::Ping,
-            '192.0.2.1',
-        );
-        $monitor->setConfig(['host' => '192.0.2.1', 'timeout' => 1.0]);
-
-        $result = $runner->run($monitor);
-
-        self::assertSame(CheckStatus::Down, $result->status);
-    }
-
-    public function testParseLatencyMsExtractsMilliseconds(): void
+    public function testPrivateAndUnresolvableHostsAreRejected(): void
     {
         $runner = $this->runner();
-        $method = new ReflectionMethod(PingCheckRunner::class, 'parseLatencyMs');
 
-        $latency = $method->invoke($runner, ['64 bytes from 8.8.8.8: time=12.5 ms']);
-
-        self::assertSame(13, $latency);
-
-        $latencyEq = $method->invoke($runner, ['reply from 8.8.8.8: bytes=64 time=9 ms']);
-        self::assertSame(9, $latencyEq);
-    }
-
-    public function testParseLatencyMsReturnsNullWhenMissing(): void
-    {
-        $runner = $this->runner();
-        $method = new ReflectionMethod(PingCheckRunner::class, 'parseLatencyMs');
-
-        self::assertNull($method->invoke($runner, ['no timing here']));
-    }
-
-    public function testBuildPingCommandForCurrentOsFamily(): void
-    {
-        if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin', 'BSD'], true)) {
-            self::markTestSkipped('Ping command branches only on Unix-like systems');
+        foreach (['private.example', '127.0.0.1', 'localhost', '100.64.0.1'] as $host) {
+            $result = $runner->run($this->monitor(['host' => $host]));
+            self::assertSame(CheckStatus::Unknown, $result->status);
+            self::assertStringContainsString('private or local', (string) $result->message);
         }
 
-        $runner = $this->runner();
-        $method = new ReflectionMethod(PingCheckRunner::class, 'buildPingCommand');
-
-        $command = $method->invoke($runner, '127.0.0.1', 2.5);
-
-        self::assertNotNull($command);
-        self::assertStringContainsString('127.0.0.1', $command);
-        self::assertStringContainsString('ping', $command);
-        if (PHP_OS_FAMILY === 'Linux') {
-            // Reply wait and hard deadline both rounded up from the monitor timeout (REQ-RUNTIME-001).
-            self::assertStringContainsString('-W 3 -w 3 ', $command);
-        }
+        $unresolvable = $runner->run($this->monitor(['host' => 'nowhere.invalid']));
+        self::assertSame(CheckStatus::Down, $unresolvable->status);
+        self::assertSame('Could not resolve host nowhere.invalid', $unresolvable->message);
+        self::assertSame([], $this->commands);
     }
 
-    public function testPingTimeoutIsClampedToThirtySeconds(): void
+    public function testDefaultExecutorRunsTheCommand(): void
     {
-        if (PHP_OS_FAMILY !== 'Linux') {
-            self::markTestSkipped('Linux ping flags only');
-        }
+        // Loopback only; the outcome depends on the ping binary/capabilities of the environment, not on the network.
+        $runner = new PingCheckRunner(OfflineDns::guard(), false);
 
-        $command = (new ReflectionMethod(PingCheckRunner::class, 'buildPingCommand'))->invoke($this->runner(), '192.0.2.1', 600.0);
+        $result = $runner->run($this->monitor(['host' => '127.0.0.1', 'timeout' => 1]));
 
-        self::assertIsString($command);
-        self::assertStringContainsString('-W 30 -w 30 ', $command);
-    }
-
-    public function testRunUsesTargetWhenHostConfigMissing(): void
-    {
-        if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin', 'BSD'], true)) {
-            self::markTestSkipped('Ping runner only tested on Unix-like systems');
-        }
-
-        $runner  = $this->runner(false);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Ping', MonitorType::Ping, '127.0.0.1');
-        $monitor->setConfig(['timeout' => 1.0]);
-
-        $result = $runner->run($monitor);
-
-        self::assertContains($result->status, [CheckStatus::Up, CheckStatus::Down]);
+        self::assertContains($result->status, [CheckStatus::Up, CheckStatus::Down, CheckStatus::Unknown]);
     }
 }
