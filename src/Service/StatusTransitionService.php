@@ -10,9 +10,12 @@ use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
+use Nowo\UptimeMonitorBundle\Event\MonitorRecoveredEvent;
+use Nowo\UptimeMonitorBundle\Event\MonitorWentDownEvent;
 use Nowo\UptimeMonitorBundle\Monitor\MonitorSettings;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Nowo\UptimeMonitorBundle\Repository\IncidentRepository;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 use function in_array;
@@ -32,6 +35,7 @@ final readonly class StatusTransitionService
         private NotificationService $notificationService,
         #[Autowire('%nowo_uptime_monitor.notifications%')]
         private array $notificationsConfig,
+        private ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -129,13 +133,16 @@ final readonly class StatusTransitionService
         if ($status === CheckStatus::Up) {
             if ($open instanceof Incident) {
                 $open->resolve();
+                $this->eventDispatcher?->dispatch(new MonitorRecoveredEvent($monitor, $open));
             }
 
             return;
         }
 
         if (in_array($status, [CheckStatus::Down, CheckStatus::Degraded], true) && !$open instanceof Incident) {
-            $this->entityManager->persist(new Incident($monitor, $status, $message));
+            $incident = new Incident($monitor, $status, $message);
+            $this->entityManager->persist($incident);
+            $this->eventDispatcher?->dispatch(new MonitorWentDownEvent($monitor, $incident, $message));
         }
     }
 

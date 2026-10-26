@@ -9,6 +9,7 @@
 - [Monitors and check types](#monitors-and-check-types)
 - [Commands](#commands)
 - [Notifications](#notifications)
+- [Host integration (tenants, access, events)](#host-integration-tenants-access-events)
 - [Overriding templates](#overriding-templates)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
   - [Layout and CSS stack (REQ-UI-001 naming, BC preserved)](#layout-and-css-stack-req-ui-001-naming-bc-preserved)
@@ -92,6 +93,28 @@ Production: enable Symfony Scheduler and consume `scheduler_default` (see [SCHED
 ## Notifications
 
 On status change (up/down/degraded), optional email, webhook, and Slack channels. See [NOTIFICATIONS.md](NOTIFICATIONS.md).
+
+## Host integration (tenants, access, events)
+
+For hosts that own their tenants (e.g. one tenant per project of the host application), since 1.9.0:
+
+- **Tenants**: `TenantProvisioner::ensure($slug, $name)` creates a tenant once (an existing one is kept);
+  `setEnabled($slug, false)` hides it. Set `tenants.list_enabled: false` so users do not create tenants themselves.
+- **Per-tenant access**: when the service set as `security.access_checker` implements
+  `TenantAwareUptimeMonitorAccessCheckerInterface`, every request whose route has `{tenantSlug}` is decided by
+  `canAccessTenant` / `canManageTenantMonitors` / `canManageTenantSettings` for that tenant; the global methods still
+  decide the routes without a tenant.
+- **Events**: `MonitorWentDownEvent` (when an incident opens) and `MonitorRecoveredEvent` (when it resolves) carry the
+  monitor and the incident; they are dispatched before the check is flushed, so a listener may persist its own
+  entities in the same unit of work.
+
+```php
+#[AsEventListener]
+public function onDown(MonitorWentDownEvent $event): void
+{
+    $this->issues->openFor($event->monitor, $event->message);
+}
+```
 
 ## Overriding templates
 

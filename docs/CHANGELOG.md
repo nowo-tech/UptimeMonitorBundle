@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.0] - 2026-10-26](#190---2026-10-26)
 - [[1.8.0] - 2026-10-26](#180---2026-10-26)
 - [[1.7.4] - 2026-10-25](#174---2026-10-25)
 - [[1.7.3] - 2026-10-24](#173---2026-10-24)
@@ -46,6 +47,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.9.0] - 2026-10-26
+
+Multi-tenant hosts that own their tenants (e.g. one tenant per project of the host). See [UPGRADING](UPGRADING.md#to-190).
+
+### Added
+
+- **Per-tenant access**: `TenantAwareUptimeMonitorAccessCheckerInterface` (`canAccessTenant`,
+  `canManageTenantMonitors`, `canManageTenantSettings` with the `{tenantSlug}` of the URL). When the configured access
+  checker implements it, the access subscriber decides every request that names a tenant for that tenant; requests
+  without one (tenant index, tenant creation) keep the global methods.
+- **Status events**: `MonitorWentDownEvent` (monitor, incident, message) when an incident opens and
+  `MonitorRecoveredEvent` (monitor, incident) when it resolves, dispatched before the check's flush — a host can open
+  and close its own records (issues, tickets) in the same unit of work. The built-in notifications are independent
+  (`notifications.enabled`, off by default).
+- **`TenantProvisioner`**: `ensure(slug, name)` (create once, keep an existing tenant) and `setEnabled(slug, bool)` for
+  hosts that create tenants themselves (with `tenants.list_enabled: false`).
 
 ## [1.8.0] - 2026-10-26
 

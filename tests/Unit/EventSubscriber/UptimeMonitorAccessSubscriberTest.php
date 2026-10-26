@@ -10,6 +10,7 @@ use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Controller\StatusPageController;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\EventSubscriber\UptimeMonitorAccessSubscriber;
+use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -228,14 +229,45 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
         ], 'POST'));
     }
 
+    public function testTenantAwareCheckerDecidesForTheTenantInTheUrl(): void
+    {
+        $checker = $this->createMock(TenantAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::never())->method('canAccessDashboard');
+        $checker->expects(self::exactly(2))->method('canAccessTenant')->with(self::anything(), 'acme')->willReturn(true);
+        $checker->expects(self::once())->method('canManageTenantMonitors')->with(self::anything(), 'acme')->willReturn(true);
+        $checker->expects(self::exactly(2))->method('canManageTenantSettings')->with(self::anything(), 'acme')->willReturn(true);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(DashboardController::class), 'index'], tenant: 'acme'));
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(MonitorController::class), 'show'], tenant: 'acme'));
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(MonitorController::class), 'edit'], 'POST', 'acme'));
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(SettingsController::class), 'index'], tenant: 'acme'));
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(DashboardController::class), 'index'], 'POST', 'acme'));
+    }
+
+    public function testTenantAwareCheckerKeepsTheGlobalMethodsWithoutATenant(): void
+    {
+        $checker = $this->createMock(TenantAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::never())->method('canAccessTenant');
+        $checker->expects(self::once())->method('canAccessDashboard')->willReturn(true);
+        $checker->expects(self::once())->method('canManageMonitors')->willReturn(true);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(TenantController::class), 'index']));
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(MonitorController::class), 'new'], 'POST'));
+    }
+
     /**
-     * @param array{0: object, 1: string} $controller
+     * @param array{0: object|string, 1: string} $controller
      */
-    private function controllerEvent(array $controller, string $httpMethod = 'GET'): ControllerEvent
+    private function controllerEvent(array $controller, string $httpMethod = 'GET', ?string $tenant = null): ControllerEvent
     {
         $kernel  = $this->createMock(HttpKernelInterface::class);
         $request = new Request();
         $request->setMethod($httpMethod);
+        if ($tenant !== null) {
+            $request->attributes->set('tenantSlug', $tenant);
+        }
 
         // Symfony accepts [controller, method]; PHPStan types ControllerEvent as callable(): mixed only.
         return new ControllerEvent($kernel, $controller, $request, HttpKernelInterface::MAIN_REQUEST); // @phpstan-ignore argument.type

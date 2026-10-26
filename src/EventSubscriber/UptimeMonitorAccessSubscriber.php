@@ -12,6 +12,7 @@ use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Controller\StatusPageController;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
+use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use stdClass;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -23,6 +24,7 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use function in_array;
 use function is_array;
 use function is_object;
+use function is_string;
 
 /**
  * Enforces UptimeMonitorAccessCheckerInterface on admin/manage controllers (REQ-UI-002).
@@ -83,14 +85,26 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
         }
 
         $user    = $this->resolveUser();
+        $tenant  = $event->getRequest()->attributes->get('tenantSlug');
+        $checker = $this->accessChecker;
+        // Since 1.9: a tenant-aware checker decides every request that names a tenant for that tenant.
+        $scoped  = $checker instanceof TenantAwareUptimeMonitorAccessCheckerInterface && is_string($tenant) && $tenant !== '';
         $allowed = match (true) {
-            $controllerObject instanceof SettingsController => $this->accessChecker->canManageSettings($user),
-            $controllerObject instanceof MonitorController  => $this->isMonitorMutation($method)
-                ? $this->accessChecker->canManageMonitors($user)
-                : $this->accessChecker->canAccessDashboard($user),
-            $controllerObject instanceof TenantController && in_array($method, self::TENANT_MUTATIONS, true) => $this->accessChecker->canManageSettings($user),
-            !in_array($event->getRequest()->getMethod(), self::SAFE_HTTP_METHODS, true)                      => $this->accessChecker->canManageSettings($user),
-            default                                                                                          => $this->accessChecker->canAccessDashboard($user),
+            $controllerObject instanceof SettingsController => $scoped
+                ? $checker->canManageTenantSettings($user, $tenant)
+                : $checker->canManageSettings($user),
+            $controllerObject instanceof MonitorController => match (true) {
+                $this->isMonitorMutation($method) && $scoped => $checker->canManageTenantMonitors($user, $tenant),
+                $this->isMonitorMutation($method)            => $checker->canManageMonitors($user),
+                $scoped                                      => $checker->canAccessTenant($user, $tenant),
+                default                                      => $checker->canAccessDashboard($user),
+            },
+            $controllerObject instanceof TenantController && in_array($method, self::TENANT_MUTATIONS, true) => $checker->canManageSettings($user),
+            !in_array($event->getRequest()->getMethod(), self::SAFE_HTTP_METHODS, true)                      => $scoped
+                ? $checker->canManageTenantSettings($user, $tenant)
+                : $checker->canManageSettings($user),
+            $scoped => $checker->canAccessTenant($user, $tenant),
+            default => $checker->canAccessDashboard($user),
         };
 
         if (!$allowed) {

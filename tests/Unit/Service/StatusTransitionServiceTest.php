@@ -12,11 +12,14 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorRecoveredEvent;
+use Nowo\UptimeMonitorBundle\Event\MonitorWentDownEvent;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Nowo\UptimeMonitorBundle\Repository\IncidentRepository;
 use Nowo\UptimeMonitorBundle\Service\NotificationService;
 use Nowo\UptimeMonitorBundle\Service\StatusTransitionService;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @covers \Nowo\UptimeMonitorBundle\Service\StatusTransitionService
@@ -31,13 +34,42 @@ final class StatusTransitionServiceTest extends TestCase
         NotificationService $notificationService,
         array $config = ['enabled' => true, 'cooldown_seconds' => 300],
         ?EntityManagerInterface $entityManager = null,
+        ?EventDispatcherInterface $eventDispatcher = null,
     ): StatusTransitionService {
         return new StatusTransitionService(
             $entityManager ?? $this->createMock(EntityManagerInterface::class),
             $incidentRepo,
             $notificationService,
             $config,
+            $eventDispatcher,
         );
+    }
+
+    /** Since 1.9: an incident opening and resolving dispatches MonitorWentDownEvent / MonitorRecoveredEvent. */
+    public function testDispatchesDownAndRecoveredEvents(): void
+    {
+        $monitor = $this->createMonitor();
+        $monitor->setLastKnownStatus(CheckStatus::Up);
+        $events     = [];
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event) use (&$events): object {
+            $events[] = $event;
+
+            return $event;
+        });
+        $incidents = $this->createMock(IncidentRepository::class);
+        $service   = $this->createService($incidents, $this->createMock(NotificationService::class), eventDispatcher: $dispatcher);
+
+        $incidents->method('findOpenForMonitor')->willReturnOnConsecutiveCalls(null, new Incident($monitor, CheckStatus::Down));
+        $service->handleAfterCheck($monitor, new CheckResult($monitor, CheckStatus::Down, 100, 503, 'down'));
+        $service->handleAfterCheck($monitor, new CheckResult($monitor, CheckStatus::Up, 50, 200));
+
+        self::assertCount(2, $events);
+        self::assertInstanceOf(MonitorWentDownEvent::class, $events[0]);
+        self::assertSame('down', $events[0]->message);
+        self::assertSame($monitor, $events[0]->monitor);
+        self::assertInstanceOf(MonitorRecoveredEvent::class, $events[1]);
+        self::assertFalse($events[1]->incident->isOpen());
     }
 
     private function createMonitor(): Monitor
