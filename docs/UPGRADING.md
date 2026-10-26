@@ -8,6 +8,8 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.8.0](#to-180)
+  - [Forms rendered through Form Types (REQ-TWIG-005)](#forms-rendered-through-form-types-req-twig-005)
 - [To 1.7.4](#to-174)
 - [To 1.7.3](#to-173)
 - [To 1.7.2](#to-172)
@@ -80,6 +82,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.8.0
+
+From **1.7.4**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 ### Forms rendered through Form Types (REQ-TWIG-005)
 

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.8.0] - 2026-10-26](#180---2026-10-26)
 - [[1.7.4] - 2026-10-25](#174---2026-10-25)
 - [[1.7.3] - 2026-10-24](#173---2026-10-24)
 - [[1.7.2] - 2026-10-20](#172---2026-10-20)
@@ -46,6 +47,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-26
+
+Forms in the bundle views are Symfony Form Types rendered with form_start / child loop / form_end, no raw form controls (REQ-TWIG-005). See [UPGRADING](UPGRADING.md#to-180).
+
 ### Changed
 
 - Bundle views render every form through Symfony Form Types (REQ-TWIG-005): `settings/history.html.twig` (purge / clear statistics → `CsrfActionFormType`), `settings/tags.html.twig` (per-tag delete → `CsrfActionFormType`), `settings/backup.html.twig` (JSON import → `BackupImportFormType` with `FileType`) and the dashboard sidebar filter (`MonitorSearchFormType`, client-side only). Posted field names and CSRF token ids are unchanged; the settings controller validates the purge, clear, delete-tag and import POSTs through the Form (CSRF listener) instead of `isCsrfTokenValid()`. Template overrides of these views must render the new form variables (see UPGRADING).
@@ -53,6 +58,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - `make check-no-raw-html-form` (REQ-TWIG-005) fails on raw `<form>` / `<input>` / `<textarea>` / `<select>` in bundle and demo Twig; it runs in `release-check`.
+
+[1.8.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.8.0
 
 ## [1.7.4] - 2026-10-25
 
@@ -528,7 +535,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.7.4...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.8.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
