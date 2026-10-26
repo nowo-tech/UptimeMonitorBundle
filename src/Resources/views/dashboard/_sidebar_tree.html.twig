@@ -1,3 +1,4 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 <nav class="uptime-sidebar-tree" data-sidebar-tree aria-label="Monitors">
     {% for section in groups %}
         {% set section_id = section.label|lower|replace({' ': '-', '[': '', ']': ''}) %}

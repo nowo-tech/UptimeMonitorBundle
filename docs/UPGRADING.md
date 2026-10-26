@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.9.1](#to-191)
 - [To 1.9.0](#to-190)
 - [To 1.8.0](#to-180)
   - [Forms rendered through Form Types (REQ-TWIG-005)](#forms-rendered-through-form-types-req-twig-005)
@@ -83,6 +84,26 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.9.1
+
+From **1.9.0**: no change needed. Optional, to put the tenant inside your own URLs:
+
+```yaml
+# config/routes/nowo_uptime_monitor.yaml (instead of importing Resources/config/routes.yaml)
+nowo_uptime_monitor:
+    resource: .
+    type: nowo_uptime_monitor
+```
+
+```yaml
+# config/packages/nowo_uptime_monitor.yaml
+nowo_uptime_monitor:
+    dashboard:
+        path: '/projects/{tenantSlug}/uptime'
+    tenants:
+        list_enabled: false
+```
 
 ## To 1.9.0
 

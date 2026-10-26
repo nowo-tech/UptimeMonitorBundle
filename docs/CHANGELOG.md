@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.1] - 2026-10-26](#191---2026-10-26)
 - [[1.9.0] - 2026-10-26](#190---2026-10-26)
 - [[1.8.0] - 2026-10-26](#180---2026-10-26)
 - [[1.7.4] - 2026-10-25](#174---2026-10-25)
@@ -47,6 +48,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.9.1] - 2026-10-26
+
+Hosts that show the bundle inside their own pages. See [UPGRADING](UPGRADING.md#to-191).
+
+### Added
+
+- **Tenant inside the host URLs**: route import `type: nowo_uptime_monitor` (`UptimeMonitorRouteLoader`). When
+  `dashboard.path` holds `{tenantSlug}` (e.g. `/projects/{tenantSlug}/uptime`), the tenant pages live under it
+  (`/projects/{tenantSlug}/uptime/monitors/new`) and the tenant-less pages (tenant list, new tenant) are left out.
+  Without the placeholder the routes are those of `routes.yaml`.
+
+### Fixed
+
+- **Embedded mode**: `.uptime-app--embedded` also follows `data-theme="light|dark"` on an ancestor (UiKit / Tailwind
+  hosts), not only `data-bs-theme`, and its rules now win over the framework stylesheet (`uptime-ui-tailwind.css`
+  painted the dashboard dark in a light host).
+- **Monitor tree**: "No monitors yet." showed its raw key (`_sidebar_tree.html.twig` had no translation domain).
 
 ## [1.9.0] - 2026-10-26
 

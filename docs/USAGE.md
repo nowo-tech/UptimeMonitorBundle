@@ -104,6 +104,10 @@ For hosts that own their tenants (e.g. one tenant per project of the host applic
   `TenantAwareUptimeMonitorAccessCheckerInterface`, every request whose route has `{tenantSlug}` is decided by
   `canAccessTenant` / `canManageTenantMonitors` / `canManageTenantSettings` for that tenant; the global methods still
   decide the routes without a tenant.
+- **URLs** (1.9.1): import the routes with `type: nowo_uptime_monitor` and put `{tenantSlug}` in `dashboard.path`
+  (`/projects/{tenantSlug}/uptime`) to serve the tenant pages under the host's own URLs.
+- **Look**: wrap the pages in `.uptime-app.uptime-app--embedded` (bridge layout); the theme follows `data-theme` or
+  `data-bs-theme` on an ancestor and the host maps the `--tblr-*` tokens to its palette.
 - **Events**: `MonitorWentDownEvent` (when an incident opens) and `MonitorRecoveredEvent` (when it resolves) carry the
   monitor and the incident; they are dispatched before the check is flushed, so a listener may persist its own
   entities in the same unit of work.

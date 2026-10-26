@@ -127,7 +127,7 @@ Bundle admin templates extend the configurable `uptime_layout` global (alias: `n
 
 ### Embedded host theme
 
-When the UI is rendered inside a host app shell (nowo-devkit), add class `uptime-app--embedded` on the root `.uptime-app` wrapper. The bundle maps `--uptime-*` tokens to `--tblr-*` / `--brand-*` via `[data-bs-theme]` on the host document.
+When the UI is rendered inside a host app shell (nowo-devkit), add class `uptime-app--embedded` on the root `.uptime-app` wrapper. The bundle maps `--uptime-*` tokens to `--tblr-*` / `--brand-*` via `[data-bs-theme]` or `[data-theme]` (since 1.9.1) on the host document; a host without Tabler defines the `--tblr-*` tokens it wants on `.uptime-app--embedded`.
 
 ### Tenant list UI
 

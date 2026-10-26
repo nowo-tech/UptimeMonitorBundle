@@ -30,6 +30,10 @@ services:
             $channelKey: 'slack'
         tags: ['nowo.uptime_monitor.notification_channel']
 
+    # Route import `type: nowo_uptime_monitor` (tenant inside the host URLs when dashboard.path holds {tenantSlug}).
+    Nowo\UptimeMonitorBundle\Routing\UptimeMonitorRouteLoader:
+        tags: ['routing.loader']
+
     Nowo\UptimeMonitorBundle\Repository\:
         resource: '../../Repository/'
 

@@ -1,5 +1,6 @@
 /**
- * Host shell integration (nowo-devkit / Tabler data-bs-theme).
+ * Host shell integration: the host's theme attribute (Tabler / Bootstrap `data-bs-theme`, or `data-theme` as
+ * UiKit / Tailwind hosts set it) on an ancestor; the embedded rules outrank the framework stylesheet.
  * Apply class `uptime-app--embedded` on the root wrapper when the bundle UI
  * is rendered inside a host layout that already provides Tabler + branding tokens.
  */
@@ -48,13 +49,13 @@
   --uptime-table-head-bg: var(--tblr-bg-surface-secondary, #1a1d23);
 }
 
-[data-bs-theme='light'] .uptime-app--embedded.uptime-theme-auto,
-[data-bs-theme='light'] .uptime-app--embedded.uptime-theme-light {
+:is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded.uptime-theme-auto,
+:is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded.uptime-theme-light {
   @include uptime-host-light-tokens;
 }
 
-[data-bs-theme='dark'] .uptime-app--embedded.uptime-theme-auto,
-[data-bs-theme='dark'] .uptime-app--embedded.uptime-theme-dark {
+:is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded.uptime-theme-auto,
+:is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded.uptime-theme-dark {
   @include uptime-host-dark-tokens;
 }
 
@@ -94,35 +95,35 @@
   --uptime-unknown: var(--tblr-secondary, #64748b);
 }
 
-[data-bs-theme='light'] .uptime-app--embedded .uptime-dashboard-kuma,
-[data-bs-theme='light'] .uptime-app--embedded .uptime-detail,
-[data-bs-theme='light'] .uptime-app--embedded .uptime-kuma-layout {
+:is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-dashboard-kuma,
+:is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-detail,
+:is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-kuma-layout {
   @include uptime-host-panel-tokens-light;
   background: var(--tblr-bg-surface, var(--uptime-surface));
   color: var(--uptime-text);
 }
 
-[data-bs-theme='dark'] .uptime-app--embedded .uptime-dashboard-kuma,
-[data-bs-theme='dark'] .uptime-app--embedded .uptime-detail,
-[data-bs-theme='dark'] .uptime-app--embedded .uptime-kuma-layout {
+:is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-dashboard-kuma,
+:is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-detail,
+:is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-kuma-layout {
   @include uptime-host-panel-tokens-dark;
   background: var(--tblr-bg-surface, var(--uptime-surface));
   color: var(--uptime-text);
 }
 
-[data-bs-theme='light'] .uptime-app--embedded .uptime-btn-primary,
-[data-bs-theme='dark'] .uptime-app--embedded .uptime-btn-primary {
+:is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-btn-primary,
+:is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-btn-primary {
   background: var(--tblr-primary, var(--brand-primary, #2563eb));
   border-color: var(--tblr-primary, var(--brand-primary, #2563eb));
 }
 
-[data-bs-theme='light'] .uptime-app--embedded .uptime-btn-link,
-[data-bs-theme='dark'] .uptime-app--embedded .uptime-btn-link {
+:is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded .uptime-btn-link,
+:is([data-bs-theme='dark'], [data-theme='dark']) .uptime-app--embedded .uptime-btn-link {
   color: var(--tblr-primary, var(--brand-primary, #2563eb));
 }
 
 /* Embedded shell layout (nowo-devkit platform) */
-.uptime-app--embedded {
+.uptime-app.uptime-app--embedded {
   .uptime-toolbar--dashboard {
     display: flex;
     flex-wrap: wrap;
