@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Form;
 
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
-use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Override;
 use Symfony\Component\Form\Extension\Core\Type\SearchType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -22,8 +21,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class MonitorSearchFormType extends AbstractUptimeFormType
 {
-    use FormOptionsTrait;
-
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('q', SearchType::class, [

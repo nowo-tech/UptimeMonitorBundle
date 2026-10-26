@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Form;
 
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
-use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Nowo\UptimeMonitorBundle\Form\Model\TagFormData;
 use Symfony\Component\Form\Extension\Core\Type\ColorType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -17,8 +16,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class TagFormType extends AbstractUptimeFormType
 {
-    use FormOptionsTrait;
-
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $this->addText($builder, 'name', ['label' => 'form.settings.tag_name']);

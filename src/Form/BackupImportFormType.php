@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Form;
 
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
-use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Nowo\UptimeMonitorBundle\Service\MonitorBackupService;
 use Override;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -25,8 +24,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class BackupImportFormType extends AbstractUptimeFormType
 {
-    use FormOptionsTrait;
-
     public const CSRF_TOKEN_ID = 'backup-import';
 
     public function buildForm(FormBuilderInterface $builder, array $options): void

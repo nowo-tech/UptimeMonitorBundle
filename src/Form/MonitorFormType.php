@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Form;
 
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
-use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -17,8 +16,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class MonitorFormType extends AbstractUptimeFormType
 {
-    use FormOptionsTrait;
-
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var array<string, int> $groupChoices */
@@ -35,6 +32,8 @@ final class MonitorFormType extends AbstractUptimeFormType
                 'form.monitor.type.ssl'   => MonitorType::Ssl,
                 'form.monitor.type.ping'  => MonitorType::Ping,
             ],
+            // The option values are the type names (`https`, `tcp`, …): the form's field toggle reads them.
+            'choice_value' => static fn (?MonitorType $type): ?string => $type?->value,
         ]);
         $this->addText($builder, 'name', ['label' => 'form.monitor.name']);
         $this->addChoice($builder, 'parentId', [

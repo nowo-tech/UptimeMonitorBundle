@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.9.2](#to-192)
 - [To 1.9.1](#to-191)
 - [To 1.9.0](#to-190)
 - [To 1.8.0](#to-180)
@@ -84,6 +85,11 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.9.2
+
+From **1.9.1**: no change needed (bug fixes). A host template that read the monitor type select's option values gets
+the type names (`https`) instead of indexes (`2`).
 
 ## To 1.9.1
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Form;
 
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
-use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Override;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -21,8 +20,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class CsrfActionFormType extends AbstractUptimeFormType
 {
-    use FormOptionsTrait;
-
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         // CSRF only — no application fields.

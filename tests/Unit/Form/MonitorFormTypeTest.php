@@ -56,4 +56,35 @@ final class MonitorFormTypeTest extends TypeTestCase
         self::assertSame(90, $data->intervalSeconds);
         self::assertTrue($data->paused);
     }
+
+    /** Optional text fields left empty keep '' (a `string` model property refuses the null Symfony would submit). */
+    public function testEmptyOptionalTextFieldsSubmitAnEmptyString(): void
+    {
+        $data               = new MonitorFormData();
+        $data->project      = 'legacy';
+        $data->description  = 'old';
+        $data->url          = 'https://example.test';
+        $data->httpBody     = '{}';
+        $data->authPassword = 'secret';
+
+        $form = $this->factory->create(MonitorFormType::class, $data);
+        $form->submit(['project' => '', 'description' => '', 'url' => '', 'httpBody' => '', 'authPassword' => ''], false);
+
+        self::assertTrue($form->isSynchronized());
+        self::assertSame('', $data->project);
+        self::assertSame('', $data->description);
+        self::assertSame('', $data->url);
+        self::assertSame('', $data->httpBody);
+        self::assertSame('', $data->authPassword);
+    }
+
+    public function testTheTypeOptionsAreTheTypeNames(): void
+    {
+        $view = $this->factory->create(MonitorFormType::class, new MonitorFormData())->createView();
+
+        self::assertSame(
+            ['group', 'http', 'https', 'tcp', 'dns', 'ssl', 'ping'],
+            array_map(static fn ($choice): string => $choice->value, array_values($view['type']->vars['choices'])),
+        );
+    }
 }

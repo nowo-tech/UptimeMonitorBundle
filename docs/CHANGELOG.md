@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.2] - 2026-10-26](#192---2026-10-26)
 - [[1.9.1] - 2026-10-26](#191---2026-10-26)
 - [[1.9.0] - 2026-10-26](#190---2026-10-26)
 - [[1.8.0] - 2026-10-26](#180---2026-10-26)
@@ -48,6 +49,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.9.2] - 2026-10-26
+
+### Fixed
+
+- **Saving a monitor with an optional text field left empty** (project label, description, URL, body, password, …)
+  answered HTTP 500 (`Expected argument of type "string", "null" given`): the bundle's text, textarea, URL and password
+  fields now submit `''` when empty (`empty_data`). The form types no longer re-import `FormOptionsTrait`, which hid
+  the shared field helpers of `AbstractUptimeFormType`.
+- **Monitor type options** are the type names (`http`, `https`, `tcp`, …) instead of indexes, so the form's
+  per-type field toggle shows the right sections.
 
 ## [1.9.1] - 2026-10-26
 
