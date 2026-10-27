@@ -53,4 +53,17 @@ final class CheckResultDtoTest extends TestCase
         self::assertNull($clean->message);
         self::assertNull($clean->metadata);
     }
+
+    public function testSanitizedMasksCredentialsInUrlsOfTheMessageAndMetadata(): void
+    {
+        $dto = (new CheckResultDto(
+            CheckStatus::Down,
+            10,
+            message: 'Redirect to https://admin:hunter2@intra.test/?api_key=k failed',
+            metadata: ['location' => 'https://bob:pw@intra.test/'],
+        ))->sanitized();
+
+        self::assertSame('Redirect to https://***@intra.test/?api_key=*** failed', $dto->message);
+        self::assertSame(['location' => 'https://***@intra.test/'], $dto->metadata);
+    }
 }

@@ -17,7 +17,7 @@ use function preg_replace_callback;
  * URL userinfo (`https://user:pass@host`, up to the last `@` of the authority) becomes `https://***@host` and the
  * values of credential-like query parameters (`?token=`, `api_key=`, `secret=`, `sig=`…) become `***`; backups also
  * drop the basic-auth password and the request body and replace custom header values. Monitor managers still see and
- * edit the real values in the monitor form.
+ * edit the real values in the monitor form. URLs inside check messages and metadata are masked before they are stored.
  */
 final class SecretRedactor
 {
@@ -43,6 +43,19 @@ final class SecretRedactor
             '#([?&])([^=&\#]*)=([^&\#]*)#',
             static fn (array $m): string => $m[1] . $m[2] . '=' . (preg_match(self::SENSITIVE_QUERY_KEY, $m[2]) === 1 ? self::MASK : $m[3]),
             $value,
+        );
+    }
+
+    /**
+     * Masks every URL found in free text (check messages, transport errors: SEC-004 I3) with {@see self::maskUrl()};
+     * the rest of the text is unchanged.
+     */
+    public static function maskUrlsInText(string $text): string
+    {
+        return (string) preg_replace_callback(
+            '#[a-z][a-z0-9+.\-]*://[^\s"\'<>]+#i',
+            static fn (array $m): string => self::maskUrl($m[0]),
+            $text,
         );
     }
 

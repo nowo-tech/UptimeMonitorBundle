@@ -60,4 +60,13 @@ final class SecretRedactorTest extends TestCase
         ], $config);
         self::assertSame(['method' => 'GET'], SecretRedactor::redactMonitorConfig(['method' => 'GET']));
     }
+
+    public function testUrlsInsideFreeTextAreMasked(): void
+    {
+        self::assertSame(
+            'cURL error 6: Could not resolve host for "https://***@api.test/h?token=***&page=2" (see http://docs.test).',
+            SecretRedactor::maskUrlsInText('cURL error 6: Could not resolve host for "https://user:pa55@api.test/h?token=abc&page=2" (see http://docs.test).'),
+        );
+        self::assertSame('no url here', SecretRedactor::maskUrlsInText('no url here'));
+    }
 }

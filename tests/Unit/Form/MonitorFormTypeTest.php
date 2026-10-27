@@ -16,6 +16,7 @@ use Symfony\Component\Form\Test\TypeTestCase;
 use Symfony\Component\Validator\Validation;
 
 #[CoversClass(MonitorFormType::class)]
+#[CoversClass(MonitorFormData::class)]
 final class MonitorFormTypeTest extends TypeTestCase
 {
     /**
@@ -140,6 +141,28 @@ final class MonitorFormTypeTest extends TypeTestCase
 
         self::assertNull($form->get('url')->getConfig()->getOption('default_protocol'));
         self::assertSame('status.example.test', $data->url);
+    }
+
+    public function testHttpMonitorsNeedAFullHttpOrHttpsUrl(): void
+    {
+        $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
+        $data      = new MonitorFormData();
+        foreach (['status.example.test', 'ftp://files.example.test', 'https://', 'https://exa mple.test'] as $url) {
+            $data->url  = $url;
+            $violations = $validator->validate($data);
+
+            self::assertCount(1, $violations, $url);
+            self::assertSame('form.monitor.url_invalid', $violations->get(0)->getMessageTemplate());
+            self::assertSame('url', $violations->get(0)->getPropertyPath());
+        }
+
+        $data->type = MonitorType::Http;
+        $data->url  = 'http://intranet:8080/health';
+        self::assertCount(0, $validator->validate($data), 'no TLD required');
+
+        $data->type = MonitorType::Tcp;
+        $data->url  = 'leftover';
+        self::assertCount(0, $validator->validate($data), 'other types ignore the URL field');
     }
 
     public function testTheTypeOptionsAreTheTypeNames(): void

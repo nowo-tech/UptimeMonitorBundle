@@ -98,6 +98,17 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- **Empty role lists no longer mean "everyone"** (SEC-004 P1). With the built-in checker an area whose list and
+  `security.access_roles` are both empty is denied to everyone, and a configuration where `access_roles` and every
+  `security.roles.<action>` (or deprecated `*_roles`) list are empty fails the container compile while the web UI is
+  on. If you relied on `access_roles: []` + empty area lists to open the UI, list the roles (e.g.
+  `access_roles: [ROLE_USER]`), use `security.access_checker`, or (dev only) `security.allow_unauthenticated: true`.
+- **Backup import and tenant limits** (Q1): with `limits.max_monitors` / a `limits.provider`, rows beyond the quota are
+  not imported (`over_quota` in the result of `MonitorBackupService::import()`, which now has that extra key) and check
+  intervals are raised to `limits.min_interval_seconds`. Code that compares the whole result array must add the key.
+- **Monitor URL validation** (I2): HTTP / HTTPS monitors with a URL that is not a full `http://` / `https://` URL
+  are refused by the form and skipped (`invalid`) by the backup import; existing monitors are unchanged until edited.
+
 - **UiKit 2.15.4** is required (`composer update nowo-tech/ui-kit-bundle`). A host layout that copied the demo's
   `data-theme` → `data-bs-theme` script can drop it: UiKit's theme boot and toggle set both attributes
   (`<html data-nowo-ui-bs-theme="off">` leaves `data-bs-theme` to the host).
