@@ -53,4 +53,19 @@ final class CheckResultDtoTest extends TestCase
         self::assertNull($clean->message);
         self::assertNull($clean->metadata);
     }
+
+    public function testSanitizedMasksCredentialsInUrlsOfTheMessageAndMetadata(): void
+    {
+        // Obvious placeholder credentials, joined into the URL at runtime.
+        $userinfo = 'admin:REDACTED-TEST';
+        $dto      = (new CheckResultDto(
+            CheckStatus::Down,
+            10,
+            message: 'Redirect to https://' . $userinfo . '@intra.test/?api_key=placeholder failed',
+            metadata: ['location' => 'https://' . $userinfo . '@intra.test/'],
+        ))->sanitized();
+
+        self::assertSame('Redirect to https://***@intra.test/?api_key=*** failed', $dto->message);
+        self::assertSame(['location' => 'https://***@intra.test/'], $dto->metadata);
+    }
 }

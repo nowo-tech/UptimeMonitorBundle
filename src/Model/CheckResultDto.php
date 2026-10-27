@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Model;
 
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
+use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 
 use function array_slice;
 use function count;
@@ -46,7 +47,9 @@ final readonly class CheckResultDto
     /**
      * Copy whose message and metadata are valid UTF-8 and bounded (SEC-004 N1): check data comes from remote targets
      * (DNS TXT records, transport errors) and must never make the result unstorable — a failing flush would close the
-     * entity manager for the whole scan.
+     * entity manager for the whole scan. URLs inside the message and the metadata strings are masked with
+     * {@see SecretRedactor::maskUrlsInText()} (userinfo, credential-like query values: SEC-004 I3), so transport errors
+     * that echo the target URL store no credentials.
      */
     public function sanitized(): self
     {
@@ -64,7 +67,7 @@ final readonly class CheckResultDto
 
     private static function sanitizeString(string $value, int $maxLength): string
     {
-        $value = mb_scrub($value, 'UTF-8');
+        $value = SecretRedactor::maskUrlsInText(mb_scrub($value, 'UTF-8'));
 
         return mb_strlen($value, 'UTF-8') > $maxLength ? mb_substr($value, 0, $maxLength, 'UTF-8') . '…' : $value;
     }

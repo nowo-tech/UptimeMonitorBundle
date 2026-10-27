@@ -159,7 +159,7 @@ Before tagging a release, confirm:
 | **No-secret logs** | [Logging policy](#logging-policy) still holds: no webhook URLs, credentials, recipients or payloads in log calls (`grep -rn 'logger' src/`). |
 | **Cryptography** | No custom cryptography; TLS verification stays on for SSL checks (only the per-monitor "ignore TLS errors" option disables it, for that HTTP check). |
 | **Limits / DoS** | Every outbound call keeps an explicit deadline ([Timeouts](CONFIGURATION.md#timeouts-frankenphp-safe-req-runtime-001)); purge stays batched. |
-| **AI security audit (REQ-SEC-004)** | Package **passes** the latest AI security audit: grade **Pass (good)** / risk **Low** (re-audit 2026-10-27, PR #121), recorded in the Nowo monorepo `BUNDLES_SECURITY_ANALYSIS.md`. Re-run the audit when outbound checks, notifications or access control change, and do not release on a failing grade. |
+| **AI security audit (REQ-SEC-004)** | Package **passes** the latest AI security audit: grade **Pass (good)** / risk **Low** (re-audit 2026-10-27, PR #121; 1.12.x delta `af6692d`, findings fixed on `sec-quota`), recorded in the Nowo monorepo `BUNDLES_SECURITY_ANALYSIS.md`. Re-run the audit when outbound checks, notifications or access control change, and do not release on a failing grade. |
 
 Record confirmation in the release PR or tag notes.
 
@@ -174,12 +174,12 @@ make release-check
 
 | Field | Value |
 | ----- | ----- |
-| Latest audit | 2026-10-27 (re-audit + fix verification of PR #121, head `ec0f997`) |
+| Latest audit | 2026-10-27 (re-audit + 1.12.x delta `af6692d`; delta findings P1, Q1–Q3, I1–I3 fixed on branch `sec-quota`) |
 | Method | Claude Code security review (static: `src/`, config defaults, Twig, TypeScript, security docs), cross-checked against Symfony HttpClient 7.4 and Doctrine ORM 3 |
 | Grade | **Pass (good)** |
 | Risk | Low |
-| Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH |
-| Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked; no per-tenant monitor quota (bounded by `max_scan_seconds`) |
+| Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH (+ 1.12.x delta) |
+| Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked (also in stored check messages); `limits.max_monitors` defaults to 0 (no quota; the scan stays bounded by `max_scan_seconds`); a host `security.access_checker` or `TenantLimitsInterface` is trusted as written; `StatusPageMonitorsEvent` listeners can still hide monitors (only narrowing is enforced) |
 
 ### Findings (2026-10-27, all fixed in PR #121)
 
@@ -197,3 +197,15 @@ make release-check
 | N2 | Low | Query-string tokens / request body kept, raw `@` userinfo leak | Last-`@` userinfo, credential-like query values, body dropped in exports |
 | N3 | Low | `web_ui.enabled: false` kept the admin mutation routes | Route loader drops them; subscriber answers 404 |
 | N4 | Low | No default scan budget | `checks.max_scan_seconds` default 300 |
+
+### Findings (2026-10-27, 1.12.x delta `af6692d`, fixed on branch `sec-quota`)
+
+| Id | Severity | Finding | Fix |
+| -- | -------- | ------- | --- |
+| P1 | Low | An empty role list allowed everyone (`access_roles: []` + empty area list) | Empty lists never grant; an area with both lists empty is denied; every list empty with the web UI on fails the container compile |
+| Q1 | Low | Backup import ignored `limits.max_monitors` and `limits.min_interval_seconds` | Rows beyond the remaining quota (groups not counted, group overwritten into a check included) are skipped and counted as `over_quota` (warning flash); intervals raised to the tenant minimum |
+| Q2 | Low | Editing a group into a check bypassed `max_monitors` (groups are not counted) | The type change needs a free slot (form error otherwise) |
+| Q3 | Low | Count-then-insert race on New monitor / import | `TenantQuota::withTenantLock()`: one transaction, PESSIMISTIC_WRITE lock on the tenant row, quota counted again after the lock |
+| I1 | Info | `StatusPageMonitorsEvent` listeners could add monitors of another tenant or paused ones | The page re-filters the listener result (same tenant, not paused) |
+| I2 | Info | A URL without a scheme was only caught by the check | HTTP(S) monitors validate a full `http://` / `https://` URL with a host (`form.monitor.url_invalid`; backup rows too) |
+| I3 | Info | Transport errors stored the target URL with its credentials in the check message | `CheckResultDto::sanitized()` masks URLs in the message and metadata (`SecretRedactor::maskUrlsInText()`) |
