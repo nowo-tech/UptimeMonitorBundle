@@ -170,8 +170,9 @@
     clear: both;
   }
 
-  /* Field rows of the bundle forms (the UiKit form_row slot is empty on most stacks). */
-  :is(.uptime-form-section, .uptime-settings-group, .uptime-settings-body .nowo-ui-form, .uptime-settings-form) > div:not([class*='form-actions']) {
+  /* Field rows grouped in the bundle's fieldsets: the UiKit form flex gap spaces only the form's own rows, and only
+     Bootstrap rows carry the UiKit form_row class (mb-3, UiKit 2.15.4), so rows of the other stacks get the same rem. */
+  :is(.uptime-form-section, .uptime-settings-group) > div:not([class*='form-actions'], .mb-3) {
     margin-bottom: 1rem;
   }
 

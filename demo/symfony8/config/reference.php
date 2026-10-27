@@ -955,6 +955,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     checks?: array{ // Check execution and reported latency
  *         min_latency_ms?: int|Param, // Floor for stored latency (ms); 0 = no floor. Per-monitor override: config.min_latency_ms // Default: 0
  *         block_private_urls?: bool|Param, // Block HTTP/TCP/SSL/ping/DNS monitor targets (incl. redirects, proxies and private DNS answers) on private/local networks (SSRF mitigation). // Default: true
+ *         max_timeout_seconds?: float|Param, // Upper bound of every per-monitor timeout (HTTP, TCP, SSL; ping is capped at 30 s). One monitor can never stall the shared scan longer (SEC-004). // Default: 60.0
+ *         max_body_bytes?: int|Param, // HTTP checks read the response body only when a keyword is configured, and at most this many bytes. // Default: 1048576
+ *         max_redirects?: int|Param, // Upper bound of the per-monitor redirect limit of HTTP checks. // Default: 20
+ *         max_scan_seconds?: int|Param, // Time budget of one due-check scan; monitors left over stay due for the next tick (oldest first). 0 = no budget. // Default: 300
  *     },
  *     retention?: array{
  *         detail_days?: int|Param, // Days to keep CheckResult detail rows; 0 = infinite (no purge) // Default: 30
@@ -999,6 +1003,17 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         layout_template?: scalar|Param|null, // Admin layout of the bundle pages; null (default) = nowo_ui_kit.layouts.admin. The layout renders the UiKit canonical blocks (nowo_ui_content…). // Default: null
  *         templates?: array<string, scalar|Param|null>,
  *         form_themes?: list<scalar|Param|null>,
+ *         dashboard?: array{ // Tenant dashboard page.
+ *             view?: "tree"|"table"|Param, // tree: the live monitor tree with quick stats and recent checks; table: a monitors table (status, 24 h uptime, last check, interval, row actions) and a paginated card of the latest checks — for hosts that embed the pages in their own navigation. // Default: "tree"
+ *             header?: "tenant"|"monitors"|Param, // Page header title: tenant (its name, the slug as intro) or monitors ("Monitors" — for hosts that already show the tenant around the page; the table view then drops its card title). // Default: "tenant"
+ *             actions?: list<"settings"|"status_page"|"new_monitor"|Param>,
+ *         },
+ *         per_page?: int|Param, // Rows per page of the check log (monitor page) and of the latest checks (table dashboard). // Default: 20
+ *     },
+ *     limits?: array{ // Per-tenant monitor limits: the New monitor action is disabled and the form refuses a monitor beyond them.
+ *         provider?: scalar|Param|null, // Service id of a Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface deciding the limits per tenant; null = max_monitors / min_interval_seconds for every tenant. // Default: null
+ *         max_monitors?: int|Param, // Monitors per tenant, groups not counted (0 = no limit). // Default: 0
+ *         min_interval_seconds?: int|Param, // Shortest check interval of a monitor, in seconds. // Default: 30
  *     },
  *     form?: array{ // Monitor form options.
  *         hidden_fields?: list<scalar|Param|null>,
@@ -1040,6 +1055,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     status_page?: array{
  *         enabled?: bool|Param, // Default: true
+ *         default_public?: bool|Param, // Whether a tenant status page is public when the tenant did not choose (Settings → General → Public status page). true keeps the 1.x behaviour; set false to make status pages opt-in. // Default: true
  *         path?: scalar|Param|null, // Default: "/status"
  *         title?: scalar|Param|null, // Override page title; defaults to tenant name // Default: null
  *         show_latency?: bool|Param, // Default: true

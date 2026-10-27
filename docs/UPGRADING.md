@@ -98,6 +98,13 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- **UiKit 2.15.4** is required (`composer update nowo-tech/ui-kit-bundle`). A host layout that copied the demo's
+  `data-theme` → `data-bs-theme` script can drop it: UiKit's theme boot and toggle set both attributes
+  (`<html data-nowo-ui-bs-theme="off">` leaves `data-bs-theme` to the host).
+- **URL fields on Symfony 7.4**: the monitor URL and Settings → General → Primary base URL no longer get `http://`
+  prepended when typed without a scheme (`default_protocol: null`, the Symfony 8 default). The browser asks for a
+  full URL (`type="url"`); stored values are unchanged.
+
 ## To 1.12.0
 
 ```bash

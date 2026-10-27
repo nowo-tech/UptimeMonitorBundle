@@ -267,6 +267,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/scss/_kuma.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/_mixins.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/_settings.scss` | SCSS partial/theme | FR-STYLE-001 |
+| `Resources/assets/scss/_table-view.scss` | SCSS partial (table dashboard, since 1.12) | FR-STYLE-001, FR-UI-005 |
 | `Resources/assets/scss/_variables.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/uptime-dashboard.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/_ui-contract.scss` | SCSS partial/theme (UiKit page contract tokens / layout) | FR-STYLE-001 |
@@ -305,6 +306,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/dashboard/_sidebar_group_header.html.twig` | Dashboard template | FR-VIEW-003 |
 | `Resources/views/dashboard/_sidebar_row.html.twig` | Dashboard template | FR-VIEW-003 |
 | `Resources/views/dashboard/_sidebar_tree.html.twig` | Dashboard template | FR-VIEW-003 |
+| `Resources/views/dashboard/_table_view.html.twig` | Table dashboard (`web_ui.dashboard.view: table`, since 1.12) | FR-VIEW-003, FR-UI-005 |
 | `Resources/views/dashboard/index.html.twig` | Dashboard template | FR-VIEW-003 |
 | `Resources/views/monitor/_monitor_edit_modal.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/_monitor_form_body.html.twig` | Monitor UI template | FR-VIEW-004 |
