@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.11.0] - 2026-10-27](#1110---2026-10-27)
 - [[1.10.0] - 2026-10-27](#1100---2026-10-27)
 - [[1.9.4] - 2026-10-26](#194---2026-10-26)
 - [[1.9.3] - 2026-10-26](#193---2026-10-26)
@@ -52,6 +53,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.11.0] - 2026-10-27
+
+UiKit page contract UI, 100% PHP/99% TS coverage gates, Playwright e2e + screenshots, table_prefix, clock injection, SEC-004 hardening (check limits, scan isolation, CSRF fail-closed, redaction) See [UPGRADING](UPGRADING.md#to-1110).
 
 ### Security
 
@@ -784,7 +789,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.11.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0

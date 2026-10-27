@@ -8,9 +8,13 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.11.0](#to-1110)
+  - [Security hardening (SEC-004 2026-10-27)](#security-hardening-sec-004-2026-10-27)
+  - [Clock and check seams (REQ-DI-001)](#clock-and-check-seams-req-di-001)
   - [Template contract (REQ-UI-003)](#template-contract-req-ui-003)
   - [Configuration (REQ-UI-003 vocabulary)](#configuration-req-ui-003-vocabulary)
   - [FormKit profile](#formkit-profile)
+  - [Demo (contributors)](#demo-contributors)
 - [To 1.10.0](#to-1100)
 - [To 1.9.4](#to-194)
 - [To 1.9.3](#to-193)
@@ -91,6 +95,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.11.0
+
+From **1.10.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 ### Security hardening (SEC-004 2026-10-27)
 
