@@ -13,27 +13,41 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Throwable;
 
+use function count;
 use function is_array;
 use function is_string;
+use function sprintf;
+use function strtoupper;
 
 /**
  * Export/import monitors (Uptime Kuma backup JSON subset — no history).
+ *
+ * SEC-004 L7: exports redact secrets (URL / proxy userinfo, basic-auth password, custom header values); imports
+ * accept at most {@see self::MAX_IMPORT_ROWS} rows, look names up once, and skip rows that fail the monitor form
+ * constraints (counted as `invalid`). Export and import are logged with the tenant slug and counts (REQ-OBS-001).
  */
 final readonly class MonitorBackupService
 {
     public const IMPORT_KEEP      = 'keep';
     public const IMPORT_SKIP      = 'skip';
     public const IMPORT_OVERWRITE = 'overwrite';
+    public const MAX_IMPORT_ROWS  = 1000;
 
     /**
      * Creates the backup service.
      *
      * @param ManagerRegistry|null $registry Resets closed managers after a failed import flush
      * @param ClockInterface $clock Clock for the export timestamp
+     * @param ValidatorInterface|null $validator Validates import rows against the monitor form constraints
+     * @param LoggerInterface $logger Receives export / import start, success (counts) and failure (exception class)
      */
     public function __construct(
         private MonitorRepository $monitorRepository,
@@ -41,6 +55,8 @@ final readonly class MonitorBackupService
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
         private ClockInterface $clock = new NativeClock(),
+        private ?ValidatorInterface $validator = null,
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -58,6 +74,12 @@ final readonly class MonitorBackupService
             $monitors[] = $this->serializeMonitor($monitor);
         }
 
+        $this->logger->info('Uptime backup exported for tenant {tenant}: {count} monitor(s)', [
+            'bundle' => 'NowoUptimeMonitorBundle',
+            'tenant' => $tenant->getSlug(),
+            'count'  => count($monitors),
+        ]);
+
         return [
             'version'     => 1,
             'exported_at' => $this->clock->now()->format(DateTimeInterface::ATOM),
@@ -69,38 +91,54 @@ final readonly class MonitorBackupService
     /**
      * @param array<string, mixed> $payload
      *
-     * @return array{imported: int, skipped: int, overwritten: int}
+     * @return array{imported: int, skipped: int, overwritten: int, invalid: int}
      */
     public function import(Tenant $tenant, array $payload, string $mode = self::IMPORT_SKIP): array
     {
-        $rows = $payload['monitors'] ?? [];
+        $context = ['bundle' => 'NowoUptimeMonitorBundle', 'tenant' => $tenant->getSlug(), 'mode' => $mode];
+        $rows    = $payload['monitors'] ?? [];
         if (!is_array($rows)) {
             throw new InvalidArgumentException('Invalid backup: missing monitors array.');
+        }
+        if (count($rows) > self::MAX_IMPORT_ROWS) {
+            throw new InvalidArgumentException(sprintf('Invalid backup: more than %d monitors.', self::MAX_IMPORT_ROWS));
+        }
+
+        $this->logger->info('Uptime backup import started for tenant {tenant}: {rows} row(s)', $context + ['rows' => count($rows)]);
+
+        // One lookup for the whole import (name => monitor), not one query per row.
+        $byName = [];
+        foreach ($this->monitorRepository->findByTenantSlug($tenant->getSlug()) as $monitor) {
+            $byName[$monitor->getName()] ??= $monitor;
         }
 
         $imported    = 0;
         $skipped     = 0;
         $overwritten = 0;
+        $invalid     = 0;
 
         foreach ($rows as $row) {
             if (!is_array($row)) {
+                ++$invalid;
                 continue;
             }
 
             $name = isset($row['name']) && is_string($row['name']) ? $row['name'] : null;
             if ($name === null || $name === '') {
+                ++$invalid;
                 continue;
             }
 
-            $existing = $this->findByName($tenant, $name);
-            if ($existing instanceof Monitor) {
-                if ($mode === self::IMPORT_SKIP) {
-                    ++$skipped;
-                    continue;
-                }
+            $data = $this->rowToFormData($row);
+            if ($this->validator instanceof ValidatorInterface && $this->validator->validate($data)->count() > 0) {
+                ++$invalid;
+                continue;
+            }
 
+            $existing = $byName[$name] ?? null;
+            if ($existing instanceof Monitor) {
                 if ($mode === self::IMPORT_OVERWRITE) {
-                    $this->applyRow($existing, $row);
+                    $this->monitorFactory->applyFormData($existing, $data);
                     ++$overwritten;
                     continue;
                 }
@@ -109,9 +147,9 @@ final readonly class MonitorBackupService
                 continue;
             }
 
-            $data    = $this->rowToFormData($row);
             $monitor = $this->monitorFactory->createFromFormData($tenant, $data);
             $this->entityManager->persist($monitor);
+            $byName[$name] = $monitor;
             ++$imported;
         }
 
@@ -122,10 +160,15 @@ final readonly class MonitorBackupService
                 $this->resetClosedManagers($this->registry);
             }
 
+            $this->logger->error('Uptime backup import failed for tenant {tenant}: {error}', $context + ['error' => $e::class]);
+
             throw $e;
         }
 
-        return ['imported' => $imported, 'skipped' => $skipped, 'overwritten' => $overwritten];
+        $result = ['imported' => $imported, 'skipped' => $skipped, 'overwritten' => $overwritten, 'invalid' => $invalid];
+        $this->logger->info('Uptime backup imported for tenant {tenant}', $context + $result);
+
+        return $result;
     }
 
     private function resetClosedManagers(ManagerRegistry $registry): void
@@ -147,41 +190,21 @@ final readonly class MonitorBackupService
         return [
             'name'                   => $monitor->getName(),
             'type'                   => $monitor->getType()->value,
-            'target'                 => $monitor->getTarget(),
-            'config'                 => $monitor->getConfig(),
+            'target'                 => SecretRedactor::maskUrl($monitor->getTarget()),
+            'config'                 => SecretRedactor::redactMonitorConfig($monitor->getConfig()),
             'interval_seconds'       => $monitor->getIntervalSeconds(),
             'retries'                => $monitor->getRetries(),
             'retry_interval_seconds' => $monitor->getRetryIntervalSeconds(),
             'paused'                 => $monitor->isPaused(),
             'project'                => $monitor->getProject(),
             'form'                   => [
-                'url'                   => $data->url,
+                'url'                   => SecretRedactor::maskUrl($data->url),
                 'method'                => $data->method,
                 'expected_status_codes' => $data->expectedStatusCodes,
                 'host'                  => $data->host,
                 'port'                  => $data->port,
             ],
         ];
-    }
-
-    private function findByName(Tenant $tenant, string $name): ?Monitor
-    {
-        foreach ($this->monitorRepository->findByTenantSlug($tenant->getSlug()) as $monitor) {
-            if ($monitor->getName() === $name) {
-                return $monitor;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param array<string, mixed> $row
-     */
-    private function applyRow(Monitor $monitor, array $row): void
-    {
-        $data = $this->rowToFormData($row);
-        $this->monitorFactory->applyFormData($monitor, $data);
     }
 
     /**
@@ -202,7 +225,7 @@ final readonly class MonitorBackupService
         $config = $row['config'] ?? [];
         if (is_array($config)) {
             $data->url    = isset($config['url']) && is_string($config['url']) ? $config['url'] : (string) ($row['target'] ?? '');
-            $data->method = isset($config['method']) && is_string($config['method']) ? $config['method'] : 'GET';
+            $data->method = isset($config['method']) && is_string($config['method']) ? strtoupper($config['method']) : 'GET';
             if (isset($config['expected_status_codes']) && is_array($config['expected_status_codes'])) {
                 $data->expectedStatusCodes = implode(',', array_map(strval(...), $config['expected_status_codes']));
             }

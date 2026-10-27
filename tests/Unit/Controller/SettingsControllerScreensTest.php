@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use JsonException;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -24,9 +25,12 @@ use Nowo\UptimeMonitorBundle\Service\TenantSettingsMapper;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
+use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Form\Util\StringUtil;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
@@ -60,7 +64,7 @@ final class SettingsControllerScreensTest extends TestCase
     /**
      * @param array<string, mixed> $notificationsConfig
      */
-    private function controller(?Tenant $tenant = null, array $notificationsConfig = []): SettingsController
+    private function controller(?Tenant $tenant = null, array $notificationsConfig = [], LoggerInterface $logger = new NullLogger()): SettingsController
     {
         $tenantRepo = $this->createStub(TenantRepository::class);
         $tenantRepo->method('findOneBySlug')->willReturnCallback(fn (string $slug): ?Tenant => $slug === 'main' ? ($tenant ?? $this->tenant) : null);
@@ -82,13 +86,15 @@ final class SettingsControllerScreensTest extends TestCase
             new DetailRetentionService($this->em, $tenantRepo, ['detail_days' => 30]),
             ['detail_days' => 30],
             $notificationsConfig,
+            new UptimePages(),
+            $logger,
         );
     }
 
     /**
      * @param array<string, mixed> $fields
      */
-    private static function post(string $formType, array $fields): Request
+    private function post(string $formType, array $fields): Request
     {
         return Request::create('/main/settings', 'POST', [StringUtil::fqcnToBlockPrefix($formType) => $fields + ['_token' => 'valid']]);
     }
@@ -96,7 +102,7 @@ final class SettingsControllerScreensTest extends TestCase
     /**
      * @return list<string>
      */
-    private static function flashes(Request $request, string $type): array
+    private function flashes(Request $request, string $type): array
     {
         $session = $request->getSession();
         self::assertInstanceOf(Session::class, $session);
@@ -136,18 +142,18 @@ final class SettingsControllerScreensTest extends TestCase
 
     public function testGeneralSaves(): void
     {
-        $request    = self::post(SettingsGeneralFormType::class, ['displayTimezone' => 'Europe/Madrid', 'serverTimezone' => 'UTC', 'entryPage' => 'status', 'chromiumExecutable' => 'auto']);
+        $request    = $this->post(SettingsGeneralFormType::class, ['displayTimezone' => 'Europe/Madrid', 'serverTimezone' => 'UTC', 'entryPage' => 'status', 'statusPageVisibility' => 'default']);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
         self::assertTrue($controller->general('main', $request)->isRedirect());
         self::assertSame('Europe/Madrid', $this->tenant->getSettings()['display_timezone']);
-        self::assertSame(['flash.settings.general_saved'], self::flashes($request, 'success'));
+        self::assertSame(['flash.settings.general_saved'], $this->flashes($request, 'success'));
     }
 
     public function testAppearanceSaves(): void
     {
-        $request    = self::post(SettingsAppearanceFormType::class, ['theme' => 'dark', 'heartbeatBarTheme' => 'normal', 'elapsedTime' => 'show', 'uiFramework' => 'default']);
+        $request    = $this->post(SettingsAppearanceFormType::class, ['theme' => 'dark', 'heartbeatBarTheme' => 'normal', 'elapsedTime' => 'show', 'uiFramework' => 'default']);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
@@ -157,7 +163,7 @@ final class SettingsControllerScreensTest extends TestCase
 
     public function testReverseProxySaves(): void
     {
-        $request    = self::post(SettingsReverseProxyFormType::class, ['trustedProxy' => '1']);
+        $request    = $this->post(SettingsReverseProxyFormType::class, ['trustedProxy' => '1']);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
@@ -167,7 +173,7 @@ final class SettingsControllerScreensTest extends TestCase
 
     public function testHistorySaves(): void
     {
-        $request    = self::post(SettingsHistoryFormType::class, ['detailDays' => '12']);
+        $request    = $this->post(SettingsHistoryFormType::class, ['detailDays' => '12']);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
@@ -187,7 +193,7 @@ final class SettingsControllerScreensTest extends TestCase
 
     public function testTagIsCreatedWithItsColour(): void
     {
-        $request    = self::post(TagFormType::class, ['name' => 'prod', 'color' => '#16a34a']);
+        $request    = $this->post(TagFormType::class, ['name' => 'prod', 'color' => '#16a34a']);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
@@ -196,7 +202,7 @@ final class SettingsControllerScreensTest extends TestCase
         self::assertInstanceOf(Tag::class, $tag);
         self::assertSame('#16a34a', $tag->getColor());
 
-        $plain = self::post(TagFormType::class, ['name' => 'eu', 'color' => '']);
+        $plain = $this->post(TagFormType::class, ['name' => 'eu', 'color' => '']);
         $this->bindController($controller, true, $plain);
         $controller->tags('main', $plain);
         self::assertNull($this->em->getRepository(Tag::class)->findOneBy(['name' => 'eu'])?->getColor());
@@ -258,10 +264,16 @@ final class SettingsControllerScreensTest extends TestCase
             'import_mode' => 'skip',
             '_token'      => 'valid',
         ], [], ['backup' => new UploadedFile($file, 'backup.json', 'application/json', null, true)]);
-        $controller = $this->controller();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::anything(),
+            self::callback(static fn (array $context): bool => $context['tenant'] === 'main' && $context['error'] === JsonException::class),
+        );
+        $controller = $this->controller(logger: $logger);
         $this->bindController($controller, true, $request);
 
         self::assertTrue($controller->backup('main', $request)->isRedirect());
-        self::assertSame(['flash.settings.backup_import_failed'], self::flashes($request, 'error'));
+        // Generic flash: the exception text (file content, parser details) is never echoed back.
+        self::assertSame(['flash.settings.backup_import_failed'], $this->flashes($request, 'error'));
     }
 }

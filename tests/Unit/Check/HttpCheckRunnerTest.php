@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Check;
 
+use Nowo\UptimeMonitorBundle\Check\CheckLimits;
 use Nowo\UptimeMonitorBundle\Check\HttpCheckRunner;
-use Nowo\UptimeMonitorBundle\Check\Network\SocketConnection;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
@@ -20,6 +20,7 @@ use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 #[CoversClass(HttpCheckRunner::class)]
 final class HttpCheckRunnerTest extends TestCase
@@ -279,52 +280,165 @@ final class HttpCheckRunnerTest extends TestCase
         self::assertSame('Unexpected status code 500 (expected 100 codes)', $long->message);
     }
 
-    public function testCertificateExpiryCheckDegradesNearExpiry(): void
+    public function testCertificateExpiryReadsTheChainOfTheCheckedConnection(): void
     {
-        $connector = new FakeSocketConnector(new SocketConnection(true, peerCertificate: FakeSocketConnector::fixtureCertificate()));
-        $monitor   = $this->createMonitor(MonitorType::Https);
+        $chain   = ['peer_certificate_chain' => [FakeSocketConnector::fixtureCertificate()]];
+        $client  = static fn (array $info): MockHttpClient => new MockHttpClient([new MockResponse('ok', $info)]);
+        $monitor = $this->createMonitor(MonitorType::Https);
         $monitor->setConfig(['url' => 'https://secure.example:8443/', 'check_cert_expiry' => true]);
 
-        $near = $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, '2126-09-25 00:00:00', $connector)->run($monitor);
+        $near = $this->createRunner($client($chain), false, '2126-09-25 00:00:00')->run($monitor);
         self::assertSame(CheckStatus::Degraded, $near->status);
         self::assertSame('TLS certificate expires in 7 day(s)', $near->message);
-        self::assertSame('ssl://secure.example:8443', $connector->calls[0]['remote']);
-        self::assertFalse($connector->calls[0]['options']['ssl']['verify_peer']);
 
-        $expired = $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, '2127-01-01 00:00:00', $connector)->run($monitor);
+        $expired = $this->createRunner($client($chain), false, '2127-01-01 00:00:00')->run($monitor);
         self::assertSame('TLS certificate expires in 0 day(s)', $expired->message);
 
-        $far = $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, '2126-01-01 00:00:00', $connector)->run($monitor);
+        $far = $this->createRunner($client($chain), false, '2126-01-01 00:00:00')->run($monitor);
         self::assertSame(CheckStatus::Up, $far->status);
     }
 
-    public function testCertificateExpiryCheckIgnoresMissingCertificateAndPlainHttp(): void
+    public function testCertificateExpiryIgnoresMissingChainAndPlainHttp(): void
     {
-        $connector = new FakeSocketConnector(new SocketConnection(false, 111, 'refused'));
-        $monitor   = $this->createMonitor(MonitorType::Https);
-        $monitor->setConfig(['url' => 'https://secure.example/', 'check_cert_expiry' => true]);
+        /** @var list<array<string, mixed>> $seen */
+        $seen   = [];
+        $client = new MockHttpClient(static function (string $method, string $url, array $options) use (&$seen): MockResponse {
+            $seen[] = $options;
 
-        self::assertSame(CheckStatus::Up, $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, 'now', $connector)->run($monitor)->status);
-        self::assertSame('ssl://secure.example:443', $connector->calls[0]['remote']);
+            return new MockResponse('ok');
+        });
+        $monitor = $this->createMonitor(MonitorType::Https);
+        $monitor->setConfig(['url' => 'https://secure.example/', 'check_cert_expiry' => true]);
+        self::assertSame(CheckStatus::Up, $this->createRunner($client)->run($monitor)->status);
 
         $http = $this->createMonitor(MonitorType::Http);
         $http->setConfig(['url' => 'http://secure.example/', 'check_cert_expiry' => true]);
-        $this->createRunner(new MockHttpClient([new MockResponse('ok')]), false, 'now', $connector)->run($http);
-        self::assertCount(1, $connector->calls);
+        self::assertSame(CheckStatus::Up, $this->createRunner($client)->run($http)->status);
+        self::assertCount(2, $seen);
+    }
+
+    public function testTimeoutAndRedirectsAreClampedToTheGlobalLimits(): void
+    {
+        /** @var list<array<string, mixed>> $seen */
+        $seen   = [];
+        $client = new MockHttpClient(static function (string $method, string $url, array $options) use (&$seen): MockResponse {
+            $seen[] = $options;
+
+            return new MockResponse('ok');
+        });
+        $monitor = $this->createMonitor(MonitorType::Https);
+        $monitor->setConfig(['url' => 'https://example.test/', 'timeout' => 86400, 'max_redirects' => 500]);
+
+        $this->createRunner($client, false, 'now', new CheckLimits(30.0, 1024, 5))->run($monitor);
+
+        self::assertSame(30.0, $seen[0]['timeout']);
+        self::assertSame(32.0, $seen[0]['max_duration']);
+        self::assertSame(5, $seen[0]['max_redirects']);
+    }
+
+    public function testBodyIsNotReadWithoutKeyword(): void
+    {
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn(200);
+        $response->expects(self::never())->method('getContent');
+        $response->expects(self::once())->method('cancel');
+
+        $client = $this->createMock(HttpClientInterface::class);
+        $client->method('request')->willReturn($response);
+        $client->expects(self::never())->method('stream');
+
+        $monitor = $this->createMonitor(MonitorType::Https);
+        $monitor->setConfig(['url' => 'https://example.test/']);
+
+        self::assertSame(CheckStatus::Up, $this->createRunner($client)->run($monitor)->status);
+    }
+
+    public function testKeywordIsSearchedInTheFirstMaxBodyBytesOnly(): void
+    {
+        $monitor = $this->createMonitor(MonitorType::Https);
+        $monitor->setConfig(['url' => 'https://example.test/', 'keyword' => 'needle']);
+        $limits = new CheckLimits(60.0, 16, 20);
+
+        $early = new MockResponse(['needle', str_repeat('x', 64), 'tail']);
+        self::assertSame(CheckStatus::Up, $this->createRunner(new MockHttpClient([$early]), false, 'now', $limits)->run($monitor)->status);
+
+        $late   = new MockResponse([str_repeat('x', 32), 'needle']);
+        $result = $this->createRunner(new MockHttpClient([$late]), false, 'now', $limits)->run($monitor);
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertSame('Response body does not contain expected keyword', $result->message);
+
+        $short = new MockResponse(['abc', 'needle']);
+        self::assertSame(CheckStatus::Up, $this->createRunner(new MockHttpClient([$short]), false, 'now', $limits)->run($monitor)->status);
+    }
+
+    public function testProxyHostIsResolvedOnceAndPinnedToThePublicIp(): void
+    {
+        /** @var list<array<string, mixed>> $seen */
+        $seen   = [];
+        $client = new MockHttpClient(static function (string $method, string $url, array $options) use (&$seen): MockResponse {
+            $seen[] = $options;
+
+            return new MockResponse('ok');
+        });
+        $monitor = $this->createMonitor(MonitorType::Https);
+
+        $monitor->setConfig(['url' => 'http://8.8.8.8/', 'proxy' => 'http://user:secret@proxy.example:3128']);
+        self::assertSame(CheckStatus::Up, $this->createRunner($client, true)->run($monitor)->status);
+        self::assertSame('http://user:secret@93.184.215.20:3128', $seen[0]['proxy']);
+
+        $monitor->setConfig(['url' => 'http://8.8.8.8/', 'proxy' => 'http://user@proxy.example']);
+        $this->createRunner($client, true)->run($monitor);
+        self::assertSame('http://user@93.184.215.20', $seen[1]['proxy']);
+
+        $monitor->setConfig(['url' => 'http://8.8.8.8/', 'proxy' => 'http://8.8.8.8:3128']);
+        $this->createRunner($client, true)->run($monitor);
+        self::assertSame('http://8.8.8.8:3128', $seen[2]['proxy']);
+
+        $monitor->setConfig(['url' => 'http://8.8.8.8/', 'proxy' => 'http://proxy6.example:3128']);
+        $this->createRunner($client, true)->run($monitor);
+        self::assertSame('http://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]:3128', $seen[3]['proxy']);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function rejectedProxyProvider(): iterable
+    {
+        yield 'resolves to a private address' => ['http://rebind.example:3128'];
+        yield 'does not resolve' => ['http://unknown.example:3128'];
+        yield 'no host' => ['http:///nohost'];
+    }
+
+    #[DataProvider('rejectedProxyProvider')]
+    public function testUnsafeOrUnresolvableProxyIsRejected(string $proxy): void
+    {
+        $client = new MockHttpClient(static function (): never {
+            self::fail('HTTP client must not be called with a rejected proxy');
+        });
+        $monitor = $this->createMonitor(MonitorType::Https);
+        $monitor->setConfig(['url' => 'http://8.8.8.8/', 'proxy' => $proxy]);
+
+        $result = $this->createRunner($client, true)->run($monitor);
+
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertStringContainsString('proxy', (string) $result->message);
     }
 
     private function createRunner(
         ?HttpClientInterface $client = null,
         bool $blockPrivateUrls = false,
         string $now = 'now',
-        ?FakeSocketConnector $connector = null,
+        CheckLimits $limits = new CheckLimits(),
     ): HttpCheckRunner {
         return new HttpCheckRunner(
             $client,
-            OfflineDns::guard(['example.test' => ['93.184.215.14']]),
+            OfflineDns::guard(
+                ['example.test' => ['93.184.215.14'], 'proxy.example' => ['93.184.215.20'], 'rebind.example' => ['10.0.0.5']],
+                ['proxy6.example' => ['2606:2800:21f:cb07:6820:80da:af6b:8b2c']],
+            ),
             $blockPrivateUrls,
             new MockClock($now === 'now' ? 'now' : $now . ' UTC'),
-            $connector ?? new FakeSocketConnector(new SocketConnection(false)),
+            $limits,
         );
     }
 

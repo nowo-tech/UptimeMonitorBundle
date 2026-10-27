@@ -88,7 +88,7 @@ final class MonitorControllerSubmitTest extends TestCase
      * @param array<string, mixed> $override
      * @param array<string, string> $headers
      */
-    private static function submit(string $path, array $override = [], array $headers = []): Request
+    private function submit(string $path, array $override = [], array $headers = []): Request
     {
         $fields = $override + [
             'type'                        => 'https',
@@ -132,7 +132,7 @@ final class MonitorControllerSubmitTest extends TestCase
 
     public function testNewMonitorIsCreatedAndRedirects(): void
     {
-        $request    = self::submit('/main/monitors/new', ['parentId' => (string) $this->group->getId()]);
+        $request    = $this->submit('/main/monitors/new', ['parentId' => (string) $this->group->getId()]);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
@@ -149,7 +149,7 @@ final class MonitorControllerSubmitTest extends TestCase
 
     public function testModalCreateAnswersJsonWithTheReturnTarget(): void
     {
-        $request    = self::submit('/main/monitors/new', [], ['X-Uptime-Modal' => '1', 'X-Uptime-Return' => 'show']);
+        $request    = $this->submit('/main/monitors/new', [], ['X-Uptime-Modal' => '1', 'X-Uptime-Return' => 'show']);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
@@ -161,7 +161,7 @@ final class MonitorControllerSubmitTest extends TestCase
 
     public function testModalSubmitWithErrorsIsUnprocessable(): void
     {
-        $request    = self::submit('/main/monitors/new', ['name' => ''], ['X-Uptime-Modal' => '1']);
+        $request    = $this->submit('/main/monitors/new', ['name' => ''], ['X-Uptime-Modal' => '1']);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
@@ -176,12 +176,12 @@ final class MonitorControllerSubmitTest extends TestCase
         $id         = (int) $monitor->getId();
         $controller = $this->controller();
 
-        $page = self::submit('/main/monitors/' . $id . '/edit', ['name' => 'Renamed']);
+        $page = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Renamed']);
         $this->bindController($controller, true, $page);
         self::assertTrue($controller->edit('main', $id, $page)->isRedirect());
         self::assertSame('Renamed', $monitor->getName());
 
-        $modal = self::submit('/main/monitors/' . $id . '/edit', ['name' => 'Again'], ['X-Uptime-Modal' => '1', 'X-Uptime-Return' => 'elsewhere']);
+        $modal = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Again'], ['X-Uptime-Modal' => '1', 'X-Uptime-Return' => 'elsewhere']);
         $this->bindController($controller, true, $modal);
         $response = $controller->edit('main', $id, $modal);
         self::assertInstanceOf(JsonResponse::class, $response);

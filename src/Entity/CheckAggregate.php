@@ -165,8 +165,8 @@ class CheckAggregate
 
     private function recalculateMetrics(int $latencyMs): void
     {
-        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         // Only called right after recordCheck() incremented checksTotal, so it is never zero here.
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->uptimeRatio = round($this->checksUp / $this->checksTotal, 4);
 
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.

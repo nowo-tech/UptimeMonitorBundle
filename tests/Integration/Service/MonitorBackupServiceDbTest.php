@@ -17,9 +17,12 @@ use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Validator\Validation;
 
 use function array_column;
+use function array_fill;
 use function array_map;
 
 #[Group('db')]
@@ -101,7 +104,7 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'Bare', 'config' => 'ignored', 'target' => 'https://bare.test'],
         ]];
 
-        self::assertSame(['imported' => 2, 'skipped' => 1, 'overwritten' => 0], $this->service->import($this->tenant, $payload));
+        self::assertSame(['imported' => 2, 'skipped' => 1, 'overwritten' => 0, 'invalid' => 3], $this->service->import($this->tenant, $payload));
         self::assertSame('https://old.test', $existing->getTarget(), 'skip mode keeps the existing monitor');
 
         $shop = $this->monitors->findOneBy(['name' => 'Shop']);
@@ -116,9 +119,9 @@ final class MonitorBackupServiceDbTest extends TestCase
         self::assertSame('POST', $shop->getConfig()['method']);
         self::assertSame([200, 202], $shop->getConfig()['expected_status_codes']);
 
-        self::assertSame(['imported' => 0, 'skipped' => 3, 'overwritten' => 0], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_KEEP));
+        self::assertSame(['imported' => 0, 'skipped' => 3, 'overwritten' => 0, 'invalid' => 3], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_KEEP));
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 3], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_OVERWRITE));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 3, 'invalid' => 3], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_OVERWRITE));
         self::assertSame('https://new.test/form', $existing->getTarget());
         self::assertSame([200, 201], $existing->getConfig()['expected_status_codes']);
 
@@ -134,5 +137,69 @@ final class MonitorBackupServiceDbTest extends TestCase
         $this->expectExceptionMessage('Invalid backup: missing monitors array.');
 
         $this->service->import($this->tenant, ['monitors' => 'nope']);
+    }
+
+    public function testExportRedactsSecrets(): void
+    {
+        $api = (new Monitor($this->tenant, 'API', MonitorType::Https, 'https://user:pw@api.test'))->setConfig([
+            'url'           => 'https://user:pw@api.test/health',
+            'proxy'         => 'http://p:q@proxy.example:3128',
+            'auth_method'   => 'basic',
+            'auth_username' => 'admin',
+            'auth_password' => 'hunter2',
+            'headers'       => ['Authorization' => 'Bearer abc'],
+        ]);
+        $this->em->persist($api);
+        $this->em->flush();
+
+        $row  = $this->service->export($this->tenant)['monitors'][0];
+        $json = (string) json_encode($row);
+
+        self::assertSame('https://***@api.test', $row['target']);
+        self::assertSame('https://***@api.test/health', $row['form']['url']);
+        self::assertSame('', $row['config']['auth_password']);
+        self::assertSame(['Authorization' => '***'], $row['config']['headers']);
+        foreach (['hunter2', 'Bearer abc', 'user:pw', 'p:q'] as $secret) {
+            self::assertStringNotContainsString($secret, $json);
+        }
+    }
+
+    public function testImportSkipsRowsThatFailTheMonitorConstraintsAndLogs(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::exactly(2))->method('info')->willReturnCallback(static function (string $message, array $context): void {
+            self::assertSame('main', $context['tenant']);
+            if (str_contains($message, 'imported')) {
+                self::assertSame(1, $context['imported']);
+                self::assertSame(2, $context['invalid']);
+            }
+        });
+
+        $service = new MonitorBackupService(
+            $this->monitors,
+            new MonitorFactory($this->monitors),
+            $this->em,
+            null,
+            new MockClock(),
+            Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator(),
+            $logger,
+        );
+
+        $result = $service->import($this->tenant, ['monitors' => [
+            ['name' => 'Negative', 'target' => 'https://a.test', 'retries' => -3],
+            ['name' => 'Verb', 'target' => 'https://b.test', 'config' => ['method' => 'delete']],
+            ['name' => 'Fine', 'target' => 'https://c.test', 'config' => ['method' => 'head']],
+        ]]);
+
+        self::assertSame(['imported' => 1, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 2], $result);
+        self::assertSame('HEAD', $this->monitors->findOneBy(['name' => 'Fine'])?->getConfig()['method']);
+    }
+
+    public function testImportRejectsTooManyRows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('more than 1000 monitors');
+
+        $this->service->import($this->tenant, ['monitors' => array_fill(0, MonitorBackupService::MAX_IMPORT_ROWS + 1, ['name' => 'x'])]);
     }
 }

@@ -20,6 +20,7 @@ use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
@@ -268,7 +269,7 @@ final class MonitorController extends AbstractUptimeController
         return new ShowPage(
             new PageHeader(
                 $monitor->getName(),
-                $monitor->getTarget(),
+                SecretRedactor::maskUrl($monitor->getTarget()),
                 [
                     new Action('edit', UptimePages::label('monitor.edit'), $editUrl, attributes: [
                         'data-monitor-form-open'   => true,
@@ -287,7 +288,7 @@ final class MonitorController extends AbstractUptimeController
                         $parent instanceof Monitor ? $parent->getName() : $monitor->getProject(),
                         $parent instanceof Monitor && $parent->getId() !== null ? $this->generateUrl('nowo_uptime_monitor_show', ['tenantSlug' => $tenantSlug, 'id' => $parent->getId()]) : null,
                     ),
-                    new DetailItem(UptimePages::label('monitor.show.target'), $monitor->getTarget()),
+                    new DetailItem(UptimePages::label('monitor.show.target'), SecretRedactor::maskUrl($monitor->getTarget())),
                     new DetailItem(UptimePages::label('monitor.show.interval_label'), UptimePages::label('monitor.show.seconds', ['%seconds%' => $monitor->getIntervalSeconds()])),
                 ], 'uptime-monitor-details'),
             ],

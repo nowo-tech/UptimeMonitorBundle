@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit;
 
+use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\CsrfProtectionPass;
+use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -24,6 +26,8 @@ final class NowoUptimeMonitorBundleTest extends TestCase
         $container = new ContainerBuilder();
         (new UptimeMonitorBundle())->build($container);
 
-        self::assertNotEmpty($container->getCompilerPassConfig()->getBeforeOptimizationPasses());
+        $passes = array_map(static fn (object $pass): string => $pass::class, $container->getCompilerPassConfig()->getBeforeOptimizationPasses());
+        self::assertContains(TwigPathsPass::class, $passes);
+        self::assertContains(CsrfProtectionPass::class, $passes);
     }
 }

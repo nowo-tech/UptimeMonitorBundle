@@ -12,9 +12,12 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Throwable;
 
 use function sprintf;
 
@@ -28,6 +31,7 @@ final readonly class DetailRetentionService
 {
     /**
      * @param array<string, mixed> $retentionConfig
+     * @param LoggerInterface $logger Logs start, success (deleted rows) and failure (exception class) — REQ-OBS-001
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -35,6 +39,7 @@ final readonly class DetailRetentionService
         #[Autowire('%nowo_uptime_monitor.retention%')]
         private array $retentionConfig,
         private ClockInterface $clock = new NativeClock(),
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -73,8 +78,25 @@ final readonly class DetailRetentionService
             return 0;
         }
 
-        $cutoff = $this->clock->now()->modify(sprintf('-%d days', $days));
+        $cutoff  = $this->clock->now()->modify(sprintf('-%d days', $days));
+        $context = ['bundle' => 'NowoUptimeMonitorBundle', 'tenant' => $tenantSlug, 'days' => $days];
+        $this->logger->info('Uptime detail purge started for tenant {tenant}', $context);
 
+        try {
+            $deleted = $this->deleteBefore($cutoff, $tenantSlug);
+        } catch (Throwable $e) {
+            $this->logger->error('Uptime detail purge failed for tenant {tenant}: {error}', $context + ['error' => $e::class]);
+
+            throw $e;
+        }
+
+        $this->logger->info('Uptime detail purge deleted {deleted} row(s) for tenant {tenant}', $context + ['deleted' => $deleted]);
+
+        return $deleted;
+    }
+
+    private function deleteBefore(mixed $cutoff, string $tenantSlug): int
+    {
         return KeysetBatchDelete::run(
             $this->entityManager,
             CheckResult::class,

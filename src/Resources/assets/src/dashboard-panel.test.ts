@@ -249,6 +249,23 @@ describe('events table, stats and sync stamp', () => {
     expect(root.querySelector('[data-events-empty]')?.textContent).toBe('Nothing');
   });
 
+  it('escapes status, label and time coming from the API (no HTML injection)', () => {
+    const root = mountDashboard({ i18n: JSON.stringify({ status: { x: '<img src=x onerror=alert(1)>' } }) });
+    renderEventsTable(root, [
+      event(1, undefined, { status: '"><script>alert(1)</script>', checked_at: '<svg onload=alert(1)>' }),
+      event(2, undefined, { status: 'x' }),
+    ]);
+
+    const rows = root.querySelectorAll<HTMLElement>('[data-event-row]');
+    expect(root.querySelector('script')).toBeNull();
+    expect(root.querySelector('svg')).toBeNull();
+    expect(root.querySelector('img')).toBeNull();
+    expect(rows[0].querySelector('.uptime-status-badge')?.className).toBe('uptime-status-badge uptime-status-badge-scriptalertscript');
+    expect(rows[0].querySelector('.uptime-event-time')?.textContent).toBe('<svg onload=alert(1');
+    expect(rows[1].querySelector('.uptime-status-badge')?.textContent).toBe('<img src=x onerror=alert(1)>');
+    expect(rows[1].innerHTML).toContain('&lt;img');
+  });
+
   it('falls back to the default labels on missing or invalid i18n data', () => {
     const root = mountDashboard({ i18n: '{bad' });
     renderEventsTable(root, [event(1, undefined, { status: 'up' })]);

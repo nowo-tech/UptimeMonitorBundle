@@ -14,6 +14,7 @@ use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
+use Throwable;
 
 use function sprintf;
 
@@ -86,7 +87,12 @@ final readonly class CheckExecutorService
     {
         foreach ($this->checkRunners as $runner) {
             if ($runner->supports($monitor)) {
-                return $runner->run($monitor);
+                try {
+                    return $runner->run($monitor);
+                } catch (Throwable $e) {
+                    // A broken check is recorded (and the monitor rescheduled) instead of aborting the shared scan.
+                    return new CheckResultDto(CheckStatus::Unknown, 0, null, sprintf('Check failed (%s)', $e::class));
+                }
             }
         }
 

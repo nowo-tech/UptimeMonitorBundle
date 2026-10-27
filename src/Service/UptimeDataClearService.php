@@ -15,9 +15,12 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Throwable;
 
 use function count;
 use function sprintf;
@@ -31,6 +34,7 @@ final readonly class UptimeDataClearService
 {
     /**
      * @param array<string, mixed> $retentionConfig
+     * @param LoggerInterface $logger Logs start, success (counts) and failure (exception class) — REQ-OBS-001
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -39,6 +43,7 @@ final readonly class UptimeDataClearService
         #[Autowire('%nowo_uptime_monitor.retention%')]
         private array $retentionConfig = [],
         private ClockInterface $clock = new NativeClock(),
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -51,19 +56,31 @@ final readonly class UptimeDataClearService
             throw new InvalidArgumentException(sprintf('Tenant "%s" not found.', $tenantSlug));
         }
 
-        $incidents  = $this->deleteIncidents($tenantSlug);
-        $checks     = $this->deleteCheckResults($tenantSlug);
-        $aggregates = $this->deleteAggregates($tenantSlug);
-        $reset      = $this->resetMonitors($tenantSlug);
+        $context = ['bundle' => 'NowoUptimeMonitorBundle', 'tenant' => $tenantSlug ?? '*'];
+        $this->logger->info('Uptime data clear started for tenant {tenant}', $context);
 
-        $this->entityManager->flush();
+        try {
+            $incidents  = $this->deleteIncidents($tenantSlug);
+            $checks     = $this->deleteCheckResults($tenantSlug);
+            $aggregates = $this->deleteAggregates($tenantSlug);
+            $reset      = $this->resetMonitors($tenantSlug);
 
-        return [
+            $this->entityManager->flush();
+        } catch (Throwable $e) {
+            $this->logger->error('Uptime data clear failed for tenant {tenant}: {error}', $context + ['error' => $e::class]);
+
+            throw $e;
+        }
+
+        $result = [
             'checks'         => $checks,
             'aggregates'     => $aggregates,
             'incidents'      => $incidents,
             'monitors_reset' => $reset,
         ];
+        $this->logger->info('Uptime data cleared for tenant {tenant}', $context + $result);
+
+        return $result;
     }
 
     private function deleteCheckResults(?string $tenantSlug): int

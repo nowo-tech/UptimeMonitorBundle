@@ -14,6 +14,8 @@ use Nowo\UptimeMonitorBundle\Service\DetailRetentionService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 #[CoversClass(DetailRetentionService::class)]
 final class DetailRetentionServiceTest extends TestCase
@@ -117,5 +119,41 @@ final class DetailRetentionServiceTest extends TestCase
         $tenantRepo->method('findOneBySlug')->willReturnCallback(static fn (string $slug): ?Tenant => $tenants[$slug] ?? null);
 
         return [$tenantRepo, $monitors];
+    }
+
+    public function testPurgeLogsStartAndDeletedRows(): void
+    {
+        $em                      = SqliteEntityManagerFactory::create();
+        [$tenantRepo, $monitors] = $this->tenants($em, ['main']);
+        SqliteEntityManagerFactory::addCheckResults($em, $monitors['main'], 3, new DateTimeImmutable('-30 days'));
+
+        $messages = [];
+        $logger   = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::exactly(2))->method('info')->willReturnCallback(static function (string $message, array $context) use (&$messages): void {
+            $messages[] = $context;
+        });
+
+        $service = new DetailRetentionService($em, $tenantRepo, ['purge_enabled' => true, 'detail_days' => 7], logger: $logger);
+
+        self::assertSame(3, $service->purgeExpiredDetailForTenant('main'));
+        self::assertSame(['bundle' => 'NowoUptimeMonitorBundle', 'tenant' => 'main', 'days' => 7], $messages[0]);
+        self::assertSame(3, $messages[1]['deleted']);
+    }
+
+    public function testPurgeFailureIsLoggedWithTheExceptionClassAndRethrown(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('createQueryBuilder')->willThrowException(new RuntimeException('SQLSTATE secret'));
+        $tenantRepo = $this->createStub(TenantRepository::class);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            self::anything(),
+            self::callback(static fn (array $context): bool => $context['error'] === RuntimeException::class),
+        );
+
+        $this->expectException(RuntimeException::class);
+
+        (new DetailRetentionService($em, $tenantRepo, ['purge_enabled' => true, 'detail_days' => 7], logger: $logger))->purgeExpiredDetailForTenant('main');
     }
 }

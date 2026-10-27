@@ -16,6 +16,7 @@ use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -102,5 +103,44 @@ final class StatusPageControllerTest extends TestCase
         $this->expectException(NotFoundHttpException::class);
         $this->expectExceptionMessage('Tenant "nope" not found.');
         $controller->index('nope');
+    }
+
+    /**
+     * @return iterable<string, array{bool, array<string, mixed>, bool}>
+     */
+    public static function visibilityProvider(): iterable
+    {
+        yield 'disabled tenant' => [false, [], true];
+        yield 'private tenant' => [true, ['status_page_public' => 'private'], true];
+        yield 'default private globally' => [true, [], false];
+        yield 'public opt-in overrides global default' => [true, ['status_page_public' => 'public'], false];
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
+    #[DataProvider('visibilityProvider')]
+    public function testDisabledOrPrivateTenantsAnswerNotFound(bool $enabled, array $settings, bool $defaultPublic): void
+    {
+        $tenant = (new Tenant('main', 'Main'))->setEnabled($enabled)->setSettings($settings);
+
+        $tenantRepo = $this->createMock(TenantRepository::class);
+        $tenantRepo->method('findOneBySlug')->willReturn($tenant);
+        $monitorRepo = $this->createMock(MonitorRepository::class);
+        $monitorRepo->method('findByTenantSlug')->willReturn([]);
+
+        $controller = new StatusPageController($tenantRepo, $monitorRepo, $this->createMock(CheckResultRepository::class), [
+            'enabled'        => true,
+            'default_public' => $defaultPublic,
+        ]);
+        $this->bindController($controller);
+
+        $public = $enabled && (($settings['status_page_public'] ?? null) === 'public' || (($settings['status_page_public'] ?? null) === null && $defaultPublic));
+        if (!$public) {
+            $this->expectException(NotFoundHttpException::class);
+            $this->expectExceptionMessage('Tenant "main" not found.');
+        }
+
+        self::assertSame('rendered', $controller->index('main')->getContent());
     }
 }

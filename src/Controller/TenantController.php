@@ -15,15 +15,22 @@ use Nowo\UiKitBundle\View\PageHeader;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
+use stdClass;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
+use function array_filter;
+use function array_values;
 use function count;
+use function is_object;
 
 /**
  * Tenant list and creation pages (`/tenants`).
@@ -34,6 +41,8 @@ final class TenantController extends AbstractController
     /**
      * @param array<string, mixed> $tenantsConfig
      * @param array<string, mixed> $multiTenantConfig
+     * @param UptimeMonitorAccessCheckerInterface|null $accessChecker Configured checker; a tenant-aware one filters the list
+     * @param TokenStorageInterface|null $tokenStorage Current security token (null without SecurityBundle)
      */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
@@ -43,6 +52,8 @@ final class TenantController extends AbstractController
         #[Autowire('%nowo_uptime_monitor.multi_tenant%')]
         private readonly array $multiTenantConfig,
         private readonly UptimePages $pages = new UptimePages(),
+        private readonly ?UptimeMonitorAccessCheckerInterface $accessChecker = null,
+        private readonly ?TokenStorageInterface $tokenStorage = null,
     ) {
     }
 
@@ -52,9 +63,13 @@ final class TenantController extends AbstractController
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(): Response
     {
-        $tenants = $this->tenantRepository->findBy([], ['name' => 'ASC']);
+        $tenants = $this->visibleTenants($this->tenantRepository->findBy([], ['name' => 'ASC']));
 
         if (!$this->isTenantListEnabled()) {
+            if ($tenants === []) {
+                throw $this->createAccessDeniedException('No tenant available to the current user.');
+            }
+
             return $this->redirectToDashboard($this->defaultTenantSlug($tenants));
         }
 
@@ -122,6 +137,29 @@ final class TenantController extends AbstractController
             'form'  => $form,
             'title' => 'tenant.new.title',
         ]));
+    }
+
+    /**
+     * Keeps the tenants the user may open when the checker is tenant-aware (SEC-004 L6); all of them otherwise.
+     *
+     * @param list<Tenant> $tenants
+     *
+     * @return list<Tenant>
+     */
+    private function visibleTenants(array $tenants): array
+    {
+        $checker = $this->accessChecker;
+        if (!$checker instanceof TenantAwareUptimeMonitorAccessCheckerInterface) {
+            return $tenants;
+        }
+
+        $user = $this->tokenStorage?->getToken()?->getUser();
+        $user = is_object($user) ? $user : new stdClass();
+
+        return array_values(array_filter(
+            $tenants,
+            static fn (Tenant $tenant): bool => $checker->canAccessTenant($user, $tenant->getSlug()),
+        ));
     }
 
     private function isTenantListEnabled(): bool

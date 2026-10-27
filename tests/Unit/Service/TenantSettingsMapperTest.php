@@ -18,33 +18,34 @@ final class TenantSettingsMapperTest extends TestCase
 {
     public function testGeneralRoundTrip(): void
     {
-        $tenant = new Tenant('main', 'Main');
+        $tenant = (new Tenant('main', 'Main'))->setSettings(['steam_api_key' => 'legacy-secret', 'chromium_executable' => '/bin/chromium']);
         $mapper = new TenantSettingsMapper();
 
         $defaults = $mapper->toGeneralData($tenant);
+        self::assertSame('default', $defaults->statusPageVisibility);
         self::assertSame('', $defaults->primaryBaseUrl);
         self::assertTrue($defaults->nscdEnabled);
 
-        $data                     = new SettingsGeneralData();
-        $data->displayTimezone    = 'Europe/Madrid';
-        $data->serverTimezone     = 'UTC';
-        $data->searchEngineIndex  = true;
-        $data->entryPage          = 'status';
-        $data->primaryBaseUrl     = 'https://status.test';
-        $data->steamApiKey        = '';
-        $data->nscdEnabled        = false;
-        $data->httpDnsCache       = true;
-        $data->chromiumExecutable = '/bin/chromium';
+        $data                       = new SettingsGeneralData();
+        $data->displayTimezone      = 'Europe/Madrid';
+        $data->serverTimezone       = 'UTC';
+        $data->searchEngineIndex    = true;
+        $data->entryPage            = 'status';
+        $data->primaryBaseUrl       = 'https://status.test';
+        $data->nscdEnabled          = false;
+        $data->httpDnsCache         = true;
+        $data->statusPageVisibility = 'private';
         $mapper->applyGeneral($tenant, $data);
 
-        self::assertNull($tenant->getSettings()['steam_api_key']);
+        // Stored-but-unused legacy settings are dropped on save (the Steam key was a secret).
+        self::assertArrayNotHasKey('steam_api_key', $tenant->getSettings());
+        self::assertArrayNotHasKey('chromium_executable', $tenant->getSettings());
+        self::assertSame('private', $tenant->getSettings()['status_page_public']);
         self::assertEquals($data, $mapper->toGeneralData($tenant));
 
         $data->primaryBaseUrl = '';
-        $data->steamApiKey    = 'key';
         $mapper->applyGeneral($tenant, $data);
         self::assertNull($tenant->getSettings()['primary_base_url']);
-        self::assertSame('key', $mapper->toGeneralData($tenant)->steamApiKey);
     }
 
     public function testAppearanceRoundTripDropsLegacyLanguageAndDefaultFramework(): void

@@ -123,6 +123,26 @@ final class Configuration implements ConfigurationInterface
                             ->info('Block HTTP/TCP/SSL/ping/DNS monitor targets (incl. redirects, proxies and private DNS answers) on private/local networks (SSRF mitigation).')
                             ->defaultTrue()
                         ->end()
+                        ->floatNode('max_timeout_seconds')
+                            ->info('Upper bound of every per-monitor timeout (HTTP, TCP, SSL; ping is capped at 30 s). One monitor can never stall the shared scan longer (SEC-004).')
+                            ->defaultValue(60.0)
+                            ->min(1.0)
+                        ->end()
+                        ->integerNode('max_body_bytes')
+                            ->info('HTTP checks read the response body only when a keyword is configured, and at most this many bytes.')
+                            ->defaultValue(1_048_576)
+                            ->min(1)
+                        ->end()
+                        ->integerNode('max_redirects')
+                            ->info('Upper bound of the per-monitor redirect limit of HTTP checks.')
+                            ->defaultValue(20)
+                            ->min(0)
+                        ->end()
+                        ->integerNode('max_scan_seconds')
+                            ->info('Time budget of one due-check scan; monitors left over stay due for the next tick (oldest first). 0 = no budget.')
+                            ->defaultValue(0)
+                            ->min(0)
+                        ->end()
                     ->end()
                 ->end()
                 ->arrayNode('retention')
@@ -263,7 +283,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultNull()
                             ->info('URL prefix of every admin route, may hold {tenantSlug} (REQ-UI-003 canonical key; replaces dashboard.path). null = dashboard.path (default /uptime).')
                         ->end()
-                        ->append(self::tenantPathsNode(false))
+                        ->append($this->tenantPathsNode(false))
                         ->scalarNode('layout_template')
                             ->defaultNull()
                             ->info('Admin layout of the bundle pages; null (default) = nowo_ui_kit.layouts.admin. The layout renders the UiKit canonical blocks (nowo_ui_content…).')
@@ -409,7 +429,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultValue('polling')
                         ->end()
                         ->integerNode('poll_interval_ms')->defaultValue(30000)->min(1000)->end()
-                        ->append(self::tenantPathsNode(true))
+                        ->append($this->tenantPathsNode(true))
                         ->arrayNode('mercure')
                             ->addDefaultsIfNotSet()
                             ->info('Mercure topics when dashboard.sync is mercure (requires symfony/mercure-bundle)')
@@ -427,6 +447,10 @@ final class Configuration implements ConfigurationInterface
                     ->addDefaultsIfNotSet()
                     ->children()
                         ->booleanNode('enabled')->defaultTrue()->end()
+                        ->booleanNode('default_public')
+                            ->info('Whether a tenant status page is public when the tenant did not choose (Settings → General → Public status page). true keeps the 1.x behaviour; set false to make status pages opt-in.')
+                            ->defaultTrue()
+                        ->end()
                         ->scalarNode('path')->defaultValue('/status')->end()
                         ->scalarNode('title')->defaultNull()->info('Override page title; defaults to tenant name')->end()
                         ->booleanNode('show_latency')->defaultTrue()->end()
@@ -475,7 +499,7 @@ final class Configuration implements ConfigurationInterface
      * `web_ui.tenant_paths` (canonical) / `dashboard.tenant_paths` (deprecated alias): more URL prefixes for the tenant
      * pages, chosen by tenant slug prefix.
      */
-    private static function tenantPathsNode(bool $deprecated): ArrayNodeDefinition
+    private function tenantPathsNode(bool $deprecated): ArrayNodeDefinition
     {
         $node = (new TreeBuilder('tenant_paths'))->getRootNode();
         $node

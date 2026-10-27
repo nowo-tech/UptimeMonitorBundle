@@ -8,6 +8,7 @@ use DateTimeInterface;
 use Nowo\UptimeMonitorBundle\Notification\NotificationChannelInterface;
 use Nowo\UptimeMonitorBundle\Notification\NotificationDeliveryException;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
+use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 use ReflectionClass;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
@@ -141,7 +142,7 @@ final readonly class WebhookNotificationChannel implements NotificationChannelIn
             'monitor' => [
                 'id'     => $monitor->getId(),
                 'name'   => $monitor->getName(),
-                'target' => $monitor->getTarget(),
+                'target' => SecretRedactor::maskUrl($monitor->getTarget()),
                 'tenant' => $monitor->getTenant()->getSlug(),
             ],
             'status'          => $alert->getCurrentStatus()->value,

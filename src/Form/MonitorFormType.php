@@ -13,6 +13,7 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 use function is_string;
@@ -26,10 +27,13 @@ final class MonitorFormType extends AbstractUptimeFormType
 {
     /**
      * @param list<string> $hiddenFields fields left out of the form (`form.hidden_fields`); the monitor keeps their values
+     * @param float $maxTimeoutSeconds `checks.max_timeout_seconds`: upper bound of the timeout field
      */
     public function __construct(
         #[Autowire('%nowo_uptime_monitor.form.hidden_fields%')]
         private readonly array $hiddenFields = [],
+        #[Autowire('%nowo_uptime_monitor.checks.max_timeout_seconds%')]
+        private readonly float $maxTimeoutSeconds = 60.0,
     ) {
     }
 
@@ -90,11 +94,12 @@ final class MonitorFormType extends AbstractUptimeFormType
             'attr'     => ['min' => 30],
         ]);
         $this->addNumber($builder, 'requestTimeoutSeconds', [
-            'label'    => 'form.monitor.timeout',
-            'required' => false,
-            'html5'    => true,
-            'scale'    => 1,
-            'attr'     => ['min' => 1, 'step' => 1],
+            'label'       => 'form.monitor.timeout',
+            'required'    => false,
+            'html5'       => true,
+            'scale'       => 1,
+            'attr'        => ['min' => 1, 'max' => $this->maxTimeoutSeconds, 'step' => 1],
+            'constraints' => [new Range(min: 1, max: $this->maxTimeoutSeconds)],
         ]);
         $this->addInteger($builder, 'resendNotificationAfterDown', [
             'label'    => 'form.monitor.resend_down',
@@ -121,7 +126,7 @@ final class MonitorFormType extends AbstractUptimeFormType
         $this->addInteger($builder, 'maxRedirects', [
             'label'    => 'form.monitor.max_redirects',
             'required' => false,
-            'attr'     => ['min' => 0],
+            'attr'     => ['min' => 0, 'max' => 20],
         ]);
         $this->addCheckbox($builder, 'ignoreTls', [
             'label'    => 'form.monitor.ignore_tls',

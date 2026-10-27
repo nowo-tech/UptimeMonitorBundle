@@ -86,6 +86,9 @@ class MonitorRepository extends ServiceEntityRepository
     {
         /** @var list<Monitor> $monitors */
         $monitors = $this->createQueryBuilder('m')
+            // A disabled tenant's monitors never run (SEC-004 L2).
+            ->innerJoin('m.tenant', 't')
+            ->andWhere('t.enabled = true')
             ->andWhere('m.paused = false')
             ->andWhere('m.nextCheckAt IS NULL OR m.nextCheckAt <= :now')
             ->setParameter('now', $now)

@@ -12,6 +12,7 @@ use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\File;
 
 /**
  * Settings → Backup JSON import (REQ-TWIG-005).
@@ -25,6 +26,9 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 final class BackupImportFormType extends AbstractUptimeFormType
 {
     public const CSRF_TOKEN_ID = 'backup-import';
+
+    /** Upper bound of an uploaded backup file. */
+    public const MAX_FILE_SIZE = '2M';
 
     /**
      * Adds the backup import fields.
@@ -53,6 +57,8 @@ final class BackupImportFormType extends AbstractUptimeFormType
             'label'    => false,
             'required' => true,
             'attr'     => ['accept' => 'application/json,.json'],
+            // Backups are small JSON documents; bigger uploads are rejected before parsing (SEC-004 L7).
+            'constraints' => [new File(maxSize: self::MAX_FILE_SIZE)],
         ]);
     }
 

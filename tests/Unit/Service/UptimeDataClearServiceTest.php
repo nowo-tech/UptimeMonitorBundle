@@ -17,6 +17,8 @@ use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 #[CoversClass(UptimeDataClearService::class)]
 final class UptimeDataClearServiceTest extends TestCase
@@ -97,5 +99,39 @@ final class UptimeDataClearServiceTest extends TestCase
         $monitorRepo->method('findByTenantSlug')->willReturnCallback(static fn (string $slug): array => [$monitors[$slug]]);
 
         return [$tenantRepo, $monitorRepo, $monitors];
+    }
+
+    public function testClearLogsStartAndCounts(): void
+    {
+        $em                                    = SqliteEntityManagerFactory::create();
+        [$tenantRepo, $monitorRepo, $monitors] = $this->fixtures($em);
+        SqliteEntityManagerFactory::addCheckResults($em, $monitors['main'], 2, new DateTimeImmutable('-1 day'));
+
+        $messages = [];
+        $logger   = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::exactly(2))->method('info')->willReturnCallback(static function (string $message, array $context) use (&$messages): void {
+            $messages[] = [$message, $context];
+        });
+
+        (new UptimeDataClearService($em, $tenantRepo, $monitorRepo, logger: $logger))->clear('main');
+
+        self::assertSame('main', $messages[0][1]['tenant']);
+        self::assertSame(2, $messages[1][1]['checks']);
+    }
+
+    public function testClearFailureIsLoggedWithTheExceptionClassAndRethrown(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('createQueryBuilder')->willThrowException(new RuntimeException('SQLSTATE secret'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            self::anything(),
+            self::callback(static fn (array $context): bool => $context['error'] === RuntimeException::class && $context['tenant'] === '*'),
+        );
+
+        $this->expectException(RuntimeException::class);
+
+        (new UptimeDataClearService($em, $this->createStub(TenantRepository::class), $this->createStub(MonitorRepository::class), logger: $logger))->clear();
     }
 }

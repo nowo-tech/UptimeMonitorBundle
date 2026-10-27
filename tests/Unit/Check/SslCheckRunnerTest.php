@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Check;
 
+use Nowo\UptimeMonitorBundle\Check\CheckLimits;
 use Nowo\UptimeMonitorBundle\Check\Network\SocketConnection;
 use Nowo\UptimeMonitorBundle\Check\SslCheckRunner;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -126,5 +127,17 @@ final class SslCheckRunnerTest extends TestCase
         $runner->run($this->monitor(['host' => '127.0.0.1', 'port' => 1]));
 
         self::assertSame('ssl://127.0.0.1:1', $connector->calls[0]['remote']);
+    }
+
+    public function testTimeoutIsClampedToTheGlobalMaximum(): void
+    {
+        $connector = new FakeSocketConnector(new SocketConnection(false, 111, 'refused'));
+        $runner    = new SslCheckRunner(OfflineDns::guard(), false, new MockClock(), $connector, new CheckLimits(15.0));
+
+        $runner->run($this->monitor(['host' => '127.0.0.1', 'port' => 1, 'timeout' => 86400]));
+        $runner->run($this->monitor(['host' => '127.0.0.1', 'port' => 1, 'timeout' => 0.1]));
+
+        self::assertSame(15.0, $connector->calls[0]['timeout']);
+        self::assertSame(1.0, $connector->calls[1]['timeout']);
     }
 }

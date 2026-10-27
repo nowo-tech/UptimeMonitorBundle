@@ -173,6 +173,9 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.scheduler', $config['enabled'] ? $config['scheduler'] : ['enabled' => false] + $config['scheduler']);
         $container->setParameter(Configuration::ALIAS . '.checks', $config['checks']);
         $container->setParameter(Configuration::ALIAS . '.checks.block_private_urls', $config['checks']['block_private_urls']);
+        foreach (['max_timeout_seconds', 'max_body_bytes', 'max_redirects', 'max_scan_seconds'] as $limit) {
+            $container->setParameter(Configuration::ALIAS . '.checks.' . $limit, $config['checks'][$limit]);
+        }
         $container->setParameter(Configuration::ALIAS . '.retention', $config['retention']);
         $container->setParameter(Configuration::ALIAS . '.aggregates', $config['aggregates']);
         $container->setParameter(Configuration::ALIAS . '.multi_tenant', $config['multi_tenant']);

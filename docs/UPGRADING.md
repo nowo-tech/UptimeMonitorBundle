@@ -92,6 +92,31 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+### Security hardening (SEC-004 2026-10-27)
+
+- **CSRF is mandatory for the admin UI**: the container no longer compiles when `web_ui.enabled` is `true` and
+  `framework.form.csrf_protection` (or `framework.csrf_protection` / `symfony/security-csrf`) is off. Enable CSRF, or
+  set `nowo_uptime_monitor.web_ui.enabled: false`.
+- **New caps** (`checks.max_timeout_seconds: 60`, `max_body_bytes: 1048576`, `max_redirects: 20`,
+  `max_scan_seconds: 0`): a monitor configured with a longer timeout or more redirects now runs with the cap; raise the
+  cap if you really need longer checks (keep it below your worker limits). Keyword checks only see the first
+  `max_body_bytes` of the body.
+- **Status pages**: unchanged by default (`status_page.default_public: true`). Set it to `false` to make status pages
+  opt-in, then mark tenants public in *Settings → General → Public status page*. Disabled tenants now answer 404 and
+  their monitors are no longer checked (as `TenantProvisioner::setEnabled()` always promised).
+- **Backups**: exported files no longer contain URL / proxy credentials, basic-auth passwords or header values
+  (re-enter them after an import); imports above 2 MB or 1000 monitors are refused, rows that fail the monitor
+  constraints are skipped and counted as *invalid*. `MonitorBackupService::import()` returns an extra `invalid` key.
+- **Removed settings**: *Steam API key* and *Chromium executable* (stored but never used). They disappear from the
+  General settings form and are dropped from the tenant settings on the next save.
+- **Tenant slugs**: `TenantProvisioner::ensure()` throws `InvalidArgumentException` for a slug that is not lowercase
+  letters, digits and hyphens (same rule as the tenant form).
+- **Constructor additions** (all optional, appended): `HttpCheckRunner` takes `CheckLimits` instead of the former
+  `SocketConnectorInterface` (5th argument — the certificate probe now uses the HTTP connection), `TcpCheckRunner` /
+  `SslCheckRunner` / `MonitorFormType` / `DueChecksRunner` / `TenantController` / `SettingsController` /
+  `MonitorBackupService` / `UptimeDataClearService` / `DetailRetentionService` gain trailing optional arguments
+  (limits, logger, validator, access checker).
+
 ### Clock and check seams (REQ-DI-001)
 
 - `symfony/clock` is now required (already installed with `symfony/scheduler`). Freezing time in tests: replace the

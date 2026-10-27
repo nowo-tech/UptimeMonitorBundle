@@ -50,4 +50,13 @@ final class UptimeAlertTest extends TestCase
         self::assertSame('recovered', $alert->getMessage());
         self::assertStringContainsString('🟢', $alert->getSubject());
     }
+
+    public function testDefaultMessageMasksUrlCredentials(): void
+    {
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'API', MonitorType::Https, 'https://user:secret@x.test/health');
+        $alert   = new UptimeAlert($monitor, UptimeAlert::TRANSITION_DOWN, CheckStatus::Down, CheckStatus::Up);
+
+        self::assertStringContainsString('https://***@x.test/health', $alert->getMessage());
+        self::assertStringNotContainsString('secret', $alert->getMessage());
+    }
 }

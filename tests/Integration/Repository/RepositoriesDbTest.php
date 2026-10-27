@@ -82,7 +82,7 @@ final class RepositoriesDbTest extends TestCase
      *
      * @return list<string>
      */
-    private static function names(array $entities): array
+    private function names(array $entities): array
     {
         return array_map(static fn (Monitor|Tag $e): string => $e->getName(), $entities);
     }
@@ -105,14 +105,33 @@ final class RepositoriesDbTest extends TestCase
 
         $repository = new MonitorRepository($this->registry);
 
-        self::assertSame(['a-api', 'b-api', 'future', 'group', 'paused'], self::names($repository->findByTenantSlug('main')));
-        self::assertSame(['group'], self::names($repository->findGroupsByTenantSlug('main')));
-        self::assertSame(['a-api', 'b-api'], self::names($repository->findChildrenOf((int) $group->getId())));
+        self::assertSame(['a-api', 'b-api', 'future', 'group', 'paused'], $this->names($repository->findByTenantSlug('main')));
+        self::assertSame(['group'], $this->names($repository->findGroupsByTenantSlug('main')));
+        self::assertSame(['a-api', 'b-api'], $this->names($repository->findChildrenOf((int) $group->getId())));
 
         // Paused and not-yet-due monitors are skipped; where NULL next_check_at sorts is platform-specific.
-        $due = self::names($repository->findDue(new DateTimeImmutable('2026-01-01 12:00:00')));
+        $due = $this->names($repository->findDue(new DateTimeImmutable('2026-01-01 12:00:00')));
         self::assertEqualsCanonicalizing(['a-api', 'group', 'b-api'], $due);
         self::assertLessThan(array_search('b-api', $due, true), array_search('group', $due, true));
+    }
+
+    public function testFindDueSkipsMonitorsOfDisabledTenants(): void
+    {
+        $mine    = $this->monitor('mine');
+        $foreign = $this->monitor('foreign', MonitorType::Https, $this->other);
+        $mine->setNextCheckAt(new DateTimeImmutable('2026-01-01 08:00:00'));
+        $foreign->setNextCheckAt(new DateTimeImmutable('2026-01-01 08:00:00'));
+        $this->other->setEnabled(false);
+        $this->em->flush();
+
+        $repository = new MonitorRepository($this->registry);
+        $now        = new DateTimeImmutable('2026-01-01 12:00:00');
+
+        self::assertSame(['mine'], $this->names($repository->findDue($now)));
+
+        $this->other->setEnabled(true);
+        $this->em->flush();
+        self::assertEqualsCanonicalizing(['mine', 'foreign'], $this->names($repository->findDue($now)));
     }
 
     public function testCheckResultRepositoryQueries(): void
@@ -225,7 +244,7 @@ final class RepositoriesDbTest extends TestCase
         $this->em->persist(new Tag($this->other, 'beta'));
         $this->em->flush();
 
-        self::assertSame(['alpha', 'zeta'], self::names((new TagRepository($this->registry))->findByTenant($this->tenant)));
+        self::assertSame(['alpha', 'zeta'], $this->names((new TagRepository($this->registry))->findByTenant($this->tenant)));
 
         $tenants = new TenantRepository($this->registry);
         self::assertSame($this->other, $tenants->findOneBySlug('other'));

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle;
 
+use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -18,11 +19,12 @@ final class UptimeMonitorBundle extends Bundle
     public const TRANSLATION_DOMAIN = 'NowoUptimeMonitorBundle';
 
     /**
-     * Registers the bundle compiler passes (Twig template paths).
+     * Registers the bundle compiler passes (Twig template paths, fail-closed CSRF requirement).
      */
     public function build(ContainerBuilder $container): void
     {
         $container->addCompilerPass(new TwigPathsPass());
+        $container->addCompilerPass(new CsrfProtectionPass());
     }
 
     /**

@@ -54,7 +54,7 @@ final class CommandsDbTest extends TestCase
     private array $refreshedTopics = [];
 
     /** SymfonyStyle wraps long lines: compare on collapsed whitespace. */
-    private static function display(CommandTester $command): string
+    private function display(CommandTester $command): string
     {
         return (string) preg_replace('/\s+/', ' ', $command->getDisplay());
     }
@@ -97,11 +97,11 @@ final class CommandsDbTest extends TestCase
         self::assertSame(Command::SUCCESS, $command->execute([]));
         // On an empty database the create and the additive-update lists overlap (statement counts are
         // platform-specific): the duplicates are reported as skipped, not fatal.
-        self::assertMatchesRegularExpression('/Executed [1-9]\d* SQL statement\(s\)\. Skipped [1-9]\d* already applied\./', self::display($command));
+        self::assertMatchesRegularExpression('/Executed [1-9]\d* SQL statement\(s\)\. Skipped [1-9]\d* already applied\./', $this->display($command));
 
         self::assertSame(Command::SUCCESS, $command->execute(['--force' => true]));
         // SQLite: nothing left. MySQL / PostgreSQL: the foreign-key ALTERs are re-emitted and skipped as duplicates.
-        self::assertMatchesRegularExpression('/already up to date|Executed 0 SQL statement\(s\)\. Skipped \d+ already applied\./', self::display($command));
+        self::assertMatchesRegularExpression('/already up to date|Executed 0 SQL statement\(s\)\. Skipped \d+ already applied\./', $this->display($command));
     }
 
     public function testSyncSchemaRethrowsOtherErrors(): void
@@ -136,10 +136,10 @@ final class CommandsDbTest extends TestCase
         self::assertSame(0, $seed->freshSeed('empty', 'Empty')['monitors_removed']);
 
         $command->execute(['--tenant' => 'acme', '--name' => 'Acme']);
-        self::assertStringContainsString('Tenant "acme" ready. Created 3 new monitor(s).', self::display($command));
+        self::assertStringContainsString('Tenant "acme" ready. Created 3 new monitor(s).', $this->display($command));
 
         $command->execute(['--tenant' => 'acme', '--fresh' => true]);
-        self::assertStringContainsString('Tenant "acme" reset. Removed 3 monitor(s), created 3', self::display($command));
+        self::assertStringContainsString('Tenant "acme" reset. Removed 3 monitor(s), created 3', $this->display($command));
         self::assertSame(['/uptime/acme', '/uptime/acme'], $this->refreshedTopics);
 
         $monitors = (new MonitorRepository($registry))->findByTenantSlug('acme');
@@ -166,18 +166,18 @@ final class CommandsDbTest extends TestCase
 
         $command->setInputs(['no']);
         self::assertSame(Command::SUCCESS, $command->execute([]));
-        self::assertStringContainsString('Aborted.', self::display($command));
+        self::assertStringContainsString('Aborted.', $this->display($command));
         self::assertSame(5, SqliteEntityManagerFactory::count($em, 'uptime_check_result'));
 
         self::assertSame(Command::FAILURE, $command->execute(['--tenant' => 'missing', '--no-interaction' => true]));
-        self::assertStringContainsString('Tenant "missing" not found.', self::display($command));
+        self::assertStringContainsString('Tenant "missing" not found.', $this->display($command));
 
         self::assertSame(Command::SUCCESS, $command->execute(['--tenant' => 'a', '--no-interaction' => true]));
-        self::assertStringContainsString('Cleared 2 check(s), 0 aggregate(s), 0 incident(s). Reset 1 monitor(s).', self::display($command));
+        self::assertStringContainsString('Cleared 2 check(s), 0 aggregate(s), 0 incident(s). Reset 1 monitor(s).', $this->display($command));
         self::assertSame(3, SqliteEntityManagerFactory::count($em, 'uptime_check_result'));
 
         self::assertSame(Command::SUCCESS, $command->execute(['--no-interaction' => true]));
-        self::assertStringContainsString('Cleared 3 check(s)', self::display($command));
+        self::assertStringContainsString('Cleared 3 check(s)', $this->display($command));
         self::assertSame(['/uptime/a', '/uptime/a', '/uptime/b'], $this->refreshedTopics);
         self::assertSame('2026-02-02 00:00:00', $monitorB->getNextCheckAt()?->format('Y-m-d H:i:s'));
         self::assertSame(['a', 'b'], $clear->listTenantSlugs());
@@ -198,7 +198,7 @@ final class CommandsDbTest extends TestCase
         $command = new CommandTester(new RollupCommand($em, new CheckAggregateRepository($registry), ['periods' => ['bogus']], new MockClock('2026-03-02 00:00:00')));
 
         self::assertSame(Command::SUCCESS, $command->execute(['--days' => '5']));
-        self::assertStringContainsString('Processed 2 check(s) into 1 aggregate bucket(s).', self::display($command));
+        self::assertStringContainsString('Processed 2 check(s) into 1 aggregate bucket(s).', $this->display($command));
 
         $aggregate = $em->getRepository(CheckAggregate::class)->findOneBy([]);
         self::assertInstanceOf(CheckAggregate::class, $aggregate);

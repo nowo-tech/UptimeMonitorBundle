@@ -150,10 +150,11 @@ final class SettingsAccessorsTest extends TestCase
         self::assertFalse($settings->isSearchEngineIndexAllowed());
         self::assertSame('dashboard', $settings->getEntryPage());
         self::assertNull($settings->getPrimaryBaseUrl());
-        self::assertSame('', $settings->getSteamApiKey());
+        self::assertSame('default', $settings->getStatusPageVisibility());
+        self::assertTrue($settings->isStatusPagePublic(true));
+        self::assertFalse($settings->isStatusPagePublic(false));
         self::assertTrue($settings->isNscdEnabled());
         self::assertFalse($settings->isHttpDnsCacheEnabled());
-        self::assertSame('auto', $settings->getChromiumExecutable());
         self::assertSame('en', $settings->getLanguage());
         self::assertSame('auto', $settings->getTheme());
         self::assertSame('normal', $settings->getHeartbeatBarTheme());
@@ -173,10 +174,9 @@ final class SettingsAccessorsTest extends TestCase
             'search_engine_index' => true,
             'entry_page'          => 'status',
             'primary_base_url'    => 'https://status.test',
-            'steam_api_key'       => 'k',
+            'status_page_public'  => 'private',
             'nscd_enabled'        => false,
             'http_dns_cache'      => true,
-            'chromium_executable' => '/bin/chromium',
             'language'            => 'es',
             'theme'               => 'dark',
             'heartbeat_bar_theme' => 'bottom',
@@ -191,10 +191,15 @@ final class SettingsAccessorsTest extends TestCase
         self::assertTrue($settings->isSearchEngineIndexAllowed());
         self::assertSame('status', $settings->getEntryPage());
         self::assertSame('https://status.test', $settings->getPrimaryBaseUrl());
-        self::assertSame('k', $settings->getSteamApiKey());
+        self::assertSame('private', $settings->getStatusPageVisibility());
+        self::assertFalse($settings->isStatusPagePublic(true));
+        $settings->merge(['status_page_public' => 'public']);
+        self::assertTrue($settings->isStatusPagePublic(false));
+        $settings->merge(['status_page_public' => 'bogus']);
+        self::assertSame('default', $settings->getStatusPageVisibility());
+        $settings->merge(['status_page_public' => 'private']);
         self::assertFalse($settings->isNscdEnabled());
         self::assertTrue($settings->isHttpDnsCacheEnabled());
-        self::assertSame('/bin/chromium', $settings->getChromiumExecutable());
         self::assertSame('es', $settings->getLanguage());
         self::assertSame('dark', $settings->getTheme());
         self::assertSame('bottom', $settings->getHeartbeatBarTheme());

@@ -9,6 +9,7 @@ use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
+use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -59,7 +60,12 @@ final class StatusPageController extends AbstractController
         }
 
         $tenant = $this->tenantRepository->findOneBySlug($tenantSlug);
-        if (!$tenant instanceof Tenant) {
+        // Unknown, disabled and private tenants answer the same 404 (no tenant enumeration) — SEC-004 L2 / L5.
+        if (
+            !$tenant instanceof Tenant
+            || !$tenant->isEnabled()
+            || !TenantSettings::from($tenant)->isStatusPagePublic((bool) ($this->statusPageConfig['default_public'] ?? true))
+        ) {
             throw $this->createNotFoundException(sprintf('Tenant "%s" not found.', $tenantSlug));
         }
 

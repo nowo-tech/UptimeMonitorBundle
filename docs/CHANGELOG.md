@@ -53,6 +53,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security
+
+SEC-004 re-audit 2026-10-27 findings (M1, L1–L7 and Info items):
+
+- **One monitor can no longer stall or exhaust the shared scan (M1)**: new `checks.max_timeout_seconds` (60),
+  `checks.max_body_bytes` (1 MiB), `checks.max_redirects` (20) and `checks.max_scan_seconds` (0 = no budget) caps
+  (`Check\CheckLimits`); HTTP checks read the body only for a keyword and at most `max_body_bytes`; a runner that
+  throws is stored as `unknown` and rescheduled, and the scan logs and skips a monitor whose execution fails. The
+  monitor form refuses timeouts above the cap.
+- **Fail-closed CSRF (L1, REQ-SEC-005)**: `CsrfProtectionPass` refuses to compile the container when the admin UI is
+  enabled without form CSRF protection or a CSRF token manager.
+- **Disabled tenants (L2)**: their monitors are no longer checked and their status page answers 404.
+- **Certificate-expiry probe (L3)**: reads the certificate chain of the validated HTTP connection
+  (`capture_peer_cert_chain`) instead of re-resolving the host — no DNS rebinding, proxy honoured.
+- **Monitor proxies (L4)**: with `block_private_urls`, the proxy host is resolved once, validated and pinned to that IP.
+- **Status page opt-in (L5)**: `status_page.default_public` (default `true`, 1.x behaviour) and a per-tenant
+  *Public status page* setting (default / public / private); unknown, disabled and private tenants answer the same 404.
+- **Tenant list (L6)**: a tenant-aware access checker filters `/tenants`.
+- **Backups (L7)**: exports redact secrets (URL / proxy credentials, basic-auth password, custom header values);
+  imports are capped (2 MB file, 1000 rows), look names up once, skip rows that fail the monitor constraints
+  (`invalid` count) and show a generic error (exception class logged).
+- **Info**: URL credentials (`user:pass@`) are masked in the dashboard, monitor page, alert e-mails and webhook payloads
+  (`Security\SecretRedactor`); dashboard events escape status and time (`dashboard-panel.ts`); a monitor's parent group
+  must belong to its tenant; `TenantProvisioner::ensure()` validates the slug; the unused *Steam API key* /
+  *Chromium executable* settings were removed (dropped from the stored settings on the next save).
+- **Logging (REQ-OBS-001 rule 4)**: `nowo:uptime:clear-data`, `nowo:uptime:purge-detail`, settings purge / clear
+  statistics and backup export / import log start and success (tenant slug, counts) at `info` and failures at `error`
+  with the exception class only.
+
 ### Added
 
 - PHPDoc on every class and public method of `src/` (REQ-CS-001): an English summary, plus `@param` / `@return` /
