@@ -85,6 +85,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Demo README screenshots (REQ-DEMO-013): the full demo frame again — masthead, bundle UI and the Symfony web debug
+  toolbar (light theme); `docs/images/demo/*.webp` refreshed.
+- Root dependencies (lock, semver-safe): `nowo-tech/ui-kit-bundle` 2.15.3, `nowo-tech/form-kit-bundle` 2.13.3,
+  `doctrine/doctrine-bundle` 2.19.2, `doctrine/inflector`, `masterminds/html5`; dev: `rector/rector` 2.8.1,
+  `phpstan/phpstan` 2.3.2, `phpstan/phpstan-symfony` 2.1.1.
+- Spec Kit baseline (REQ-SPECKIT-001/003): `specs/001-baseline/code-inventory.md` maps all 184 production files
+  (socket connector, events, routing / tenant paths, form types, tenant provisioner, UI page contract); new
+  `FR-CHECK-006`, `FR-EVENT-001`, `FR-SEC-002`, `FR-FORM-003`, `FR-UI-003/004`, `FR-ROUTE-001/002`, `FR-TENANT-001`.
+- README: the demo is Symfony 8 only; translations ship 7 locales.
 - **UiKit page contract (REQ-UI-003, REQ-UI-001)**: every admin page now extends a UiKit 2.15 page scaffold fed by
   UiKit view models built in the controllers — tenants (`page/list`), new tenant and monitor create / edit
   (`page/form`), dashboard (`page/dashboard`), monitor detail (`page/show`) and the eight settings screens
@@ -137,6 +146,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `make validate-phpdoc` (REQ-CS-001) missed methods named after a reserved word (`function new()` tokenizes as
+  `T_NEW`): any token after `function` is now the method name. `MonitorController::new()` and
+  `TenantController::new()` got their PHPDoc.
 - Demo: `checks.block_private_urls: false` in the demo config so the local probe monitors (`http://php/demo/uptime/*` over the Compose network) are not blocked by the SSRF guard and report Down.
 - **SSL check**: a peer certificate that cannot be parsed now reports "Could not parse certificate" directly (the
   intermediate PEM export step and its unreachable error are gone).

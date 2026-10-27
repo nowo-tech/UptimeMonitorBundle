@@ -42,7 +42,16 @@ foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($srcDir)) 
         while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
             ++$next;
         }
-        if ($next >= $count || !is_array($tokens[$next]) || $tokens[$next][0] !== T_STRING) {
+        if ($kind === T_FUNCTION && $next < $count && $tokens[$next] === '&') {
+            // Function returning by reference: `function &name()`.
+            ++$next;
+            while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
+                ++$next;
+            }
+        }
+        // A method name may be a reserved word (`function new()` tokenizes as T_NEW): for functions any token after
+        // T_FUNCTION is the name; a closure is followed by `(`, not by a token array.
+        if ($next >= $count || !is_array($tokens[$next]) || ($kind !== T_FUNCTION && $tokens[$next][0] !== T_STRING)) {
             continue;
         }
         $name = $tokens[$next][1];

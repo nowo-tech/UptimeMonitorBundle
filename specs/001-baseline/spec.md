@@ -80,6 +80,8 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-CHECK-004**: Type-specific runners (HTTP, TCP, DNS, SSL, Ping, Group) with SSRF guard on URLs.
 - **FR-CHECK-002 / FR-CHECK-003**: Orchestrated execution and due-check scheduling (CLI, Messenger, Schedule).
 - **FR-CHECK-005**: Status transitions, incident lifecycle, retry policy via `MonitorRetryService`.
+- **FR-CHECK-006**: TCP / SSL probes open sockets through `Check\Network\SocketConnectorInterface` (stream socket with a deadline).
+- **FR-EVENT-001**: `MonitorWentDownEvent` / `MonitorRecoveredEvent` dispatched when an incident opens / resolves.
 
 ### Dashboard & API
 
@@ -98,15 +100,24 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 
 - **FR-NOTIF-001–004**: Pluggable notification channels (email, webhook) and alert dispatch.
 - **FR-SEC-001**: Configurable dashboard access checker.
+- **FR-SEC-002**: Tenant-aware access checker (`TenantAwareUptimeMonitorAccessCheckerInterface`) decides every route with `{tenantSlug}`.
 - **FR-SEC-004**: `MonitorUrlSsrfGuard` blocks private/reserved targets for HTTP checks.
 - **FR-WORKER-001**: Under FrankenPHP workers without kernel reset, a closed EntityManager is replaced before a bundle route runs (`ClosedEntityManagerSubscriber`); see [`docs/FRANKENPHP-WORKER-AUDIT.md`](../../docs/FRANKENPHP-WORKER-AUDIT.md).
 
 ### UI & i18n
 
-- **FR-FORM-001 / FR-FORM-002**: Monitor, tenant, tag, and settings form types with DTO models.
+- **FR-FORM-001 / FR-FORM-002**: Monitor, tenant, tag, settings, backup import and monitor search form types with DTO models.
+- **FR-FORM-003**: CSRF-only action form (`CsrfActionFormType`) for destructive POST actions.
+- **FR-UI-003 / FR-UI-004**: UiKit page contract (`UptimePages`: layout, per-page templates, form themes) and area navigation provider (`UptimeAreaNav`).
 - **FR-VIEW-001–011**: Twig dashboard, monitor, settings, status, and shared partials; SCSS themes (Bootstrap/Tailwind/Kuma).
 - **FR-UI-010–012**: Vite TypeScript dashboard modules; built assets under `Resources/public/`.
 - **FR-I18N-003 / FR-I18N-004**: Translation helper and seven locale YAML files (`NowoUptimeMonitorBundle.<locale>.yaml`, constraint messages included — no `validators` catalogue).
+
+### Routing & tenants
+
+- **FR-ROUTE-001**: Route import `type: nowo_uptime_monitor` with the admin prefix (`web_ui.path_prefix`, may hold `{tenantSlug}`).
+- **FR-ROUTE-002**: `web_ui.tenant_paths` copies of the tenant routes per slug prefix; `TenantPathUrlGenerator` (router decorator) links a slug to its copy.
+- **FR-TENANT-001**: `TenantProvisioner` creates / enables / disables host-owned tenants.
 
 ### CLI
 
@@ -125,7 +136,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 
 ## Success Criteria
 
-- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (180/180 mapped, audited 2026-10-20).
+- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (184/184 mapped, audited 2026-10-27).
 - **SC-002**: Configuration keys in `docs/CONFIGURATION.md` match `Configuration.php`.
 - **SC-003**: `composer qa` / `make release-check` pass in CI (PHPUnit, PHPStan, Vitest where applicable).
 - **SC-004**: No Packagist-visible behavior change without spec, inventory, and test updates.

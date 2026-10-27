@@ -42,7 +42,7 @@ Captured from the Symfony 8 demo (seeded monitors + 24 h of history) by Playwrig
 - ✅ Public status page per tenant (`/status/{tenantSlug}`)
 - ✅ Email, webhook, Slack notifications (on status change)
 - ✅ CRUD for monitors and tenants (Twig UI)
-- ✅ Demo Symfony 7 and 8 (FrankenPHP) — see [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md)
+- ✅ Symfony 8 demo (FrankenPHP) — see [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md)
 - ✅ Mercure real-time dashboard sync (`dashboard.sync: mercure`)
 
 ## Quick start
@@ -107,7 +107,7 @@ make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 - [Check types](docs/CHECK-TYPES.md)
 - [Monitor configuration (Uptime Kuma parity)](docs/MONITOR-CONFIGURATION.md)
 - [Tenant settings (Uptime Kuma parity)](docs/SETTINGS.md)
-- [Translations (en, es)](docs/TRANSLATIONS.md)
+- [Translations (en, es, fr, it, pt, de, nl)](docs/TRANSLATIONS.md)
 - [Notifications](docs/NOTIFICATIONS.md)
 - [Mercure real-time sync](docs/MERCURE.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
