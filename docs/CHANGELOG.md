@@ -53,6 +53,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Demo Playwright e2e (REQ-DEMO-013): `demo/symfony8/e2e` happy path (dashboard, monitor create + detail, public status page, settings) and a screenshots project; `make test-e2e` / `make demo-screenshots` (root and demo Makefiles, PNG → WebP with `sharp`). `release-check` runs `test-e2e`.
+- README **Screenshots** section with `docs/images/demo/dashboard.webp` and `docs/images/demo/monitor-detail.webp`.
+- Demo-only `app:uptime:demo-history` command: three extra local-probe monitors and 24 h of deterministic check history for every monitor and the group (one resolved outage, one latency spike); `reset-demo` runs it plus `nowo:uptime:rollup`.
+- `web_ui` configuration (REQ-UI-003 vocabulary): `web_ui.enabled`, `web_ui.path_prefix`, `web_ui.tenant_paths`, `web_ui.layout_template`
+  (null = UiKit layout), `web_ui.templates.<page>` (per-page override), `web_ui.form_themes`; `security.roles.dashboard
+  | manage | settings`.
+- `Ui\UptimeAreaNav`: the bundle navigation published to the UiKit area-nav registry (`uptime_monitor`,
+  `uptime_monitor_settings`) for host menus.
+- `docs/TEMPLATES.md` and the UiKit contract test `tests/Integration/Contract/PageContractTest.php` (every page).
+- Translations for the monitor detail, tenant pages and tag delete confirmation (7 locales).
+- TypeScript coverage gate (REQ-TEST-003 rule 3): Vitest tests for every dashboard module (polling, Mercure, layout
+  refresh, events filter, sidebar, monitor dialog, monitor detail charts / history) — 99.08% lines, 93.63% branches;
+  `vitest.config.ts` fails under 90% (lines, statements, functions, branches). `make test-ts` keeps the Vitest exit
+  status (it was lost in a pipe), and CI runs a new **Frontend (Vitest, coverage gate)** job (install, coverage, build).
+- Demo Playwright e2e (REQ-DEMO-013): `demo/symfony8/e2e` happy path (dashboard, monitor create + detail, public status page, settings) and a screenshots project; `make test-e2e` / `make demo-screenshots` (root and demo Makefiles, PNG → WebP with `sharp`). `release-check` runs `test-e2e`.
+- README **Screenshots** section with `docs/images/demo/dashboard.webp` and `docs/images/demo/monitor-detail.webp`.
+- Demo-only `app:uptime:demo-history` command: three extra local-probe monitors and 24 h of deterministic check history for every monitor and the group (one resolved outage, one latency spike); `reset-demo` runs it plus `nowo:uptime:rollup`.
+- `web_ui` configuration (REQ-UI-003 vocabulary): `web_ui.enabled`, `web_ui.path_prefix`, `web_ui.tenant_paths`, `web_ui.layout_template`
+  (null = UiKit layout), `web_ui.templates.<page>` (per-page override), `web_ui.form_themes`; `security.roles.dashboard
+  | manage | settings`.
+- `Ui\UptimeAreaNav`: the bundle navigation published to the UiKit area-nav registry (`uptime_monitor`,
+  `uptime_monitor_settings`) for host menus.
+- `docs/TEMPLATES.md` and the UiKit contract test `tests/Integration/Contract/PageContractTest.php` (every page).
+- Translations for the monitor detail, tenant pages and tag delete confirmation (7 locales).
+
 ### Changed
 
 - **UiKit page contract (REQ-UI-003, REQ-UI-001)**: every admin page now extends a UiKit 2.15 page scaffold fed by
@@ -73,23 +100,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Bootstrap classes, `convention_requires_translation: true` (no raw `*.help` / `*.placeholder` keys); the bundle
   forms use the UiKit form theme (`web_ui.form_themes`). Requires `nowo-tech/form-kit-bundle` ^2.10.
 - Requires `nowo-tech/ui-kit-bundle` ^2.15.1.
-
-### Added
-
-- TypeScript coverage gate (REQ-TEST-003 rule 3): Vitest tests for every dashboard module (polling, Mercure, layout
-  refresh, events filter, sidebar, monitor dialog, monitor detail charts / history) — 99.08% lines, 93.63% branches;
-  `vitest.config.ts` fails under 90% (lines, statements, functions, branches). `make test-ts` keeps the Vitest exit
-  status (it was lost in a pipe), and CI runs a new **Frontend (Vitest, coverage gate)** job (install, coverage, build).
-- Demo Playwright e2e (REQ-DEMO-013): `demo/symfony8/e2e` happy path (dashboard, monitor create + detail, public status page, settings) and a screenshots project; `make test-e2e` / `make demo-screenshots` (root and demo Makefiles, PNG → WebP with `sharp`). `release-check` runs `test-e2e`.
-- README **Screenshots** section with `docs/images/demo/dashboard.webp` and `docs/images/demo/monitor-detail.webp`.
-- Demo-only `app:uptime:demo-history` command: three extra local-probe monitors and 24 h of deterministic check history for every monitor and the group (one resolved outage, one latency spike); `reset-demo` runs it plus `nowo:uptime:rollup`.
-- `web_ui` configuration (REQ-UI-003 vocabulary): `web_ui.enabled`, `web_ui.path_prefix`, `web_ui.tenant_paths`, `web_ui.layout_template`
-  (null = UiKit layout), `web_ui.templates.<page>` (per-page override), `web_ui.form_themes`; `security.roles.dashboard
-  | manage | settings`.
-- `Ui\UptimeAreaNav`: the bundle navigation published to the UiKit area-nav registry (`uptime_monitor`,
-  `uptime_monitor_settings`) for host menus.
-- `docs/TEMPLATES.md` and the UiKit contract test `tests/Integration/Contract/PageContractTest.php` (every page).
-- Translations for the monitor detail, tenant pages and tag delete confirmation (7 locales).
+- **Injected clock (REQ-DI-001)**: services, check runners, the webhook channel and the rollup command read the time
+  from `Symfony\Component\Clock\ClockInterface` (the framework `clock` service; `NativeClock` when constructed by
+  hand) instead of `new DateTimeImmutable()` / `time()`. `symfony/clock` is now a direct requirement.
+  `DueChecksRunner::runDueChecks()` takes `?DateTimeImmutable $now = null` (defaults to the clock).
+  `CheckResult` and `Incident` accept an optional timestamp as last constructor argument (default: now).
+  Check latency keeps using `hrtime()` (a monotonic duration, not wall-clock time).
+- **Network seams for checks**: TCP, SSL and the HTTPS certificate-expiry check open sockets through
+  `Check\Network\SocketConnectorInterface` (default `StreamSocketConnector`); `MonitorUrlSsrfGuard` takes optional
+  A/AAAA lookup closures; `PingCheckRunner` takes an optional command executor and OS family. Defaults are unchanged.
+- **Coverage gate (REQ-TEST-003)**: PHPUnit measures every `src/` directory except `src/Controller` and `src/Twig`
+  (temporary, pending the UiKit UI refactor); `make release-check` and CI run `test-coverage-100`. Repository, schema
+  sync, dashboard read-model and command tests run against a real Doctrine ORM schema (`db` group: SQLite in memory,
+  MySQL / PostgreSQL with `make test-with-db`); network checks are tested offline (MockHttpClient, fake
+  connector/DNS, loopback TLS fixture).
 
 ### Deprecated
 
@@ -111,6 +135,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Demo: `checks.block_private_urls: false` in the demo config so the local probe monitors (`http://php/demo/uptime/*` over the Compose network) are not blocked by the SSRF guard and report Down.
+- **SSL check**: a peer certificate that cannot be parsed now reports "Could not parse certificate" directly (the
+  intermediate PEM export step and its unreachable error are gone).
 
 ## [1.10.0] - 2026-10-27
 
@@ -147,19 +173,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   raw exception messages (REQ-OBS-001). `RunDueChecksMessageHandler` logs the scan result and rethrows failures for
   the Messenger retry strategy (REQ-MSG-001).
 - Linux ping checks add a hard `-w` deadline next to `-W` (REQ-RUNTIME-001).
-- **Injected clock (REQ-DI-001)**: services, check runners, the webhook channel and the rollup command read the time
-  from `Symfony\Component\Clock\ClockInterface` (the framework `clock` service; `NativeClock` when constructed by
-  hand) instead of `new DateTimeImmutable()` / `time()`. `symfony/clock` is now a direct requirement.
-  `DueChecksRunner::runDueChecks()` takes `?DateTimeImmutable $now = null` (defaults to the clock).
-  `CheckResult` and `Incident` accept an optional timestamp as last constructor argument (default: now).
-  Check latency keeps using `hrtime()` (a monotonic duration, not wall-clock time).
-- **Network seams for checks**: TCP, SSL and the HTTPS certificate-expiry check open sockets through
-  `Check\Network\SocketConnectorInterface` (default `StreamSocketConnector`); `MonitorUrlSsrfGuard` takes optional
-  A/AAAA lookup closures; `PingCheckRunner` takes an optional command executor and OS family. Defaults are unchanged.
-- **Coverage gate (REQ-TEST-003)**: PHPUnit measures every `src/` directory except `src/Controller` and `src/Twig`
-  (temporary, pending the UiKit UI refactor); `make release-check` and CI run `test-coverage-100`. Repository, schema
-  sync, dashboard read-model and command tests run against a real Doctrine ORM + SQLite schema (`db` group); network
-  checks are tested offline (MockHttpClient, fake connector/DNS, loopback TLS fixture).
 
 ### Fixed
 
@@ -168,8 +181,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   removed), with explicit PHP / Caddy / `max_wait_time` deadlines. The Flex leftover `compose.override.yaml` that
   published ports `5432` / `80` was removed (REQ-DEMO-006); the `dns:` block carries its explanatory comment
   (REQ-DEMO-009). `make up` rebuilds the (cached) image.
-- **SSL check**: a peer certificate that cannot be parsed now reports "Could not parse certificate" directly (the
-  intermediate PEM export step and its unreachable error are gone).
 
 ## [1.9.4] - 2026-10-26
 

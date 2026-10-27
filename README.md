@@ -114,17 +114,17 @@ make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 
 ## Tests and coverage
 
-Measured on 2026-10-26 (same commands as CI):
+Measured on 2026-10-27 (same commands as CI):
 
 | Language | Line coverage | Gate | Command |
 |----------|---------------|------|---------|
-| PHP | **100%** (3287/3287 lines, 419/419 methods) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
+| PHP | **100%** (3442/3442 lines, 439/439 methods) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
 | TypeScript | **99.08%** lines (Vitest v8) | 90% — `vitest.config.ts` thresholds (CI `frontend` job, `make test-ts`) | `make test-ts` |
 | Python | N/A (no Python code) | — | — |
 
 - **PHP** — PHPUnit `tests/Unit` and `tests/Integration`. Repository, schema-sync, dashboard read-model, backup and
-  console-command tests run against a real Doctrine ORM schema on in-memory SQLite (PHPUnit group `db`:
-  `vendor/bin/phpunit --group db`). Network checks run offline: `MockHttpClient` for HTTP, a fake
+  console-command tests run against a real Doctrine ORM schema (PHPUnit group `db`: `vendor/bin/phpunit --group db`)
+  on in-memory SQLite, and on MySQL and PostgreSQL with `make test-with-db` (`UPTIME_TEST_DATABASE_URL`). Network checks run offline: `MockHttpClient` for HTTP, a fake
   `SocketConnectorInterface` and DNS lookups for TCP/SSL/DNS/ping, and a loopback-only TLS server for the default
   socket connector. Time-dependent code is tested with `Symfony\Component\Clock\MockClock`.
 - **Measured scope** — all of `src/` except `src/Controller` and `src/Twig` (excluded in `phpunit.xml.dist` while the
