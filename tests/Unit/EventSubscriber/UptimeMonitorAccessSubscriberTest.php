@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\EventSubscriber;
 
+use Nowo\UptimeMonitorBundle\Controller\Api\StatusApiController;
 use Nowo\UptimeMonitorBundle\Controller\DashboardController;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
@@ -17,6 +18,7 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -36,6 +38,19 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
         ]);
 
         $subscriber->onKernelController($event);
+    }
+
+    public function testDisabledWebUiAnswersNotFoundForAdminPagesButNotForApis(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessDashboard')->willReturn(true);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, true, null, false);
+
+        // APIs keep working with the admin UI disabled.
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(StatusApiController::class), 'summary']));
+
+        $this->expectException(NotFoundHttpException::class);
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(SettingsController::class), 'general']));
     }
 
     public function testSkipsStatusPageController(): void

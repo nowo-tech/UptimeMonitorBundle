@@ -45,7 +45,8 @@ final readonly class CheckExecutorService
      */
     public function execute(Monitor $monitor): CheckResult
     {
-        $raw = $this->runCheck($monitor);
+        // Remote data (DNS records, transport errors) is scrubbed to valid, bounded UTF-8 before anything stores it.
+        $raw = $this->runCheck($monitor)->sanitized();
         $dto = $this->latencyNormalizer->normalizeDto(
             $monitor,
             $this->monitorRetryService->normalizeResult($monitor, $raw),

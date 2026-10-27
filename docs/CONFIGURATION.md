@@ -13,7 +13,7 @@ nowo_uptime_monitor:
         max_timeout_seconds: 60    # cap of every per-monitor timeout (HTTP/TCP/SSL; ping ≤ 30 s)
         max_body_bytes: 1048576    # HTTP body read only for a keyword, at most this many bytes
         max_redirects: 20          # cap of the per-monitor redirect limit
-        max_scan_seconds: 0        # time budget of one due-check scan; 0 = none (left-over monitors run next tick)
+        max_scan_seconds: 300      # time budget of one due-check scan; 0 = none (left-over monitors run next tick)
     scheduler:
         enabled: true
         mode: scheduler   # scheduler | cron | messenger
@@ -87,10 +87,13 @@ stalling (tarpit) or exhausting memory in the scan every tenant shares:
 | `checks.max_timeout_seconds` | `60` | Every HTTP / TCP / SSL timeout is clamped to `[1, max]`; the monitor form refuses larger values. Ping stays capped at 30 s. |
 | `checks.max_body_bytes` | `1048576` | HTTP checks never buffer a body they do not need: it is read only for a keyword check and only up to this size (the transfer is cancelled after). |
 | `checks.max_redirects` | `20` | Upper bound of the per-monitor redirect limit. |
-| `checks.max_scan_seconds` | `0` | Time budget of one scan; when spent, the remaining monitors stay due and run first on the next tick. |
+| `checks.max_scan_seconds` | `300` | Time budget of one scan; when spent, the remaining monitors stay due and run first on the next tick. `0` disables it. |
 
 A check whose runner throws is stored as `unknown` (`Check failed (<exception class>)`) and rescheduled; a monitor whose
-execution fails (e.g. the database write) is logged and skipped, the scan goes on.
+execution fails (e.g. the database write) is logged and skipped, the scan goes on. Check messages (≤ 2000 characters)
+and metadata (strings ≤ 1000 characters, ≤ 50 entries per list, ≤ 4 levels) are scrubbed to valid UTF-8 before they are
+stored. If a flush still closes the entity manager, the scan resets it through the Doctrine registry, reschedules the
+failing monitor (`next_check_at` = now + interval) and continues with the remaining monitors.
 
 ### Public status page
 

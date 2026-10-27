@@ -43,17 +43,25 @@ This bundle provides:
   certificate-expiry probe reads the certificate chain of the validated HTTP connection (no second lookup).
 - **Shared scan / DoS (M1)**: every check is capped by `checks.max_timeout_seconds` (60 s), `checks.max_redirects` (20)
   and `checks.max_body_bytes` (1 MiB, body read only for a keyword); a throwing check is stored as `unknown` and
-  rescheduled, a failing monitor execution is logged and skipped, and `checks.max_scan_seconds` bounds one scan. Every
+  rescheduled, a failing monitor execution is logged and skipped, and `checks.max_scan_seconds` (default 300 s) bounds
+  one scan. Check messages and metadata are scrubbed to valid, bounded UTF-8 before storage, and a flush that still
+  closes the entity manager resets it and reschedules the failing monitor, so one target cannot stop monitoring for
+  every tenant. Every
   outbound call has an explicit deadline and checks run only in CLI/worker processes — see
   [CONFIGURATION.md → Check limits](CONFIGURATION.md#check-limits-sec-004) and
   [Timeouts](CONFIGURATION.md#timeouts-frankenphp-safe-req-runtime-001). Detail rows are purged in keyset batches.
 - **Stored data**: check results may contain response snippets and DNS/SSL metadata; monitor configs hold the secrets
   monitor managers enter (basic-auth password, custom headers such as `Authorization`, proxy and URL credentials).
   Protect database access and database backups.
-- **Credentials in targets**: URL userinfo (`https://user:pass@host`) is masked as `***@` in the dashboard, the
-  monitor page, alert e-mails and webhook payloads (`SecretRedactor`); only the monitor edit form shows the real value.
-- **Bundle backups** (Settings → Backup): exports redact URL / proxy credentials, the basic-auth password and every
-  custom header value — the file is safe to hand around but secrets must be re-entered after an import. Imports are
+- **Credentials in targets**: URL userinfo (`https://user:pass@host`, up to the last `@` of the authority) is masked as
+  `***@`, and the values of credential-like query parameters (`token`, `key`, `secret`, `pass`, `sig`, `auth`,
+  `credential`, `session`, `code` — case-insensitive substrings of the name) as `***`, in the dashboard, the monitor
+  page, alert e-mails and webhook payloads (`SecretRedactor`); only the monitor edit form shows the real values.
+  Secrets elsewhere in a URL (path segments, unusual parameter names) are not detected: put them in headers or basic
+  auth instead.
+- **Bundle backups** (Settings → Backup): exports mask URL / proxy credentials and credential-like query parameters,
+  and drop the basic-auth password, the request body and every custom header value. Treat the file as internal all the
+  same — monitor names, targets and paths remain — and re-enter the secrets after an import. Imports are
   capped (2 MB, 1000 monitors), rows that fail the monitor constraints are skipped, and errors are shown as a generic
   message (exception class logged).
 - **Public status page**: exposes monitor names and last status only (paused monitors hidden). Public per tenant when
@@ -72,6 +80,9 @@ This bundle provides:
   checks off silently.
 - **Output escaping**: Twig auto-escaping for every page; the dashboard script escapes every API value it renders
   (monitor names, messages, statuses, times).
+- **Disabled admin UI**: with `web_ui.enabled: false` the admin pages and their mutation routes are not registered by
+  the `nowo_uptime_monitor` route loader, and the access subscriber answers 404 for them even if a host imports
+  `routes.yaml` directly; only the status page and the JSON APIs stay.
 - **Access control (REQ-UI-002 / REQ-UI-003)**: the admin UI is private by default. Canonical keys:
   - `security.access_roles` (default `[ROLE_ADMIN]`) — general gate (at least one role).
   - `security.roles.<action>` — `dashboard` (dashboard, read and polling APIs), `manage` (monitor mutations),

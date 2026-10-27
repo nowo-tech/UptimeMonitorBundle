@@ -96,15 +96,21 @@ composer update nowo-tech/uptime-monitor-bundle
 
 - **CSRF is mandatory for the admin UI**: the container no longer compiles when `web_ui.enabled` is `true` and
   `framework.form.csrf_protection` (or `framework.csrf_protection` / `symfony/security-csrf`) is off. Enable CSRF, or
-  set `nowo_uptime_monitor.web_ui.enabled: false`.
+  set `nowo_uptime_monitor.web_ui.enabled: false` — the admin pages (dashboard, monitors, settings, tenants) then are
+  not registered and answer 404; the status page and the JSON APIs stay.
 - **New caps** (`checks.max_timeout_seconds: 60`, `max_body_bytes: 1048576`, `max_redirects: 20`,
-  `max_scan_seconds: 0`): a monitor configured with a longer timeout or more redirects now runs with the cap; raise the
+  `max_scan_seconds: 300`): a monitor configured with a longer timeout or more redirects now runs with the cap; a scan
+  that takes longer than 5 minutes leaves the remaining monitors for the next tick (`max_scan_seconds: 0` restores the
+  unbounded scan); raise the
   cap if you really need longer checks (keep it below your worker limits). Keyword checks only see the first
   `max_body_bytes` of the body.
 - **Status pages**: unchanged by default (`status_page.default_public: true`). Set it to `false` to make status pages
   opt-in, then mark tenants public in *Settings → General → Public status page*. Disabled tenants now answer 404 and
   their monitors are no longer checked (as `TenantProvisioner::setEnabled()` always promised).
-- **Backups**: exported files no longer contain URL / proxy credentials, basic-auth passwords or header values
+- **Stored check data**: check messages are capped at 2000 characters and metadata strings at 1000 (≤ 50 entries per
+  list, ≤ 4 levels); invalid UTF-8 bytes become `?`.
+- **Backups**: exported files no longer contain URL / proxy credentials, credential-like query parameter values, request
+  bodies, basic-auth passwords or header values
   (re-enter them after an import); imports above 2 MB or 1000 monitors are refused, rows that fail the monitor
   constraints are skipped and counted as *invalid*. `MonitorBackupService::import()` returns an extra `invalid` key.
 - **Removed settings**: *Steam API key* and *Chromium executable* (stored but never used). They disappear from the
@@ -115,7 +121,8 @@ composer update nowo-tech/uptime-monitor-bundle
   `SocketConnectorInterface` (5th argument — the certificate probe now uses the HTTP connection), `TcpCheckRunner` /
   `SslCheckRunner` / `MonitorFormType` / `DueChecksRunner` / `TenantController` / `SettingsController` /
   `MonitorBackupService` / `UptimeDataClearService` / `DetailRetentionService` gain trailing optional arguments
-  (limits, logger, validator, access checker).
+  (limits, logger, validator, access checker); `DueChecksRunner` also takes an optional `ManagerRegistry`,
+  `UptimeMonitorAccessSubscriber` a `$webUiEnabled` flag and `UptimeMonitorRouteLoader` the `web_ui` array.
 
 ### Clock and check seams (REQ-DI-001)
 

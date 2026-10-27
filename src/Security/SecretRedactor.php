@@ -7,24 +7,43 @@ namespace Nowo\UptimeMonitorBundle\Security;
 use function array_map;
 use function is_array;
 use function is_string;
+use function preg_match;
 use function preg_replace;
+use function preg_replace_callback;
 
 /**
  * Masks credentials before monitor data leaves the bundle (dashboard, webhook payloads, alert mails, backups).
  *
- * URL userinfo (`https://user:pass@host`) becomes `https://***@host`; backups also drop the basic-auth password and
- * replace custom header values. Monitor managers still see and edit the real values in the monitor form.
+ * URL userinfo (`https://user:pass@host`, up to the last `@` of the authority) becomes `https://***@host` and the
+ * values of credential-like query parameters (`?token=`, `api_key=`, `secret=`, `sig=`…) become `***`; backups also
+ * drop the basic-auth password and the request body and replace custom header values. Monitor managers still see and
+ * edit the real values in the monitor form.
  */
 final class SecretRedactor
 {
     public const MASK = '***';
 
+    /** Query parameter names (case-insensitive substrings) whose values are masked. */
+    private const SENSITIVE_QUERY_KEY = '/token|key|secret|pass|pwd|sig|auth|credential|session|code/i';
+
     /**
-     * Replaces the userinfo of a URL (`scheme://user:pass@`) with `***`; other strings are returned unchanged.
+     * Masks the userinfo of a URL (`scheme://user:pass@`, up to the last `@` before the path) and the values of
+     * credential-like query parameters; strings without a scheme are returned unchanged.
      */
     public static function maskUrl(string $value): string
     {
-        return (string) preg_replace('#^([a-z][a-z0-9+.\-]*://)[^/?\#@]*@#i', '$1' . self::MASK . '@', $value);
+        if (preg_match('#^[a-z][a-z0-9+.\-]*://#i', $value) !== 1) {
+            return $value;
+        }
+
+        // Greedy authority match: a raw '@' inside the password is part of the userinfo too.
+        $value = (string) preg_replace('#^([a-z][a-z0-9+.\-]*://)[^/?\#]*@#i', '$1' . self::MASK . '@', $value);
+
+        return (string) preg_replace_callback(
+            '#([?&])([^=&\#]*)=([^&\#]*)#',
+            static fn (array $m): string => $m[1] . $m[2] . '=' . (preg_match(self::SENSITIVE_QUERY_KEY, $m[2]) === 1 ? self::MASK : $m[3]),
+            $value,
+        );
     }
 
     /**
@@ -43,8 +62,10 @@ final class SecretRedactor
             }
         }
 
-        if (isset($config['auth_password'])) {
-            $config['auth_password'] = '';
+        foreach (['auth_password', 'body'] as $key) {
+            if (isset($config[$key])) {
+                $config[$key] = '';
+            }
         }
 
         if (isset($config['headers']) && is_array($config['headers'])) {

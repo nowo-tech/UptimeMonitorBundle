@@ -364,7 +364,8 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertSame(60.0, $container->getParameter('nowo_uptime_monitor.checks.max_timeout_seconds'));
         self::assertSame(1_048_576, $container->getParameter('nowo_uptime_monitor.checks.max_body_bytes'));
         self::assertSame(20, $container->getParameter('nowo_uptime_monitor.checks.max_redirects'));
-        self::assertSame(0, $container->getParameter('nowo_uptime_monitor.checks.max_scan_seconds'));
+        self::assertSame(300, $container->getParameter('nowo_uptime_monitor.checks.max_scan_seconds'));
+        self::assertTrue($container->getParameter('nowo_uptime_monitor.web_ui.enabled'));
         /** @var array<string, mixed> $statusPage */
         $statusPage = $container->getParameter('nowo_uptime_monitor.status_page');
         self::assertTrue($statusPage['default_public']);

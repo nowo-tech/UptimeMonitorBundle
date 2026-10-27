@@ -22,6 +22,13 @@ final class SecretRedactorTest extends TestCase
         yield 'no userinfo' => ['https://example.test/a@b', 'https://example.test/a@b'];
         yield 'bare host' => ['db.example:5432', 'db.example:5432'];
         yield 'mail-like host' => ['user@example.test', 'user@example.test'];
+        yield 'raw @ inside the password' => ['https://u:p@ss@example.test/x', 'https://***@example.test/x'];
+        yield 'query tokens' => [
+            'https://example.test/hook?api_key=REDACTED-TEST&page=2&Token=REDACTED-TEST&SIG=x#frag',
+            'https://example.test/hook?api_key=***&page=2&Token=***&SIG=***#frag',
+        ];
+        yield 'flag without value' => ['https://example.test/?debug&secret=REDACTED-TEST', 'https://example.test/?debug&secret=***'];
+        yield 'userinfo and query' => ['https://u:p@example.test/?password=REDACTED-TEST', 'https://***@example.test/?password=***'];
     }
 
     #[DataProvider('urlProvider')]
@@ -37,7 +44,8 @@ final class SecretRedactorTest extends TestCase
             'proxy'         => 'http://p:q@proxy.example:3128',
             'auth_username' => 'admin',
             'auth_password' => str_repeat('x', 8), // runtime fixture, not a literal credential
-            'headers'       => ['Authorization' => 'Bearer abc', 'X-Trace' => '1'],
+            'headers'       => ['Authorization' => 'REDACTED-TEST', 'X-Trace' => '1'],
+            'body'          => '{"token":"REDACTED-TEST"}',
             'method'        => 'GET',
         ]);
 
@@ -47,6 +55,7 @@ final class SecretRedactorTest extends TestCase
             'auth_username' => 'admin',
             'auth_password' => '',
             'headers'       => ['Authorization' => '***', 'X-Trace' => '***'],
+            'body'          => '',
             'method'        => 'GET',
         ], $config);
         self::assertSame(['method' => 'GET'], SecretRedactor::redactMonitorConfig(['method' => 'GET']));

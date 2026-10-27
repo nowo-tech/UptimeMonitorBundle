@@ -58,10 +58,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 SEC-004 re-audit 2026-10-27 findings (M1, L1–L7 and Info items):
 
 - **One monitor can no longer stall or exhaust the shared scan (M1)**: new `checks.max_timeout_seconds` (60),
-  `checks.max_body_bytes` (1 MiB), `checks.max_redirects` (20) and `checks.max_scan_seconds` (0 = no budget) caps
+  `checks.max_body_bytes` (1 MiB), `checks.max_redirects` (20) and `checks.max_scan_seconds` (300; 0 = no budget) caps
   (`Check\CheckLimits`); HTTP checks read the body only for a keyword and at most `max_body_bytes`; a runner that
   throws is stored as `unknown` and rescheduled, and the scan logs and skips a monitor whose execution fails. The
   monitor form refuses timeouts above the cap.
+- **Unstorable check data no longer stops the scan (N1)**: check messages and metadata are scrubbed to valid, bounded
+  UTF-8 (`CheckResultDto::sanitized()`, e.g. a DNS TXT record with invalid bytes); when a flush still closes the entity
+  manager, `DueChecksRunner` resets it through the registry, reschedules the failing monitor with a DQL update and
+  reloads the remaining monitors.
+- **Redaction (N2)**: URL userinfo is masked up to the last `@` of the authority, credential-like query parameter
+  values (`token`, `key`, `secret`, `sig`, …) are masked, and backup exports drop the request body.
+- **Disabled admin UI (N3)**: `web_ui.enabled: false` no longer registers the admin / mutation routes, and the access
+  subscriber answers 404 for those controllers if a host imports `routes.yaml` directly.
 - **Fail-closed CSRF (L1, REQ-SEC-005)**: `CsrfProtectionPass` refuses to compile the container when the admin UI is
   enabled without form CSRF protection or a CSRF token manager.
 - **Disabled tenants (L2)**: their monitors are no longer checked and their status page answers 404.

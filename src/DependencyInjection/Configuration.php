@@ -140,7 +140,7 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                         ->integerNode('max_scan_seconds')
                             ->info('Time budget of one due-check scan; monitors left over stay due for the next tick (oldest first). 0 = no budget.')
-                            ->defaultValue(0)
+                            ->defaultValue(300)
                             ->min(0)
                         ->end()
                     ->end()

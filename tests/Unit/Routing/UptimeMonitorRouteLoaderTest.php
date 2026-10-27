@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Routing;
 
+use Nowo\UptimeMonitorBundle\Controller\Api\StatusApiController;
+use Nowo\UptimeMonitorBundle\Controller\DashboardController;
+use Nowo\UptimeMonitorBundle\Controller\MonitorController;
+use Nowo\UptimeMonitorBundle\Controller\SettingsController;
+use Nowo\UptimeMonitorBundle\Controller\StatusPageController;
+use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\Routing\UptimeMonitorRouteLoader;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Config\Loader\LoaderResolver;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
+
+use function array_keys;
 
 final class UptimeMonitorRouteLoaderTest extends TestCase
 {
@@ -50,6 +58,15 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
         self::assertSame('/projects/{tenantSlug}/uptime/monitors/new', $routes->get('nowo_uptime_monitor_new')?->getPath(), 'the default path stays');
     }
 
+    public function testADisabledWebUiRegistersNoAdminRoute(): void
+    {
+        $routes = $this->loader('/projects/{tenantSlug}/uptime', [
+            ['slug_prefix' => 'user-', 'path' => '/uptime/{tenantSlug}', 'name_prefix' => 'personal_', 'slug_requirement' => null],
+        ], false)->load('.', UptimeMonitorRouteLoader::TYPE);
+
+        self::assertSame(['nowo_uptime_status_page', 'nowo_uptime_api_summary'], array_keys($routes->all()));
+    }
+
     public function testItHandlesItsOwnImportTypeOnly(): void
     {
         $loader = $this->loader('/uptime');
@@ -61,20 +78,20 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
     /**
      * @param list<array{slug_prefix: string, path: string, name_prefix: string, slug_requirement: string|null}> $tenantPaths
      */
-    private function loader(string $dashboardPath, array $tenantPaths = []): UptimeMonitorRouteLoader
+    private function loader(string $dashboardPath, array $tenantPaths = [], bool $webUiEnabled = true): UptimeMonitorRouteLoader
     {
         $bundleRoutes = new class extends Loader {
             public function load(mixed $resource, ?string $type = null): RouteCollection
             {
                 $routes = new RouteCollection();
                 $prefix = '/%nowo_uptime_monitor.dashboard.path%';
-                $routes->add('nowo_uptime_tenant_index', new Route($prefix . '/tenants'));
-                $routes->add('nowo_uptime_dashboard', new Route($prefix . '/{tenantSlug}'));
-                $routes->add('nowo_uptime_monitor_new', new Route($prefix . '/{tenantSlug}/monitors/new'));
-                $routes->add('nowo_uptime_settings_general', new Route($prefix . '/{tenantSlug}/settings/general'));
-                $routes->add('nowo_uptime_monitor_show', new Route('/projects/{tenantSlug}/uptime/{tenantSlug}/monitors/{id}'));
-                $routes->add('nowo_uptime_status_page', new Route('/status/{tenantSlug}'));
-                $routes->add('nowo_uptime_api_summary', new Route('/api/uptime/{tenantSlug}/summary'));
+                $routes->add('nowo_uptime_tenant_index', new Route($prefix . '/tenants', ['_controller' => TenantController::class . '::index']));
+                $routes->add('nowo_uptime_dashboard', new Route($prefix . '/{tenantSlug}', ['_controller' => DashboardController::class . '::index']));
+                $routes->add('nowo_uptime_monitor_new', new Route($prefix . '/{tenantSlug}/monitors/new', ['_controller' => MonitorController::class . '::new']));
+                $routes->add('nowo_uptime_settings_general', new Route($prefix . '/{tenantSlug}/settings/general', ['_controller' => SettingsController::class . '::general']));
+                $routes->add('nowo_uptime_monitor_show', new Route('/projects/{tenantSlug}/uptime/{tenantSlug}/monitors/{id}', ['_controller' => MonitorController::class . '::show']));
+                $routes->add('nowo_uptime_status_page', new Route('/status/{tenantSlug}', ['_controller' => StatusPageController::class . '::index']));
+                $routes->add('nowo_uptime_api_summary', new Route('/api/uptime/{tenantSlug}/summary', ['_controller' => StatusApiController::class . '::summary']));
 
                 return $routes;
             }
@@ -84,7 +101,7 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
                 return $resource === '@UptimeMonitorBundle/Resources/config/routes.yaml';
             }
         };
-        $loader = new UptimeMonitorRouteLoader($dashboardPath, null, $tenantPaths);
+        $loader = new UptimeMonitorRouteLoader($dashboardPath, null, $tenantPaths, ['enabled' => $webUiEnabled]);
         $loader->setResolver(new LoaderResolver([$bundleRoutes, $loader]));
 
         return $loader;
