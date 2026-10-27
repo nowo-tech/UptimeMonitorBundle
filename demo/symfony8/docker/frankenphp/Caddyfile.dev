@@ -1,29 +1,42 @@
+# Classic mode (FRANKENPHP_MODE=classic): one PHP request per HTTP request, hot reload. REQ-DEMO-001 / REQ-RUNTIME-001.
 {
 	order mercure after encode
 	skip_install_trust
+	servers {
+		timeouts {
+			# Outermost deadline: strictly greater than PHP max_execution_time below.
+			write 75s
+		}
+	}
+	frankenphp {
+		php_ini max_execution_time 60
+		php_ini max_input_time 60
+		# Cap how long a request waits for a free PHP thread (504 instead of an endless queue).
+		max_wait_time 30s
+	}
 }
 
 :80 {
 	root * /app/public
 
-	# Mercure SSE — must not pass through encode (breaks chunked event stream).
-	@mercure path /.well-known/mercure*
-	handle @mercure {
-		reverse_proxy mercure:80 {
-			flush_interval -1
-			transport http {
-				read_timeout 0
-				write_timeout 0
-			}
-		}
+	# Single Mercure hub (built into FrankenPHP): dashboard live updates (the app publishes to
+	# MERCURE_URL=http://php/.well-known/mercure) and FrankenPHP hot_reload share it — hot_reload
+	# refuses to start without a hub in this server block ("no Mercure hub configured").
+	mercure {
+		# symfony/mercure signs HS256 tokens without an issuer: keep the Mercure 0.x token rules.
+		protocol_version_compatibility 8
+		publisher_jwt {env.MERCURE_JWT_SECRET}
+		subscriber_jwt {env.MERCURE_JWT_SECRET}
+		anonymous
 	}
 
-	handle {
-		encode zstd br gzip
-		header Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
-		header Pragma "no-cache"
-		php_server {
-			hot_reload
-		}
+	# SSE must not pass through `encode` (breaks the chunked event stream).
+	@compressible not path /.well-known/mercure*
+	encode @compressible zstd br gzip
+	header @compressible Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+	header @compressible Pragma "no-cache"
+
+	php_server {
+		hot_reload
 	}
 }

@@ -106,7 +106,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-FORM-001 / FR-FORM-002**: Monitor, tenant, tag, and settings form types with DTO models.
 - **FR-VIEW-001–011**: Twig dashboard, monitor, settings, status, and shared partials; SCSS themes (Bootstrap/Tailwind/Kuma).
 - **FR-UI-010–012**: Vite TypeScript dashboard modules; built assets under `Resources/public/`.
-- **FR-I18N-003 / FR-I18N-004**: Translation helper and seven locale YAML files (+ validator messages).
+- **FR-I18N-003 / FR-I18N-004**: Translation helper and seven locale YAML files (`NowoUptimeMonitorBundle.<locale>.yaml`, constraint messages included — no `validators` catalogue).
 
 ### CLI
 

@@ -58,7 +58,7 @@ Both demos ship with Mercure enabled:
 |------|---------|-----------------------------------|
 | symfony8 | http://localhost:8011/uptime/main | http://localhost:8011/.well-known/mercure |
 
-Demos proxy `/.well-known/mercure` through FrankenPHP so the **subscriber JWT cookie** is sent (private updates). Publishing still uses `MERCURE_URL=http://mercure/...` inside Docker.
+The demo uses the Mercure hub built into its FrankenPHP server, on the same origin as the app, so the **subscriber JWT cookie** is sent (private updates). PHP publishes to `MERCURE_URL=http://php/.well-known/mercure` inside Docker.
 
 ```bash
 make -C demo up-symfony8
@@ -66,9 +66,9 @@ make -C demo up-symfony8
 # Run checks: docker compose exec php php bin/console nowo:uptime:run-due-checks
 ```
 
-See [DEMO-FRANKENPHP.md](DEMO-FRANKENPHP.md) for Docker services (`mercure` container + env vars).
+See [DEMO-FRANKENPHP.md](DEMO-FRANKENPHP.md) for Docker services (built-in FrankenPHP hub + env vars).
 
-For the **Symfony 7/8 demos** (proxy Caddy, worker, troubleshooting, console logs): [../demo/MERCURE.md](../demo/MERCURE.md).
+For the **Symfony 8 demo** (Caddy hub, worker, troubleshooting, console logs): [../demo/MERCURE.md](../demo/MERCURE.md).
 
 ## Switching back to polling
 

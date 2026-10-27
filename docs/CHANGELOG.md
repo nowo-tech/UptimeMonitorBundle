@@ -52,6 +52,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `nowo_uptime_monitor.doctrine.table_prefix` (REQ-ORM-002): prepended to every bundle table, index and unique
+  constraint by `Doctrine\TablePrefixListener` (`loadClassMetadata`, bundle entities only). Default `''` keeps the
+  `uptime_*` names; `nowo:uptime:sync-schema` honours it.
+- `notifications.http_timeout` (default 10 s): webhook / Slack delivery timeout and total deadline (`max_duration`).
+- `make test-with-db` / `make test-coverage-with-db` run the suite against the MySQL and PostgreSQL services of the root
+  `docker-compose.yml` (REQ-TEST-005); the root image ships `pdo_mysql` / `pdo_pgsql`.
+- CI: `Demo smoke (HTTP 200)` job on every push / pull request; `demo-smoke.yml` now runs nightly (REQ-TEST-011).
+- Docs: timeout hierarchy (CONFIGURATION, DEMO-FRANKENPHP), Messenger retry / failure-transport policy (SCHEDULING),
+  logging policy and AI security audit item (SECURITY).
+
+### Changed
+
+- The tenant slug constraint message is translated from the `NowoUptimeMonitorBundle` domain; the
+  `validators.<locale>.yaml` catalogues were removed (REQ-I18N-003).
+- `make validate-translations` lints the YAML, rejects non-`NowoUptimeMonitorBundle` catalogues and checks key parity
+  across the 7 locales (REQ-MAKE-004); `release-check` runs it. `make help` lists the canonical blocks (REQ-MAKE-001).
+- Webhook / Slack failures (transport error or non-2xx status) raise `NotificationDeliveryException` with a redacted
+  message (endpoint origin only); `NotificationService` logs sends at `debug` / `info` and failures at `error` without
+  raw exception messages (REQ-OBS-001). `RunDueChecksMessageHandler` logs the scan result and rethrows failures for
+  the Messenger retry strategy (REQ-MSG-001).
+- Linux ping checks add a hard `-w` deadline next to `-W` (REQ-RUNTIME-001).
+
+### Fixed
+
+- Demo: `FRANKENPHP_MODE=classic` no longer fails to boot (`hot_reload` without a Mercure hub), and dashboard live
+  updates work in worker mode: both Caddyfiles use FrankenPHP's built-in hub (the separate `mercure` container was
+  removed), with explicit PHP / Caddy / `max_wait_time` deadlines. The Flex leftover `compose.override.yaml` that
+  published ports `5432` / `80` was removed (REQ-DEMO-006); the `dns:` block carries its explanatory comment
+  (REQ-DEMO-009). `make up` rebuilds the (cached) image.
+
 ## [1.9.4] - 2026-10-26
 
 ### Fixed

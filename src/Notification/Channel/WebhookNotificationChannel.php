@@ -7,14 +7,24 @@ namespace Nowo\UptimeMonitorBundle\Notification\Channel;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Nowo\UptimeMonitorBundle\Notification\NotificationChannelInterface;
+use Nowo\UptimeMonitorBundle\Notification\NotificationDeliveryException;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
+use ReflectionClass;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+
+use function is_numeric;
+use function max;
+use function sprintf;
 
 final readonly class WebhookNotificationChannel implements NotificationChannelInterface
 {
     public const CHANNEL_GENERIC = 'webhook';
     public const CHANNEL_SLACK   = 'slack';
+
+    /** Default for notifications.http_timeout (seconds): idle timeout and total deadline of one delivery. */
+    public const DEFAULT_TIMEOUT_SECONDS = 10.0;
 
     /**
      * @param array<string, mixed> $notificationsConfig
@@ -53,12 +63,40 @@ final readonly class WebhookNotificationChannel implements NotificationChannelIn
             ? $this->buildSlackPayload($alert)
             : $this->buildJsonPayload($alert);
 
-        $this->httpClient->request('POST', $url, [
-            'json'    => $payload,
-            'timeout' => 10,
-        ]);
+        $timeout = $this->resolveTimeout();
+
+        $statusCode = 0;
+        $failure    = null;
+
+        try {
+            $response = $this->httpClient->request('POST', $url, [
+                'json' => $payload,
+                // Idle timeout + hard total deadline (REQ-RUNTIME-001): a slow endpoint never blocks the checks worker.
+                'timeout'      => $timeout,
+                'max_duration' => $timeout,
+            ]);
+            $statusCode = $response->getStatusCode();
+        } catch (ExceptionInterface $e) {
+            // Not chained on purpose: transport errors embed the full URL (webhook token) — REQ-OBS-001.
+            $failure = (new ReflectionClass($e))->getShortName();
+        }
+
+        if ($failure !== null) {
+            throw new NotificationDeliveryException(sprintf('%s delivery to %s failed (%s).', $this->channelKey, NotificationDeliveryException::redactUrl($url), $failure));
+        }
+
+        if ($statusCode >= 300) {
+            throw new NotificationDeliveryException(sprintf('%s delivery to %s failed: HTTP %d.', $this->channelKey, NotificationDeliveryException::redactUrl($url), $statusCode));
+        }
 
         return true;
+    }
+
+    private function resolveTimeout(): float
+    {
+        $timeout = $this->notificationsConfig['http_timeout'] ?? null;
+
+        return is_numeric($timeout) ? max(1.0, (float) $timeout) : self::DEFAULT_TIMEOUT_SECONDS;
     }
 
     /**

@@ -5,7 +5,8 @@ help:
 
 up:
 	@if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
-	$(COMPOSE) up -d
+	# --build: the worker Caddyfile is baked into the image; rebuild (layer-cached) so Caddyfile edits apply.
+	$(COMPOSE) up -d --build
 	@echo "Waiting for container to be ready..."
 	@ready=0; \
 	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do \

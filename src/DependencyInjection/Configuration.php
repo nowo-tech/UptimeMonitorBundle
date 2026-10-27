@@ -7,6 +7,9 @@ namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
+use function is_string;
+use function preg_match;
+
 /**
  * Configuration tree for {@see UptimeMonitorExtension}.
  */
@@ -36,9 +39,24 @@ final class Configuration implements ConfigurationInterface
                     ->defaultValue('default')
                 ->end()
                 ->scalarNode('table_prefix')
-                    ->info('Deprecated: never read; tables are always uptime_*.')
+                    ->info('Deprecated: never read. Use doctrine.table_prefix to prefix the uptime_* tables.')
                     ->defaultValue('uptime_')
-                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.5', 'The "%path%.%node%" option is deprecated and has no effect: table names are fixed (uptime_*).')
+                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.5', 'The "%path%.%node%" option is deprecated and has no effect: use "nowo_uptime_monitor.doctrine.table_prefix" (prepended to the uptime_* table names) instead.')
+                ->end()
+                ->arrayNode('doctrine')
+                    ->addDefaultsIfNotSet()
+                    ->info('Doctrine storage options (REQ-ORM-002)')
+                    ->children()
+                        ->scalarNode('table_prefix')
+                            ->info('Prefix prepended to every bundle table, index and unique constraint name (e.g. "app_" yields app_uptime_monitor). Empty = historical uptime_* names.')
+                            ->defaultValue('')
+                            ->example('app_')
+                            ->validate()
+                                ->ifTrue(static fn (mixed $v): bool => !is_string($v) || preg_match('/^[A-Za-z0-9_]*$/', $v) !== 1)
+                                ->thenInvalid('nowo_uptime_monitor.doctrine.table_prefix may only contain letters, digits and underscores, got %s.')
+                            ->end()
+                        ->end()
+                    ->end()
                 ->end()
                 ->arrayNode('scheduler')
                     ->addDefaultsIfNotSet()
@@ -289,6 +307,11 @@ final class Configuration implements ConfigurationInterface
                     ->children()
                         ->booleanNode('enabled')->defaultFalse()->end()
                         ->integerNode('cooldown_seconds')->defaultValue(300)->min(0)->end()
+                        ->floatNode('http_timeout')
+                            ->info('Webhook / Slack delivery deadline in seconds (HttpClient timeout + max_duration). Keep it below the PHP / worker time limits (REQ-RUNTIME-001).')
+                            ->defaultValue(10.0)
+                            ->min(1.0)
+                        ->end()
                         ->arrayNode('email')
                             ->addDefaultsIfNotSet()
                             ->children()

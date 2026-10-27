@@ -75,6 +75,7 @@ demo-smoke:
 		i=$$((i+1)); \
 		sleep 2; \
 	done; \
+	if [ "$$code" != "200" ]; then (cd symfony8 && $(COMPOSE) ps -a && $(COMPOSE) logs --tail=80 php) || true; fi; \
 	$(MAKE) -C symfony8 down 2>/dev/null || true; \
 	if [ "$$code" != "200" ]; then echo "symfony8 failed with HTTP $$code"; exit 1; fi; \
 	echo "symfony8 OK (HTTP $$code)"

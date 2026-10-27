@@ -10,7 +10,8 @@
 
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
 
-This bundle is **FrankenPHP worker mode friendly**.
+This bundle is **FrankenPHP worker mode friendly**. Checks and notifications run only in CLI / Messenger workers with
+explicit per-call deadlines, so they never pin a FrankenPHP thread — see [Timeouts](docs/CONFIGURATION.md#timeouts-frankenphp-safe-req-runtime-001).
 
 ## Features
 

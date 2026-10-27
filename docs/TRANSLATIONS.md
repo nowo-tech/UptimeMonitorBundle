@@ -15,7 +15,6 @@
 | `src/Resources/translations/NowoUptimeMonitorBundle.en.yaml` | English UI |
 | `src/Resources/translations/NowoUptimeMonitorBundle.es.yaml` | Spanish UI |
 | `src/Resources/translations/NowoUptimeMonitorBundle.{de,fr,it,nl,pt}.yaml` | Additional UI locales |
-| `src/Resources/translations/validators.*.yaml` | Validator messages |
 
 ## Locale (session)
 
@@ -26,6 +25,11 @@ The bundle UI uses the **Symfony request locale** from the host application (ses
 ## Forms
 
 All bundle form types extend `AbstractUptimeFormType`, which sets `translation_domain: NowoUptimeMonitorBundle` (or the configured domain). Labels and help texts are message keys (e.g. `form.monitor.name`).
+
+Constraint messages owned by the bundle (e.g. `form.tenant.slug_regex`) live in the same
+`NowoUptimeMonitorBundle` domain: the constraint sets the domain on its violation explicitly, so the bundle ships no
+`validators.*` catalogue (REQ-I18N-003). Symfony's own constraint messages (`NotBlank`, …) still come from Symfony's
+`validators` catalogue.
 
 ## Twig
 
@@ -41,4 +45,6 @@ To add a locale:
 
 1. Copy `NowoUptimeMonitorBundle.en.yaml` to `NowoUptimeMonitorBundle.{locale}.yaml` and translate.
 2. Add the locale to `enabled_locales` if you customize it.
-3. Run `make validate-translations` from the bundle root.
+3. Add the locale to `.scripts/validate-translations.php` (`$requiredLocales`).
+4. Run `make validate-translations` from the bundle root: it lints the YAML, rejects any catalogue that is not
+   `NowoUptimeMonitorBundle.<locale>.yaml`, and fails on missing / extra / empty keys compared with `en`.
