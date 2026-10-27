@@ -201,12 +201,17 @@ The FrankenPHP demo values (PHP 60 s < Caddy `servers.timeouts.write` 75 s, `max
 
 | Key | Default | Purpose |
 |-----|---------|---------|
-| `security.access_roles` | `[ROLE_ADMIN]` | General gate: user needs **at least one** role. Empty = no general role check. |
+| `security.access_roles` | `[ROLE_ADMIN]` | General gate: user needs **at least one** role. Empty = the area list alone decides. |
 | `security.access_checker` | `null` | Optional service id implementing `UptimeMonitorAccessCheckerInterface`. |
 | `security.allow_unauthenticated` | `false` | DEV/DEMO only: skip bundle access checks (and allow missing SecurityBundle). **Never** in production. |
 | `security.dashboard_roles` | `[ROLE_ADMIN]` | Dashboard / read / polling API. Empty = no area check beyond `access_roles`. |
 | `security.manage_roles` | `[ROLE_ADMIN]` | Monitor CRUD mutations (`new` / `edit` / `delete` / pause). |
 | `security.settings_roles` | `[ROLE_ADMIN]` | Tenant settings UI, tenant creation (`/tenants/new`) and any unmapped unsafe-method (POST/PUT/PATCH/DELETE) admin action (fail closed). |
+
+**Empty lists never mean "everyone"** (1.12.x): an area is allowed when the user holds a role of each non-empty list
+among `access_roles` and that area's list (`security.roles.<action>` / `*_roles`); when both are empty the area is
+denied to everyone. With the web UI on and the built-in checker, `access_roles` and every area list empty fails the
+container compile.
 
 Enforcement is via `UptimeMonitorAccessSubscriber` on `kernel.controller` (not Twig alone). The public status page (`status_page.path`, default `/status`) is **not** gated.
 

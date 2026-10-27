@@ -245,6 +245,7 @@ flash.settings.purged: 'Eliminate %count% righe di dettaglio scadute.'
 flash.settings.cleared: 'Eliminati %checks% controlli, %aggregates% aggregati, %incidents% incidenti.'
 flash.settings.backup_no_file: 'Nessun file di backup caricato.'
 flash.settings.backup_imported: 'Importazione completata: %imported% nuovi, %skipped% saltati, %overwritten% sovrascritti, %invalid% non validi.'
+flash.settings.backup_over_quota: '%count% monitor non importati: è stato raggiunto il limite di monitor del tenant.'
 flash.settings.backup_import_failed: 'Importazione fallita: il file non è un backup valido.'
 
 # Pages (UiKit page contract, REQ-UI-003)
@@ -296,6 +297,7 @@ monitor.delete_confirm: 'Eliminare il monitor «%name%» e la sua cronologia dei
 monitor.limits.max_monitors: 'È stato raggiunto il limite di %count% monitor.'
 monitor.show.not_checked: 'Non ancora controllato: il primo controllo avviene entro un intervallo.'
 form.monitor.interval_min: 'Controlla al massimo ogni %seconds% secondi.'
+form.monitor.url_invalid: 'Inserisci un URL completo con http:// o https://.'
 dashboard.empty.title: 'Ancora nessun monitor'
 dashboard.not_checked: 'Non ancora controllato'
 dashboard.table.title: 'Monitor'

@@ -10,6 +10,8 @@ use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
+use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\MonitorBackupService;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
@@ -104,7 +106,7 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'Bare', 'config' => 'ignored', 'target' => 'https://bare.test'],
         ]];
 
-        self::assertSame(['imported' => 2, 'skipped' => 1, 'overwritten' => 0, 'invalid' => 3], $this->service->import($this->tenant, $payload));
+        self::assertSame(['imported' => 2, 'skipped' => 1, 'overwritten' => 0, 'invalid' => 3, 'over_quota' => 0], $this->service->import($this->tenant, $payload));
         self::assertSame('https://old.test', $existing->getTarget(), 'skip mode keeps the existing monitor');
 
         $shop = $this->monitors->findOneBy(['name' => 'Shop']);
@@ -119,9 +121,9 @@ final class MonitorBackupServiceDbTest extends TestCase
         self::assertSame('POST', $shop->getConfig()['method']);
         self::assertSame([200, 202], $shop->getConfig()['expected_status_codes']);
 
-        self::assertSame(['imported' => 0, 'skipped' => 3, 'overwritten' => 0, 'invalid' => 3], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_KEEP));
+        self::assertSame(['imported' => 0, 'skipped' => 3, 'overwritten' => 0, 'invalid' => 3, 'over_quota' => 0], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_KEEP));
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 3, 'invalid' => 3], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_OVERWRITE));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 3, 'invalid' => 3, 'over_quota' => 0], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_OVERWRITE));
         self::assertSame('https://new.test/form', $existing->getTarget());
         self::assertSame([200, 201], $existing->getConfig()['expected_status_codes']);
 
@@ -192,8 +194,69 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'Fine', 'target' => 'https://c.test', 'config' => ['method' => 'head']],
         ]]);
 
-        self::assertSame(['imported' => 1, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 2], $result);
+        self::assertSame(['imported' => 1, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 2, 'over_quota' => 0], $result);
         self::assertSame('HEAD', $this->monitors->findOneBy(['name' => 'Fine'])?->getConfig()['method']);
+    }
+
+    public function testImportHonoursTheTenantQuotaAndMinimumInterval(): void
+    {
+        $this->em->persist(new Monitor($this->tenant, 'Team', MonitorType::Group, 'Team'));
+        $this->em->flush();
+        $service = new MonitorBackupService(
+            $this->monitors,
+            new MonitorFactory($this->monitors),
+            $this->em,
+            null,
+            new MockClock(),
+            quota: new TenantQuota(new ConfigurableTenantLimits(2, 120), $this->monitors),
+        );
+
+        $result = $service->import($this->tenant, ['monitors' => [
+            ['name' => 'One', 'target' => 'https://one.test', 'interval_seconds' => 30],
+            ['name' => 'Ops', 'type' => 'group', 'interval_seconds' => 30],
+            ['name' => 'Two', 'target' => 'https://two.test', 'interval_seconds' => 300],
+            ['name' => 'Three', 'target' => 'https://three.test'],
+            ['name' => 'Four', 'target' => 'https://four.test'],
+        ]]);
+
+        self::assertSame(['imported' => 3, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 2], $result);
+        self::assertSame(2, $this->monitors->countChecksByTenantSlug('main'), 'groups are not counted, checks stop at max_monitors');
+        self::assertSame(120, $this->monitors->findOneBy(['name' => 'One'])?->getIntervalSeconds(), 'raised to the tenant minimum');
+        self::assertSame(300, $this->monitors->findOneBy(['name' => 'Two'])?->getIntervalSeconds());
+        self::assertSame(30, $this->monitors->findOneBy(['name' => 'Ops'])?->getIntervalSeconds(), 'groups keep their interval');
+        self::assertNull($this->monitors->findOneBy(['name' => 'Three']));
+
+        // The tenant is full: overwriting a group into a check is refused; overwriting a check is allowed.
+        $overwrite = $service->import($this->tenant, ['monitors' => [
+            ['name' => 'Team', 'target' => 'https://team.test'],
+            ['name' => 'One', 'target' => 'https://one-new.test', 'interval_seconds' => 10],
+        ]], MonitorBackupService::IMPORT_OVERWRITE);
+
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 1, 'invalid' => 0, 'over_quota' => 1], $overwrite);
+        self::assertTrue($this->monitors->findOneBy(['name' => 'Team'])?->isGroup());
+        self::assertSame(120, $this->monitors->findOneBy(['name' => 'One'])?->getIntervalSeconds());
+    }
+
+    public function testOverwritingAGroupIntoACheckTakesAFreeSlot(): void
+    {
+        $this->em->persist(new Monitor($this->tenant, 'Team', MonitorType::Group, 'Team'));
+        $this->em->flush();
+        $service = new MonitorBackupService(
+            $this->monitors,
+            new MonitorFactory($this->monitors),
+            $this->em,
+            null,
+            new MockClock(),
+            quota: new TenantQuota(new ConfigurableTenantLimits(1, 30), $this->monitors),
+        );
+
+        $result = $service->import($this->tenant, ['monitors' => [
+            ['name' => 'Team', 'target' => 'https://team.test'],
+            ['name' => 'Other', 'target' => 'https://other.test'],
+        ]], MonitorBackupService::IMPORT_OVERWRITE);
+
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 1, 'invalid' => 0, 'over_quota' => 1], $result);
+        self::assertFalse($this->monitors->findOneBy(['name' => 'Team'])?->isGroup());
     }
 
     public function testImportRejectsTooManyRows(): void

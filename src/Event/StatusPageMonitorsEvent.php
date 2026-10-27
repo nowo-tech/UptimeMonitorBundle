@@ -9,7 +9,9 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 
 /**
  * The monitors of a public status page (since 1.12): dispatched before the page renders with the tenant's unpaused
- * monitors, so a host shows only some of them (the overall status follows the ones left).
+ * monitors, so a host shows only some of them (the overall status follows the ones left). The page keeps only the
+ * tenant's unpaused monitors among those set here: a listener narrows the list, it cannot add monitors of another
+ * tenant or paused ones.
  */
 final class StatusPageMonitorsEvent
 {

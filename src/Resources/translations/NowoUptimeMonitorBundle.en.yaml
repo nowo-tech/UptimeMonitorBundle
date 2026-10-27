@@ -245,6 +245,7 @@ flash.settings.purged: 'Purged %count% expired check rows.'
 flash.settings.cleared: 'Cleared %checks% checks, %aggregates% aggregates, %incidents% incidents.'
 flash.settings.backup_no_file: 'No backup file uploaded.'
 flash.settings.backup_imported: 'Import complete: %imported% new, %skipped% skipped, %overwritten% overwritten, %invalid% invalid.'
+flash.settings.backup_over_quota: '%count% monitor(s) not imported: the tenant monitor limit is reached.'
 flash.settings.backup_import_failed: 'Import failed: the file is not a valid backup.'
 
 # Pages (UiKit page contract, REQ-UI-003)
@@ -296,6 +297,7 @@ monitor.delete_confirm: 'Delete the monitor “%name%” and its check history? 
 monitor.limits.max_monitors: 'The limit of %count% monitors has been reached.'
 monitor.show.not_checked: 'Not checked yet: the first check runs within one check interval.'
 form.monitor.interval_min: 'Check at most every %seconds% seconds.'
+form.monitor.url_invalid: 'Enter a full http:// or https:// URL.'
 dashboard.empty.title: 'No monitors yet'
 dashboard.not_checked: 'Not checked yet'
 dashboard.table.title: 'Monitors'

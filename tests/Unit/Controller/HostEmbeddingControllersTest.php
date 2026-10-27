@@ -45,6 +45,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_column;
 use function array_map;
 
 /**
@@ -71,10 +72,14 @@ final class HostEmbeddingControllersTest extends TestCase
         return new UptimeActions($checker, $urls, $this->quota($maxMonitors, $count), allowUnauthenticated: false, webUi: ['dashboard' => ['actions' => ['new_monitor']]]);
     }
 
-    private function quota(int $max, int $count, int $minInterval = 60): TenantQuota
+    private function quota(int $max, int $count, int $minInterval = 60, ?int $countUnderLock = null): TenantQuota
     {
         $monitors = $this->createStub(MonitorRepository::class);
-        $monitors->method('countChecksByTenantSlug')->willReturn($count);
+        // $countUnderLock: what a concurrent writer left when the quota is counted again under the tenant lock.
+        $calls = 0;
+        $monitors->method('countChecksByTenantSlug')->willReturnCallback(static function () use (&$calls, $count, $countUnderLock): int {
+            return ++$calls === 1 ? $count : ($countUnderLock ?? $count);
+        });
 
         return new TenantQuota(new ConfigurableTenantLimits($max, $minInterval), $monitors);
     }
@@ -205,6 +210,84 @@ final class HostEmbeddingControllersTest extends TestCase
         $response = $controller->new('main', $request);
 
         self::assertSame('rendered', $response->getContent());
+    }
+
+    /**
+     * Entity manager whose transaction runs the write (and counts lock / persist / flush calls).
+     */
+    private function transactionalEm(int $persists, int $flushes): EntityManagerInterface
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::once())->method('wrapInTransaction')->willReturnCallback(static fn (callable $write): mixed => $write($em));
+        $em->expects(self::once())->method('lock');
+        $em->expects(self::exactly($persists))->method('persist');
+        $em->expects(self::exactly($flushes))->method('flush');
+
+        return $em;
+    }
+
+    private function group(): Monitor
+    {
+        $group = new Monitor(new Tenant('main', 'Main'), 'Team', MonitorType::Group, 'Team');
+        $this->setEntityId($group, 4);
+
+        return $group;
+    }
+
+    public function testNewMonitorIsSavedUnderTheTenantLock(): void
+    {
+        $controller = $this->monitorController($this->monitor(), $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1), em: $this->transactionalEm(1, 1));
+        $request    = $this->post('/main/monitors/new', '60');
+        $this->bindController($controller, true, $request);
+
+        self::assertTrue($controller->new('main', $request)->isRedirect());
+    }
+
+    public function testNewMonitorIsRefusedWhenAConcurrentWriterFilledTheTenant(): void
+    {
+        $controller = $this->monitorController($this->monitor(), $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1, countUnderLock: 2), em: $this->transactionalEm(0, 0));
+        $request    = $this->post('/main/monitors/new', '60');
+        $this->bindController($controller, true, $request);
+
+        self::assertSame('rendered', $controller->new('main', $request)->getContent());
+        $form = $this->renderedContext['form'];
+        self::assertInstanceOf(FormView::class, $form);
+        self::assertFalse($form->vars['valid']);
+    }
+
+    public function testAGroupCannotBecomeACheckOnceTheTenantIsFull(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('flush');
+        $group      = $this->group();
+        $controller = $this->monitorController($group, $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(1, 1), em: $em);
+        $request    = $this->post('/main/monitors/4/edit', '60');
+        $this->bindController($controller, true, $request);
+
+        self::assertSame('rendered', $controller->edit('main', 4, $request)->getContent());
+        self::assertTrue($group->isGroup());
+    }
+
+    public function testAGroupBecomesACheckUnderTheTenantLock(): void
+    {
+        $group      = $this->group();
+        $controller = $this->monitorController($group, $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1), em: $this->transactionalEm(0, 1));
+        $request    = $this->post('/main/monitors/4/edit', '60');
+        $this->bindController($controller, true, $request);
+
+        self::assertTrue($controller->edit('main', 4, $request)->isRedirect());
+        self::assertFalse($group->isGroup());
+    }
+
+    public function testAGroupChangeIsRefusedWhenAConcurrentWriterFilledTheTenant(): void
+    {
+        $group      = $this->group();
+        $controller = $this->monitorController($group, $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1, countUnderLock: 2), em: $this->transactionalEm(0, 0));
+        $request    = $this->post('/main/monitors/4/edit', '60');
+        $this->bindController($controller, true, $request);
+
+        self::assertSame('rendered', $controller->edit('main', 4, $request)->getContent());
+        self::assertTrue($group->isGroup());
     }
 
     public function testTheFormCheckerUsesTheTenantMinimumInterval(): void
@@ -378,5 +461,32 @@ final class HostEmbeddingControllersTest extends TestCase
         self::assertCount(1, $this->renderedContext['rows']);
         self::assertSame($api, $this->renderedContext['rows'][0]['monitor']);
         self::assertSame('unknown', $this->renderedContext['overall_status']);
+    }
+
+    public function testStatusPageListenersCannotAddForeignOrPausedMonitors(): void
+    {
+        $tenant  = new Tenant('main', 'Main');
+        $api     = new Monitor($tenant, 'API', MonitorType::Https, 'https://x.test');
+        $paused  = (new Monitor($tenant, 'Old', MonitorType::Https, 'https://old.test'))->setPaused(true);
+        $foreign = new Monitor(new Tenant('acme', 'Acme'), 'Secret', MonitorType::Https, 'https://secret.test');
+        $this->setEntityId($api, 1);
+        $this->setEntityId($paused, 2);
+        $this->setEntityId($foreign, 3);
+        $tenantRepo = $this->createStub(TenantRepository::class);
+        $tenantRepo->method('findOneBySlug')->willReturn($tenant);
+        $monitorRepo = $this->createStub(MonitorRepository::class);
+        $monitorRepo->method('findByTenantSlug')->willReturn([$api]);
+        $checks = $this->createStub(CheckResultRepository::class);
+        $checks->method('findLatestByMonitorIds')->willReturn([]);
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(StatusPageMonitorsEvent::class, static function (StatusPageMonitorsEvent $event) use ($api, $paused, $foreign): void {
+            $event->setMonitors([$foreign, $paused, $api]);
+        });
+        $controller = new StatusPageController($tenantRepo, $monitorRepo, $checks, ['enabled' => true], eventDispatcher: $dispatcher);
+        $this->bindController($controller);
+
+        $controller->index('main');
+
+        self::assertSame([$api], array_column($this->renderedContext['rows'], 'monitor'));
     }
 }

@@ -5,7 +5,18 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Form\Model;
 
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Translation\UptimeTranslation;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
+
+use function in_array;
+use function is_string;
+use function parse_url;
+use function preg_match;
+use function strtolower;
+
+use const PHP_URL_HOST;
+use const PHP_URL_SCHEME;
 
 /**
  * Form model for monitor CRUD (HTTP, TCP, DNS, SSL).
@@ -33,6 +44,7 @@ final class MonitorFormData
     public string $description              = '';
 
     // HTTP(S)
+    #[Assert\Callback([self::class, 'validateUrl'])]
     public string $url = '';
     #[Assert\Choice(choices: ['GET', 'HEAD', 'POST'])]
     public string $method              = 'GET';
@@ -65,4 +77,26 @@ final class MonitorFormData
     // SSL
     #[Assert\Range(min: 0, max: 3650)]
     public int $daysBeforeExpiry = 14;
+
+    /**
+     * HTTP / HTTPS monitors (SEC-004 I2): a non-empty URL must be an absolute http:// or https:// URL with a host and
+     * no whitespace (`form.monitor.url_invalid`); other monitor types ignore the field.
+     */
+    public static function validateUrl(mixed $value, ExecutionContextInterface $context): void
+    {
+        $data = $context->getObject();
+        if (!is_string($value) || $value === '' || ($data instanceof self && !in_array($data->type, [MonitorType::Http, MonitorType::Https], true))) {
+            return;
+        }
+
+        $scheme = parse_url($value, PHP_URL_SCHEME);
+        $host   = parse_url($value, PHP_URL_HOST);
+        if (is_string($scheme) && in_array(strtolower($scheme), ['http', 'https'], true) && is_string($host) && $host !== '' && preg_match('/\s/', $value) !== 1) {
+            return;
+        }
+
+        $context->buildViolation('form.monitor.url_invalid')
+            ->setTranslationDomain(UptimeTranslation::DOMAIN)
+            ->addViolation();
+    }
 }

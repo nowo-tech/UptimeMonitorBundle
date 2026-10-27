@@ -9,6 +9,8 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
+use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TagRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -54,6 +56,22 @@ final class SettingsControllerTest extends TestCase
         $this->bindController($controller, true, $request);
 
         self::assertTrue($controller->backup('main', $request)->isRedirect());
+    }
+
+    public function testBackupImportBeyondTheTenantQuotaWarns(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::once())->method('wrapInTransaction')->willReturnCallback(static fn (callable $write): mixed => $write($em));
+        $em->expects(self::never())->method('persist');
+        $monitors = $this->createStub(MonitorRepository::class);
+        $monitors->method('countChecksByTenantSlug')->willReturn(1);
+
+        $request    = $this->createImportRequest('valid', '{"monitors":[{"name":"API","target":"https://api.test"}]}');
+        $controller = $this->createController($em, null, new TenantQuota(new ConfigurableTenantLimits(1, 30), $monitors));
+        $this->bindController($controller, true, $request);
+
+        self::assertTrue($controller->backup('main', $request)->isRedirect());
+        self::assertSame(['flash.settings.backup_over_quota'], $this->flashBag($request)->peek('warning'));
     }
 
     public function testBackupPageRendersImportForm(): void
@@ -148,11 +166,11 @@ final class SettingsControllerTest extends TestCase
         return $session->getFlashBag();
     }
 
-    private function createImportRequest(string $token): Request
+    private function createImportRequest(string $token, string $json = '{"monitors":[]}'): Request
     {
         $tmp = tempnam(sys_get_temp_dir(), 'uptime-backup-');
         self::assertNotFalse($tmp);
-        file_put_contents($tmp, '{"monitors":[]}');
+        file_put_contents($tmp, $json);
 
         $file = new UploadedFile($tmp, 'backup.json', 'application/json', null, true);
 
@@ -163,7 +181,7 @@ final class SettingsControllerTest extends TestCase
         ], [], ['backup' => $file]);
     }
 
-    private function createController(EntityManagerInterface $em, ?Tenant $tenant = null): SettingsController
+    private function createController(EntityManagerInterface $em, ?Tenant $tenant = null, ?TenantQuota $quota = null): SettingsController
     {
         $tenant ??= new Tenant('main', 'Main');
 
@@ -185,7 +203,7 @@ final class SettingsControllerTest extends TestCase
             new TagRepository($registry),
             new TenantSettingsMapper(),
             $em,
-            new MonitorBackupService($monitorRepo, new MonitorFactory($monitorRepo), $em),
+            new MonitorBackupService($monitorRepo, new MonitorFactory($monitorRepo), $em, quota: $quota),
             new UptimeDataClearService($em, $tenantRepo, $monitorRepo),
             new DetailRetentionService($em, $tenantRepo, ['detail_days' => 30]),
             ['detail_days' => 30],

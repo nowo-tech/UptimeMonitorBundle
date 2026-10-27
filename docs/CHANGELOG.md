@@ -55,6 +55,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security
+
+SEC-004 delta re-audit of 1.12.x (`af6692d`): Pass (good) / Low; its findings are fixed. See
+[SECURITY](SECURITY.md#ai-security-audit) and [UPGRADING](UPGRADING.md#unreleased).
+
+- **Empty role lists deny (P1)**: the built-in access checker no longer treats an empty list as "everyone". An area is
+  allowed when the user holds a role of each non-empty list among `security.access_roles` and the area's list; both
+  empty = nobody. `access_roles` and every `security.roles.<action>` list empty, with the web UI on and no
+  `security.access_checker`, fails the container compile.
+- **Backup import honours the tenant limits (Q1)**: monitors beyond the remaining `limits.max_monitors` quota (groups
+  not counted; overwriting a group into a check takes a slot) are skipped and reported as `over_quota` (new key of
+  `MonitorBackupService::import()`'s result, warning flash); imported and overwritten checks get at least
+  `limits.min_interval_seconds`.
+- **Group → check needs a free slot (Q2)**: editing a group monitor into a check is refused with a form error when the
+  tenant is full.
+- **No count-then-insert race (Q3)**: New monitor, a group → check edit and the backup import write under
+  `TenantQuota::withTenantLock()` (one transaction, PESSIMISTIC_WRITE lock on the tenant row, quota counted again after
+  the lock).
+- **Status page event (I1)**: monitors a `StatusPageMonitorsEvent` listener sets are filtered again (same tenant, not
+  paused): listeners narrow the list only.
+- **Monitor URL (I2)**: HTTP(S) monitors need a full `http://` / `https://` URL with a host (`form.monitor.url_invalid`,
+  backup rows included).
+- **Check messages (I3)**: URLs inside stored check messages and metadata are masked like the dashboard targets
+  (`SecretRedactor::maskUrlsInText()`).
+
 ### Changed
 
 - **UiKit 2.15.4**: `nowo-tech/ui-kit-bundle` constraint raised to `^2.15.4` (root and demo locks). UiKit now spaces
