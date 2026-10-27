@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/uptime-monitor-bundle`  
-**Last audited**: 2026-10-20
+**Last audited**: 2026-10-27
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -32,6 +32,9 @@ This file proves that **every production source artifact** under `src/` is refer
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Check/CheckRunnerInterface.php` | Check runner contract | FR-CHECK-001 |
+| `Check/Network/SocketConnection.php` | Open socket of a TCP / SSL probe (read, write, close) | FR-CHECK-006 |
+| `Check/Network/SocketConnectorInterface.php` | Socket connector contract (TCP / SSL checks, test seam) | FR-CHECK-006 |
+| `Check/Network/StreamSocketConnector.php` | `stream_socket_client` connector with deadline | FR-CHECK-006 |
 | `Check/DnsCheckRunner.php` | Dns check runner | FR-CHECK-004 |
 | `Check/GroupCheckRunner.php` | Group check runner | FR-CHECK-004 |
 | `Check/HttpCheckRunner.php` | Http check runner | FR-CHECK-004 |
@@ -87,6 +90,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Form/AbstractUptimeFormType.php` | Symfony form type | FR-FORM-001 |
+| `Form/BackupImportFormType.php` | Backup import form (multipart file + import mode) | FR-FORM-001 |
+| `Form/CsrfActionFormType.php` | CSRF-only action form (purge, clear statistics, delete tag) | FR-FORM-003 |
 | `Form/Model/MonitorFormData.php` | Form DTO | FR-FORM-002 |
 | `Form/Model/SettingsAppearanceData.php` | Form DTO | FR-FORM-002 |
 | `Form/Model/SettingsGeneralData.php` | Form DTO | FR-FORM-002 |
@@ -94,6 +99,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Form/Model/SettingsReverseProxyData.php` | Form DTO | FR-FORM-002 |
 | `Form/Model/TagFormData.php` | Form DTO | FR-FORM-002 |
 | `Form/MonitorFormType.php` | Symfony form type | FR-FORM-001 |
+| `Form/MonitorSearchFormType.php` | Client-side monitor search field of the dashboard | FR-FORM-001 |
 | `Form/SettingsAppearanceFormType.php` | Symfony form type | FR-FORM-001 |
 | `Form/SettingsGeneralFormType.php` | Symfony form type | FR-FORM-001 |
 | `Form/SettingsHistoryFormType.php` | Symfony form type | FR-FORM-001 |
@@ -137,9 +143,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Service/TenantSettingsMapper.php` | Tenant settings mapping | FR-TENANT-003 |
 | `Service/UptimeMetricsService.php` | Prometheus-style metrics | FR-METRICS-001 |
 | `Translation/UptimeTranslation.php` | Translation helper | FR-I18N-003 |
-| `Ui/UiFramework.php` | UI framework selector (deprecated: pages follow nowo_ui_kit.css_framework) | FR-UI-002 |
-| `Ui/UptimePages.php` | UiKit page contract plumbing: layout, per-page templates, form themes (REQ-UI-003) | FR-UI-002 |
-| `Ui/UptimeAreaNav.php` | UiKit area-nav provider (tenant + settings navigation) | FR-UI-002 |
 
 ## Notifications
 
@@ -157,6 +160,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | --- | --- |
 | `Security/AllowAllUptimeMonitorAccessChecker.php` | Permissive checker when `security.allow_unauthenticated` is true (demo/dev only) | FR-SEC-001 |
 | `Security/ConfigurableUptimeMonitorAccessChecker.php` | Configurable access checker | FR-SEC-001 |
+| `Security/TenantAwareUptimeMonitorAccessCheckerInterface.php` | Per-tenant access decisions for host-owned tenants | FR-SEC-002 |
 | `EventSubscriber/UptimeMonitorAccessSubscriber.php` | Enforces the access checker on admin/manage controllers (public status page excluded) | FR-SEC-001 |
 | `Security/MonitorUrlSsrfGuard.php` | URL/HTML policy | FR-SEC-004 |
 | `Security/UptimeMonitorAccessCheckerInterface.php` | Access checker contract | FR-SEC-001 |
@@ -197,6 +201,30 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Monitor/StatusCodeMatcher.php` | Monitor settings helper | FR-MON-005 |
 | `Monitor/TenantSettings.php` | Monitor settings helper | FR-MON-005 |
 
+## Events
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Event/MonitorRecoveredEvent.php` | Dispatched when an incident resolves | FR-EVENT-001 |
+| `Event/MonitorWentDownEvent.php` | Dispatched when an incident opens | FR-EVENT-001 |
+
+## Routing & tenants
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Routing/TenantPathUrlGenerator.php` | Router decorator: tenant links to the `web_ui.tenant_paths` copy of a slug | FR-ROUTE-002 |
+| `Routing/TenantPaths.php` | Tenant path matching (slug prefix → route copy) | FR-ROUTE-002 |
+| `Routing/UptimeMonitorRouteLoader.php` | Route import `type: nowo_uptime_monitor` (prefix with `{tenantSlug}`, tenant path copies) | FR-ROUTE-001 |
+| `Service/TenantProvisioner.php` | Host-owned tenants: ensure / enable / disable | FR-TENANT-001 |
+
+## UI page contract
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Ui/UiFramework.php` | UI framework selector (deprecated: pages follow nowo_ui_kit.css_framework) | FR-UI-003 |
+| `Ui/UptimePages.php` | UiKit page contract plumbing: layout, per-page templates, form themes (REQ-UI-003) | FR-UI-003 |
+| `Ui/UptimeAreaNav.php` | UiKit area-nav provider (tenant + settings navigation) | FR-UI-004 |
+
 ## Frontend TypeScript
 
 | Source file | Spec section | Requirement IDs |
@@ -205,7 +233,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/src/uptime-dashboard.ts` | Dashboard entrypoint | FR-UI-010 |
 | `Resources/assets/src/uptime-logger.ts` | Frontend logger | FR-UI-012 |
 | `Resources/assets/src/vite-env.d.ts` | Vite type shims | FR-BUILD-002 |
-| `Resources/public/assets/monitor-form-modal-CDzwPBdm.js` | Built frontend asset (hashed Vite chunk) | FR-BUILD-001 |
+| `Resources/public/assets/monitor-form-modal-BbppAcOg.js` | Built frontend asset (hashed Vite chunk) | FR-BUILD-001 |
 | `Resources/public/auto.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/history-bar.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-dashboard.css` | Built frontend asset | FR-BUILD-001 |
@@ -288,25 +316,28 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | ---: | ---: |
 | Bundle & DI | 4 | 4 |
 | CLI | 7 | 7 |
-| Check runners | 10 | 10 |
+| Check runners | 13 | 13 |
 | Controllers | 8 | 8 |
 | REST API | 3 | 3 |
 | Persistence | 14 | 14 |
-| Forms | 15 | 15 |
+| Forms | 18 | 18 |
 | Domain models | 4 | 4 |
-| Application services | 23 | 23 |
+| Application services | 22 | 22 |
 | Notifications | 5 | 5 |
-| Security | 6 | 6 |
+| Security | 7 | 7 |
 | Twig PHP | 1 | 1 |
 | Persistence integration | 2 | 2 |
 | Async messaging | 2 | 2 |
 | Scheduler | 1 | 1 |
 | Monitor helpers | 4 | 4 |
-| Frontend TypeScript | 13 | 13 |
-| SCSS themes | 13 | 13 |
+| Events | 2 | 2 |
+| Routing & tenants | 4 | 4 |
+| UI page contract | 3 | 3 |
+| Frontend TypeScript | 11 | 11 |
+| SCSS themes | 12 | 12 |
 | Symfony config | 2 | 2 |
 | Translations | 7 | 7 |
-| Twig views | 31 | 31 |
-| **Total production sources** | **175** | **175** |
+| Twig views | 28 | 28 |
+| **Total production sources** | **184** | **184** |
 
-Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **180** (2026-10-20; co-located `*.test.ts` excluded).
+Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **184** (2026-10-27; co-located `*.test.ts` excluded).

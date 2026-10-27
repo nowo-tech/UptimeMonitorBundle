@@ -98,6 +98,14 @@ final class MonitorController extends AbstractUptimeController
         ]));
     }
 
+    /**
+     * Shows and saves the new-monitor form; with `X-Uptime-Modal: 1` it renders the dialog body and answers JSON on success.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (form submission)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
     public function new(string $tenantSlug, Request $request): Response
     {

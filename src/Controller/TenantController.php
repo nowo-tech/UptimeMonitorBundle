@@ -83,6 +83,11 @@ final class TenantController extends AbstractController
         ]));
     }
 
+    /**
+     * Shows and saves the new-tenant form; redirects to the new tenant's dashboard on success.
+     *
+     * @param Request $request Current request (form submission)
+     */
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
