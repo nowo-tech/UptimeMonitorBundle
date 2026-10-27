@@ -116,6 +116,9 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-UI-003 / FR-UI-004**: UiKit page contract (`UptimePages`: layout, per-page templates, form themes) and area navigation provider (`UptimeAreaNav`).
 - **FR-UI-005**: page actions by access (`UptimeActions`), the table dashboard (`web_ui.dashboard.view`, `header`,
   `actions`) and the paginated check log (`web_ui.per_page`) — since 1.12.
+- **FR-UI-006**: the host chooses the settings screens (`web_ui.settings.sections`; the others answer 404); tags are
+  edited (name required and unique in the tenant) — since 1.13.
+- **FR-UI-007**: tenant status summary page for its users (`SummaryController`, `StatusSummary`) — since 1.13.
 - **FR-LIMIT-001**: per-tenant limits (`limits.*`, `TenantLimitsInterface`, `TenantQuota`): New monitor disabled with
   the reason, the form refuses a monitor beyond the limit or checked more often than the minimum — since 1.12.
 - **FR-VIEW-001–011**: Twig dashboard, monitor, settings, status, and shared partials; SCSS themes (Bootstrap/Tailwind/Kuma).

@@ -14,6 +14,4 @@ final class SettingsGeneralData
     public string $primaryBaseUrl  = '';
     public bool $nscdEnabled       = true;
     public bool $httpDnsCache      = false;
-    /** `default` (global status_page.default_public), `public` or `private`. */
-    public string $statusPageVisibility = 'default';
 }

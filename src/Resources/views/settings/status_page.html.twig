@@ -1,0 +1,34 @@
+{#
+  Settings → Status page (REQ-UI-003, since 1.13): UiKit settings scaffold.
+  Variables: page (View\SettingsPage from SettingsController), the 1.x variables tenant, tenant_slug, section,
+  section_title, and status_page_url (the public page when it is reachable now, else null), has_monitors. Section:
+  form = SettingsStatusPageFormType (visibility, the monitors shown — none chosen: every active monitor).
+  Data block filled: nowo_ui_settings_section (the way to the public page or why it is not reachable, then parent():
+  the section form).
+#}
+{% extends '@NowoUiKit/page/settings.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+
+{% block nowo_ui_head %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_robots.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_settings_section %}
+    {% set _b = page.bundle %}
+    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+        <p class="uptime-settings-status-page-link">
+            {% if status_page_url %}
+                <a class="{{ nowo_ui_class('btn_secondary', _b) }}" href="{{ status_page_url }}" target="_blank" rel="noopener" data-testid="uptime-settings-status-page-open">{{ 'settings.status_page.open'|trans }}</a>
+            {% else %}
+                <span class="{{ nowo_ui_class('muted', _b) }}" data-testid="uptime-settings-status-page-private">{{ 'settings.status_page.not_public'|trans }}</span>
+            {% endif %}
+        </p>
+        {{ parent() }}
+    </div>
+{% endblock %}

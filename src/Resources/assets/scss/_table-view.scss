@@ -62,6 +62,12 @@
   margin-top: 0.75rem;
 }
 
+.uptime-summary {
+  // A full-width card in the dashboard scaffold grid.
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
 .uptime-detail-unchecked {
   margin: 0 0 1.25rem;
 }

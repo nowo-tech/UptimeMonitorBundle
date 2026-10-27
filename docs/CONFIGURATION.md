@@ -46,6 +46,8 @@ nowo_uptime_monitor:
             view: tree         # tree (live monitor tree) | table (monitors table + paginated latest checks)
             header: tenant     # tenant (name, slug as intro) | monitors ("Monitors": the host shows the tenant)
             actions: [settings, status_page, new_monitor]   # header actions, in this order, each one by access
+        settings:              # since 1.13
+            sections: [general, appearance, notifications, reverse_proxy, tags, history, backup, about]   # the others: 404
         per_page: 20           # check log (monitor page) and latest checks (table dashboard) rows per page
     limits:                    # since 1.12: New monitor disabled with the reason, the form refuses beyond them
         provider: null         # service id of a Limits\TenantLimitsInterface (per-tenant limits); null = the values below

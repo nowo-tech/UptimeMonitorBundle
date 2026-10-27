@@ -32,6 +32,9 @@ final class Configuration implements ConfigurationInterface
     /** Default form theme of the bundle forms (UiKit form theme: nowo-ui input / row slots). */
     public const DEFAULT_FORM_THEME = '@NowoUiKitBundle/form/nowo_ui_layout.html.twig';
 
+    /** Settings screens (`web_ui.settings.sections`), bundle order. */
+    public const SETTINGS_SECTIONS = ['general', 'appearance', 'notifications', 'reverse_proxy', 'status_page', 'tags', 'history', 'backup', 'about'];
+
     /** Dashboard layouts (`web_ui.dashboard.view`). */
     public const DASHBOARD_VIEWS = ['tree', 'table'];
 
@@ -47,6 +50,7 @@ final class Configuration implements ConfigurationInterface
         'settings_appearance',
         'settings_notifications',
         'settings_reverse_proxy',
+        'settings_status_page',
         'settings_tags',
         'settings_history',
         'settings_backup',
@@ -54,9 +58,10 @@ final class Configuration implements ConfigurationInterface
         'tenant_index',
         'tenant_form',
         'status',
+        'summary',
     ];
 
-    private const PAGES_LIST = 'dashboard, monitor_show, monitor_form, settings_general, settings_appearance, settings_notifications, settings_reverse_proxy, settings_tags, settings_history, settings_backup, settings_about, tenant_index, tenant_form, status';
+    private const PAGES_LIST = 'dashboard, monitor_show, monitor_form, settings_general, settings_appearance, settings_notifications, settings_reverse_proxy, settings_status_page, settings_tags, settings_history, settings_backup, settings_about, tenant_index, tenant_form, status, summary';
 
     /**
      * Builds the `nowo_uptime_monitor` configuration tree (with the deprecated 1.x keys and their replacements).
@@ -329,6 +334,17 @@ final class Configuration implements ConfigurationInterface
                                     ->info('Page header actions, in this order (each one only for users allowed to use it): ' . implode(', ', self::DASHBOARD_ACTIONS) . '.')
                                     ->enumPrototype()->values(self::DASHBOARD_ACTIONS)->end()
                                     ->defaultValue(self::DASHBOARD_ACTIONS)
+                                ->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('settings')
+                            ->addDefaultsIfNotSet()
+                            ->info('Tenant settings screens (since 1.13).')
+                            ->children()
+                                ->arrayNode('sections')
+                                    ->info('The settings screens shown, in the bundle order (the others answer 404 and leave the tabs): ' . implode(', ', self::SETTINGS_SECTIONS) . '.')
+                                    ->enumPrototype()->values(self::SETTINGS_SECTIONS)->end()
+                                    ->defaultValue(self::SETTINGS_SECTIONS)
                                 ->end()
                             ->end()
                         ->end()

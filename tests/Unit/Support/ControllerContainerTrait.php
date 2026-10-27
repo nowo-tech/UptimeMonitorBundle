@@ -12,6 +12,7 @@ use Nowo\UptimeMonitorBundle\Form\SettingsAppearanceFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsGeneralFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsHistoryFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsReverseProxyFormType;
+use Nowo\UptimeMonitorBundle\Form\SettingsStatusPageFormType;
 use Nowo\UptimeMonitorBundle\Form\TagFormType;
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
@@ -63,6 +64,7 @@ trait ControllerContainerTrait
             ->addType(FormKitTestSupport::withMerger(new SettingsAppearanceFormType()))
             ->addType(FormKitTestSupport::withMerger(new SettingsHistoryFormType()))
             ->addType(FormKitTestSupport::withMerger(new SettingsReverseProxyFormType()))
+            ->addType(FormKitTestSupport::withMerger(new SettingsStatusPageFormType()))
             ->addType(FormKitTestSupport::withMerger(new CsrfActionFormType()))
             ->addType(FormKitTestSupport::withMerger(new BackupImportFormType()))
             ->addType(FormKitTestSupport::withMerger(new MonitorSearchFormType()))

@@ -3,9 +3,11 @@
   Variables: page (View\SettingsPage from SettingsController: header settings.title with a back link to the dashboard;
   one section per settings screen with its href (section tabs), current = this screen), and the 1.x variables
   tenant, tenant_slug, section, section_title. Section "tags": form = TagFormType, submit settings.tags.add_button; tags
-  (list<Tag>), tag_delete_actions (tag id => View\Action: POST + CSRF FormView behind the UiKit confirm dialog),
-  1.x tag_delete_forms.
-  Data block filled: nowo_ui_settings_section (tag list with delete actions, then parent(): the add-tag form).
+  (list<Tag>), tag_edit_actions (tag id => View\Action, since 1.13), tag_delete_actions (tag id => View\Action: POST
+  + CSRF FormView behind the UiKit confirm dialog), editing_tag (the tag of /tags/{id}, since 1.13), 1.x
+  tag_delete_forms.
+  Data block filled: nowo_ui_settings_section (tag list with edit and delete actions, then parent(): the add-tag form,
+  or the edited tag's form).
 #}
 {% extends '@NowoUiKit/page/settings.html.twig' %}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -33,14 +35,21 @@
                             {% if tag.color %}<span class="uptime-tag-swatch" data-color="{{ tag.color }}" aria-hidden="true"><svg viewBox="0 0 10 10" width="10" height="10" focusable="false"><circle cx="5" cy="5" r="5" fill="{{ tag.color }}"/></svg></span>{% endif %}
                             {{ tag.name }}
                         </span>
-                        {% if tag_delete_actions[tag.id] is defined %}
-                            {{ include(nowo_ui_partial('action', _b), {action: tag_delete_actions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
-                        {% endif %}
+                        <span class="uptime-tag-list__actions">
+                            {% if tag_edit_actions[tag.id] is defined %}
+                                {{ include(nowo_ui_partial('action', _b), {action: tag_edit_actions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
+                            {% endif %}
+                            {% if tag_delete_actions[tag.id] is defined %}
+                                {{ include(nowo_ui_partial('action', _b), {action: tag_delete_actions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
+                            {% endif %}
+                        </span>
                     </li>
                 {% endfor %}
             </ul>
         {% endif %}
-        <h3 class="uptime-settings-subtitle {{ nowo_ui_class('card_title', _b) }}">{{ 'settings.tags.add'|trans }}</h3>
+        <h3 class="uptime-settings-subtitle {{ nowo_ui_class('card_title', _b) }}" data-testid="uptime-tag-form-title">
+            {{ editing_tag|default(null) ? 'settings.tags.edit_title'|trans({'%name%': editing_tag.name}) : 'settings.tags.add'|trans }}
+        </h3>
         {{ parent() }}
     </div>
 {% endblock %}

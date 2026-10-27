@@ -16,31 +16,49 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(TenantSettingsMapper::class)]
 final class TenantSettingsMapperTest extends TestCase
 {
+    public function testStatusPageRoundTrip(): void
+    {
+        $tenant = (new Tenant('main', 'Main'))->setSettings(['status_page_monitors' => [3, '7', 'x', null]]);
+        $mapper = new TenantSettingsMapper();
+
+        $data = $mapper->toStatusPageData($tenant);
+        self::assertSame('default', $data->visibility);
+        self::assertSame([3, 7], $data->monitorIds);
+
+        $data->visibility = 'private';
+        $data->monitorIds = [9];
+        $mapper->applyStatusPage($tenant, $data);
+        self::assertSame('private', $tenant->getSettings()['status_page_public']);
+        self::assertSame([9], $tenant->getSettings()['status_page_monitors']);
+        self::assertEquals($data, $mapper->toStatusPageData($tenant));
+
+        $tenant->setSettings(['status_page_monitors' => 'broken']);
+        self::assertSame([], $mapper->toStatusPageData($tenant)->monitorIds);
+    }
+
     public function testGeneralRoundTrip(): void
     {
         $tenant = (new Tenant('main', 'Main'))->setSettings(['steam_api_key' => 'legacy-secret', 'chromium_executable' => '/bin/chromium']);
         $mapper = new TenantSettingsMapper();
 
         $defaults = $mapper->toGeneralData($tenant);
-        self::assertSame('default', $defaults->statusPageVisibility);
         self::assertSame('', $defaults->primaryBaseUrl);
         self::assertTrue($defaults->nscdEnabled);
 
-        $data                       = new SettingsGeneralData();
-        $data->displayTimezone      = 'Europe/Madrid';
-        $data->serverTimezone       = 'UTC';
-        $data->searchEngineIndex    = true;
-        $data->entryPage            = 'status';
-        $data->primaryBaseUrl       = 'https://status.test';
-        $data->nscdEnabled          = false;
-        $data->httpDnsCache         = true;
-        $data->statusPageVisibility = 'private';
+        $data                    = new SettingsGeneralData();
+        $data->displayTimezone   = 'Europe/Madrid';
+        $data->serverTimezone    = 'UTC';
+        $data->searchEngineIndex = true;
+        $data->entryPage         = 'status';
+        $data->primaryBaseUrl    = 'https://status.test';
+        $data->nscdEnabled       = false;
+        $data->httpDnsCache      = true;
         $mapper->applyGeneral($tenant, $data);
 
         // Stored-but-unused legacy settings are dropped on save (the Steam key was a secret).
         self::assertArrayNotHasKey('steam_api_key', $tenant->getSettings());
         self::assertArrayNotHasKey('chromium_executable', $tenant->getSettings());
-        self::assertSame('private', $tenant->getSettings()['status_page_public']);
+        self::assertArrayNotHasKey('status_page_public', $tenant->getSettings(), 'the visibility lives in Settings → Status page');
         self::assertEquals($data, $mapper->toGeneralData($tenant));
 
         $data->primaryBaseUrl = '';

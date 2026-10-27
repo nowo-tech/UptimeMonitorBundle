@@ -226,4 +226,11 @@ final class SettingsAccessorsTest extends TestCase
         self::assertSame("X-One: 1\nX-Two: a:b", HttpHeaderParser::format($headers));
         self::assertSame('', HttpHeaderParser::format([]));
     }
+
+    public function testStatusPageMonitorIds(): void
+    {
+        self::assertSame([], TenantSettings::from(new Tenant('main', 'Main'))->getStatusPageMonitorIds());
+        self::assertSame([], TenantSettings::from((new Tenant('main', 'Main'))->setSettings(['status_page_monitors' => 'broken']))->getStatusPageMonitorIds());
+        self::assertSame([3, 7], TenantSettings::from((new Tenant('main', 'Main'))->setSettings(['status_page_monitors' => [3, '7', 'x', null, 1.5]]))->getStatusPageMonitorIds());
+    }
 }

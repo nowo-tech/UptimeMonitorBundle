@@ -31,6 +31,7 @@ final readonly class UptimeAreaNav implements AreaNavProviderInterface
         'appearance'    => 'nowo_uptime_settings_appearance',
         'notifications' => 'nowo_uptime_settings_notifications',
         'reverse_proxy' => 'nowo_uptime_settings_reverse_proxy',
+        'status_page'   => 'nowo_uptime_settings_status_page',
         'tags'          => 'nowo_uptime_settings_tags',
         'history'       => 'nowo_uptime_settings_history',
         'backup'        => 'nowo_uptime_settings_backup',
@@ -41,9 +42,11 @@ final readonly class UptimeAreaNav implements AreaNavProviderInterface
      * Creates the navigation provider.
      *
      * @param UrlGeneratorInterface $urlGenerator Builds the navigation links
+     * @param SettingsSections $sections The settings screens the host keeps (since 1.13)
      */
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
+        private SettingsSections $sections = new SettingsSections(),
     ) {
     }
 
@@ -60,7 +63,7 @@ final readonly class UptimeAreaNav implements AreaNavProviderInterface
         $params = ['tenantSlug' => $tenantSlug];
         if ($area === self::AREA_SETTINGS) {
             $items = [];
-            foreach (self::SETTINGS_SECTIONS as $id => $route) {
+            foreach ($this->sections->all() as $id => $route) {
                 $items[] = new AreaNavItem(UptimePages::label('settings.nav.' . $id), $this->urlGenerator->generate($route, $params), false, ['data-testid' => 'uptime-nav-settings-' . $id]);
             }
 

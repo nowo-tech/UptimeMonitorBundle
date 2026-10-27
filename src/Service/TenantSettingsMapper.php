@@ -9,8 +9,12 @@ use Nowo\UptimeMonitorBundle\Form\Model\SettingsAppearanceData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsGeneralData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsHistoryData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsReverseProxyData;
+use Nowo\UptimeMonitorBundle\Form\Model\SettingsStatusPageData;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Ui\UiFramework;
+
+use function array_map;
+use function intval;
 
 /**
  * Maps tenant settings JSON ↔ form models.
@@ -22,16 +26,15 @@ final class TenantSettingsMapper
      */
     public function toGeneralData(Tenant $tenant): SettingsGeneralData
     {
-        $s                          = TenantSettings::from($tenant);
-        $data                       = new SettingsGeneralData();
-        $data->displayTimezone      = $s->getDisplayTimezone();
-        $data->serverTimezone       = $s->getServerTimezone();
-        $data->searchEngineIndex    = $s->isSearchEngineIndexAllowed();
-        $data->entryPage            = $s->getEntryPage();
-        $data->primaryBaseUrl       = $s->getPrimaryBaseUrl() ?? '';
-        $data->nscdEnabled          = $s->isNscdEnabled();
-        $data->httpDnsCache         = $s->isHttpDnsCacheEnabled();
-        $data->statusPageVisibility = $s->getStatusPageVisibility();
+        $s                       = TenantSettings::from($tenant);
+        $data                    = new SettingsGeneralData();
+        $data->displayTimezone   = $s->getDisplayTimezone();
+        $data->serverTimezone    = $s->getServerTimezone();
+        $data->searchEngineIndex = $s->isSearchEngineIndexAllowed();
+        $data->entryPage         = $s->getEntryPage();
+        $data->primaryBaseUrl    = $s->getPrimaryBaseUrl() ?? '';
+        $data->nscdEnabled       = $s->isNscdEnabled();
+        $data->httpDnsCache      = $s->isHttpDnsCacheEnabled();
 
         return $data;
     }
@@ -55,7 +58,30 @@ final class TenantSettingsMapper
             'primary_base_url'    => $data->primaryBaseUrl !== '' ? $data->primaryBaseUrl : null,
             'nscd_enabled'        => $data->nscdEnabled,
             'http_dns_cache'      => $data->httpDnsCache,
-            'status_page_public'  => $data->statusPageVisibility,
+        ]);
+    }
+
+    /**
+     * Builds the Status page settings form model from the tenant settings (since 1.13).
+     */
+    public function toStatusPageData(Tenant $tenant): SettingsStatusPageData
+    {
+        $s                = TenantSettings::from($tenant);
+        $data             = new SettingsStatusPageData();
+        $data->visibility = $s->getStatusPageVisibility();
+        $data->monitorIds = $s->getStatusPageMonitorIds();
+
+        return $data;
+    }
+
+    /**
+     * Stores who may open the public status page and the monitors it shows (since 1.13).
+     */
+    public function applyStatusPage(Tenant $tenant, SettingsStatusPageData $data): void
+    {
+        TenantSettings::from($tenant)->merge([
+            'status_page_public'   => $data->visibility,
+            'status_page_monitors' => array_map(intval(...), $data->monitorIds),
         ]);
     }
 

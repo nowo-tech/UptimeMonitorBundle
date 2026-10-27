@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Routing;
 use Nowo\UptimeMonitorBundle\Controller\DashboardController;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
+use Nowo\UptimeMonitorBundle\Controller\SummaryController;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -42,7 +43,7 @@ final class UptimeMonitorRouteLoader extends Loader
     private const PATH_PARAMETER = '%nowo_uptime_monitor.dashboard.path%';
 
     /** Controllers of the admin UI, dropped when `web_ui.enabled` is false. */
-    public const ADMIN_CONTROLLERS = [DashboardController::class, MonitorController::class, SettingsController::class, TenantController::class];
+    public const ADMIN_CONTROLLERS = [DashboardController::class, MonitorController::class, SettingsController::class, SummaryController::class, TenantController::class];
 
     /**
      * @param list<array{slug_prefix: string, path: string, name_prefix: string, slug_requirement: string|null}> $tenantPaths

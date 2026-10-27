@@ -9,10 +9,12 @@ use Nowo\UptimeMonitorBundle\Form\Model\SettingsAppearanceData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsGeneralData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsHistoryData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsReverseProxyData;
+use Nowo\UptimeMonitorBundle\Form\Model\SettingsStatusPageData;
 use Nowo\UptimeMonitorBundle\Form\SettingsAppearanceFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsGeneralFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsHistoryFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsReverseProxyFormType;
+use Nowo\UptimeMonitorBundle\Form\SettingsStatusPageFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Component\Form\Test\TypeTestCase;
@@ -21,6 +23,7 @@ use Symfony\Component\Form\Test\TypeTestCase;
 #[CoversClass(SettingsGeneralFormType::class)]
 #[CoversClass(SettingsHistoryFormType::class)]
 #[CoversClass(SettingsReverseProxyFormType::class)]
+#[CoversClass(SettingsStatusPageFormType::class)]
 #[CoversClass(AbstractUptimeFormType::class)]
 final class SettingsFormTypesTest extends TypeTestCase
 {
@@ -34,6 +37,7 @@ final class SettingsFormTypesTest extends TypeTestCase
             FormKitTestSupport::withMerger(new SettingsGeneralFormType()),
             FormKitTestSupport::withMerger(new SettingsHistoryFormType()),
             FormKitTestSupport::withMerger(new SettingsReverseProxyFormType()),
+            FormKitTestSupport::withMerger(new SettingsStatusPageFormType()),
         ];
     }
 
@@ -63,13 +67,12 @@ final class SettingsFormTypesTest extends TypeTestCase
 
         $form = $this->factory->create(SettingsGeneralFormType::class, $data);
         $form->submit([
-            'displayTimezone'      => 'Europe/Madrid',
-            'serverTimezone'       => 'UTC',
-            'searchEngineIndex'    => '1',
-            'entryPage'            => 'status',
-            'primaryBaseUrl'       => '',
-            'httpDnsCache'         => '1',
-            'statusPageVisibility' => 'public',
+            'displayTimezone'   => 'Europe/Madrid',
+            'serverTimezone'    => 'UTC',
+            'searchEngineIndex' => '1',
+            'entryPage'         => 'status',
+            'primaryBaseUrl'    => '',
+            'httpDnsCache'      => '1',
         ]);
 
         self::assertTrue($form->isSynchronized());
@@ -79,9 +82,20 @@ final class SettingsFormTypesTest extends TypeTestCase
         self::assertSame('', $data->primaryBaseUrl);
         self::assertFalse($data->nscdEnabled);
         self::assertTrue($data->httpDnsCache);
-        self::assertSame('public', $data->statusPageVisibility);
+        self::assertFalse($form->has('statusPageVisibility'));
         self::assertFalse($form->has('steamApiKey'));
         self::assertFalse($form->has('chromiumExecutable'));
+    }
+
+    public function testStatusPageChoosesTheVisibilityAndTheMonitors(): void
+    {
+        $data = new SettingsStatusPageData();
+        $form = $this->factory->create(SettingsStatusPageFormType::class, $data, ['monitor_choices' => ['API' => 3, 'Shop' => 7]]);
+        $form->submit(['visibility' => 'public', 'monitorIds' => ['7']]);
+
+        self::assertTrue($form->isValid());
+        self::assertSame('public', $data->visibility);
+        self::assertSame([7], $data->monitorIds);
     }
 
     public function testHistoryUsesGlobalDetailDaysInHelp(): void

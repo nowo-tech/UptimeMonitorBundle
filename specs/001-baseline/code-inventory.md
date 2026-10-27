@@ -229,6 +229,11 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Ui/UiFramework.php` | UI framework selector (deprecated: pages follow nowo_ui_kit.css_framework) | FR-UI-003 |
 | `Ui/UptimePages.php` | UiKit page contract plumbing: layout, per-page templates, form themes (REQ-UI-003) | FR-UI-003 |
 | `Ui/UptimeAreaNav.php` | UiKit area-nav provider (tenant + settings navigation) | FR-UI-004 |
+| `Form/SettingsStatusPageFormType.php` | Settings → Status page form (visibility, monitors shown) | FR-UI-006 |
+| `Form/Model/SettingsStatusPageData.php` | Settings → Status page form model | FR-UI-006 |
+| `Ui/SettingsSections.php` | Settings screens the host keeps (`web_ui.settings.sections`) | FR-UI-006 |
+| `Controller/SummaryController.php` | Tenant status summary page (`nowo_uptime_summary`) | FR-UI-007 |
+| `Service/StatusSummary.php` | Active monitors, counts per status and overall status of a tenant | FR-UI-007 |
 | `Ui/UptimeActions.php` | Page actions by access (dashboard header, New monitor with the tenant limit, monitor edit / pause / delete) | FR-UI-005 |
 
 ## Tenant limits

@@ -23,19 +23,23 @@ use Nowo\UptimeMonitorBundle\Form\SettingsAppearanceFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsGeneralFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsHistoryFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsReverseProxyFormType;
+use Nowo\UptimeMonitorBundle\Form\SettingsStatusPageFormType;
 use Nowo\UptimeMonitorBundle\Form\TagFormType;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
+use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TagRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\DetailRetentionService;
 use Nowo\UptimeMonitorBundle\Service\MonitorBackupService;
 use Nowo\UptimeMonitorBundle\Service\TenantSettingsMapper;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
+use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -45,6 +49,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Throwable;
 
@@ -52,6 +57,8 @@ use function array_merge;
 use function is_array;
 use function is_string;
 use function sprintf;
+use function strcasecmp;
+use function trim;
 
 use const JSON_THROW_ON_ERROR;
 
@@ -66,6 +73,8 @@ final class SettingsController extends AbstractUptimeController
      *
      * @param TranslatorInterface $translator Translator for flash messages
      * @param LoggerInterface $logger Receives rejected backup imports (exception class only)
+     * @param SettingsSections $sections The settings screens the host keeps (`web_ui.settings.sections`, since 1.13)
+     * @param MonitorRepository|null $monitorRepository The tenant's monitors (Settings → Status page, since 1.13)
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -84,19 +93,31 @@ final class SettingsController extends AbstractUptimeController
         private readonly array $notificationsConfig,
         private readonly UptimePages $pages = new UptimePages(),
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly SettingsSections $sections = new SettingsSections(),
+        private readonly ?MonitorRepository $monitorRepository = null,
+        /** @var array<string, mixed> $statusPageConfig */
+        #[Autowire('%nowo_uptime_monitor.status_page%')]
+        private readonly array $statusPageConfig = [],
     ) {
         parent::__construct($translator);
     }
 
     /**
-     * Redirects to the first settings screen (General).
+     * Redirects to the first settings screen the host keeps (General by default).
      *
      * @param string $tenantSlug Tenant slug from the route
+     *
+     * @throws NotFoundHttpException When the host keeps no settings screen
      */
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(string $tenantSlug): RedirectResponse
     {
-        return $this->redirectToRoute('nowo_uptime_settings_general', ['tenantSlug' => $tenantSlug]);
+        $first = $this->sections->first();
+        if ($first === null) {
+            throw $this->createNotFoundException('No settings screen.');
+        }
+
+        return $this->redirectToRoute(UptimeAreaNav::SETTINGS_SECTIONS[$first], ['tenantSlug' => $tenantSlug]);
     }
 
     /**
@@ -110,6 +131,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/general', name: 'general', methods: ['GET', 'POST'])]
     public function general(string $tenantSlug, Request $request): Response
     {
+        $this->requireSection('general');
         $tenant = $this->requireTenant($tenantSlug);
         $data   = $this->settingsMapper->toGeneralData($tenant);
         $form   = $this->createForm(SettingsGeneralFormType::class, $data);
@@ -139,6 +161,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/appearance', name: 'appearance', methods: ['GET', 'POST'])]
     public function appearance(string $tenantSlug, Request $request): Response
     {
+        $this->requireSection('appearance');
         $tenant = $this->requireTenant($tenantSlug);
         $data   = $this->settingsMapper->toAppearanceData($tenant);
         $form   = $this->createForm(SettingsAppearanceFormType::class, $data);
@@ -167,6 +190,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/notifications', name: 'notifications', methods: ['GET'])]
     public function notifications(string $tenantSlug): Response
     {
+        $this->requireSection('notifications');
         $tenant = $this->requireTenant($tenantSlug);
 
         return $this->renderSettings($tenant, 'notifications', '@NowoUptimeMonitorBundle/settings/notifications.html.twig', null, null, [
@@ -186,6 +210,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/reverse-proxy', name: 'reverse_proxy', methods: ['GET', 'POST'])]
     public function reverseProxy(string $tenantSlug, Request $request): Response
     {
+        $this->requireSection('reverse_proxy');
         $tenant = $this->requireTenant($tenantSlug);
         $data   = $this->settingsMapper->toReverseProxyData($tenant);
         $form   = $this->createForm(SettingsReverseProxyFormType::class, $data);
@@ -205,6 +230,47 @@ final class SettingsController extends AbstractUptimeController
     }
 
     /**
+     * Shows and saves who may open the public status page and the monitors it shows (since 1.13).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (handles the form submission)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
+    #[Route('/status-page', name: 'status_page', methods: ['GET', 'POST'])]
+    public function statusPage(string $tenantSlug, Request $request): Response
+    {
+        $this->requireSection('status_page');
+        $tenant  = $this->requireTenant($tenantSlug);
+        $data    = $this->settingsMapper->toStatusPageData($tenant);
+        $choices = [];
+        foreach ($this->monitorRepository?->findByTenantSlug($tenantSlug) ?? [] as $monitor) {
+            if (!$monitor->isGroup() && $monitor->getId() !== null) {
+                $choices[$monitor->getName()] = $monitor->getId();
+            }
+        }
+        $form = $this->createForm(SettingsStatusPageFormType::class, $data, ['monitor_choices' => $choices]);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $this->settingsMapper->applyStatusPage($tenant, $data);
+            $this->entityManager->flush();
+            $this->addFlash('success', $this->transMessage('flash.settings.status_page_saved'));
+
+            return $this->redirectToRoute('nowo_uptime_settings_status_page', ['tenantSlug' => $tenantSlug]);
+        }
+
+        $public = ($this->statusPageConfig['enabled'] ?? true)
+            && TenantSettings::from($tenant)->isStatusPagePublic((bool) ($this->statusPageConfig['default_public'] ?? true));
+
+        return $this->renderSettings($tenant, 'status_page', '@NowoUptimeMonitorBundle/settings/status_page.html.twig', $form, null, [
+            'form'            => $form,
+            'status_page_url' => $public ? $this->generateUrl('nowo_uptime_status_page', ['tenantSlug' => $tenantSlug], UrlGeneratorInterface::ABSOLUTE_URL) : null,
+            'has_monitors'    => $choices !== [],
+        ]);
+    }
+
+    /**
      * Lists the tenant tags and creates a new one.
      *
      * @param string $tenantSlug Tenant slug from the route
@@ -215,50 +281,26 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/tags', name: 'tags', methods: ['GET', 'POST'])]
     public function tags(string $tenantSlug, Request $request): Response
     {
-        $tenant  = $this->requireTenant($tenantSlug);
-        $tagData = new TagFormData();
-        $form    = $this->createForm(TagFormType::class, $tagData);
-        $form->handleRequest($request);
+        $this->requireSection('tags');
 
-        if ($form->isSubmitted() && $form->isValid() && $tagData->name !== '') {
-            $tag = new Tag($tenant, $tagData->name);
-            if ($tagData->color !== '') {
-                $tag->setColor($tagData->color);
-            }
-            $this->entityManager->persist($tag);
-            $this->entityManager->flush();
-            $this->addFlash('success', $this->transMessage('flash.settings.tag_created'));
+        return $this->tagsScreen($tenantSlug, $request, null);
+    }
 
-            return $this->redirectToRoute('nowo_uptime_settings_tags', ['tenantSlug' => $tenantSlug]);
-        }
+    /**
+     * Shows and saves one tag of the tenant (name and colour) on the Tags screen (since 1.13).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param int $id Tag id
+     * @param Request $request Current request (handles the form submission)
+     *
+     * @throws NotFoundHttpException When the tenant or the tag does not exist
+     */
+    #[Route('/tags/{id}', name: 'tag_edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
+    public function editTag(string $tenantSlug, int $id, Request $request): Response
+    {
+        $this->requireSection('tags');
 
-        $tags = $this->tagRepository->findByTenant($tenant);
-        /** @var array<int, FormView> $deleteForms */
-        $deleteForms = [];
-        /** @var array<int, Action> $deleteActions */
-        $deleteActions = [];
-        foreach ($tags as $tag) {
-            $tagId                 = (int) $tag->getId();
-            $deleteForms[$tagId]   = $this->createTagDeleteForm($tenantSlug, $tagId)->createView();
-            $deleteActions[$tagId] = Action::delete(
-                $this->generateUrl('nowo_uptime_settings_tag_delete', ['tenantSlug' => $tenantSlug, 'id' => $tagId]),
-                null,
-                new Confirm(
-                    UptimePages::label('settings.tags.delete_confirm_title'),
-                    UptimePages::label('settings.tags.delete_confirm', ['%name%' => $tag->getName()]),
-                    UptimePages::label('settings.tags.delete'),
-                ),
-                UptimePages::label('settings.tags.delete'),
-                $deleteForms[$tagId],
-            );
-        }
-
-        return $this->renderSettings($tenant, 'tags', '@NowoUptimeMonitorBundle/settings/tags.html.twig', $form, UptimePages::label('settings.tags.add_button'), [
-            'tags'               => $tags,
-            'form'               => $form,
-            'tag_delete_forms'   => $deleteForms,
-            'tag_delete_actions' => $deleteActions,
-        ]);
+        return $this->tagsScreen($tenantSlug, $request, $id);
     }
 
     /**
@@ -273,6 +315,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/tags/{id}/delete', name: 'tag_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function deleteTag(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
+        $this->requireSection('tags');
         $tenant = $this->requireTenant($tenantSlug);
         $tag    = $this->tagRepository->find($id);
         if ($tag === null || $tag->getTenant()->getId() !== $tenant->getId()) {
@@ -299,6 +342,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/history', name: 'history', methods: ['GET', 'POST'])]
     public function history(string $tenantSlug, Request $request): Response
     {
+        $this->requireSection('history');
         $tenant     = $this->requireTenant($tenantSlug);
         $globalDays = (int) ($this->retentionConfig['detail_days'] ?? 30);
         $data       = $this->settingsMapper->toHistoryData($tenant, $globalDays);
@@ -361,6 +405,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/history/purge', name: 'history_purge', methods: ['POST'])]
     public function purgeHistory(string $tenantSlug, Request $request): RedirectResponse
     {
+        $this->requireSection('history');
         $this->requireTenant($tenantSlug);
         if ($this->isCsrfActionSubmitted($this->createPurgeHistoryForm($tenantSlug), $request)) {
             $deleted = $this->detailRetentionService->purgeExpiredDetailForTenant($tenantSlug);
@@ -381,6 +426,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/history/clear-stats', name: 'history_clear', methods: ['POST'])]
     public function clearStats(string $tenantSlug, Request $request): RedirectResponse
     {
+        $this->requireSection('history');
         $this->requireTenant($tenantSlug);
         if ($this->isCsrfActionSubmitted($this->createClearStatsForm($tenantSlug), $request)) {
             // @igor-ignore - HTTP handler delegates to services; no controller worker state.
@@ -406,6 +452,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/backup', name: 'backup', methods: ['GET', 'POST'])]
     public function backup(string $tenantSlug, Request $request): Response
     {
+        $this->requireSection('backup');
         $tenant = $this->requireTenant($tenantSlug);
         $form   = $this->createForm(BackupImportFormType::class, null, [
             'action' => $this->generateUrl('nowo_uptime_settings_backup', ['tenantSlug' => $tenantSlug]),
@@ -438,6 +485,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/backup/export', name: 'backup_export', methods: ['GET'])]
     public function exportBackup(string $tenantSlug): JsonResponse
     {
+        $this->requireSection('backup');
         $tenant  = $this->requireTenant($tenantSlug);
         $payload = $this->backupService->export($tenant);
 
@@ -460,6 +508,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/about', name: 'about', methods: ['GET'])]
     public function about(string $tenantSlug): Response
     {
+        $this->requireSection('about');
         $tenant = $this->requireTenant($tenantSlug);
 
         return $this->renderSettings($tenant, 'about', '@NowoUptimeMonitorBundle/settings/about.html.twig', null, null, [
@@ -583,7 +632,7 @@ final class SettingsController extends AbstractUptimeController
     {
         $tenantSlug = $tenant->getSlug();
         $sections   = [];
-        foreach (UptimeAreaNav::SETTINGS_SECTIONS as $id => $route) {
+        foreach ($this->sections->all() as $id => $route) {
             $current    = $id === $section;
             $sections[] = new SettingsSection(
                 $id,
@@ -609,11 +658,14 @@ final class SettingsController extends AbstractUptimeController
             ['data-testid' => 'uptime-settings'],
         );
 
+        // A refused form answers 422 (since 1.13), so clients and tests can tell it from a plain page.
+        $status = $form instanceof FormInterface && $form->isSubmitted() && !$form->isValid() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK;
+
         return $this->render($this->pages->template('settings_' . $section, $template), $this->pages->context(array_merge($this->baseViewParams($tenant), [
             'page'          => $page,
             'section'       => $section,
             'section_title' => 'settings.section.' . $section,
-        ], $vars)));
+        ], $vars)), new Response('', $status));
     }
 
     /**
@@ -648,6 +700,113 @@ final class SettingsController extends AbstractUptimeController
             'uptime_theme'        => $settings->getTheme(),
             'uptime_search_index' => $settings->isSearchEngineIndexAllowed(),
         ];
+    }
+
+    /**
+     * The Tags screen: the tenant's tags with their edit link and delete action, and the add form — or, with `$tagId`,
+     * that tag's form. A name is required and unique in the tenant (case-insensitive).
+     *
+     * @throws NotFoundHttpException When the tenant or the tag does not exist
+     */
+    private function tagsScreen(string $tenantSlug, Request $request, ?int $tagId): Response
+    {
+        $tenant  = $this->requireTenant($tenantSlug);
+        $editing = null;
+        $tagData = new TagFormData();
+        if ($tagId !== null) {
+            $editing = $this->tagRepository->find($tagId);
+            if ($editing === null || $editing->getTenant()->getId() !== $tenant->getId()) {
+                throw $this->createNotFoundException();
+            }
+            $tagData->name  = $editing->getName();
+            $tagData->color = $editing->getColor() ?? '';
+        }
+
+        $form = $this->createForm(TagFormType::class, $tagData);
+        $form->handleRequest($request);
+        if ($form->isSubmitted()) {
+            $this->validateTagName($form, $tenant, $tagData, $editing);
+        }
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $tag = $editing ?? new Tag($tenant, $tagData->name);
+            $tag->setName($tagData->name);
+            $tag->setColor($tagData->color !== '' ? $tagData->color : null);
+            if ($editing === null) {
+                $this->entityManager->persist($tag);
+            }
+            $this->entityManager->flush();
+            $this->addFlash('success', $this->transMessage($editing === null ? 'flash.settings.tag_created' : 'flash.settings.tag_updated'));
+
+            return $this->redirectToRoute('nowo_uptime_settings_tags', ['tenantSlug' => $tenantSlug]);
+        }
+
+        $tags = $this->tagRepository->findByTenant($tenant);
+        /** @var array<int, FormView> $deleteForms */
+        $deleteForms = [];
+        /** @var array<int, Action> $deleteActions */
+        $deleteActions = [];
+        /** @var array<int, Action> $editActions */
+        $editActions = [];
+        foreach ($tags as $tag) {
+            $id                 = (int) $tag->getId();
+            $editActions[$id]   = Action::edit($this->generateUrl('nowo_uptime_settings_tag_edit', ['tenantSlug' => $tenantSlug, 'id' => $id]), UptimePages::label('settings.tags.edit'));
+            $deleteForms[$id]   = $this->createTagDeleteForm($tenantSlug, $id)->createView();
+            $deleteActions[$id] = Action::delete(
+                $this->generateUrl('nowo_uptime_settings_tag_delete', ['tenantSlug' => $tenantSlug, 'id' => $id]),
+                null,
+                new Confirm(
+                    UptimePages::label('settings.tags.delete_confirm_title'),
+                    UptimePages::label('settings.tags.delete_confirm', ['%name%' => $tag->getName()]),
+                    UptimePages::label('settings.tags.delete'),
+                ),
+                UptimePages::label('settings.tags.delete'),
+                $deleteForms[$id],
+            );
+        }
+
+        return $this->renderSettings($tenant, 'tags', '@NowoUptimeMonitorBundle/settings/tags.html.twig', $form, UptimePages::label($editing === null ? 'settings.tags.add_button' : 'settings.save'), [
+            'tags'               => $tags,
+            'form'               => $form,
+            'editing_tag'        => $editing,
+            'tag_edit_actions'   => $editActions,
+            'tag_delete_forms'   => $deleteForms,
+            'tag_delete_actions' => $deleteActions,
+        ]);
+    }
+
+    /**
+     * Adds a `name` error for a blank tag name or one another tag of the tenant already has (case-insensitive).
+     *
+     * @param FormInterface<TagFormData> $form
+     */
+    private function validateTagName(FormInterface $form, Tenant $tenant, TagFormData $data, ?Tag $current): void
+    {
+        $data->name = trim($data->name);
+        if ($data->name === '') {
+            $form->get('name')->addError(new FormError($this->transMessage('settings.tags.name_required')));
+
+            return;
+        }
+        foreach ($this->tagRepository->findByTenant($tenant) as $tag) {
+            if ($tag !== $current && strcasecmp($tag->getName(), $data->name) === 0) {
+                $form->get('name')->addError(new FormError($this->transMessage('settings.tags.name_taken')));
+
+                return;
+            }
+        }
+    }
+
+    /**
+     * A settings screen the host left out (`web_ui.settings.sections`) answers 404, its actions too.
+     *
+     * @throws NotFoundHttpException When the host does not keep the section
+     */
+    private function requireSection(string $section): void
+    {
+        if (!$this->sections->has($section)) {
+            throw $this->createNotFoundException(sprintf('Settings screen "%s" is not available.', $section));
+        }
     }
 
     private function requireTenant(string $tenantSlug): Tenant

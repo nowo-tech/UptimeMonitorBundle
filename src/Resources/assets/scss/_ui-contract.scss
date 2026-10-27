@@ -101,6 +101,12 @@
     gap: 0.5rem;
   }
 
+  .uptime-tag-list__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   .uptime-tag-swatch {
     display: inline-flex;
     width: 0.75rem;

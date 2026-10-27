@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.13.0] - 2026-10-27](#1130---2026-10-27)
 - [[1.12.1] - 2026-10-27](#1121---2026-10-27)
 - [[1.12.0] - 2026-10-27](#1120---2026-10-27)
 - [[1.11.0] - 2026-10-27](#1110---2026-10-27)
@@ -55,6 +56,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.13.0] - 2026-10-27
+
+Host pages: settings screens chosen by the host, tag edit, Settings → Status page (visibility and the monitors shown), tenant status summary. See [UPGRADING](UPGRADING.md#to-1130).
+
+### Added
+
+- **Settings screens chosen by the host** (`web_ui.settings.sections`): the screens left out leave the section tabs
+  and answer 404 (their actions too); the settings index opens the first one kept.
+- **Tag edit**: *Settings → Tags* renames and recolours a tag (`/settings/tags/{id}`); a tag name is required and
+  unique in the tenant (case-insensitive), with the reason on the form.
+- **Settings → Status page**: who may open the public status page (moved from *General*) and the monitors it shows
+  (none chosen: every active monitor), with the way to the page when it is reachable (`status_page_monitors` in the
+  tenant settings).
+- **Status summary** (`/{tenantSlug}/summary`, route `nowo_uptime_summary`): the tenant's active monitors at a glance
+  for its users — how many are operational, the others by status, each monitor's latest check linking to its page,
+  and the public status page when it is public (`Service\StatusSummary`).
 
 ## [1.12.1] - 2026-10-27
 
