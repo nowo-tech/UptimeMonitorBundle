@@ -489,4 +489,27 @@ final class HostEmbeddingControllersTest extends TestCase
 
         self::assertSame([$api], array_column($this->renderedContext['rows'], 'monitor'));
     }
+
+    public function testStatusPageShowsTheMonitorsTheTenantChose(): void
+    {
+        $tenant = new Tenant('main', 'Main');
+        $tenant->setSettings(['status_page_monitors' => [2]]);
+        $api = new Monitor($tenant, 'API', MonitorType::Https, 'https://x.test');
+        $web = new Monitor($tenant, 'Web', MonitorType::Https, 'https://y.test');
+        $this->setEntityId($api, 1);
+        $this->setEntityId($web, 2);
+        $tenantRepo = $this->createStub(TenantRepository::class);
+        $tenantRepo->method('findOneBySlug')->willReturn($tenant);
+        $monitorRepo = $this->createStub(MonitorRepository::class);
+        $monitorRepo->method('findByTenantSlug')->willReturn([$api, $web]);
+        $checks = $this->createStub(CheckResultRepository::class);
+        $checks->method('findLatestByMonitorIds')->willReturn([]);
+        $controller = new StatusPageController($tenantRepo, $monitorRepo, $checks, ['enabled' => true]);
+        $this->bindController($controller);
+
+        $controller->index('main');
+
+        self::assertCount(1, $this->renderedContext['rows']);
+        self::assertSame($web, $this->renderedContext['rows'][0]['monitor']);
+    }
 }

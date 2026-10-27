@@ -50,15 +50,6 @@ final class SettingsGeneralFormType extends AbstractUptimeFormType
             'empty_data' => '',
             'help'       => 'form.settings.base_url_help',
         ] + $full);
-        $this->addChoice($builder, 'statusPageVisibility', [
-            'label'   => 'form.settings.status_page_visibility',
-            'help'    => 'form.settings.status_page_visibility_help',
-            'choices' => [
-                'form.settings.status_page_visibility.default' => 'default',
-                'form.settings.status_page_visibility.public'  => 'public',
-                'form.settings.status_page_visibility.private' => 'private',
-            ],
-        ] + $full);
         $this->addCheckbox($builder, 'nscdEnabled', [
             'label'    => 'form.settings.nscd',
             'required' => false,

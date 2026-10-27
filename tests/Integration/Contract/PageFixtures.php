@@ -36,6 +36,7 @@ use Nowo\UptimeMonitorBundle\Form\Model\SettingsAppearanceData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsGeneralData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsHistoryData;
 use Nowo\UptimeMonitorBundle\Form\Model\SettingsReverseProxyData;
+use Nowo\UptimeMonitorBundle\Form\Model\SettingsStatusPageData;
 use Nowo\UptimeMonitorBundle\Form\Model\TagFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
 use Nowo\UptimeMonitorBundle\Form\MonitorSearchFormType;
@@ -43,6 +44,7 @@ use Nowo\UptimeMonitorBundle\Form\SettingsAppearanceFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsGeneralFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsHistoryFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsReverseProxyFormType;
+use Nowo\UptimeMonitorBundle\Form\SettingsStatusPageFormType;
 use Nowo\UptimeMonitorBundle\Form\TagFormType;
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
@@ -334,12 +336,14 @@ final class PageFixtures
     /**
      * @return array<string, array<string, mixed>>
      */
-    public static function settingsPages(bool $emptyTags = false): array
+    public static function settingsPages(bool $emptyTags = false, bool $editing = false): array
     {
         $forms         = self::forms();
         $tags          = $emptyTags ? [] : [self::tag(1, 'production', '#22c55e'), self::tag(2, 'staging', '')];
         $deleteActions = [];
+        $editActions   = [];
         foreach ($tags as $tag) {
+            $editActions[(int) $tag->getId()]   = Action::edit('/main/settings/tags/' . $tag->getId(), UptimePages::label('settings.tags.edit'));
             $deleteActions[(int) $tag->getId()] = Action::delete(
                 '/main/settings/tags/' . $tag->getId() . '/delete',
                 null,
@@ -361,9 +365,15 @@ final class PageFixtures
                 ],
             ]),
             'reverse_proxy' => self::settings('reverse_proxy', $forms->create(SettingsReverseProxyFormType::class, new SettingsReverseProxyData())->createView()),
-            'tags'          => self::settings('tags', $forms->create(TagFormType::class, new TagFormData())->createView(), UptimePages::label('settings.tags.add_button'), [
+            'status_page'   => self::settings('status_page', $forms->create(SettingsStatusPageFormType::class, new SettingsStatusPageData(), ['monitor_choices' => ['API health' => 7]])->createView(), null, [
+                'status_page_url' => 'https://example.test/status/main',
+                'has_monitors'    => true,
+            ]),
+            'tags' => self::settings('tags', $forms->create(TagFormType::class, new TagFormData())->createView(), UptimePages::label('settings.tags.add_button'), [
                 'tags'               => $tags,
                 'tag_delete_actions' => $deleteActions,
+                'tag_edit_actions'   => $editActions,
+                'editing_tag'        => $editing ? ($tags[0] ?? null) : null,
             ]),
             'history' => self::settings('history', $forms->create(SettingsHistoryFormType::class, new SettingsHistoryData())->createView(), null, [
                 'global_detail_days' => 30,
@@ -401,6 +411,33 @@ final class PageFixtures
             'show_latency'   => true,
             'title'          => 'Main',
         ];
+    }
+
+    /**
+     * The tenant status summary (since 1.13).
+     *
+     * @return array<string, mixed>
+     */
+    public static function summary(bool $empty = false): array
+    {
+        $api  = self::monitor(7, 'API health', MonitorType::Https, 'https://example.com/health');
+        $db   = self::monitor(8, 'Database', MonitorType::Tcp, 'db:3306');
+        $rows = $empty ? [] : [['monitor' => $api, 'latest' => self::check($api, CheckStatus::Down, 900)], ['monitor' => $db, 'latest' => null]];
+
+        return [
+            'page' => new DashboardPage(
+                new PageHeader(UptimePages::label('summary.title'), null, $empty ? [] : [new Action('view', UptimePages::label('summary.public_page'), 'https://example.test/status/main', attributes: ['target' => '_blank', 'rel' => 'noopener'])]),
+                bundle: UptimePages::BUNDLE,
+                attributes: ['data-testid' => 'uptime-summary'],
+            ),
+            'tenant'         => self::tenant(),
+            'tenant_slug'    => self::SLUG,
+            'rows'           => $rows,
+            'counts'         => $empty ? ['down' => 0, 'degraded' => 0, 'unknown' => 0, 'up' => 0] : ['down' => 1, 'degraded' => 0, 'unknown' => 1, 'up' => 0],
+            'overall_status' => $empty ? 'unknown' : 'major',
+            'public_url'     => $empty ? null : 'https://example.test/status/main',
+            'summary_empty'  => new EmptyState(UptimePages::label('summary.empty_title'), UptimePages::label('summary.empty'), Action::view('/main', UptimePages::label('summary.go_monitors'))),
+        ] + self::shared();
     }
 
     /**
@@ -502,6 +539,7 @@ final class PageFixtures
             ->addType(self::withMerger(new SettingsAppearanceFormType()))
             ->addType(self::withMerger(new SettingsHistoryFormType()))
             ->addType(self::withMerger(new SettingsReverseProxyFormType()))
+            ->addType(self::withMerger(new SettingsStatusPageFormType()))
             ->addType(self::withMerger(new CsrfActionFormType()))
             ->addType(self::withMerger(new BackupImportFormType()))
             ->addType(self::withMerger(new MonitorSearchFormType()))

@@ -13,6 +13,11 @@ nowo_uptime_monitor_crud:
     type: attribute
     prefix: '%nowo_uptime_monitor.dashboard.path%'
 
+nowo_uptime_monitor_summary:
+    resource: '../../Controller/SummaryController.php'
+    type: attribute
+    prefix: '%nowo_uptime_monitor.dashboard.path%'
+
 nowo_uptime_monitor_settings:
     resource: '../../Controller/SettingsController.php'
     type: attribute

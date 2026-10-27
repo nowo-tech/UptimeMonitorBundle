@@ -8,8 +8,11 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Ui\UiFramework;
 
 use function array_key_exists;
+use function ctype_digit;
 use function in_array;
+use function is_array;
 use function is_bool;
+use function is_int;
 use function is_string;
 
 /**
@@ -91,6 +94,28 @@ final readonly class TenantSettings
         $value = $this->string('status_page_public', 'default');
 
         return in_array($value, ['public', 'private'], true) ? $value : 'default';
+    }
+
+    /**
+     * Monitors the public status page shows (Settings → Status page, since 1.13); empty: every active monitor.
+     *
+     * @return list<int>
+     */
+    public function getStatusPageMonitorIds(): array
+    {
+        $ids = $this->tenant->getSettings()['status_page_monitors'] ?? [];
+        if (!is_array($ids)) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($ids as $id) {
+            if (is_int($id) || (is_string($id) && ctype_digit($id))) {
+                $list[] = (int) $id;
+            }
+        }
+
+        return $list;
     }
 
     /**

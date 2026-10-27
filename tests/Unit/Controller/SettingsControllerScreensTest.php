@@ -7,13 +7,17 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use JsonException;
+use Nowo\UiKitBundle\View\SettingsSection;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\SettingsAppearanceFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsGeneralFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsHistoryFormType;
 use Nowo\UptimeMonitorBundle\Form\SettingsReverseProxyFormType;
+use Nowo\UptimeMonitorBundle\Form\SettingsStatusPageFormType;
 use Nowo\UptimeMonitorBundle\Form\TagFormType;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TagRepository;
@@ -25,12 +29,14 @@ use Nowo\UptimeMonitorBundle\Service\TenantSettingsMapper;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
+use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Form\ChoiceList\View\ChoiceView;
 use Symfony\Component\Form\Util\StringUtil;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
@@ -38,6 +44,7 @@ use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_map;
 use function file_put_contents;
 use function sys_get_temp_dir;
 use function tempnam;
@@ -63,13 +70,15 @@ final class SettingsControllerScreensTest extends TestCase
 
     /**
      * @param array<string, mixed> $notificationsConfig
+     * @param list<Monitor> $monitors
+     * @param array<string, mixed> $statusPage
      */
-    private function controller(?Tenant $tenant = null, array $notificationsConfig = [], LoggerInterface $logger = new NullLogger()): SettingsController
+    private function controller(?Tenant $tenant = null, array $notificationsConfig = [], LoggerInterface $logger = new NullLogger(), SettingsSections $sections = new SettingsSections(), array $monitors = [], array $statusPage = []): SettingsController
     {
         $tenantRepo = $this->createStub(TenantRepository::class);
         $tenantRepo->method('findOneBySlug')->willReturnCallback(fn (string $slug): ?Tenant => $slug === 'main' ? ($tenant ?? $this->tenant) : null);
         $monitorRepo = $this->createStub(MonitorRepository::class);
-        $monitorRepo->method('findByTenantSlug')->willReturn([]);
+        $monitorRepo->method('findByTenantSlug')->willReturn($monitors);
         $registry = $this->createStub(ManagerRegistry::class);
         $registry->method('getManagerForClass')->willReturn($this->em);
         $translator = $this->createStub(TranslatorInterface::class);
@@ -88,6 +97,9 @@ final class SettingsControllerScreensTest extends TestCase
             $notificationsConfig,
             new UptimePages(),
             $logger,
+            $sections,
+            $monitorRepo,
+            $statusPage,
         );
     }
 
@@ -142,7 +154,7 @@ final class SettingsControllerScreensTest extends TestCase
 
     public function testGeneralSaves(): void
     {
-        $request    = $this->post(SettingsGeneralFormType::class, ['displayTimezone' => 'Europe/Madrid', 'serverTimezone' => 'UTC', 'entryPage' => 'status', 'statusPageVisibility' => 'default']);
+        $request    = $this->post(SettingsGeneralFormType::class, ['displayTimezone' => 'Europe/Madrid', 'serverTimezone' => 'UTC', 'entryPage' => 'status']);
         $controller = $this->controller();
         $this->bindController($controller, true, $request);
 
@@ -206,6 +218,124 @@ final class SettingsControllerScreensTest extends TestCase
         $this->bindController($controller, true, $plain);
         $controller->tags('main', $plain);
         self::assertNull($this->em->getRepository(Tag::class)->findOneBy(['name' => 'eu'])?->getColor());
+    }
+
+    public function testATagIsRenamedAndRecoloured(): void
+    {
+        $tag = new Tag($this->tenant, 'prod');
+        $this->em->persist($tag);
+        $this->em->flush();
+        $id         = (int) $tag->getId();
+        $controller = $this->controller();
+        $this->bindController($controller, true, new Request());
+
+        self::assertSame('rendered', $controller->editTag('main', $id, new Request())->getContent());
+        self::assertSame($tag, $this->renderedContext['editing_tag']);
+        self::assertArrayHasKey($id, $this->renderedContext['tag_edit_actions']);
+
+        $request = $this->post(TagFormType::class, ['name' => ' production ', 'color' => '']);
+        $this->bindController($controller, true, $request);
+        self::assertTrue($controller->editTag('main', $id, $request)->isRedirect());
+        self::assertSame('production', $tag->getName());
+        self::assertNull($tag->getColor());
+        self::assertSame(['flash.settings.tag_updated'], $this->flashes($request, 'success'));
+    }
+
+    public function testATagNeedsAFreeName(): void
+    {
+        $this->em->persist(new Tag($this->tenant, 'Prod'));
+        $this->em->flush();
+        $controller = $this->controller();
+
+        foreach (['prod' => 'settings.tags.name_taken', '  ' => 'settings.tags.name_required'] as $name => $error) {
+            $request = $this->post(TagFormType::class, ['name' => $name, 'color' => '']);
+            $this->bindController($controller, true, $request);
+
+            $response = $controller->tags('main', $request);
+
+            self::assertSame(422, $response->getStatusCode());
+            self::assertStringContainsString($error, (string) $this->renderedContext['form']->children['name']->vars['errors']);
+        }
+        self::assertCount(1, $this->em->getRepository(Tag::class)->findAll());
+    }
+
+    public function testEditingAnotherTenantsTagIsNotFound(): void
+    {
+        $other = new Tenant('other', 'Other');
+        $tag   = new Tag($other, 'theirs');
+        $this->em->persist($other);
+        $this->em->persist($tag);
+        $this->em->flush();
+        $controller = $this->controller();
+        $this->bindController($controller, true, new Request());
+
+        $this->expectException(NotFoundHttpException::class);
+        $controller->editTag('main', (int) $tag->getId(), new Request());
+    }
+
+    public function testStatusPageChoosesTheVisibilityAndTheMonitors(): void
+    {
+        $api   = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://api.test');
+        $group = new Monitor($this->tenant, 'Team', MonitorType::Group, '');
+        $this->em->persist($api);
+        $this->em->persist($group);
+        $this->em->flush();
+        $controller = $this->controller(monitors: [$api, $group]);
+        $this->bindController($controller, true, new Request());
+
+        self::assertSame('rendered', $controller->statusPage('main', new Request())->getContent());
+        self::assertSame('/generated/nowo_uptime_status_page', $this->renderedContext['status_page_url']);
+        $labels = [];
+        foreach ($this->renderedContext['form']->children['monitorIds']->vars['choices'] as $choice) {
+            self::assertInstanceOf(ChoiceView::class, $choice);
+            $labels[] = $choice->label;
+        }
+        self::assertSame(['API'], $labels);
+        self::assertTrue($this->renderedContext['has_monitors']);
+
+        $request = $this->post(SettingsStatusPageFormType::class, ['visibility' => 'private', 'monitorIds' => [(string) $api->getId()]]);
+        $this->bindController($controller, true, $request);
+        self::assertTrue($controller->statusPage('main', $request)->isRedirect());
+        self::assertSame('private', $this->tenant->getSettings()['status_page_public']);
+        self::assertSame([(int) $api->getId()], $this->tenant->getSettings()['status_page_monitors']);
+
+        $this->bindController($controller, true, new Request());
+        $controller->statusPage('main', new Request());
+        self::assertNull($this->renderedContext['status_page_url']);
+    }
+
+    public function testStatusPageWithoutMonitorsOrWhenStatusPagesAreOff(): void
+    {
+        $controller = $this->controller(statusPage: ['enabled' => false]);
+        $this->bindController($controller, true, new Request());
+
+        $controller->statusPage('main', new Request());
+
+        self::assertFalse($this->renderedContext['has_monitors']);
+        self::assertNull($this->renderedContext['status_page_url']);
+    }
+
+    public function testTheHostKeepsSomeScreensOnly(): void
+    {
+        $controller = $this->controller(sections: new SettingsSections(['settings' => ['sections' => ['tags', 'history']]]));
+        $this->bindController($controller, true, new Request());
+
+        self::assertSame('/generated/nowo_uptime_settings_tags', $controller->index('main')->getTargetUrl());
+        self::assertSame('rendered', $controller->history('main', new Request())->getContent());
+        self::assertSame(['tags', 'history'], array_map(static fn (SettingsSection $section): string => $section->id, $this->renderedContext['page']->sections));
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Settings screen "general" is not available.');
+        $controller->general('main', new Request());
+    }
+
+    public function testNoScreenKeptMeansNoSettings(): void
+    {
+        $controller = $this->controller(sections: new SettingsSections(['settings' => ['sections' => []]]));
+        $this->bindController($controller, true, new Request());
+
+        $this->expectException(NotFoundHttpException::class);
+        $controller->index('main');
     }
 
     public function testDeletingAnotherTenantsTagIsNotFound(): void

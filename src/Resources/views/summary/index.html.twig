@@ -1,0 +1,66 @@
+{#
+  Tenant status summary (REQ-UI-003, since 1.13): UiKit dashboard scaffold. Variables: page (View\DashboardPage from
+  SummaryController: header summary.title, action Public page when the tenant's status page is public), tenant,
+  tenant_slug, rows (list<{monitor, latest}>: active monitors, groups and paused ones left out), counts (down,
+  degraded, unknown, up), overall_status (operational | degraded | major | unknown), public_url, summary_empty
+  (View\EmptyState with the way to the monitors).
+  Data block filled: nowo_ui_dashboard_cards (the facts — n of m operational, the others by status — and the monitors).
+#}
+{% extends '@NowoUiKit/page/dashboard.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+
+{% block nowo_ui_head %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_robots.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_dashboard_cards %}
+    {% set _b = page.bundle %}
+    {% set _tones = {up: 'success', down: 'danger', degraded: 'warning', unknown: 'neutral'} %}
+    <div class="uptime-summary" data-testid="uptime-summary-body">
+        {% if rows is empty %}
+            <div data-testid="uptime-summary-empty">
+                {{ include(nowo_ui_partial('empty', _b), {empty: summary_empty, bundle: _b}, false) }}
+            </div>
+        {% else %}
+            <section class="uptime-status-services {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
+                <header class="{{ nowo_ui_class('card_header', _b) }}">
+                    <p class="uptime-status-overall uptime-status-overall-{{ overall_status }}" data-testid="uptime-summary-overall">
+                        {{ 'summary.operational'|trans({'%up%': counts.up, '%total%': rows|length}) }}
+                    </p>
+                    <ul class="uptime-dashboard-counts">
+                        {% for key in ['down', 'degraded', 'unknown'] %}
+                            {% if counts[key] > 0 %}
+                                <li class="{{ nowo_ui_class('badge_' ~ _tones[key], _b) }}" data-testid="uptime-summary-count-{{ key }}">{{ counts[key] }} {{ ('dashboard.count.' ~ key)|trans }}</li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </header>
+                <div class="{{ nowo_ui_class('card_body', _b) }}">
+                    <ul class="uptime-status-list">
+                        {% for row in rows %}
+                            {% set monitor = row.monitor %}
+                            {% set status = row.latest ? row.latest.status.value : 'unknown' %}
+                            <li class="uptime-status-item" data-testid="uptime-summary-item">
+                                <span class="uptime-status uptime-status-{{ status }}" aria-hidden="true"></span>
+                                <div class="uptime-status-item-body">
+                                    <a href="{{ path('nowo_uptime_monitor_show', {tenantSlug: tenant_slug, id: monitor.id}) }}"><strong>{{ monitor.name }}</strong></a>
+                                    <span class="uptime-status-item-meta {{ nowo_ui_class('muted', _b) }}">{{ ('form.monitor.type.' ~ monitor.type.value)|trans }}</span>
+                                    {% if row.latest %}
+                                        <span class="uptime-status-item-latency {{ nowo_ui_class('muted', _b) }}">{{ row.latest.latencyMs }} ms</span>
+                                    {% endif %}
+                                </div>
+                                <span class="uptime-status-label {{ nowo_ui_class('badge_' ~ (_tones[status] ?? 'neutral'), _b) }}">{{ (row.latest ? 'status.' ~ status : 'dashboard.not_checked')|trans }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}

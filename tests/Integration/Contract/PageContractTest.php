@@ -99,6 +99,9 @@ final class PageContractTest extends PageContractTestCase
         $templates['settings tags (empty)']     = 'settings/tags.html.twig';
         $templates['status page']               = 'status/index.html.twig';
         $templates['status page (no monitors)'] = 'status/index.html.twig';
+        $templates['settings tags (editing)']   = 'settings/tags.html.twig';
+        $templates['summary']                   = 'summary/index.html.twig';
+        $templates['summary (no monitors)']     = 'summary/index.html.twig';
 
         return array_map(static fn (string $t): string => self::VIEWS . $t, $templates);
     }
@@ -109,7 +112,11 @@ final class PageContractTest extends PageContractTestCase
     private function context(string $name): array
     {
         if (str_starts_with($name, 'settings ')) {
-            return $name === 'settings tags (empty)' ? PageFixtures::settingsPages(true)['tags'] : PageFixtures::settingsPages()[substr($name, 9)];
+            return match ($name) {
+                'settings tags (empty)'   => PageFixtures::settingsPages(true)['tags'],
+                'settings tags (editing)' => PageFixtures::settingsPages(false, true)['tags'],
+                default                   => PageFixtures::settingsPages()[substr($name, 9)],
+            };
         }
 
         return match ($name) {
@@ -128,6 +135,8 @@ final class PageContractTest extends PageContractTestCase
             'edit monitor'                  => PageFixtures::monitorForm(true),
             'status page'                   => PageFixtures::status(),
             'status page (no monitors)'     => PageFixtures::status(true),
+            'summary'                       => PageFixtures::summary(),
+            'summary (no monitors)'         => PageFixtures::summary(true),
             default                         => throw new LogicException('Unknown page fixture ' . $name),
         };
     }
@@ -233,6 +242,24 @@ final class PageContractTest extends PageContractTestCase
         $unchecked = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShow(true)))->html;
         self::assertStringContainsString('data-detail-unchecked', $unchecked);
         self::assertMatchesRegularExpression('#data-detail-pending\s+hidden#', $unchecked);
+    }
+
+    public function testSummaryAndTagEdit(): void
+    {
+        $summary = $this->renderPage(new PageFixture(self::VIEWS . 'summary/index.html.twig', PageFixtures::summary()))->html;
+        self::assertStringContainsString('data-nowo-ui-page="dashboard"', $summary);
+        self::assertStringContainsString('0 of 2 monitors operational', $summary);
+        self::assertStringContainsString('data-testid="uptime-summary-count-down"', $summary);
+        self::assertStringContainsString('href="https://example.test/status/main"', $summary);
+        self::assertStringContainsString('Not checked yet', $summary);
+
+        $empty = $this->renderPage(new PageFixture(self::VIEWS . 'summary/index.html.twig', PageFixtures::summary(true)))->html;
+        self::assertStringContainsString('data-testid="uptime-summary-empty"', $empty);
+        self::assertStringContainsString('Go to monitors', $empty);
+
+        $tags = $this->renderPage(new PageFixture(self::VIEWS . 'settings/tags.html.twig', PageFixtures::settingsPages(false, true)['tags']))->html;
+        self::assertStringContainsString('href="/main/settings/tags/1"', $tags);
+        self::assertStringContainsString('Edit the tag “production”', $tags);
     }
 
     public function testSettingsPagesUseSectionTabsAndConfirmedActions(): void

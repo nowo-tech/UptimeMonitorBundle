@@ -26,7 +26,7 @@
             {# Grouped layout (REQ-TWIG-003 rule 3): each group renders its children; the child loop below renders any remaining field. #}
             {% for group, fields in {
                 regional: ['displayTimezone', 'serverTimezone'],
-                site: ['searchEngineIndex', 'entryPage', 'primaryBaseUrl', 'statusPageVisibility'],
+                site: ['searchEngineIndex', 'entryPage', 'primaryBaseUrl'],
                 runtime: ['nscdEnabled', 'httpDnsCache'],
             } %}
                 <fieldset class="uptime-settings-group">

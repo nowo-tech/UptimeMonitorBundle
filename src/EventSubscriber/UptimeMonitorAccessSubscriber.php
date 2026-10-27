@@ -11,6 +11,7 @@ use Nowo\UptimeMonitorBundle\Controller\DashboardController;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Controller\StatusPageController;
+use Nowo\UptimeMonitorBundle\Controller\SummaryController;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -141,6 +142,7 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
         return $controller instanceof DashboardController
             || $controller instanceof MonitorController
             || $controller instanceof SettingsController
+            || $controller instanceof SummaryController
             || $controller instanceof TenantController;
     }
 
@@ -149,6 +151,7 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
         return $controller instanceof DashboardController
             || $controller instanceof MonitorController
             || $controller instanceof SettingsController
+            || $controller instanceof SummaryController
             || $controller instanceof TenantController
             || $controller instanceof StatusApiController
             || $controller instanceof HistoryApiController

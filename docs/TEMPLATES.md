@@ -34,15 +34,18 @@ Every view model passes `bundle: 'NowoUptimeMonitorBundle'` (theme exception
 | Settings → Appearance (`settings_appearance`) | `settings/appearance.html.twig` | `page/settings` | `SettingsPage`; section form `SettingsAppearanceFormType` | `nowo_ui_settings_section` (interface language notice, then `parent()`) |
 | Settings → Notifications (`settings_notifications`) | `settings/notifications.html.twig` | `page/settings` | `SettingsPage` (section without form); `notification_items` (`list<DetailItem>`) | `nowo_ui_settings_section` (notes + the `detail_list` partial) |
 | Settings → Reverse proxy (`settings_reverse_proxy`) | `settings/section.html.twig` | `page/settings` | `SettingsPage`; section form `SettingsReverseProxyFormType` | `nowo_ui_settings_section` (`parent()`) |
+| Settings → Status page (`settings_status_page`, 1.13) | `settings/status_page.html.twig` | `page/settings` | `SettingsPage`; section form `SettingsStatusPageFormType` (visibility, monitors shown — none: all); `status_page_url` (the public page when reachable), `has_monitors` | `nowo_ui_settings_section` (link to the public page or why it is not reachable, then `parent()`) |
 | Settings → Tags (`settings_tags`) | `settings/tags.html.twig` | `page/settings` | `SettingsPage`; section form `TagFormType` (submit `settings.tags.add_button`); `tags`, `tag_delete_actions` (tag id => `Action::delete` with a CSRF-only `FormView` and a `Confirm`) | `nowo_ui_settings_section` (tag list + delete actions through the `action` partial, `empty` partial when there are none, then `parent()`) |
 | Settings → Monitor history (`settings_history`) | `settings/history.html.twig` | `page/settings` | `SettingsPage`; section form `SettingsHistoryFormType`; `history_actions` (Purge expired detail rows: POST + CSRF `FormView`; Clear all statistics: POST + CSRF `FormView` behind a `Confirm`) | `nowo_ui_settings_section` (`parent()`, retention note, actions through the `action` partial) |
 | Settings → Backup (`settings_backup`) | `settings/backup.html.twig` | `page/settings` | `SettingsPage`; section form `BackupImportFormType` (multipart, submit `settings.backup.import_button`); `export_action` (GET `Action`) | `nowo_ui_settings_section` (export block, then `parent()` for the import form) |
 | Settings → About (`settings_about`) | `settings/about.html.twig` | `page/settings` | `SettingsPage` (section without form); `about_items` (`list<DetailItem>`) | `nowo_ui_settings_section` (`detail_list` partial + note) |
+| Status summary (`summary`, 1.13) | `summary/index.html.twig` | `page/dashboard` | `DashboardPage` (header `summary.title`, action Public status page when the tenant's page is public; `data-testid="uptime-summary"`); `rows` (active monitors + latest check), `counts`, `overall_status`, `public_url`, `summary_empty` (`EmptyState` with the way to the monitors) | `nowo_ui_dashboard_cards` (n of m operational, the others by status, the monitors linking to their page) |
 
 ### Settings pages
 
-`SettingsController::renderSettings()` builds one `SettingsSection` per screen (`UptimeAreaNav::SETTINGS_SECTIONS`:
-general, appearance, notifications, reverse_proxy, tags, history, backup, about) with its href, so the scaffold
+`SettingsController::renderSettings()` builds one `SettingsSection` per screen the host keeps (`web_ui.settings.sections`,
+since 1.13; default all of `UptimeAreaNav::SETTINGS_SECTIONS`: general, appearance, notifications, reverse_proxy,
+status_page, tags, history, backup, about — the others answer 404) with its href, so the scaffold
 renders the section tabs; `current` is the screen and only that section carries the form (`formThemes` =
 `web_ui.form_themes`). Header: `settings.title`, intro = tenant name, back link to the dashboard,
 `data-testid="uptime-settings"`. Each section body is wrapped in `data-testid="uptime-settings-<section>"`.

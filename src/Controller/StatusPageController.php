@@ -22,6 +22,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
+use function in_array;
 use function is_string;
 use function sprintf;
 
@@ -46,7 +47,8 @@ final class StatusPageController extends AbstractController
     }
 
     /**
-     * Renders the public status page of a tenant (unpaused monitors and the overall status).
+     * Renders the public status page of a tenant (its unpaused monitors — those chosen in Settings → Status page, if
+     * any — and the overall status).
      *
      * @param string $tenantSlug Tenant slug from the route
      *
@@ -77,6 +79,11 @@ final class StatusPageController extends AbstractController
             $this->monitorRepository->findByTenantSlug($tenantSlug),
             static fn (Monitor $m): bool => !$m->isPaused(),
         ));
+        // Settings → Status page (since 1.13): the monitors the tenant chose; none chosen: every active one.
+        $chosen = TenantSettings::from($tenant)->getStatusPageMonitorIds();
+        if ($chosen !== []) {
+            $monitors = array_values(array_filter($monitors, static fn (Monitor $m): bool => in_array((int) $m->getId(), $chosen, true)));
+        }
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {
             // Listeners may only narrow the list (SEC-004 I1): monitors of another tenant or paused ones are dropped.
             $monitors = array_values(array_filter(

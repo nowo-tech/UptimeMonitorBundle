@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.13.0](#to-1130)
 - [To 1.12.1](#to-1121)
 - [To 1.12.0](#to-1120)
   - [Template contract](#template-contract)
@@ -98,6 +99,24 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.13.0
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+- **Settings → Status page** is a new screen: the *Public status page* visibility moved there from *General*
+  (`SettingsGeneralData::$statusPageVisibility` and the General form field are gone; the stored value is unchanged).
+  It also chooses the monitors the public page shows (tenant setting `status_page_monitors`; empty = all).
+- **`web_ui.settings.sections`** (default: every screen, now with `status_page`): a host that owns some settings lists
+  the screens to keep; the others answer 404 and leave the tabs.
+- **Tags** are edited at `/settings/tags/{id}`; a blank or duplicate (case-insensitive) name is refused on the form
+  (HTTP 422) instead of being ignored or failing on the unique key.
+- **Status summary**: `/{tenantSlug}/summary` (route `nowo_uptime_summary`, page id `summary` for
+  `web_ui.templates`), checked like the dashboard (`canAccessTenant`).
+- **Constructor additions** (optional, appended): `SettingsController` (`SettingsSections`, `MonitorRepository`,
+  `status_page` config), `UptimeAreaNav` (`SettingsSections`).
 
 ## To 1.12.1
 
