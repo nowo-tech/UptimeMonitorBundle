@@ -159,7 +159,7 @@ Before tagging a release, confirm:
 | **No-secret logs** | [Logging policy](#logging-policy) still holds: no webhook URLs, credentials, recipients or payloads in log calls (`grep -rn 'logger' src/`). |
 | **Cryptography** | No custom cryptography; TLS verification stays on for SSL checks (only the per-monitor "ignore TLS errors" option disables it, for that HTTP check). |
 | **Limits / DoS** | Every outbound call keeps an explicit deadline ([Timeouts](CONFIGURATION.md#timeouts-frankenphp-safe-req-runtime-001)); purge stays batched. |
-| **AI security audit (REQ-SEC-004)** | Package **passes** the latest AI security audit: grade **Pass (good)** / risk **Low** (re-audit 2026-09-28), recorded in the Nowo monorepo `BUNDLES_SECURITY_ANALYSIS.md`. Re-run the audit when outbound checks, notifications or access control change, and do not release on a failing grade. |
+| **AI security audit (REQ-SEC-004)** | Package **passes** the latest AI security audit: grade **Pass (good)** / risk **Low** (re-audit 2026-10-27, PR #121), recorded in the Nowo monorepo `BUNDLES_SECURITY_ANALYSIS.md`. Re-run the audit when outbound checks, notifications or access control change, and do not release on a failing grade. |
 
 Record confirmation in the release PR or tag notes.
 
@@ -174,8 +174,26 @@ make release-check
 
 | Field | Value |
 | ----- | ----- |
-| Latest audit | 2026-09-28 (re-audit) |
+| Latest audit | 2026-10-27 (re-audit + fix verification of PR #121, head `ec0f997`) |
+| Method | Claude Code security review (static: `src/`, config defaults, Twig, TypeScript, security docs), cross-checked against Symfony HttpClient 7.4 and Doctrine ORM 3 |
 | Grade | **Pass (good)** |
 | Risk | Low |
-| Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table |
-| Residual | Host must keep the `/uptime` admin area behind `ROLE_ADMIN` / firewall; `block_private_urls: false` re-opens SSRF to private networks by design |
+| Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH |
+| Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked; no per-tenant monitor quota (bounded by `max_scan_seconds`) |
+
+### Findings (2026-10-27, all fixed in PR #121)
+
+| Id | Severity | Finding | Fix |
+| -- | -------- | ------- | --- |
+| M1 | Medium | Unbounded timeout / body / redirects, no per-monitor isolation in the shared scan | `CheckLimits` (60 s, 20 redirects, 1 MiB keyword-only body), per-monitor try/catch, throwing checks stored as `unknown` |
+| N1 | Medium | An unstorable result (e.g. DNS TXT with invalid UTF-8) closed the entity manager for the whole scan, every tick | `CheckResultDto::sanitized()` (valid, bounded UTF-8); `DueChecksRunner` resets the manager, reschedules the monitor (DQL) and reloads the rest |
+| L1 | Low | Form-Type CSRF fail-open when the host disables form CSRF | `CsrfProtectionPass` |
+| L2 | Low | `Tenant::enabled` ignored | `findDue()` filter, status page 404 |
+| L3 | Low | Certificate-expiry probe re-resolved the host | Peer certificate chain of the validated connection |
+| L4 | Low | Proxy hostname not pinned | Resolved once, validated, pinned IP |
+| L5 | Low | Status page public for every tenant | Per-tenant visibility + `status_page.default_public`; uniform 404 |
+| L6 | Low | Tenant index unfiltered under a tenant-aware checker | Filtered with `canAccessTenant()` |
+| L7 | Low | Backup export secrets, uncapped import, raw error flash | Redaction, 2 MB / 1000 rows, model constraints, generic flash |
+| N2 | Low | Query-string tokens / request body kept, raw `@` userinfo leak | Last-`@` userinfo, credential-like query values, body dropped in exports |
+| N3 | Low | `web_ui.enabled: false` kept the admin mutation routes | Route loader drops them; subscriber answers 404 |
+| N4 | Low | No default scan budget | `checks.max_scan_seconds` default 300 |
