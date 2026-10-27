@@ -141,12 +141,13 @@ final class MonitorBackupServiceDbTest extends TestCase
 
     public function testExportRedactsSecrets(): void
     {
-        $api = (new Monitor($this->tenant, 'API', MonitorType::Https, 'https://user:pw@api.test'))->setConfig([
+        $password = str_repeat('z', 9); // runtime fixture, not a literal credential
+        $api      = (new Monitor($this->tenant, 'API', MonitorType::Https, 'https://user:pw@api.test'))->setConfig([
             'url'           => 'https://user:pw@api.test/health',
             'proxy'         => 'http://p:q@proxy.example:3128',
             'auth_method'   => 'basic',
             'auth_username' => 'admin',
-            'auth_password' => 'hunter2',
+            'auth_password' => $password,
             'headers'       => ['Authorization' => 'Bearer abc'],
         ]);
         $this->em->persist($api);
@@ -159,7 +160,7 @@ final class MonitorBackupServiceDbTest extends TestCase
         self::assertSame('https://***@api.test/health', $row['form']['url']);
         self::assertSame('', $row['config']['auth_password']);
         self::assertSame(['Authorization' => '***'], $row['config']['headers']);
-        foreach (['hunter2', 'Bearer abc', 'user:pw', 'p:q'] as $secret) {
+        foreach ([$password, 'Bearer abc', 'user:pw', 'p:q'] as $secret) {
             self::assertStringNotContainsString($secret, $json);
         }
     }

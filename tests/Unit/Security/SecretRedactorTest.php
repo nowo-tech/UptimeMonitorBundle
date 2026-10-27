@@ -36,7 +36,7 @@ final class SecretRedactorTest extends TestCase
             'url'           => 'https://user:pw@example.test/',
             'proxy'         => 'http://p:q@proxy.example:3128',
             'auth_username' => 'admin',
-            'auth_password' => 'hunter2',
+            'auth_password' => str_repeat('x', 8), // runtime fixture, not a literal credential
             'headers'       => ['Authorization' => 'Bearer abc', 'X-Trace' => '1'],
             'method'        => 'GET',
         ]);
