@@ -730,7 +730,9 @@ final class SettingsController extends AbstractUptimeController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $tag = $editing ?? new Tag($tenant, $tagData->name);
+            // @igor-ignore - Doctrine entity loaded for this request; not a shared service.
             $tag->setName($tagData->name);
+            // @igor-ignore - Doctrine entity loaded for this request; not a shared service.
             $tag->setColor($tagData->color !== '' ? $tagData->color : null);
             if ($editing === null) {
                 $this->entityManager->persist($tag);
