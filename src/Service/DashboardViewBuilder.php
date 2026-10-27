@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Service;
 
-use DateTimeImmutable;
 use DateTimeInterface;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -13,6 +12,8 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 
 /**
  * Builds grouped dashboard rows with history bars and uptime metrics.
@@ -25,6 +26,7 @@ final readonly class DashboardViewBuilder
         private CheckAggregateRepository $aggregateRepository,
         private UptimeMetricsService $metricsService,
         private TenantDashboardSerializer $tenantSerializer,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -86,7 +88,7 @@ final readonly class DashboardViewBuilder
             $monitors,
         )));
 
-        $now           = new DateTimeImmutable();
+        $now           = $this->clock->now();
         $since24h      = $now->modify('-24 hours');
         $since30d      = $now->modify('-30 days');
         $latestResults = $this->checkResultRepository->findLatestByMonitorIds($ids);
@@ -122,23 +124,15 @@ final readonly class DashboardViewBuilder
             ];
         };
 
-        $assignedIds = [];
-        $sections    = [];
+        $sections = [];
 
         foreach ($this->monitorRepository->findGroupsByTenantSlug($tenantSlug) as $group) {
-            $groupId = $group->getId();
-            if ($groupId === null) {
-                continue;
-            }
-
+            // Loaded from the database: the id is set.
+            $groupId  = (int) $group->getId();
             $groupRow = $rowBuilder($group);
             $children = [];
 
             foreach ($this->monitorRepository->findChildrenOf($groupId) as $child) {
-                $childId = $child->getId();
-                if ($childId !== null) {
-                    $assignedIds[$childId] = true;
-                }
                 $childRow           = $rowBuilder($child);
                 $childRow['nested'] = true;
                 $children[]         = $childRow;
@@ -154,12 +148,8 @@ final readonly class DashboardViewBuilder
 
         $legacyByProject = [];
         foreach ($monitors as $monitor) {
+            // Group children (parent set) are already listed under their group.
             if ($monitor->getType() === MonitorType::Group || $monitor->getParent() !== null) {
-                continue;
-            }
-
-            $monitorId = $monitor->getId();
-            if ($monitorId !== null && isset($assignedIds[$monitorId])) {
                 continue;
             }
 
@@ -192,7 +182,7 @@ final readonly class DashboardViewBuilder
      */
     public function buildMonitorDetail(Monitor $monitor): array
     {
-        $now      = new DateTimeImmutable();
+        $now      = $this->clock->now();
         $since24h = $now->modify('-24 hours');
         $since30d = $now->modify('-30 days');
 

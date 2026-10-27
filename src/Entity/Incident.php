@@ -30,9 +30,10 @@ class Incident
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         private Monitor $monitor, #[ORM\Column(type: Types::STRING, length: 16, enumType: CheckStatus::class)]
         private CheckStatus $triggerStatus, #[ORM\Column(type: Types::TEXT, nullable: true)]
-        private ?string $message = null)
+        private ?string $message = null, ?DateTimeImmutable $startedAt = null)
     {
-        $this->startedAt = new DateTimeImmutable();
+        // Services pass their injected clock time; the default keeps `new Incident(...)` usable on its own.
+        $this->startedAt = $startedAt ?? new DateTimeImmutable();
     }
 
     public function getId(): ?int

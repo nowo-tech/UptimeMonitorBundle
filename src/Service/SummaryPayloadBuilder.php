@@ -10,6 +10,8 @@ use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 
 use function array_slice;
 use function count;
@@ -24,6 +26,7 @@ final readonly class SummaryPayloadBuilder
         private CheckResultRepository $checkResultRepository,
         private UptimeMetricsService $metricsService,
         private TenantDashboardSerializer $tenantSerializer,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -32,7 +35,9 @@ final readonly class SummaryPayloadBuilder
      *     tenant: string,
      *     since: string|null,
      *     server_time: string,
-     *     monitors: list<array<string, mixed>>
+     *     monitors: list<array<string, mixed>>,
+     *     stats?: array{up: int, down: int, degraded: int, unknown: int, paused: int},
+     *     events?: list<array<string, mixed>>
      * }
      */
     public function buildTenantSummary(string $tenantSlug, ?DateTimeImmutable $since = null): array
@@ -42,7 +47,7 @@ final readonly class SummaryPayloadBuilder
             static fn (Monitor $m): ?int => $m->getId(),
             $monitors,
         )));
-        $now           = new DateTimeImmutable();
+        $now           = $this->clock->now();
         $since24h      = $now->modify('-24 hours');
         $latestResults = $this->checkResultRepository->findLatestByMonitorIds($ids);
         $history24h    = $this->checkResultRepository->findRecentByMonitorIds(
@@ -108,7 +113,7 @@ final readonly class SummaryPayloadBuilder
         array $checks24h = [],
     ): array {
         if ($historyChecks === [] && $checks24h === []) {
-            $since24h      = (new DateTimeImmutable())->modify('-24 hours');
+            $since24h      = $this->clock->now()->modify('-24 hours');
             $historyChecks = $this->checkResultRepository->findRecentForMonitor(
                 $monitor,
                 $since24h,
@@ -188,7 +193,7 @@ final readonly class SummaryPayloadBuilder
 
         return [
             'type'        => 'monitor_update',
-            'server_time' => (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
+            'server_time' => $this->clock->now()->format(DateTimeInterface::ATOM),
             'monitor'     => $this->buildMonitorSummaryItem($monitor, $result),
             'event'       => $this->tenantSerializer->serializeEvent($result),
             'stats'       => $this->tenantSerializer->buildQuickStats($monitors, $latestResults),

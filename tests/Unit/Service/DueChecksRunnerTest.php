@@ -14,11 +14,10 @@ use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\DueChecksRunner;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\DueChecksRunner
- */
+#[CoversClass(DueChecksRunner::class)]
 final class DueChecksRunnerTest extends TestCase
 {
     use SyncDispatcherTestTrait;

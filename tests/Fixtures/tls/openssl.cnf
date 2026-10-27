@@ -1,0 +1,5 @@
+# Minimal OpenSSL config for generating throwaway test certificates (StreamSocketConnectorTest).
+[ req ]
+distinguished_name = req_distinguished_name
+
+[ req_distinguished_name ]

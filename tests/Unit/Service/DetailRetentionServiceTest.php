@@ -12,11 +12,10 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\DetailRetentionService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\DetailRetentionService
- */
+#[CoversClass(DetailRetentionService::class)]
 final class DetailRetentionServiceTest extends TestCase
 {
     public function testPurgeReturnsZeroWhenDisabled(): void

@@ -17,13 +17,12 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\DoctrineQueryBuilderTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use Symfony\Component\Console\Tester\CommandTester;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Command\RollupCommand
- */
+#[CoversClass(RollupCommand::class)]
 final class RollupCommandTest extends TestCase
 {
     use DoctrineQueryBuilderTrait;

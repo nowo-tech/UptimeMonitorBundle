@@ -7,11 +7,10 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Form;
 use Nowo\UptimeMonitorBundle\Form\Model\TagFormData;
 use Nowo\UptimeMonitorBundle\Form\TagFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Component\Form\Test\TypeTestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Form\TagFormType
- */
+#[CoversClass(TagFormType::class)]
 final class TagFormTypeTest extends TypeTestCase
 {
     /**

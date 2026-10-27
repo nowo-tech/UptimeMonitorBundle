@@ -11,15 +11,14 @@ use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 
 use function in_array;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher
- */
+#[CoversClass(DashboardSyncDispatcher::class)]
 final class DashboardSyncDispatcherTest extends TestCase
 {
     use SyncDispatcherTestTrait;
@@ -74,5 +73,50 @@ final class DashboardSyncDispatcherTest extends TestCase
         );
 
         self::assertSame('/uptime/acme', $dispatcher->resolveTopic('acme'));
+    }
+
+    public function testTenantRefreshPublishesAResetPayload(): void
+    {
+        $published = [];
+        $hub       = $this->createMock(HubInterface::class);
+        $hub->method('publish')->willReturnCallback(static function (Update $update) use (&$published): string {
+            $published[] = $update;
+
+            return 'id';
+        });
+
+        $dispatcher = new DashboardSyncDispatcher(
+            $this->summaryPayloadBuilder(),
+            ['sync' => 'mercure', 'mercure' => ['topic_template' => '/t/{tenant}', 'private' => false]],
+            $hub,
+        );
+
+        self::assertTrue($dispatcher->isMercureEnabled());
+        $dispatcher->dispatchTenantRefresh('main');
+
+        self::assertCount(1, $published);
+        self::assertSame(['/t/main'], $published[0]->getTopics());
+        self::assertFalse($published[0]->isPrivate());
+        self::assertStringContainsString('"type":"dashboard_reset"', $published[0]->getData());
+    }
+
+    public function testNothingIsPublishedWithoutMercureOrHub(): void
+    {
+        $tenant  = new Tenant('main', 'Main');
+        $monitor = new Monitor($tenant, 'API', MonitorType::Https, 'https://x.test');
+        $result  = new CheckResult($monitor, CheckStatus::Up, 10);
+
+        $hub = $this->createMock(HubInterface::class);
+        $hub->expects(self::never())->method('publish');
+
+        $polling = new DashboardSyncDispatcher($this->summaryPayloadBuilder(), [], $hub);
+        $polling->dispatchTenantRefresh('main');
+        self::assertFalse($polling->isMercureEnabled());
+
+        $noHub = new DashboardSyncDispatcher($this->summaryPayloadBuilder(), ['sync' => 'mercure']);
+        $noHub->dispatchTenantRefresh('main');
+        $noHub->dispatchAfterCheck($monitor, $result);
+        self::assertFalse($noHub->isMercureEnabled());
+        self::assertSame('/uptime/main', $noHub->resolveTopic('main'));
     }
 }

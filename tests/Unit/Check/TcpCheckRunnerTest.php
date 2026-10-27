@@ -4,111 +4,109 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Check;
 
+use Nowo\UptimeMonitorBundle\Check\Network\SocketConnection;
 use Nowo\UptimeMonitorBundle\Check\TcpCheckRunner;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
-use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
+use Nowo\UptimeMonitorBundle\Tests\Support\FakeSocketConnector;
+use Nowo\UptimeMonitorBundle\Tests\Support\OfflineDns;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Check\TcpCheckRunner
- */
+#[CoversClass(TcpCheckRunner::class)]
 final class TcpCheckRunnerTest extends TestCase
 {
-    public function testSupportsTcpType(): void
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function monitor(array $config, MonitorType $type = MonitorType::Tcp): Monitor
     {
-        $runner  = new TcpCheckRunner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'TCP', MonitorType::Tcp, 'example.com:443');
-        $monitor->setConfig(['host' => 'example.com', 'port' => 443]);
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'TCP', $type, 'db.example:5432');
+        $monitor->setConfig($config);
 
-        self::assertTrue($runner->supports($monitor));
+        return $monitor;
     }
 
-    public function testRunReturnsDownWhenPortClosed(): void
+    public function testSupportsOnlyTcp(): void
     {
-        $runner  = new TcpCheckRunner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'TCP fail', MonitorType::Tcp, '127.0.0.1:1');
-        $monitor->setConfig(['host' => '127.0.0.1', 'port' => 1, 'timeout' => 1.0]);
+        $runner = new TcpCheckRunner();
 
-        $result = $runner->run($monitor);
-
-        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertTrue($runner->supports($this->monitor([])));
+        self::assertFalse($runner->supports($this->monitor([], MonitorType::Http)));
     }
 
-    public function testRunReturnsUpForOpenPort(): void
+    public function testUpConnectsToTheResolvedAddressWithDefaults(): void
     {
-        $runner  = new TcpCheckRunner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'DNS port', MonitorType::Tcp, '8.8.8.8:53');
-        $monitor->setConfig(['host' => '8.8.8.8', 'port' => 53, 'timeout' => 3.0]);
+        $connector = new FakeSocketConnector(new SocketConnection(true));
+        $runner    = new TcpCheckRunner(OfflineDns::guard(['db.example:5432' => ['93.184.216.5']]), true, $connector);
 
-        $result = $runner->run($monitor);
+        $result = $runner->run($this->monitor([]));
 
         self::assertSame(CheckStatus::Up, $result->status);
+        self::assertSame('tcp://93.184.216.5:443', $connector->calls[0]['remote']);
+        self::assertSame(10.0, $connector->calls[0]['timeout']);
     }
 
-    public function testSupportsOnlyTcpType(): void
+    public function testIpv6AddressIsBracketed(): void
     {
-        $runner  = new TcpCheckRunner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'HTTP', MonitorType::Http, 'https://x.test');
+        $connector = new FakeSocketConnector(new SocketConnection(true));
+        $runner    = new TcpCheckRunner(OfflineDns::guard([], ['db.example' => ['2606:4700::5']]), true, $connector);
 
-        self::assertFalse($runner->supports($monitor));
+        $runner->run($this->monitor(['host' => 'db.example', 'port' => 5432, 'timeout' => 2]));
+
+        self::assertSame('tcp://[2606:4700::5]:5432', $connector->calls[0]['remote']);
+        self::assertSame(2.0, $connector->calls[0]['timeout']);
     }
 
-    public function testRunBlocksPrivateHostByDefault(): void
+    public function testDownReportsTheConnectionError(): void
     {
-        $runner  = new TcpCheckRunner();
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Private', MonitorType::Tcp, '127.0.0.1');
-        $monitor->setConfig(['host' => '127.0.0.1', 'port' => 6379, 'timeout' => 1.0]);
+        $runner = new TcpCheckRunner(OfflineDns::guard(), false, new FakeSocketConnector(new SocketConnection(false, 111, 'Connection refused')));
 
-        $result = $runner->run($monitor);
+        $result = $runner->run($this->monitor(['host' => '127.0.0.1', 'port' => 1]));
 
         self::assertSame(CheckStatus::Down, $result->status);
-        self::assertStringContainsString('private or local', (string) $result->message);
+        self::assertSame('Connection refused', $result->message);
     }
 
-    public function testRunBlocksIpv4MappedLoopback(): void
+    public function testDownWithoutErrorMessageReportsErrno(): void
     {
-        $runner  = new TcpCheckRunner(new MonitorUrlSsrfGuard(), true);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Mapped', MonitorType::Tcp, '::ffff:127.0.0.1');
-        $monitor->setConfig(['host' => '[::ffff:127.0.0.1]', 'port' => 443, 'timeout' => 1.0]);
+        $runner = new TcpCheckRunner(OfflineDns::guard(), false, new FakeSocketConnector(new SocketConnection(false, 110)));
 
-        self::assertStringContainsString('private or local', (string) $runner->run($monitor)->message);
+        self::assertSame('TCP connection failed (errno 110)', $runner->run($this->monitor(['host' => '127.0.0.1']))->message);
     }
 
-    public function testRunReturnsDownWhenHostUnresolvable(): void
+    public function testPrivateTargetsAreBlocked(): void
     {
-        $runner  = new TcpCheckRunner(new MonitorUrlSsrfGuard(), true);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Unresolvable', MonitorType::Tcp, 'does-not-exist.invalid');
-        $monitor->setConfig(['host' => 'does-not-exist.invalid', 'port' => 443, 'timeout' => 1.0]);
+        $connector = new FakeSocketConnector(new SocketConnection(true));
+        $runner    = new TcpCheckRunner(OfflineDns::guard(), true, $connector);
 
-        $result = $runner->run($monitor);
+        foreach (['127.0.0.1', '[::ffff:127.0.0.1]', 'localhost'] as $host) {
+            $result = $runner->run($this->monitor(['host' => $host, 'port' => 6379]));
+            self::assertSame(CheckStatus::Down, $result->status);
+            self::assertStringContainsString('private or local', (string) $result->message);
+        }
+
+        self::assertSame([], $connector->calls);
+    }
+
+    public function testUnresolvableHostIsDown(): void
+    {
+        $runner = new TcpCheckRunner(OfflineDns::guard(), true, new FakeSocketConnector(new SocketConnection(true)));
+
+        $result = $runner->run($this->monitor(['host' => 'does-not-exist.invalid']));
 
         self::assertSame(CheckStatus::Down, $result->status);
-        self::assertStringContainsString('Could not resolve host', (string) $result->message);
+        self::assertSame('Could not resolve host does-not-exist.invalid', $result->message);
     }
 
-    public function testRunConnectsToPinnedIpv6Address(): void
+    public function testPrivateTargetsAreAllowedWhenBlockingIsDisabled(): void
     {
-        $runner  = new TcpCheckRunner(new MonitorUrlSsrfGuard(), true);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'IPv6', MonitorType::Tcp, '2001:4860:4860::8888');
-        $monitor->setConfig(['host' => '2001:4860:4860::8888', 'port' => 1, 'timeout' => 1.0]);
+        $connector = new FakeSocketConnector(new SocketConnection(true));
+        $runner    = new TcpCheckRunner(OfflineDns::guard(), false, $connector);
 
-        $result = $runner->run($monitor);
-
-        self::assertStringNotContainsString('private or local', (string) $result->message);
-    }
-
-    public function testRunAllowsPrivateHostWhenBlockDisabled(): void
-    {
-        $runner  = new TcpCheckRunner(new MonitorUrlSsrfGuard(), false);
-        $monitor = new Monitor(new Tenant('main', 'Main'), 'Private', MonitorType::Tcp, '127.0.0.1');
-        $monitor->setConfig(['host' => '127.0.0.1', 'port' => 1, 'timeout' => 1.0]);
-
-        $result = $runner->run($monitor);
-
-        self::assertSame(CheckStatus::Down, $result->status);
-        self::assertStringNotContainsString('private or local', (string) $result->message);
+        self::assertSame(CheckStatus::Up, $runner->run($this->monitor(['host' => 'localhost', 'port' => 6379]))->status);
+        self::assertSame('tcp://localhost:6379', $connector->calls[0]['remote']);
     }
 }

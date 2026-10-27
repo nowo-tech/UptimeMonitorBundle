@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\ArrayNode;
@@ -12,9 +13,7 @@ use Symfony\Component\Config\Definition\BaseNode;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\DependencyInjection\Configuration
- */
+#[CoversClass(Configuration::class)]
 final class ConfigurationTest extends TestCase
 {
     public function testConfigTreeBuilderUsesAliasAsRoot(): void
@@ -209,5 +208,17 @@ final class ConfigurationTest extends TestCase
         self::assertInstanceOf(BaseNode::class, $node);
         self::assertTrue($node->isDeprecated());
         self::assertSame('1.11', $node->getDeprecation($node->getName(), 'nowo_uptime_monitor')['version']);
+    }
+
+    public function testRoleListsRejectEmptyOrNonStringRoles(): void
+    {
+        foreach ([['ROLE_A', ''], ['ROLE_A', 3]] as $roles) {
+            try {
+                (new Processor())->processConfiguration(new Configuration(), [['security' => ['roles' => ['manage' => $roles]]]]);
+                self::fail('Expected an invalid role list.');
+            } catch (InvalidConfigurationException) {
+                $this->addToAssertionCount(1);
+            }
+        }
     }
 }

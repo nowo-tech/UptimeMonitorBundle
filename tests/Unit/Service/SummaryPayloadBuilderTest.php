@@ -14,11 +14,10 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\SummaryPayloadBuilder;
 use Nowo\UptimeMonitorBundle\Service\TenantDashboardSerializer;
 use Nowo\UptimeMonitorBundle\Service\UptimeMetricsService;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\SummaryPayloadBuilder
- */
+#[CoversClass(SummaryPayloadBuilder::class)]
 final class SummaryPayloadBuilderTest extends TestCase
 {
     public function testBuildTenantSummary(): void

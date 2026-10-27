@@ -9,6 +9,8 @@ use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 
 use function sprintf;
 
@@ -19,6 +21,7 @@ final readonly class AggregateChartService
 {
     public function __construct(
         private CheckAggregateRepository $aggregateRepository,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -35,7 +38,7 @@ final readonly class AggregateChartService
         AggregatePeriod $period,
         int $days = 30,
     ): array {
-        $to   = new DateTimeImmutable();
+        $to   = $this->clock->now();
         $from = $to->modify(sprintf('-%d days', max(1, $days)));
 
         $aggregates = $this->aggregateRepository->findForMonitorInRange($monitor, $period, $from, $to);
@@ -48,7 +51,7 @@ final readonly class AggregateChartService
      */
     public function buildTenantOverview(string $tenantSlug, int $days = 7): array
     {
-        $to     = new DateTimeImmutable();
+        $to     = $this->clock->now();
         $from   = $to->modify(sprintf('-%d days', max(1, $days)));
         $period = AggregatePeriod::Day;
         $rows   = $this->aggregateRepository->findTenantOverview($tenantSlug, $period, $from, $to);

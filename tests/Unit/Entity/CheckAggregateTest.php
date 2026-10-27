@@ -10,11 +10,10 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Entity\CheckAggregate
- */
+#[CoversClass(CheckAggregate::class)]
 final class CheckAggregateTest extends TestCase
 {
     public function testRecordCheckAndApplyTotals(): void

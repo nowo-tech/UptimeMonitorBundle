@@ -8,15 +8,14 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use Nowo\UptimeMonitorBundle\EventSubscriber\ClosedEntityManagerSubscriber;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\EventSubscriber\ClosedEntityManagerSubscriber
- */
+#[CoversClass(ClosedEntityManagerSubscriber::class)]
 final class ClosedEntityManagerSubscriberTest extends TestCase
 {
     public function testSubscribesAfterRouter(): void

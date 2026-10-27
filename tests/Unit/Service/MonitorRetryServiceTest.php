@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Nowo\UptimeMonitorBundle\Tests\Service;
+namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;

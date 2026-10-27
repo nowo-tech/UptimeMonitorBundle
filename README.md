@@ -1,6 +1,6 @@
 # Uptime Monitor Bundle
 
-[![CI](https://github.com/nowo-tech/UptimeMonitorBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/UptimeMonitorBundle/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/uptime-monitor-bundle.svg?style=flat)](https://packagist.org/packages/nowo-tech/uptime-monitor-bundle) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/uptime-monitor-bundle.svg)](https://packagist.org/packages/nowo-tech/uptime-monitor-bundle) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-7.4%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/uptime-monitor-bundle.svg?style=social&label=Star)](https://github.com/nowo-tech/UptimeMonitorBundle) [![Coverage](https://img.shields.io/badge/Coverage-99%25-brightgreen)](#tests-and-coverage)
+[![CI](https://github.com/nowo-tech/UptimeMonitorBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/UptimeMonitorBundle/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/uptime-monitor-bundle.svg?style=flat)](https://packagist.org/packages/nowo-tech/uptime-monitor-bundle) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/uptime-monitor-bundle.svg)](https://packagist.org/packages/nowo-tech/uptime-monitor-bundle) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-7.4%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/uptime-monitor-bundle.svg?style=social&label=Star)](https://github.com/nowo-tech/UptimeMonitorBundle) [![Coverage](https://img.shields.io/badge/PHP%20coverage-100%25-brightgreen)](#tests-and-coverage)
 
 > ⭐ **Found this useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
@@ -114,16 +114,28 @@ make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 
 ## Tests and coverage
 
-| Language | Coverage (approx.) | Command |
-|----------|-------------------|---------|
-| PHP | 95% | `make test-coverage` |
-| TypeScript | 99.08% lines (Vitest, gate ≥ 90% in `vitest.config.ts`) | `make test-ts` |
-| Python | N/A | — |
+Measured on 2026-10-27 (same commands as CI):
+
+| Language | Line coverage | Gate | Command |
+|----------|---------------|------|---------|
+| PHP | **100%** (4296/4296 lines, 525/525 methods) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
+| TypeScript | **99.08%** lines (Vitest v8) | 90% — `vitest.config.ts` thresholds (CI `frontend` job, `make test-ts`) | `make test-ts` |
+| Python | N/A (no Python code) | — | — |
+
+- **PHP** — PHPUnit `tests/Unit` and `tests/Integration`. Repository, schema-sync, dashboard read-model, backup and
+  console-command tests run against a real Doctrine ORM schema (PHPUnit group `db`: `vendor/bin/phpunit --group db`)
+  on in-memory SQLite, and on MySQL and PostgreSQL with `make test-with-db` (`UPTIME_TEST_DATABASE_URL`). Network
+  checks run offline: `MockHttpClient` for HTTP, a fake `SocketConnectorInterface` and DNS lookups for
+  TCP/SSL/DNS/ping, and a loopback-only TLS server for the default socket connector. Time-dependent code is tested with `Symfony\Component\Clock\MockClock`.
+- **Measured scope** — all of `src/` (controllers and the Twig extension included); no exclusion in
+  `phpunit.xml.dist` and no `@codeCoverageIgnore`.
+- **TypeScript** — Vitest specs for the dashboard assets (`src/Resources/assets/src/*.test.ts`); the run fails below
+  the 90% thresholds of `vitest.config.ts`.
 
 ```bash
 make test
 make test-coverage
-make test-coverage-90
+make test-coverage-100
 make test-ts
 make release-check
 ```

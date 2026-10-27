@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Service;
 
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 
 use function count;
 
@@ -28,6 +29,7 @@ final readonly class DemoSeedService
         private EntityManagerInterface $entityManager,
         private TenantRepository $tenantRepository,
         private MonitorRepository $monitorRepository,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -75,11 +77,11 @@ final readonly class DemoSeedService
 
             if ($existing === null) {
                 $existing = new Monitor($tenant, $label, MonitorType::Group, $label);
-                $existing->setIntervalSeconds(30)->setNextCheckAt(new DateTimeImmutable());
+                $existing->setIntervalSeconds(30)->setNextCheckAt($this->clock->now());
                 $this->entityManager->persist($existing);
                 ++$created;
             } else {
-                $existing->setIntervalSeconds(30)->setNextCheckAt(new DateTimeImmutable());
+                $existing->setIntervalSeconds(30)->setNextCheckAt($this->clock->now());
             }
 
             $groups[$key] = $existing;
@@ -91,9 +93,7 @@ final readonly class DemoSeedService
                 'name'   => $definition['name'],
             ]);
 
-            $group = isset($definition['group'], $groups[$definition['group']])
-                ? $groups[$definition['group']]
-                : null;
+            $group = $groups[$definition['group']] ?? null;
 
             if ($existing !== null) {
                 $this->applyDefinition($existing, $definition, $group);
@@ -107,7 +107,7 @@ final readonly class DemoSeedService
                 $definition['target'],
             );
             $this->applyDefinition($monitor, $definition, $group);
-            $monitor->setNextCheckAt(new DateTimeImmutable());
+            $monitor->setNextCheckAt($this->clock->now());
 
             $this->entityManager->persist($monitor);
             ++$created;

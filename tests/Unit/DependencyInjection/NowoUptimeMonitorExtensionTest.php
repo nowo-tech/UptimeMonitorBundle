@@ -14,15 +14,14 @@ use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeDoctrineExtension;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeFrameworkExtension;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension
- */
+#[CoversClass(UptimeMonitorExtension::class)]
 final class NowoUptimeMonitorExtensionTest extends TestCase
 {
     public function testAliasAndParameters(): void

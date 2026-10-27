@@ -104,11 +104,8 @@ final readonly class DnsCheckRunner implements CheckRunnerInterface
             $found = false;
             foreach ($records as $record) {
                 $value = $record['ip'] ?? $record['ipv6'] ?? $record['target'] ?? $record['txt'] ?? null;
+                // `ip` wins the lookup above, so an exact `ip` match is always a str_contains() match too.
                 if (is_string($value) && str_contains($value, $expected)) {
-                    $found = true;
-                    break;
-                }
-                if (isset($record['ip']) && $record['ip'] === $expected) {
                     $found = true;
                     break;
                 }

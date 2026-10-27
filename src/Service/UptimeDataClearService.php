@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Service;
 
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use InvalidArgumentException;
@@ -16,6 +15,8 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 use function count;
@@ -37,6 +38,7 @@ final readonly class UptimeDataClearService
         private MonitorRepository $monitorRepository,
         #[Autowire('%nowo_uptime_monitor.retention%')]
         private array $retentionConfig = [],
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -100,7 +102,7 @@ final readonly class UptimeDataClearService
             ? $this->monitorRepository->findByTenantSlug($tenantSlug)
             : $this->monitorRepository->findAll();
 
-        $now = new DateTimeImmutable();
+        $now = $this->clock->now();
 
         foreach ($monitors as $monitor) {
             $monitor

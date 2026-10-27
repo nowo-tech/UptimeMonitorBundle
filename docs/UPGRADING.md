@@ -92,6 +92,15 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+### Clock and check seams (REQ-DI-001)
+
+- `symfony/clock` is now required (already installed with `symfony/scheduler`). Freezing time in tests: replace the
+  `clock` service (or pass a `Symfony\Component\Clock\MockClock` to the bundle services you construct yourself).
+- Code that calls `DueChecksRunner::runDueChecks()` without argument keeps working; passing `null` now means "now".
+- Custom subclasses are not affected (the bundle services are final); hosts constructing `TcpCheckRunner`,
+  `SslCheckRunner`, `HttpCheckRunner`, `PingCheckRunner` or `MonitorUrlSsrfGuard` by hand can keep their arguments:
+  the new ones are optional and appended at the end.
+
 ### Template contract (REQ-UI-003)
 
 The admin pages are UiKit page scaffolds (UiKit ^2.15.1); see [TEMPLATES.md](TEMPLATES.md) for every page →

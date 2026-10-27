@@ -180,7 +180,7 @@ check-no-raw-html-form:
 	@chmod +x .scripts/check-no-raw-html-form.sh
 	@./.scripts/check-no-raw-html-form.sh
 
-release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form composer-sync cs-fix cs-check rector-dry phpstan igor validate-translations test-coverage-90 release-check-demos test-e2e test-ts
+release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form composer-sync cs-fix cs-check rector-dry phpstan igor validate-translations test-coverage-100 release-check-demos test-e2e test-ts
 
 clean:
 	rm -rf vendor coverage coverage-ts .phpunit.cache coverage-php.txt coverage-ts.txt node_modules

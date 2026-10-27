@@ -10,11 +10,10 @@ use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
 use Nowo\UptimeMonitorBundle\Service\CheckLatencyNormalizer;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\CheckLatencyNormalizer
- */
+#[CoversClass(CheckLatencyNormalizer::class)]
 final class CheckLatencyNormalizerTest extends TestCase
 {
     public function testNoFloorWhenGlobalZero(): void

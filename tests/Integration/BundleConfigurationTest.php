@@ -7,15 +7,14 @@ namespace Nowo\UptimeMonitorBundle\Tests\Integration;
 use Nowo\UptimeMonitorBundle\Check\HttpCheckRunner;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
+use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
-/**
- * @coversNothing
- */
+#[CoversNothing]
 final class BundleConfigurationTest extends TestCase
 {
     public function testBundleClassExists(): void

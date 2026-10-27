@@ -22,6 +22,7 @@ use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
@@ -31,9 +32,7 @@ use function sys_get_temp_dir;
 use const CASE_LOWER;
 use const PHP_VERSION_ID;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener
- */
+#[CoversClass(TablePrefixListener::class)]
 final class TablePrefixListenerTest extends TestCase
 {
     public function testEmptyPrefixKeepsHistoricalNames(): void

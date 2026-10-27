@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Schedule;
 
 use Nowo\UptimeMonitorBundle\Schedule\UptimeMonitorScheduleProvider;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Schedule\UptimeMonitorScheduleProvider
- */
+#[CoversClass(UptimeMonitorScheduleProvider::class)]
 final class UptimeMonitorScheduleProviderTest extends TestCase
 {
     public function testGetScheduleDoesNotThrow(): void

@@ -57,4 +57,38 @@ final class TwigPathsPassTest extends TestCase
             @rmdir($projectDir);
         }
     }
+
+    public function testResolvesTheNativeLoaderAliasChain(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setDefinition('twig.loader.filesystem', new Definition('stdClass'));
+        $container->setAlias('twig.loader.chained', 'twig.loader.filesystem');
+        $container->setAlias('twig.loader.native', 'twig.loader.chained');
+
+        (new TwigPathsPass())->process($container);
+
+        self::assertSame('addPath', $container->getDefinition('twig.loader.filesystem')->getMethodCalls()[0][0]);
+    }
+
+    public function testDanglingAliasFallsBackToTheFilesystemLoader(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setAlias('twig.loader.native', 'missing.loader');
+        $container->setDefinition('twig.loader.native_filesystem', new Definition('stdClass'));
+
+        (new TwigPathsPass())->process($container);
+
+        self::assertNotEmpty($container->getDefinition('twig.loader.native_filesystem')->getMethodCalls());
+    }
+
+    public function testUsesTheNativeLoaderDefinition(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setDefinition('twig.loader.native', new Definition('stdClass'));
+        $container->setParameter('kernel.project_dir', sys_get_temp_dir() . '/uptime-monitor-no-overrides');
+
+        (new TwigPathsPass())->process($container);
+
+        self::assertCount(1, $container->getDefinition('twig.loader.native')->getMethodCalls());
+    }
 }

@@ -14,13 +14,12 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\DueChecksRunner;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\DoctrineQueryBuilderTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\MessageHandler\RunDueChecksMessageHandler
- */
+#[CoversClass(RunDueChecksMessageHandler::class)]
 final class RunDueChecksMessageHandlerTest extends TestCase
 {
     use DoctrineQueryBuilderTrait;

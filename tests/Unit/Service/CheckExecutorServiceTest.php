@@ -11,12 +11,12 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
+use Nowo\UptimeMonitorBundle\Service\CheckExecutorService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\CheckExecutorService
- */
+#[CoversClass(CheckExecutorService::class)]
 final class CheckExecutorServiceTest extends TestCase
 {
     use SyncDispatcherTestTrait;
@@ -79,5 +79,29 @@ final class CheckExecutorServiceTest extends TestCase
         $service = $this->checkExecutorService([$runner], $entityManager, [], 3);
 
         self::assertSame(3, $service->execute($monitor)->getLatencyMs());
+    }
+
+    public function testChildCheckRefreshesItsActiveParentGroup(): void
+    {
+        $tenant = new Tenant('main', 'Main');
+        $group  = new Monitor($tenant, 'Group', MonitorType::Group, 'Group');
+        $child  = (new Monitor($tenant, 'API', MonitorType::Https, 'https://example.test'))->setParent($group);
+        $paused = (new Monitor($tenant, 'Paused group', MonitorType::Group, 'P'))->setPaused(true);
+        $orphan = (new Monitor($tenant, 'Other', MonitorType::Https, 'https://other.test'))->setParent($paused);
+
+        $checked = [];
+        $runner  = $this->createMock(CheckRunnerInterface::class);
+        $runner->method('supports')->willReturn(true);
+        $runner->method('run')->willReturnCallback(static function (Monitor $monitor) use (&$checked): CheckResultDto {
+            $checked[] = $monitor->getName();
+
+            return new CheckResultDto(CheckStatus::Up, 1);
+        });
+
+        $service = $this->checkExecutorService([$runner]);
+        $service->execute($child);
+        $service->execute($orphan);
+
+        self::assertSame(['API', 'Group', 'Other'], $checked);
     }
 }

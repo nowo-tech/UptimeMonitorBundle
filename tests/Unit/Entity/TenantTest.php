@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Entity;
 
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Entity\Tenant
- */
+#[CoversClass(Tenant::class)]
 final class TenantTest extends TestCase
 {
     public function testGettersAndEnabledFlag(): void

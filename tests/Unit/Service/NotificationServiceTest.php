@@ -12,13 +12,12 @@ use Nowo\UptimeMonitorBundle\Notification\NotificationChannelInterface;
 use Nowo\UptimeMonitorBundle\Notification\NotificationDeliveryException;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Nowo\UptimeMonitorBundle\Service\NotificationService;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\NotificationService
- */
+#[CoversClass(NotificationService::class)]
 final class NotificationServiceTest extends TestCase
 {
     public function testNotifyReturnsZeroWhenDisabled(): void

@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Form;
 
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Test\TypeTestCase;
 use Symfony\Component\Translation\Loader\ArrayLoader;
@@ -13,9 +14,7 @@ use Symfony\Component\Translation\Translator;
 use Symfony\Component\Validator\Validation;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Form\TenantFormType
- */
+#[CoversClass(TenantFormType::class)]
 final class TenantFormTypeTest extends TypeTestCase
 {
     /**

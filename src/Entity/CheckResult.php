@@ -25,6 +25,7 @@ class CheckResult
 
     /**
      * @param array<string, mixed>|null $metadata
+     * @param DateTimeImmutable|null $checkedAt Check time (defaults to now)
      */
     public function __construct(
         #[ORM\ManyToOne(targetEntity: Monitor::class)]
@@ -40,8 +41,10 @@ class CheckResult
         private ?string $message = null,
         #[ORM\Column(type: Types::JSON, nullable: true)]
         private ?array $metadata = null,
+        ?DateTimeImmutable $checkedAt = null,
     ) {
-        $this->checkedAt = new DateTimeImmutable();
+        // Services pass their injected clock time; the default keeps `new CheckResult(...)` usable on its own.
+        $this->checkedAt = $checkedAt ?? new DateTimeImmutable();
     }
 
     public function getId(): ?int

@@ -12,6 +12,8 @@ use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
@@ -27,13 +29,14 @@ final readonly class AggregateService
         private CheckAggregateRepository $aggregateRepository,
         #[Autowire('%nowo_uptime_monitor.aggregates%')]
         private array $aggregatesConfig,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
     public function recordFromCheck(Monitor $monitor, CheckResultDto $dto): void
     {
         $periods = $this->aggregatesConfig['periods'] ?? ['hour', 'day', 'month', 'year'];
-        $now     = new DateTimeImmutable();
+        $now     = $this->clock->now();
         $isUp    = $dto->status === CheckStatus::Up;
 
         foreach ($periods as $periodValue) {

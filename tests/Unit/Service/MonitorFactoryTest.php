@@ -8,12 +8,12 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
+use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\MonitorFactory
- */
+#[CoversClass(MonitorFactory::class)]
 final class MonitorFactoryTest extends TestCase
 {
     use SyncDispatcherTestTrait;

@@ -18,12 +18,11 @@ use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Nowo\UptimeMonitorBundle\Repository\IncidentRepository;
 use Nowo\UptimeMonitorBundle\Service\NotificationService;
 use Nowo\UptimeMonitorBundle\Service\StatusTransitionService;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\StatusTransitionService
- */
+#[CoversClass(StatusTransitionService::class)]
 final class StatusTransitionServiceTest extends TestCase
 {
     /**

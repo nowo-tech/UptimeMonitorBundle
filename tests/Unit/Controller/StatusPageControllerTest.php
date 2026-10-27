@@ -15,12 +15,11 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Controller\StatusPageController
- */
+#[CoversClass(StatusPageController::class)]
 final class StatusPageControllerTest extends TestCase
 {
     use ControllerContainerTrait;
@@ -88,5 +87,20 @@ final class StatusPageControllerTest extends TestCase
 
         $controller->index('main');
         $this->addToAssertionCount(1);
+    }
+
+    public function testIndexThrowsWhenTenantMissing(): void
+    {
+        $controller = new StatusPageController(
+            $this->createStub(TenantRepository::class),
+            $this->createStub(MonitorRepository::class),
+            $this->createStub(CheckResultRepository::class),
+            ['enabled' => true],
+        );
+        $this->bindController($controller);
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Tenant "nope" not found.');
+        $controller->index('nope');
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Check;
 
+use Nowo\UptimeMonitorBundle\Check\Network\SocketConnectorInterface;
+use Nowo\UptimeMonitorBundle\Check\Network\StreamSocketConnector;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -11,6 +13,9 @@ use Nowo\UptimeMonitorBundle\Model\CheckResultDto;
 use Nowo\UptimeMonitorBundle\Monitor\MonitorSettings;
 use Nowo\UptimeMonitorBundle\Monitor\StatusCodeMatcher;
 use Nowo\UptimeMonitorBundle\Security\MonitorUrlSsrfGuard;
+use OpenSSLCertificate;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpClient\NoPrivateNetworkHttpClient;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -18,6 +23,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 use function count;
 use function in_array;
+use function is_array;
 use function is_int;
 use function is_string;
 use function sprintf;
@@ -25,7 +31,6 @@ use function sprintf;
 use const CASE_LOWER;
 use const PHP_URL_HOST;
 use const PHP_URL_PORT;
-use const STREAM_CLIENT_CONNECT;
 
 /**
  * Executes HTTP/HTTPS monitor checks via Symfony HttpClient.
@@ -39,6 +44,8 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
         private ?HttpClientInterface $httpClient,
         private MonitorUrlSsrfGuard $ssrfGuard,
         private bool $blockPrivateUrls = true,
+        private ClockInterface $clock = new NativeClock(),
+        private SocketConnectorInterface $connector = new StreamSocketConnector(),
     ) {
     }
 
@@ -180,13 +187,10 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
 
     private function checkCertificateExpiry(string $url): ?string
     {
-        $host = parse_url($url, PHP_URL_HOST);
-        if (!is_string($host) || $host === '') {
-            return null;
-        }
-
-        $port    = (int) (parse_url($url, PHP_URL_PORT) ?? 443);
-        $context = stream_context_create([
+        // The request above already succeeded, so the URL has a host.
+        $host       = (string) parse_url($url, PHP_URL_HOST);
+        $port       = (int) (parse_url($url, PHP_URL_PORT) ?? 443);
+        $connection = $this->connector->connect(sprintf('ssl://%s:%d', $host, $port), 5.0, [
             'ssl' => [
                 'capture_peer_cert' => true,
                 'verify_peer'       => false,
@@ -194,34 +198,13 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
             ],
         ]);
 
-        $client = @stream_socket_client(
-            sprintf('ssl://%s:%d', $host, $port),
-            $errno,
-            $errstr,
-            5,
-            STREAM_CLIENT_CONNECT,
-            $context,
-        );
-
-        if ($client === false) {
+        $cert   = $connection->peerCertificate;
+        $parsed = $cert instanceof OpenSSLCertificate ? openssl_x509_parse($cert) : false;
+        if (!is_array($parsed) || !is_int($parsed['validTo_time_t'] ?? null)) {
             return null;
         }
 
-        $params = stream_context_get_params($client);
-        fclose($client);
-
-        $cert = $params['options']['ssl']['peer_certificate'] ?? null;
-        if ($cert === false || $cert === null) {
-            return null;
-        }
-
-        $parsed    = openssl_x509_parse($cert);
-        $expiresAt = $parsed['validTo_time_t'] ?? null;
-        if (!is_int($expiresAt)) {
-            return null;
-        }
-
-        $daysLeft = (int) floor(($expiresAt - time()) / 86400);
+        $daysLeft = (int) floor(($parsed['validTo_time_t'] - $this->clock->now()->getTimestamp()) / 86400);
         if ($daysLeft < 14) {
             return sprintf('TLS certificate expires in %d day(s)', max(0, $daysLeft));
         }

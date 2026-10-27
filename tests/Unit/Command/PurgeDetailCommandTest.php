@@ -12,12 +12,11 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\DetailRetentionService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Command\PurgeDetailCommand
- */
+#[CoversClass(PurgeDetailCommand::class)]
 final class PurgeDetailCommandTest extends TestCase
 {
     public function testExecuteReportsPurgedCount(): void

@@ -17,14 +17,13 @@ use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Controller\MonitorController
- */
+#[CoversClass(MonitorController::class)]
 final class MonitorControllerTest extends TestCase
 {
     use ControllerContainerTrait;

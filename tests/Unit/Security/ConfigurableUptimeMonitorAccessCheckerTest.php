@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Security;
 
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker
- */
+#[CoversClass(ConfigurableUptimeMonitorAccessChecker::class)]
 final class ConfigurableUptimeMonitorAccessCheckerTest extends TestCase
 {
     public function testGrantsWhenAreaRoleMatches(): void

@@ -7,12 +7,11 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Nowo\UptimeMonitorBundle\Service\SchemaSyncService;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\SchemaSyncService
- */
+#[CoversClass(SchemaSyncService::class)]
 final class SchemaSyncServiceTest extends TestCase
 {
     public function testFilterCreateStatementsSkipsExistingTables(): void

@@ -12,11 +12,10 @@ use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Service\AggregateChartService
- */
+#[CoversClass(AggregateChartService::class)]
 final class AggregateChartServiceTest extends TestCase
 {
     public function testBuildMonitorSeriesMapsAggregates(): void
