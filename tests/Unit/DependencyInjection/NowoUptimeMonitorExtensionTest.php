@@ -492,4 +492,28 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $webUi = $legacy->getParameter('nowo_uptime_monitor.web_ui');
         self::assertSame('me_', $webUi['tenant_paths'][0]['name_prefix']);
     }
+
+    public function testEveryRoleListEmptyFailsTheCompile(): void
+    {
+        $empty = ['access_roles' => [], 'roles' => ['dashboard' => [], 'manage' => [], 'settings' => []]];
+
+        try {
+            (new UptimeMonitorExtension())->load([['security' => $empty]], $this->containerWithSecurityBundle());
+            self::fail('Expected a LogicException for empty role lists.');
+        } catch (LogicException $e) {
+            self::assertStringContainsString('would deny everyone', $e->getMessage());
+        }
+
+        $custom = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['security' => $empty + ['access_checker' => 'app.uptime_access']]], $custom);
+        self::assertSame('app.uptime_access', (string) $custom->getAlias(UptimeMonitorAccessCheckerInterface::class));
+
+        $noUi = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['security' => $empty, 'web_ui' => ['enabled' => false]]], $noUi);
+        self::assertTrue($noUi->hasDefinition('nowo_uptime_monitor.access_checker.default'));
+
+        $oneArea = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['security' => ['access_roles' => [], 'roles' => ['dashboard' => [], 'manage' => ['ROLE_OPS'], 'settings' => []]]]], $oneArea);
+        self::assertSame([], $oneArea->getDefinition('nowo_uptime_monitor.access_checker.default')->getArgument('$accessRoles'));
+    }
 }

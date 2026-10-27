@@ -983,7 +983,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         access_checker?: scalar|Param|null, // Optional service id implementing UptimeMonitorAccessCheckerInterface. null = built-in role checker. // Default: null
  *         allow_unauthenticated?: bool|Param, // DEV/DEMO only: skip bundle access checks and allow UI without SecurityBundle. Production MUST keep false. // Default: false
  *         roles?: array{ // Extra roles per action (REQ-UI-003 security.roles.<action>; replace dashboard_roles / manage_roles / settings_roles). null = the deprecated key (default [ROLE_ADMIN]).
- *             dashboard?: mixed, // Dashboard / read / polling API. Empty = allow all who pass access_roles. List of roles. // Default: null
+ *             dashboard?: mixed, // Dashboard / read / polling API. Empty = allow all who pass access_roles (deny everyone when access_roles is empty too). List of roles. // Default: null
  *             manage?: mixed, // Monitor CRUD mutations. List of roles. // Default: null
  *             settings?: mixed, // Tenant settings, tenant creation and unmapped unsafe-method admin actions. List of roles. // Default: null
  *         },

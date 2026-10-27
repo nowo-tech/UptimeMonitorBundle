@@ -199,7 +199,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             $config['security']['allow_unauthenticated'],
         );
 
-        $this->registerAccessChecker($container, $config['security']);
+        $this->registerAccessChecker($container, $config['security'], (bool) $config['web_ui']['enabled']);
         $this->registerTenantLimits($container, $config['limits']);
         $this->registerTablePrefixListener($container);
     }
@@ -269,8 +269,13 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             ->setPublic(false));
     }
 
-    /** @param array<string, mixed> $security */
-    private function registerAccessChecker(ContainerBuilder $container, array $security): void
+    /**
+     * Registers the access checker. The built-in role checker denies an area when access_roles and the area roles are
+     * both empty, so a web UI whose every role list is empty would refuse everyone: that configuration fails here.
+     *
+     * @param array<string, mixed> $security
+     */
+    private function registerAccessChecker(ContainerBuilder $container, array $security, bool $webUiEnabled): void
     {
         $accessCheckerId = $security['access_checker'] ?? null;
         if (!is_string($accessCheckerId) || $accessCheckerId === '') {
@@ -281,6 +286,15 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
                     (new Definition(AllowAllUptimeMonitorAccessChecker::class))->setPublic(false),
                 );
             } else {
+                if (
+                    $webUiEnabled
+                    && $security['access_roles'] === []
+                    && $security['dashboard_roles'] === []
+                    && $security['manage_roles'] === []
+                    && $security['settings_roles'] === []
+                ) {
+                    throw new LogicException('NowoUptimeMonitorBundle: security.access_roles and every security.roles.<action> list are empty, so the built-in access checker would deny everyone (empty lists never mean "everyone"). Set at least one role (e.g. access_roles: [ROLE_ADMIN]), set security.access_checker, or disable web_ui.');
+                }
                 $container->setDefinition($accessCheckerId, (new Definition(ConfigurableUptimeMonitorAccessChecker::class))
                     ->setAutowired(true)
                     ->setArgument('$accessRoles', $security['access_roles'])

@@ -82,4 +82,16 @@ final class ConfigurableUptimeMonitorAccessCheckerTest extends TestCase
         self::assertTrue($checker->canManageMonitors($user));
         self::assertTrue($checker->canManageSettings($user));
     }
+
+    public function testEmptyAccessAndAreaRolesDenyEveryone(): void
+    {
+        $auth = $this->createMock(AuthorizationCheckerInterface::class);
+        $auth->expects(self::never())->method('isGranted');
+
+        $checker = new ConfigurableUptimeMonitorAccessChecker($auth, [], [], ['ROLE_OPS'], []);
+        $user    = new stdClass();
+
+        self::assertFalse($checker->canAccessDashboard($user));
+        self::assertFalse($checker->canManageSettings($user));
+    }
 }
