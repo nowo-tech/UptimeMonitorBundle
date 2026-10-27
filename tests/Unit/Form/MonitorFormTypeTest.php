@@ -8,7 +8,11 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
+use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
+use Symfony\Component\Form\FormExtensionInterface;
+use Symfony\Component\Form\Forms;
 use Symfony\Component\Form\Test\TypeTestCase;
+use Symfony\Component\Validator\Validation;
 
 /**
  * @covers \Nowo\UptimeMonitorBundle\Form\MonitorFormType
@@ -23,6 +27,39 @@ final class MonitorFormTypeTest extends TypeTestCase
         return [
             FormKitTestSupport::withMerger(new MonitorFormType()),
         ];
+    }
+
+    /**
+     * @return array<FormExtensionInterface>
+     */
+    protected function getExtensions(): array
+    {
+        return [...parent::getExtensions(), new ValidatorExtension(Validation::createValidator())];
+    }
+
+    public function testANameIsRequired(): void
+    {
+        $form = $this->factory->create(MonitorFormType::class, new MonitorFormData());
+        $form->submit(['name' => '   ', 'type' => MonitorType::Https->value, 'url' => 'https://example.test'], false);
+
+        self::assertFalse($form->get('name')->isValid());
+        self::assertSame('form.monitor.name_required', $form->get('name')->getErrors()->current()->getMessage());
+    }
+
+    public function testHiddenFieldsAreLeftOutAndKeepTheirValues(): void
+    {
+        $factory = Forms::createFormFactoryBuilder()
+            ->addExtensions($this->getExtensions())
+            ->addTypes([FormKitTestSupport::withMerger(new MonitorFormType(['project', 'resendNotificationAfterDown']))])
+            ->getFormFactory();
+        $data          = new MonitorFormData();
+        $data->project = 'legacy';
+        $form          = $factory->create(MonitorFormType::class, $data);
+
+        self::assertFalse($form->has('project'));
+        self::assertFalse($form->has('resendNotificationAfterDown'));
+        $form->submit(['name' => 'API', 'type' => MonitorType::Https->value, 'url' => 'https://example.test'], false);
+        self::assertSame('legacy', $data->project);
     }
 
     public function testSubmitValidData(): void

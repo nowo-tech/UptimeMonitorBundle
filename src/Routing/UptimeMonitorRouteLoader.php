@@ -6,9 +6,11 @@ namespace Nowo\UptimeMonitorBundle\Routing;
 
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
 use function ltrim;
+use function preg_quote;
 use function rtrim;
 use function str_contains;
 use function str_starts_with;
@@ -32,10 +34,15 @@ final class UptimeMonitorRouteLoader extends Loader
     /** `routes.yaml` prefixes the admin routes with this parameter; the router resolves it after loading. */
     private const PATH_PARAMETER = '%nowo_uptime_monitor.dashboard.path%';
 
+    /**
+     * @param list<array{slug_prefix: string, path: string, name_prefix: string, slug_requirement: string|null}> $tenantPaths
+     */
     public function __construct(
         #[Autowire('%nowo_uptime_monitor.dashboard.path%')]
         private readonly string $dashboardPath,
         ?string $env = null,
+        #[Autowire('%nowo_uptime_monitor.dashboard.tenant_paths%')]
+        private readonly array $tenantPaths = [],
     ) {
         parent::__construct($env);
     }
@@ -49,6 +56,8 @@ final class UptimeMonitorRouteLoader extends Loader
         }
 
         $prefix = rtrim($this->dashboardPath, '/');
+        /** @var array<string, array{0: Route, 1: string}> $tenantRoutes */
+        $tenantRoutes = [];
         foreach ($routes->all() as $name => $route) {
             $path = $route->getPath();
             if (str_starts_with(ltrim($path, '/'), self::PATH_PARAMETER)) {
@@ -65,8 +74,22 @@ final class UptimeMonitorRouteLoader extends Loader
                 $routes->remove($name);
                 continue;
             }
+            $rest = substr_replace($tail, '', $inner, strlen('/' . self::PLACEHOLDER));
             // @igor-ignore - Route collection built by this load() call at cache warm-up; not request state.
-            $route->setPath($prefix . substr_replace($tail, '', $inner, strlen('/' . self::PLACEHOLDER)));
+            $route->setPath($prefix . $rest);
+            $tenantRoutes[$name] = [$route, $rest];
+        }
+
+        // dashboard.tenant_paths: the tenant pages once more per slug prefix (TenantPathUrlGenerator links to them).
+        foreach ($this->tenantPaths as $tenantPath) {
+            $requirement = $tenantPath['slug_requirement'] ?? (preg_quote($tenantPath['slug_prefix'], '#') . '[a-z0-9\-]+');
+            foreach ($tenantRoutes as $name => [$route, $rest]) {
+                $copy = clone $route;
+                $copy->setPath(rtrim($tenantPath['path'], '/') . $rest);
+                $copy->setRequirement('tenantSlug', $requirement);
+                // @igor-ignore - Route collection built by this load() call at cache warm-up; not request state.
+                $routes->add($tenantPath['name_prefix'] . $name, $copy);
+            }
         }
 
         return $routes;

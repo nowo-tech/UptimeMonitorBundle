@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.10.0] - 2026-10-27](#1100---2026-10-27)
 - [[1.9.4] - 2026-10-26](#194---2026-10-26)
 - [[1.9.3] - 2026-10-26](#193---2026-10-26)
 - [[1.9.2] - 2026-10-26](#192---2026-10-26)
@@ -52,7 +53,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-27
+
 ### Added
+
+- `dashboard.tenant_paths`: more URL prefixes for the tenant pages, chosen by tenant slug prefix (e.g. personal tenants
+  `user-…` under `/uptime/{tenantSlug}` next to project tenants under `/projects/{tenantSlug}/uptime`). Each entry copies
+  the tenant routes as `<name_prefix><route>` (`slug_requirement` limits the slug); `Routing\TenantPathUrlGenerator`
+  (a `router` decorator) sends links of a matching slug to the copy, so templates keep generating `nowo_uptime_*`, and
+  `Routing\TenantPaths::bundleRoute()` names the bundle route a copy stands for.
+- `form.hidden_fields`: `MonitorFormType` fields left out of the form (e.g. `project`, `resendNotificationAfterDown`);
+  a monitor keeps their stored values.
 
 - `nowo_uptime_monitor.doctrine.table_prefix` (REQ-ORM-002): prepended to every bundle table, index and unique
   constraint by `Doctrine\TablePrefixListener` (`loadClassMetadata`, bundle entities only). Default `''` keeps the
@@ -66,6 +77,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- A monitor needs a name: a blank one is refused with `form.monitor.name_required` (`NowoUptimeMonitorBundle` domain)
+  instead of being saved without one.
 - The tenant slug constraint message is translated from the `NowoUptimeMonitorBundle` domain; the
   `validators.<locale>.yaml` catalogues were removed (REQ-I18N-003).
 - `make validate-translations` lints the YAML, rejects non-`NowoUptimeMonitorBundle` catalogues and checks key parity

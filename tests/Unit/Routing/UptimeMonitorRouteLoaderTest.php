@@ -34,6 +34,22 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
         self::assertSame('/api/uptime/{tenantSlug}/summary', $routes->get('nowo_uptime_api_summary')?->getPath());
     }
 
+    public function testTenantPathsCopyTheTenantRoutes(): void
+    {
+        $routes = $this->loader('/projects/{tenantSlug}/uptime', [
+            ['slug_prefix' => 'user-', 'path' => '/uptime/{tenantSlug}/', 'name_prefix' => 'personal_', 'slug_requirement' => null],
+            ['slug_prefix' => 'team-', 'path' => '/teams/{tenantSlug}/uptime', 'name_prefix' => 'team_', 'slug_requirement' => 'team-\\d+'],
+        ])->load('.', UptimeMonitorRouteLoader::TYPE);
+
+        self::assertSame('/uptime/{tenantSlug}/monitors/new', $routes->get('personal_nowo_uptime_monitor_new')?->getPath());
+        $personal = $routes->get('personal_nowo_uptime_dashboard');
+        self::assertSame(['/uptime/{tenantSlug}', 'user\\-[a-z0-9\\-]+'], [$personal?->getPath(), $personal?->getRequirement('tenantSlug')]);
+        $team = $routes->get('team_nowo_uptime_monitor_show');
+        self::assertSame(['/teams/{tenantSlug}/uptime/monitors/{id}', 'team-\\d+'], [$team?->getPath(), $team?->getRequirement('tenantSlug')]);
+        self::assertNull($routes->get('personal_nowo_uptime_status_page'), 'not a tenant page under the dashboard path');
+        self::assertSame('/projects/{tenantSlug}/uptime/monitors/new', $routes->get('nowo_uptime_monitor_new')?->getPath(), 'the default path stays');
+    }
+
     public function testItHandlesItsOwnImportTypeOnly(): void
     {
         $loader = $this->loader('/uptime');
@@ -42,7 +58,10 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
         self::assertFalse($loader->supports('.', 'attribute'));
     }
 
-    private function loader(string $dashboardPath): UptimeMonitorRouteLoader
+    /**
+     * @param list<array{slug_prefix: string, path: string, name_prefix: string, slug_requirement: string|null}> $tenantPaths
+     */
+    private function loader(string $dashboardPath, array $tenantPaths = []): UptimeMonitorRouteLoader
     {
         $bundleRoutes = new class extends Loader {
             public function load(mixed $resource, ?string $type = null): RouteCollection
@@ -65,7 +84,7 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
                 return $resource === '@UptimeMonitorBundle/Resources/config/routes.yaml';
             }
         };
-        $loader = new UptimeMonitorRouteLoader($dashboardPath);
+        $loader = new UptimeMonitorRouteLoader($dashboardPath, null, $tenantPaths);
         $loader->setResolver(new LoaderResolver([$bundleRoutes, $loader]));
 
         return $loader;

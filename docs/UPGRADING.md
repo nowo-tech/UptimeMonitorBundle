@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.10.0](#to-1100)
 - [To 1.9.4](#to-194)
 - [To 1.9.3](#to-193)
 - [To 1.9.2](#to-192)
@@ -88,6 +89,15 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Nothing yet.
+
+## To 1.10.0
+
+- **Monitor name required**: saving a monitor with a blank name now fails validation (`form.monitor.name_required`).
+  Existing monitors are untouched; give a name to any that has none before editing it.
+- **New options, off by default**: `form.hidden_fields` (fields left out of the monitor form) and
+  `dashboard.tenant_paths` (more URL prefixes per tenant slug prefix; needs `{tenantSlug}` in `dashboard.path`). The
+  bundle now decorates the `router` service (`TenantPathUrlGenerator`); with no tenant path it only passes through.
 - **Table prefix (REQ-ORM-002)**: new `nowo_uptime_monitor.doctrine.table_prefix` (default `''`). The default keeps
   the historical `uptime_*` table and index names, so **nothing changes unless you set it**. Setting it (e.g. `app_`)
   renames every bundle table, index and unique constraint (`app_uptime_monitor`, `app_idx_uptime_monitor_tenant_next`,

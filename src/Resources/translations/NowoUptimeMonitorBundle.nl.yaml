@@ -214,6 +214,7 @@ form.settings.tag_color: 'Kleur'
 
 # Form — tenant
 form.tenant.slug: 'Slug'
+form.monitor.name_required: 'Geef de monitor een naam.'
 form.tenant.slug_regex: 'Gebruik kleine letters, cijfers en koppeltekens.'
 form.tenant.name: 'Weergavenaam'
 

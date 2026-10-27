@@ -214,6 +214,7 @@ form.settings.tag_color: 'Farbe'
 
 # Form — tenant
 form.tenant.slug: 'Slug'
+form.monitor.name_required: 'Gib dem Monitor einen Namen.'
 form.tenant.slug_regex: 'Verwenden Sie Kleinbuchstaben, Zahlen und Bindestriche.'
 form.tenant.name: 'Anzeigename'
 

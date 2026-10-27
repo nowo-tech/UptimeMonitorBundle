@@ -188,6 +188,8 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.ui', $config['ui']);
         $container->setParameter(Configuration::ALIAS . '.dashboard', $config['dashboard']);
         $container->setParameter(Configuration::ALIAS . '.dashboard.path', $config['dashboard']['path']);
+        $container->setParameter(Configuration::ALIAS . '.dashboard.tenant_paths', $config['dashboard']['tenant_paths']);
+        $container->setParameter(Configuration::ALIAS . '.form.hidden_fields', $config['form']['hidden_fields']);
         $container->setParameter(Configuration::ALIAS . '.status_page', $config['status_page']);
         $container->setParameter(Configuration::ALIAS . '.status_page.path', $config['status_page']['path']);
         $container->setParameter(Configuration::ALIAS . '.notifications', $config['notifications']);

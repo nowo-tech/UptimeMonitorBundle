@@ -7,8 +7,16 @@ namespace Nowo\UptimeMonitorBundle\Form;
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
+use Nowo\UptimeMonitorBundle\Translation\UptimeTranslation;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\Callback;
+use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
+
+use function is_string;
+use function trim;
 
 /**
  * @extends AbstractUptimeFormType<MonitorFormData>
@@ -16,6 +24,15 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class MonitorFormType extends AbstractUptimeFormType
 {
+    /**
+     * @param list<string> $hiddenFields fields left out of the form (`form.hidden_fields`); the monitor keeps their values
+     */
+    public function __construct(
+        #[Autowire('%nowo_uptime_monitor.form.hidden_fields%')]
+        private readonly array $hiddenFields = [],
+    ) {
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var array<string, int> $groupChoices */
@@ -35,7 +52,11 @@ final class MonitorFormType extends AbstractUptimeFormType
             // The option values are the type names (`https`, `tcp`, …): the form's field toggle reads them.
             'choice_value' => static fn (?MonitorType $type): ?string => $type?->value,
         ]);
-        $this->addText($builder, 'name', ['label' => 'form.monitor.name']);
+        // Every list, status page and alert names the monitor: a name is required.
+        $this->addText($builder, 'name', [
+            'label'       => 'form.monitor.name',
+            'constraints' => [new Callback(self::validateName(...))],
+        ]);
         $this->addChoice($builder, 'parentId', [
             'label'       => 'form.monitor.parent',
             'required'    => false,
@@ -179,6 +200,24 @@ final class MonitorFormType extends AbstractUptimeFormType
             'label'    => 'form.monitor.paused',
             'required' => false,
         ]);
+        foreach ($this->hiddenFields as $field) {
+            $builder->remove($field);
+        }
+    }
+
+    /**
+     * Adds a `form.monitor.name_required` violation (domain {@see UptimeTranslation::DOMAIN}) when the name is blank.
+     */
+    public static function validateName(mixed $value, ExecutionContextInterface $context): void
+    {
+        if (is_string($value) && trim($value) !== '') {
+            return;
+        }
+
+        $context->buildViolation('form.monitor.name_required')
+            ->setTranslationDomain(UptimeTranslation::DOMAIN)
+            ->setCode(NotBlank::IS_BLANK_ERROR)
+            ->addViolation();
     }
 
     public function configureOptions(OptionsResolver $resolver): void

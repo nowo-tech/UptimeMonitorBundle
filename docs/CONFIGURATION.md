@@ -43,9 +43,15 @@ nowo_uptime_monitor:
         path: /uptime
         sync: polling          # polling | mercure (requires symfony/mercure-bundle)
         poll_interval_ms: 30000
+        # More URL prefixes for the tenant pages, by tenant slug prefix (dashboard.path must hold {tenantSlug}).
+        # Each copies the tenant routes as <name_prefix><route>; links to a matching slug use the copy.
+        tenant_paths: []
+        #   - { slug_prefix: 'user-', path: '/uptime/{tenantSlug}', name_prefix: 'personal_', slug_requirement: null }
         mercure:
             topic_template: '/uptime/{tenant}'
             private: true
+    form:
+        hidden_fields: []      # MonitorFormType fields left out (e.g. project, resendNotificationAfterDown)
     status_page:
         enabled: true
         path: /status
