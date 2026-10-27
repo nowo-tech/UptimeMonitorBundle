@@ -11,6 +11,8 @@ use Nowo\UiKitBundle\Test\RenderedPage;
 use Nowo\UiKitBundle\View\ListPage;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Twig\Environment;
 use Twig\TwigFunction;
 
@@ -50,6 +52,20 @@ final class PageContractTest extends PageContractTestCase
     protected function renderPage(PageFixture $fixture, string $framework = 'none'): RenderedPage
     {
         return parent::renderPage($this->resolve($fixture), $framework);
+    }
+
+    /**
+     * REQ-SF-005: UiKit's inheritance walk (PageContractTestCase::inheritanceChain(), ui-kit-bundle 2.15.4) calls
+     * Twig APIs deprecated by twig/twig (Environment::mergeGlobals(), TemplateWrapper::unwrap() without the
+     * environment). Those third-party deprecations are ignored for this test only (a PHPUnit baseline is not applied
+     * under --process-isolation); every other test still fails on any deprecation. Drop the override once UiKit no
+     * longer calls them: https://github.com/nowo-tech/UptimeMonitorBundle/issues/123.
+     */
+    #[DataProvider('contractPages')]
+    #[IgnoreDeprecations]
+    public function testPageExtendsAScaffoldOrIsDeclaredUnique(PageFixture $fixture): void
+    {
+        parent::testPageExtendsAScaffoldOrIsDeclaredUnique($fixture);
     }
 
     protected function assertExtendsScaffoldOrUnique(PageFixture $fixture): void

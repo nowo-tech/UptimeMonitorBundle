@@ -17,6 +17,7 @@ use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeDoctrineExtension;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeFrameworkExtension;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -57,8 +58,8 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $this->expectExceptionMessage('requires symfony/security-bundle');
 
         $extension->load([[
-            'dashboard' => ['enabled' => true],
-            'security'  => ['allow_unauthenticated' => false],
+            'web_ui'   => ['enabled' => true],
+            'security' => ['allow_unauthenticated' => false],
         ]], $container);
     }
 
@@ -68,8 +69,8 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class]);
         $extension = new UptimeMonitorExtension();
         $extension->load([[
-            'dashboard' => ['enabled' => true],
-            'security'  => ['allow_unauthenticated' => false],
+            'web_ui'   => ['enabled' => true],
+            'security' => ['allow_unauthenticated' => false],
         ]], $container);
 
         self::assertSame(
@@ -88,8 +89,8 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $this->expectExceptionMessage('requires symfony/security-bundle');
 
         $extension->load([[
-            'dashboard' => ['enabled' => true],
-            'security'  => ['allow_unauthenticated' => false],
+            'web_ui'   => ['enabled' => true],
+            'security' => ['allow_unauthenticated' => false],
         ]], $container);
     }
 
@@ -299,8 +300,10 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertFalse($profileReseed);
     }
 
+    #[IgnoreDeprecations]
     public function testPrependSeedsUiKitFromUiFrameworkWhenHostUnset(): void
     {
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.ui\.framework" option is deprecated#');
         $container = new ContainerBuilder();
         $container->registerExtension(new class extends Extension {
             public function load(array $configs, ContainerBuilder $container): void
@@ -456,8 +459,11 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertSame(20, $webUi['per_page']);
     }
 
+    #[IgnoreDeprecations]
     public function testDeprecatedDashboardKeysStillApply(): void
     {
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.dashboard\.path" option is deprecated#');
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.security\.settings_roles" option is deprecated#');
         $container = $this->containerWithSecurityBundle();
         (new UptimeMonitorExtension())->load([[
             'dashboard' => ['path' => '/monitoring'],
@@ -468,8 +474,10 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertSame(['ROLE_OWNER'], $container->getDefinition('nowo_uptime_monitor.access_checker.default')->getArgument('$settingsRoles'));
     }
 
+    #[IgnoreDeprecations]
     public function testCanonicalTenantPathsWinOverTheDeprecatedKey(): void
     {
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.dashboard\.tenant_paths" option is deprecated#');
         $path      = ['slug_prefix' => 'user-', 'path' => '/me/{tenantSlug}/uptime', 'name_prefix' => 'me_'];
         $container = $this->containerWithSecurityBundle();
         (new UptimeMonitorExtension())->load([['web_ui' => ['tenant_paths' => [$path]]]], $container);

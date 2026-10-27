@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\ArrayNode;
 use Symfony\Component\Config\Definition\BaseNode;
@@ -49,8 +50,10 @@ final class ConfigurationTest extends TestCase
         self::assertSame(['ROLE_ADMIN'], $config['security']['settings_roles']);
     }
 
+    #[IgnoreDeprecations]
     public function testLayoutTemplateAliasMapsToLayout(): void
     {
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.templates\.layout" option is deprecated#');
         $config = (new Processor())->processConfiguration(new Configuration(), [[
             'templates' => [
                 'layout_template' => 'base.html.twig',
@@ -61,8 +64,10 @@ final class ConfigurationTest extends TestCase
         self::assertArrayNotHasKey('layout_template', $config['templates']);
     }
 
+    #[IgnoreDeprecations]
     public function testCssFrameworkAliasMapsToFramework(): void
     {
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.ui\.framework" option is deprecated#');
         $config = (new Processor())->processConfiguration(new Configuration(), [[
             'ui' => [
                 'css_framework' => 'bootstrap',
@@ -73,8 +78,11 @@ final class ConfigurationTest extends TestCase
         self::assertArrayNotHasKey('css_framework', $config['ui']);
     }
 
+    #[IgnoreDeprecations]
     public function testCanonicalKeysWinOverAliases(): void
     {
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.templates\.layout" option is deprecated#');
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.ui\.framework" option is deprecated#');
         $config = (new Processor())->processConfiguration(new Configuration(), [[
             'templates' => [
                 'layout'          => 'canonical-layout.html.twig',

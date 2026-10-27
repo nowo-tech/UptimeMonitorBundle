@@ -47,12 +47,15 @@ abstract class AbstractUptimeFormType extends AbstractType
     }
 
     /**
+     * Adds a URL field. `default_protocol` is null on every supported Symfony version (the Symfony 8 default; not
+     * configuring it is deprecated since symfony/form 7.1): the value is submitted as typed, no `http://` is added.
+     *
      * @param FormBuilderInterface<mixed> $builder
      * @param array<string, mixed> $options
      */
     protected function addUrl(FormBuilderInterface $builder, string $name, array $options = []): void
     {
-        $this->addWithDefaults($builder, $name, UrlType::class, $options + ['empty_data' => '']);
+        $this->addWithDefaults($builder, $name, UrlType::class, $options + ['empty_data' => '', 'default_protocol' => null]);
     }
 
     /**

@@ -132,6 +132,16 @@ final class MonitorFormTypeTest extends TypeTestCase
         self::assertSame('', $data->authPassword);
     }
 
+    public function testTheUrlIsSubmittedAsTypedWithoutADefaultProtocol(): void
+    {
+        $data = new MonitorFormData();
+        $form = $this->factory->create(MonitorFormType::class, $data);
+        $form->submit(['name' => 'API', 'type' => MonitorType::Https->value, 'url' => 'status.example.test'], false);
+
+        self::assertNull($form->get('url')->getConfig()->getOption('default_protocol'));
+        self::assertSame('status.example.test', $data->url);
+    }
+
     public function testTheTypeOptionsAreTheTypeNames(): void
     {
         $view = $this->factory->create(MonitorFormType::class, new MonitorFormData())->createView();
