@@ -22,17 +22,16 @@ final class TenantSettingsMapper
      */
     public function toGeneralData(Tenant $tenant): SettingsGeneralData
     {
-        $s                        = TenantSettings::from($tenant);
-        $data                     = new SettingsGeneralData();
-        $data->displayTimezone    = $s->getDisplayTimezone();
-        $data->serverTimezone     = $s->getServerTimezone();
-        $data->searchEngineIndex  = $s->isSearchEngineIndexAllowed();
-        $data->entryPage          = $s->getEntryPage();
-        $data->primaryBaseUrl     = $s->getPrimaryBaseUrl() ?? '';
-        $data->steamApiKey        = $s->getSteamApiKey();
-        $data->nscdEnabled        = $s->isNscdEnabled();
-        $data->httpDnsCache       = $s->isHttpDnsCacheEnabled();
-        $data->chromiumExecutable = $s->getChromiumExecutable();
+        $s                          = TenantSettings::from($tenant);
+        $data                       = new SettingsGeneralData();
+        $data->displayTimezone      = $s->getDisplayTimezone();
+        $data->serverTimezone       = $s->getServerTimezone();
+        $data->searchEngineIndex    = $s->isSearchEngineIndexAllowed();
+        $data->entryPage            = $s->getEntryPage();
+        $data->primaryBaseUrl       = $s->getPrimaryBaseUrl() ?? '';
+        $data->nscdEnabled          = $s->isNscdEnabled();
+        $data->httpDnsCache         = $s->isHttpDnsCacheEnabled();
+        $data->statusPageVisibility = $s->getStatusPageVisibility();
 
         return $data;
     }
@@ -42,16 +41,21 @@ final class TenantSettingsMapper
      */
     public function applyGeneral(Tenant $tenant, SettingsGeneralData $data): void
     {
+        // Former Uptime Kuma parity fields that were stored but never used (the Steam key was a secret in a plain
+        // text input): dropped on the next save.
+        $settings = $tenant->getSettings();
+        unset($settings['steam_api_key'], $settings['chromium_executable']);
+        $tenant->setSettings($settings);
+
         TenantSettings::from($tenant)->merge([
             'display_timezone'    => $data->displayTimezone,
             'server_timezone'     => $data->serverTimezone,
             'search_engine_index' => $data->searchEngineIndex,
             'entry_page'          => $data->entryPage,
             'primary_base_url'    => $data->primaryBaseUrl !== '' ? $data->primaryBaseUrl : null,
-            'steam_api_key'       => $data->steamApiKey !== '' ? $data->steamApiKey : null,
             'nscd_enabled'        => $data->nscdEnabled,
             'http_dns_cache'      => $data->httpDnsCache,
-            'chromium_executable' => $data->chromiumExecutable,
+            'status_page_public'  => $data->statusPageVisibility,
         ]);
     }
 

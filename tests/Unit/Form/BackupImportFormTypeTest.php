@@ -9,7 +9,10 @@ use Nowo\UptimeMonitorBundle\Form\CsrfActionFormType;
 use Nowo\UptimeMonitorBundle\Form\MonitorSearchFormType;
 use Nowo\UptimeMonitorBundle\Tests\Support\FormKitTestSupport;
 use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Test\TypeTestCase;
+use Symfony\Component\Validator\Constraints\File;
+use Symfony\Component\Validator\Validation;
 
 #[CoversClass(BackupImportFormType::class)]
 #[CoversClass(CsrfActionFormType::class)]
@@ -26,6 +29,14 @@ final class BackupImportFormTypeTest extends TypeTestCase
             FormKitTestSupport::withMerger(new CsrfActionFormType()),
             FormKitTestSupport::withMerger(new MonitorSearchFormType()),
         ];
+    }
+
+    /**
+     * @return array<int, object>
+     */
+    protected function getExtensions(): array
+    {
+        return [...parent::getExtensions(), new ValidatorExtension(Validation::createValidator())];
     }
 
     public function testBackupImportKeepsFlatFieldNames(): void
@@ -62,5 +73,14 @@ final class BackupImportFormTypeTest extends TypeTestCase
         self::assertSame('GET', $form->getConfig()->getMethod());
         self::assertSame('q', $view['q']->vars['full_name']);
         self::assertArrayHasKey('data-monitor-search', $view['q']->vars['attr']);
+    }
+
+    public function testBackupFileIsCappedAtTwoMegabytes(): void
+    {
+        $constraints = $this->factory->create(BackupImportFormType::class)->get('backup')->getConfig()->getOption('constraints');
+
+        self::assertCount(1, $constraints);
+        self::assertInstanceOf(File::class, $constraints[0]);
+        self::assertSame(2_000_000, $constraints[0]->maxSize);
     }
 }

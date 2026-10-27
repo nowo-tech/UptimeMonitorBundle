@@ -340,11 +340,13 @@ function buildEventRow(event: TenantEventRow, statusLabels: Record<string, strin
   row.dataset.status = event.status;
 
   const statusLabel = statusLabels[event.status] ?? event.status;
+  // Status and time come from the API too: escape every interpolated value; the class suffix keeps [a-z-] only.
+  const statusClass = event.status.toLowerCase().replace(/[^a-z-]/g, '');
 
   row.innerHTML = `
     <td class="uptime-event-name">${escapeHtml(event.monitor_name)}</td>
-    <td><span class="uptime-status-badge uptime-status-badge-${event.status}">${statusLabel}</span></td>
-    <td class="uptime-event-time">${formatEventTime(event.checked_at)}</td>
+    <td><span class="uptime-status-badge uptime-status-badge-${statusClass}">${escapeHtml(statusLabel)}</span></td>
+    <td class="uptime-event-time">${escapeHtml(formatEventTime(event.checked_at))}</td>
     <td class="uptime-event-message">${escapeHtml(event.message ?? '—')}</td>
   `;
 
@@ -356,7 +358,8 @@ function escapeHtml(value: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export function renderEventsTable(root: HTMLElement, events: TenantEventRow[]): void {

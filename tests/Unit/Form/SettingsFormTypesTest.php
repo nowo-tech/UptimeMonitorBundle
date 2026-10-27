@@ -60,18 +60,16 @@ final class SettingsFormTypesTest extends TypeTestCase
     {
         $data                 = new SettingsGeneralData();
         $data->primaryBaseUrl = 'https://status.example.test';
-        $data->steamApiKey    = 'key';
 
         $form = $this->factory->create(SettingsGeneralFormType::class, $data);
         $form->submit([
-            'displayTimezone'    => 'Europe/Madrid',
-            'serverTimezone'     => 'UTC',
-            'searchEngineIndex'  => '1',
-            'entryPage'          => 'status',
-            'primaryBaseUrl'     => '',
-            'steamApiKey'        => '',
-            'httpDnsCache'       => '1',
-            'chromiumExecutable' => '/usr/bin/chromium',
+            'displayTimezone'      => 'Europe/Madrid',
+            'serverTimezone'       => 'UTC',
+            'searchEngineIndex'    => '1',
+            'entryPage'            => 'status',
+            'primaryBaseUrl'       => '',
+            'httpDnsCache'         => '1',
+            'statusPageVisibility' => 'public',
         ]);
 
         self::assertTrue($form->isSynchronized());
@@ -79,10 +77,11 @@ final class SettingsFormTypesTest extends TypeTestCase
         self::assertTrue($data->searchEngineIndex);
         self::assertSame('status', $data->entryPage);
         self::assertSame('', $data->primaryBaseUrl);
-        self::assertSame('', $data->steamApiKey);
         self::assertFalse($data->nscdEnabled);
         self::assertTrue($data->httpDnsCache);
-        self::assertSame('/usr/bin/chromium', $data->chromiumExecutable);
+        self::assertSame('public', $data->statusPageVisibility);
+        self::assertFalse($form->has('steamApiKey'));
+        self::assertFalse($form->has('chromiumExecutable'));
     }
 
     public function testHistoryUsesGlobalDetailDaysInHelp(): void

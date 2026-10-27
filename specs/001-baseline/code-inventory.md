@@ -10,6 +10,7 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
+| `DependencyInjection/Compiler/CsrfProtectionPass.php` | Fail-closed CSRF requirement | FR-DI-002, FR-SEC-005 |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | Compiler pass | FR-DI-002 |
 | `DependencyInjection/Configuration.php` | Config tree | FR-CFG-001 |
 | `DependencyInjection/UptimeMonitorExtension.php` | DI extension | FR-CFG-002 |
@@ -31,6 +32,7 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
+| `Check/CheckLimits.php` | Global check caps | FR-CHECK-007 |
 | `Check/CheckRunnerInterface.php` | Check runner contract | FR-CHECK-001 |
 | `Check/Network/SocketConnection.php` | Open socket of a TCP / SSL probe (read, write, close) | FR-CHECK-006 |
 | `Check/Network/SocketConnectorInterface.php` | Socket connector contract (TCP / SSL checks, test seam) | FR-CHECK-006 |
@@ -163,6 +165,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Security/TenantAwareUptimeMonitorAccessCheckerInterface.php` | Per-tenant access decisions for host-owned tenants | FR-SEC-002 |
 | `EventSubscriber/UptimeMonitorAccessSubscriber.php` | Enforces the access checker on admin/manage controllers (public status page excluded) | FR-SEC-001 |
 | `Security/MonitorUrlSsrfGuard.php` | URL/HTML policy | FR-SEC-004 |
+| `Security/SecretRedactor.php` | Credential masking / backup redaction | FR-SEC-006 |
 | `Security/UptimeMonitorAccessCheckerInterface.php` | Access checker contract | FR-SEC-001 |
 | `Service/MonitorRetryService.php` | Monitor retry policy | FR-MON-003 |
 
@@ -314,9 +317,9 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Category | Files | Mapped |
 | --- | ---: | ---: |
-| Bundle & DI | 4 | 4 |
+| Bundle & DI | 5 | 5 |
 | CLI | 7 | 7 |
-| Check runners | 13 | 13 |
+| Check runners | 14 | 14 |
 | Controllers | 8 | 8 |
 | REST API | 3 | 3 |
 | Persistence | 14 | 14 |
@@ -324,7 +327,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Domain models | 4 | 4 |
 | Application services | 22 | 22 |
 | Notifications | 5 | 5 |
-| Security | 7 | 7 |
+| Security | 8 | 8 |
 | Twig PHP | 1 | 1 |
 | Persistence integration | 2 | 2 |
 | Async messaging | 2 | 2 |
@@ -338,6 +341,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | Symfony config | 2 | 2 |
 | Translations | 7 | 7 |
 | Twig views | 28 | 28 |
-| **Total production sources** | **184** | **184** |
+| **Total production sources** | **187** | **187** |
 
-Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **184** (2026-10-27; co-located `*.test.ts` excluded).
+Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **187** (2026-10-27; co-located `*.test.ts` excluded).

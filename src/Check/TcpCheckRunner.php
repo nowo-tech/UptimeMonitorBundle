@@ -30,11 +30,13 @@ final readonly class TcpCheckRunner implements CheckRunnerInterface
      * @param MonitorUrlSsrfGuard $ssrfGuard Validates targets against private and local networks
      * @param bool $blockPrivateUrls Whether private / local targets are refused (`checks.block_private_urls`)
      * @param SocketConnectorInterface $connector Opens the TCP connection
+     * @param CheckLimits $limits Global caps; the monitor timeout is clamped to `checks.max_timeout_seconds`
      */
     public function __construct(
         private MonitorUrlSsrfGuard $ssrfGuard = new MonitorUrlSsrfGuard(),
         private bool $blockPrivateUrls = true,
         private SocketConnectorInterface $connector = new StreamSocketConnector(),
+        private CheckLimits $limits = new CheckLimits(),
     ) {
     }
 
@@ -54,7 +56,7 @@ final readonly class TcpCheckRunner implements CheckRunnerInterface
         $config  = $monitor->getConfig();
         $host    = isset($config['host']) && is_string($config['host']) ? $config['host'] : $monitor->getTarget();
         $port    = isset($config['port']) && is_numeric($config['port']) ? (int) $config['port'] : 443;
-        $timeout = isset($config['timeout']) && is_numeric($config['timeout']) ? (float) $config['timeout'] : 10.0;
+        $timeout = $this->limits->clampTimeout(isset($config['timeout']) && is_numeric($config['timeout']) ? (float) $config['timeout'] : 10.0);
 
         $connectHost = $host;
         if ($this->blockPrivateUrls) {

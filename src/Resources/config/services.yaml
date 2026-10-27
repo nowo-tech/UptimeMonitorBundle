@@ -37,6 +37,13 @@ services:
     Nowo\UptimeMonitorBundle\Repository\:
         resource: '../../Repository/'
 
+    # Global caps of every check (SEC-004 M1): checks.max_timeout_seconds / max_body_bytes / max_redirects.
+    Nowo\UptimeMonitorBundle\Check\CheckLimits:
+        arguments:
+            $maxTimeoutSeconds: '%nowo_uptime_monitor.checks.max_timeout_seconds%'
+            $maxBodyBytes: '%nowo_uptime_monitor.checks.max_body_bytes%'
+            $maxRedirects: '%nowo_uptime_monitor.checks.max_redirects%'
+
     Nowo\UptimeMonitorBundle\Check\HttpCheckRunner:
         arguments:
             $blockPrivateUrls: '%nowo_uptime_monitor.checks.block_private_urls%'
@@ -78,6 +85,7 @@ services:
         arguments:
             $allowUnauthenticated: '%nowo_uptime_monitor.security.allow_unauthenticated%'
             $tokenStorage: '@?security.token_storage'
+            $webUiEnabled: '%nowo_uptime_monitor.web_ui.enabled%'
 
     Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher:
         arguments:

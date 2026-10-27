@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
+use LogicException;
 use Nowo\UptimeMonitorBundle\Check\CheckRunnerInterface;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -61,6 +62,22 @@ final class CheckExecutorServiceTest extends TestCase
 
         self::assertSame(CheckStatus::Unknown, $result->getStatus());
         self::assertStringContainsString('No check runner', (string) $result->getMessage());
+    }
+
+    public function testAThrowingRunnerIsRecordedAndTheMonitorRescheduled(): void
+    {
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'X', MonitorType::Https, 'https://x.test');
+        $monitor->setRetries(0);
+
+        $runner = $this->createMock(CheckRunnerInterface::class);
+        $runner->method('supports')->willReturn(true);
+        $runner->method('run')->willThrowException(new LogicException('boom https://user:secret@x.test'));
+
+        $result = $this->checkExecutorService([$runner], $this->createMock(EntityManagerInterface::class))->execute($monitor);
+
+        self::assertSame(CheckStatus::Unknown, $result->getStatus());
+        self::assertSame('Check failed (LogicException)', $result->getMessage());
+        self::assertNotNull($monitor->getNextCheckAt());
     }
 
     public function testExecuteAppliesMinimumLatencyFloor(): void

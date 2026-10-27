@@ -17,6 +17,7 @@ use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use stdClass;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -49,11 +50,13 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
      *
      * @param bool $allowUnauthenticated When true the access checks are skipped (demo / trusted networks)
      * @param TokenStorageInterface|null $tokenStorage Current security token; null when SecurityBundle is not installed
+     * @param bool $webUiEnabled `web_ui.enabled`: when false the admin pages answer 404 even if a host imported their routes
      */
     public function __construct(
         private UptimeMonitorAccessCheckerInterface $accessChecker,
         private bool $allowUnauthenticated,
         private ?TokenStorageInterface $tokenStorage = null,
+        private bool $webUiEnabled = true,
     ) {
     }
 
@@ -76,10 +79,6 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
      */
     public function onKernelController(ControllerEvent $event): void
     {
-        if ($this->allowUnauthenticated) {
-            return;
-        }
-
         $controller = $event->getController();
         if (!is_array($controller)) {
             return;
@@ -87,6 +86,15 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
 
         $controllerObject = $controller[0];
         if (!is_object($controllerObject)) {
+            return;
+        }
+
+        // SEC-004 N3: a disabled admin UI stays disabled when a host imports routes.yaml directly.
+        if (!$this->webUiEnabled && $this->isAdminUiController($controllerObject)) {
+            throw new NotFoundHttpException('The uptime admin UI is disabled (nowo_uptime_monitor.web_ui.enabled: false).');
+        }
+
+        if ($this->allowUnauthenticated) {
             return;
         }
 
@@ -126,6 +134,14 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
         if (!$allowed) {
             throw new AccessDeniedException('Access to Uptime Monitor admin is denied.');
         }
+    }
+
+    private function isAdminUiController(object $controller): bool
+    {
+        return $controller instanceof DashboardController
+            || $controller instanceof MonitorController
+            || $controller instanceof SettingsController
+            || $controller instanceof TenantController;
     }
 
     private function isProtectedController(object $controller): bool

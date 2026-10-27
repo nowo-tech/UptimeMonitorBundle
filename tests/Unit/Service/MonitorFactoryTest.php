@@ -8,6 +8,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
+use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -152,5 +153,30 @@ final class MonitorFactoryTest extends TestCase
         $factory->applyFormData($monitor, $data);
 
         self::assertSame(30, $monitor->getIntervalSeconds());
+    }
+
+    public function testAGroupOfAnotherTenantIsNeverAcceptedAsParent(): void
+    {
+        $tenant  = new Tenant('main', 'Main');
+        $mine    = new Monitor($tenant, 'Mine', MonitorType::Group, 'Mine');
+        $foreign = new Monitor(new Tenant('other', 'Other'), 'Foreign', MonitorType::Group, 'Foreign');
+
+        $repository = $this->createStub(MonitorRepository::class);
+        $repository->method('find')->willReturnCallback(static fn (mixed $id): ?Monitor => match ($id) {
+            1       => $mine,
+            2       => $foreign,
+            default => null,
+        });
+        $factory = new MonitorFactory($repository);
+
+        $data           = new MonitorFormData();
+        $data->name     = 'API';
+        $data->type     = MonitorType::Https;
+        $data->url      = 'https://x.test';
+        $data->parentId = 2;
+        self::assertNull($factory->createFromFormData($tenant, $data)->getParent());
+
+        $data->parentId = 1;
+        self::assertSame($mine, $factory->createFromFormData($tenant, $data)->getParent());
     }
 }

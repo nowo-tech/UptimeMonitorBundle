@@ -81,6 +81,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-CHECK-002 / FR-CHECK-003**: Orchestrated execution and due-check scheduling (CLI, Messenger, Schedule).
 - **FR-CHECK-005**: Status transitions, incident lifecycle, retry policy via `MonitorRetryService`.
 - **FR-CHECK-006**: TCP / SSL probes open sockets through `Check\Network\SocketConnectorInterface` (stream socket with a deadline).
+- **FR-CHECK-007**: `CheckLimits` caps every check (`checks.max_timeout_seconds`, `max_body_bytes`, `max_redirects`); the due-check scan isolates failing monitors (resetting a closed entity manager and rescheduling the monitor), honours `checks.max_scan_seconds` (300 s) and stores only scrubbed, bounded UTF-8 check data (`CheckResultDto::sanitized()`).
 - **FR-EVENT-001**: `MonitorWentDownEvent` / `MonitorRecoveredEvent` dispatched when an incident opens / resolves.
 
 ### Dashboard & API
@@ -102,6 +103,8 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-SEC-001**: Configurable dashboard access checker.
 - **FR-SEC-002**: Tenant-aware access checker (`TenantAwareUptimeMonitorAccessCheckerInterface`) decides every route with `{tenantSlug}`.
 - **FR-SEC-004**: `MonitorUrlSsrfGuard` blocks private/reserved targets for HTTP checks.
+- **FR-SEC-005**: `CsrfProtectionPass` fails container compilation when the admin UI is enabled without form CSRF protection.
+- **FR-SEC-006**: `SecretRedactor` masks URL credentials in dashboards, alerts and webhook payloads and redacts secrets in backups.
 - **FR-WORKER-001**: Under FrankenPHP workers without kernel reset, a closed EntityManager is replaced before a bundle route runs (`ClosedEntityManagerSubscriber`); see [`docs/FRANKENPHP-WORKER-AUDIT.md`](../../docs/FRANKENPHP-WORKER-AUDIT.md).
 
 ### UI & i18n

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Routing;
 
+use Nowo\UptimeMonitorBundle\Controller\DashboardController;
+use Nowo\UptimeMonitorBundle\Controller\MonitorController;
+use Nowo\UptimeMonitorBundle\Controller\SettingsController;
+use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Route;
@@ -25,6 +29,9 @@ use function substr_replace;
  * `/projects/{tenantSlug}/uptime` gives `/projects/{tenantSlug}/uptime/monitors/new` instead of
  * `/uptime/{tenantSlug}/monitors/new`. The tenant-less pages (tenant list, new tenant) are left out in that mode: the
  * host owns its tenants. Without the placeholder the routes are those of `routes.yaml`.
+ *
+ * With `web_ui.enabled: false` the admin pages (dashboard, monitors, settings, tenants) are not registered at all —
+ * only the status page and the JSON APIs remain (SEC-004 N3).
  */
 final class UptimeMonitorRouteLoader extends Loader
 {
@@ -34,8 +41,12 @@ final class UptimeMonitorRouteLoader extends Loader
     /** `routes.yaml` prefixes the admin routes with this parameter; the router resolves it after loading. */
     private const PATH_PARAMETER = '%nowo_uptime_monitor.dashboard.path%';
 
+    /** Controllers of the admin UI, dropped when `web_ui.enabled` is false. */
+    public const ADMIN_CONTROLLERS = [DashboardController::class, MonitorController::class, SettingsController::class, TenantController::class];
+
     /**
      * @param list<array{slug_prefix: string, path: string, name_prefix: string, slug_requirement: string|null}> $tenantPaths
+     * @param array<string, mixed> $webUi `web_ui` configuration (only `enabled` is read)
      */
     public function __construct(
         #[Autowire('%nowo_uptime_monitor.dashboard.path%')]
@@ -43,6 +54,8 @@ final class UptimeMonitorRouteLoader extends Loader
         ?string $env = null,
         #[Autowire('%nowo_uptime_monitor.dashboard.tenant_paths%')]
         private readonly array $tenantPaths = [],
+        #[Autowire('%nowo_uptime_monitor.web_ui%')]
+        private readonly array $webUi = [],
     ) {
         parent::__construct($env);
     }
@@ -57,6 +70,16 @@ final class UptimeMonitorRouteLoader extends Loader
     {
         /** @var RouteCollection $routes */
         $routes = $this->import('@UptimeMonitorBundle/Resources/config/routes.yaml');
+        if (($this->webUi['enabled'] ?? true) === false) {
+            foreach ($routes->all() as $name => $route) {
+                if (self::isAdminRoute($route)) {
+                    // @igor-ignore - Route collection built by this load() call at cache warm-up; not request state.
+                    $routes->remove($name);
+                }
+            }
+
+            return $routes;
+        }
         if (!str_contains($this->dashboardPath, self::PLACEHOLDER)) {
             return $routes;
         }
@@ -99,6 +122,21 @@ final class UptimeMonitorRouteLoader extends Loader
         }
 
         return $routes;
+    }
+
+    /**
+     * Whether the route is served by one of the {@see self::ADMIN_CONTROLLERS}.
+     */
+    public static function isAdminRoute(Route $route): bool
+    {
+        $controller = (string) $route->getDefault('_controller');
+        foreach (self::ADMIN_CONTROLLERS as $class) {
+            if (str_starts_with($controller, $class . '::')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

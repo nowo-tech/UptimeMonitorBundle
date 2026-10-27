@@ -13,6 +13,7 @@ use Nowo\UptimeMonitorBundle\Service\MonitorBackupService;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 #[CoversClass(MonitorBackupService::class)]
@@ -55,6 +56,25 @@ final class MonitorBackupServiceTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->service($em, null)->import(new Tenant('main', 'Main'), ['monitors' => []]);
+    }
+
+    public function testFailedFlushIsLoggedWithTheExceptionClassOnly(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('flush')->willThrowException(new RuntimeException('SQLSTATE secret dsn'));
+        $em->method('isOpen')->willReturn(true);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            self::anything(),
+            self::callback(static fn (array $context): bool => $context['error'] === RuntimeException::class && $context['tenant'] === 'main'),
+        );
+
+        $monitorRepo = $this->createMock(MonitorRepository::class);
+        $service     = new MonitorBackupService($monitorRepo, new MonitorFactory($monitorRepo), $em, logger: $logger);
+
+        $this->expectException(RuntimeException::class);
+        $service->import(new Tenant('main', 'Main'), ['monitors' => []]);
     }
 
     private function service(EntityManagerInterface $em, ?ManagerRegistry $registry): MonitorBackupService

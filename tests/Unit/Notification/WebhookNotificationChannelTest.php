@@ -180,4 +180,24 @@ final class WebhookNotificationChannelTest extends TestCase
             CheckStatus::Up,
         );
     }
+
+    public function testPayloadMasksTargetCredentials(): void
+    {
+        $sent   = [];
+        $client = new MockHttpClient(static function (string $method, string $url, array $options) use (&$sent): MockResponse {
+            $sent = $options;
+
+            return new MockResponse('', ['http_code' => 204]);
+        });
+        $channel = new WebhookNotificationChannel([
+            'enabled' => true,
+            'webhook' => ['enabled' => true, 'url' => 'https://hooks.example.test/uptime'],
+        ], $client);
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'API', MonitorType::Https, 'https://user:secret@x.test');
+
+        $channel->send(new UptimeAlert($monitor, UptimeAlert::TRANSITION_DOWN, CheckStatus::Down, CheckStatus::Up));
+
+        self::assertStringContainsString('"target":"https:\\/\\/***@x.test"', (string) $sent['body']);
+        self::assertStringNotContainsString('secret', (string) $sent['body']);
+    }
 }

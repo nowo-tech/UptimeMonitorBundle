@@ -356,6 +356,35 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         (new UptimeMonitorExtension())->load([['doctrine' => ['table_prefix' => 'app-; DROP']]], $this->containerWithSecurityBundle());
     }
 
+    public function testCheckLimitsAndStatusPageDefaults(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[]], $container);
+
+        self::assertSame(60.0, $container->getParameter('nowo_uptime_monitor.checks.max_timeout_seconds'));
+        self::assertSame(1_048_576, $container->getParameter('nowo_uptime_monitor.checks.max_body_bytes'));
+        self::assertSame(20, $container->getParameter('nowo_uptime_monitor.checks.max_redirects'));
+        self::assertSame(300, $container->getParameter('nowo_uptime_monitor.checks.max_scan_seconds'));
+        self::assertTrue($container->getParameter('nowo_uptime_monitor.web_ui.enabled'));
+        /** @var array<string, mixed> $statusPage */
+        $statusPage = $container->getParameter('nowo_uptime_monitor.status_page');
+        self::assertTrue($statusPage['default_public']);
+    }
+
+    public function testCheckLimitsAreConfigurable(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[
+            'checks'      => ['max_timeout_seconds' => 15.0, 'max_body_bytes' => 4096, 'max_redirects' => 3, 'max_scan_seconds' => 120],
+            'status_page' => ['default_public' => false],
+        ]], $container);
+
+        self::assertSame(15.0, $container->getParameter('nowo_uptime_monitor.checks.max_timeout_seconds'));
+        self::assertSame(4096, $container->getParameter('nowo_uptime_monitor.checks.max_body_bytes'));
+        self::assertSame(3, $container->getParameter('nowo_uptime_monitor.checks.max_redirects'));
+        self::assertSame(120, $container->getParameter('nowo_uptime_monitor.checks.max_scan_seconds'));
+    }
+
     private function containerWithSecurityBundle(): ContainerBuilder
     {
         $container = new ContainerBuilder();

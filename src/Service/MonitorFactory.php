@@ -53,7 +53,7 @@ final readonly class MonitorFactory
         if ($data->type === MonitorType::Group) {
             $monitor->setParent(null)->setProject(null);
         } else {
-            $monitor->setParent($this->resolveParent($data->parentId));
+            $monitor->setParent($this->resolveParent($data->parentId, $monitor->getTenant()));
             if (!$monitor->getParent() instanceof Monitor && $data->project !== '') {
                 $monitor->setProject($data->project);
             }
@@ -122,7 +122,7 @@ final readonly class MonitorFactory
         return $config;
     }
 
-    private function resolveParent(?int $parentId): ?Monitor
+    private function resolveParent(?int $parentId, Tenant $tenant): ?Monitor
     {
         if ($parentId === null) {
             return null;
@@ -130,7 +130,8 @@ final readonly class MonitorFactory
 
         $parent = $this->monitorRepository->find($parentId);
 
-        return $parent !== null && $parent->isGroup() ? $parent : null;
+        // Defence in depth: a group of another tenant is never accepted as parent.
+        return $parent !== null && $parent->isGroup() && $parent->getTenant() === $tenant ? $parent : null;
     }
 
     /**

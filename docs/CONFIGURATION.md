@@ -10,6 +10,10 @@ nowo_uptime_monitor:
     checks:
         min_latency_ms: 0   # floor for stored latency (ms); use e.g. 1 for localhost
         block_private_urls: true   # SSRF guard for HTTP/TCP/SSL/ping/DNS monitors; false to monitor private networks
+        max_timeout_seconds: 60    # cap of every per-monitor timeout (HTTP/TCP/SSL; ping ≤ 30 s)
+        max_body_bytes: 1048576    # HTTP body read only for a keyword, at most this many bytes
+        max_redirects: 20          # cap of the per-monitor redirect limit
+        max_scan_seconds: 300      # time budget of one due-check scan; 0 = none (left-over monitors run next tick)
     scheduler:
         enabled: true
         mode: scheduler   # scheduler | cron | messenger
@@ -51,6 +55,7 @@ nowo_uptime_monitor:
         hidden_fields: []      # MonitorFormType fields left out (e.g. project, resendNotificationAfterDown)
     status_page:
         enabled: true
+        default_public: true   # tenants without a choice in Settings → General; false = status pages are opt-in
         path: /status
         title: null
         show_latency: true
@@ -71,6 +76,30 @@ nowo_uptime_monitor:
 Deprecated since **1.11** (REQ-UI-003 vocabulary, removed in 2.0): `templates.layout` / `templates.layout_template`,
 `ui.*`, `dashboard.enabled`, `dashboard.path`, `security.dashboard_roles` / `manage_roles` / `settings_roles` — see
 [UPGRADING](UPGRADING.md#configuration-req-ui-003-vocabulary).
+
+### Check limits (SEC-004)
+
+Monitor managers choose each monitor's timeout, redirects and target; the `checks.max_*` caps keep one monitor from
+stalling (tarpit) or exhausting memory in the scan every tenant shares:
+
+| Key | Default | Effect |
+|-----|---------|--------|
+| `checks.max_timeout_seconds` | `60` | Every HTTP / TCP / SSL timeout is clamped to `[1, max]`; the monitor form refuses larger values. Ping stays capped at 30 s. |
+| `checks.max_body_bytes` | `1048576` | HTTP checks never buffer a body they do not need: it is read only for a keyword check and only up to this size (the transfer is cancelled after). |
+| `checks.max_redirects` | `20` | Upper bound of the per-monitor redirect limit. |
+| `checks.max_scan_seconds` | `300` | Time budget of one scan; when spent, the remaining monitors stay due and run first on the next tick. `0` disables it. |
+
+A check whose runner throws is stored as `unknown` (`Check failed (<exception class>)`) and rescheduled; a monitor whose
+execution fails (e.g. the database write) is logged and skipped, the scan goes on. Check messages (≤ 2000 characters)
+and metadata (strings ≤ 1000 characters, ≤ 50 entries per list, ≤ 4 levels) are scrubbed to valid UTF-8 before they are
+stored. If a flush still closes the entity manager, the scan resets it through the Doctrine registry, reschedules the
+failing monitor (`next_check_at` = now + interval) and continues with the remaining monitors.
+
+### Public status page
+
+`/status/{tenant}` is public for a tenant when its *Settings → General → Public status page* is **public**, or **default**
+and `status_page.default_public` is `true` (the 1.x behaviour, default). **private** — or a disabled or unknown tenant —
+answers the same 404. Set `default_public: false` to make status pages opt-in per tenant.
 
 ### Monitoring switch and deprecated keys
 
@@ -120,10 +149,10 @@ JSON APIs and the status page only read the database. Every outbound call has an
 
 | Blocking call | Deadline | Configured by |
 |---------------|----------|---------------|
-| HTTP/HTTPS check (Symfony HttpClient) | `timeout` (idle) = monitor timeout; `max_duration` (total) = monitor timeout + 2 s | Monitor form **Timeout** (`config.request_timeout_seconds` / `config.timeout`, min 1 s; 48 s preset in the form, 10 s when unset) |
-| HTTPS certificate-expiry probe (`check_cert_expiry`) | 5 s connect + TLS handshake | constant |
-| TCP check (`stream_socket_client`) | connect timeout | monitor `config.timeout` (default 10 s) |
-| SSL check (`ssl://` connect + handshake) | connect/handshake timeout | monitor `config.timeout` (default 10 s) |
+| HTTP/HTTPS check (Symfony HttpClient) | `timeout` (idle) = monitor timeout; `max_duration` (total) = monitor timeout + 2 s | Monitor form **Timeout** (`config.request_timeout_seconds` / `config.timeout`, min 1 s; 48 s preset in the form, 10 s when unset), clamped to `checks.max_timeout_seconds` |
+| HTTPS certificate-expiry probe (`check_cert_expiry`) | none of its own: reads the certificate chain of the HTTP check connection | — |
+| TCP check (`stream_socket_client`) | connect timeout | monitor `config.timeout` (default 10 s), clamped to `checks.max_timeout_seconds` |
+| SSL check (`ssl://` connect + handshake) | connect/handshake timeout | monitor `config.timeout` (default 10 s), clamped to `checks.max_timeout_seconds` |
 | Ping check (`ping` binary) | Linux `-W` reply wait **and** `-w` hard deadline; macOS `-t`; BSD `-W` (ms) | monitor `config.timeout` (default 5 s), clamped to 1–30 s |
 | DNS check / SSRF guard lookups (`dns_get_record`) | system resolver deadline (`/etc/resolv.conf` `options timeout:N attempts:N`; glibc default 5 s × 2 per nameserver) | host OS — PHP offers no per-call timeout |
 | Webhook / Slack notification (HttpClient) | `timeout` = `max_duration` = `notifications.http_timeout` | `notifications.http_timeout` (default 10 s, min 1 s) |

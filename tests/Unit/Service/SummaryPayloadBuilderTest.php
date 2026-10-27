@@ -91,4 +91,18 @@ final class SummaryPayloadBuilderTest extends TestCase
         self::assertNull($item['last_status']);
         self::assertNull($item['last_checked_at']);
     }
+
+    public function testSerializedTargetMasksUrlCredentials(): void
+    {
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'API', MonitorType::Https, 'https://user:secret@example.test');
+
+        $builder = new SummaryPayloadBuilder(
+            $this->createMock(MonitorRepository::class),
+            $this->createMock(CheckResultRepository::class),
+            new UptimeMetricsService(),
+            new TenantDashboardSerializer(),
+        );
+
+        self::assertSame('https://***@example.test', $builder->serializeMonitor($monitor, null, [])['target']);
+    }
 }

@@ -48,12 +48,12 @@ final class PageContractTest extends PageContractTestCase
 
     protected function renderPage(PageFixture $fixture, string $framework = 'none'): RenderedPage
     {
-        return parent::renderPage(self::resolve($fixture), $framework);
+        return parent::renderPage($this->resolve($fixture), $framework);
     }
 
     protected function assertExtendsScaffoldOrUnique(PageFixture $fixture): void
     {
-        parent::assertExtendsScaffoldOrUnique(self::resolve($fixture));
+        parent::assertExtendsScaffoldOrUnique($this->resolve($fixture));
     }
 
     /**
@@ -86,7 +86,7 @@ final class PageContractTest extends PageContractTestCase
     /**
      * @return array<string, mixed>
      */
-    private static function context(string $name): array
+    private function context(string $name): array
     {
         if (str_starts_with($name, 'settings ')) {
             return $name === 'settings tags (empty)' ? PageFixtures::settingsPages(true)['tags'] : PageFixtures::settingsPages()[substr($name, 9)];
@@ -109,11 +109,11 @@ final class PageContractTest extends PageContractTestCase
         };
     }
 
-    private static function resolve(PageFixture $fixture): PageFixture
+    private function resolve(PageFixture $fixture): PageFixture
     {
         $name = $fixture->context[self::FIXTURE_KEY] ?? null;
 
-        return is_string($name) ? new PageFixture($fixture->template, self::context($name)) : $fixture;
+        return is_string($name) ? new PageFixture($fixture->template, $this->context($name)) : $fixture;
     }
 
     public function testDashboardKeepsTheLiveDashboardContract(): void

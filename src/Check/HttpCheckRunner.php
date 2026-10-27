@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Check;
 
-use Nowo\UptimeMonitorBundle\Check\Network\SocketConnectorInterface;
-use Nowo\UptimeMonitorBundle\Check\Network\StreamSocketConnector;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -20,23 +18,32 @@ use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpClient\NoPrivateNetworkHttpClient;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 use function count;
+use function filter_var;
 use function in_array;
 use function is_array;
 use function is_int;
 use function is_string;
+use function parse_url;
 use function sprintf;
+use function str_contains;
+use function strlen;
+use function substr;
+use function trim;
 
 use const CASE_LOWER;
-use const PHP_URL_HOST;
-use const PHP_URL_PORT;
+use const FILTER_VALIDATE_IP;
 
 /**
  * Executes HTTP/HTTPS monitor checks via Symfony HttpClient.
  *
  * When private targets are blocked, the client is wrapped in {@see NoPrivateNetworkHttpClient} so every redirect hop
- * and the actually connected IP are re-validated (DNS rebinding), and a per-monitor proxy must be public too.
+ * and the actually connected IP are re-validated (DNS rebinding), and a per-monitor proxy is resolved once, validated
+ * and pinned to that IP. The certificate-expiry probe reads the chain of the same (validated) connection.
+ *
+ * {@see CheckLimits} caps the timeout and redirects; the body is read only for a keyword, at most `max_body_bytes`.
  */
 final readonly class HttpCheckRunner implements CheckRunnerInterface
 {
@@ -47,14 +54,14 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
      * @param MonitorUrlSsrfGuard $ssrfGuard Validates targets against private and local networks
      * @param bool $blockPrivateUrls Whether private / local targets are refused (`checks.block_private_urls`)
      * @param ClockInterface $clock Clock for the certificate expiry check
-     * @param SocketConnectorInterface $connector Opens the TLS connection of the certificate expiry check
+     * @param CheckLimits $limits Global caps (timeout, redirects, body bytes) applied over the monitor settings
      */
     public function __construct(
         private ?HttpClientInterface $httpClient,
         private MonitorUrlSsrfGuard $ssrfGuard,
         private bool $blockPrivateUrls = true,
         private ClockInterface $clock = new NativeClock(),
-        private SocketConnectorInterface $connector = new StreamSocketConnector(),
+        private CheckLimits $limits = new CheckLimits(),
     ) {
     }
 
@@ -75,7 +82,9 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
         $config        = $monitor->getConfig();
         $url           = isset($config['url']) && is_string($config['url']) ? $config['url'] : $monitor->getTarget();
         $method        = isset($config['method']) && is_string($config['method']) ? strtoupper($config['method']) : 'GET';
-        $timeout       = $settings->getRequestTimeoutSeconds();
+        $timeout       = $this->limits->clampTimeout($settings->getRequestTimeoutSeconds());
+        $keyword       = isset($config['keyword']) && is_string($config['keyword']) ? $config['keyword'] : '';
+        $certCheck     = $settings->isCheckCertExpiry() && $monitor->getType() === MonitorType::Https;
         $expectedCodes = $settings->getExpectedStatusCodes();
 
         if ($this->blockPrivateUrls && $this->ssrfGuard->isBlocked($url)) {
@@ -88,13 +97,16 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
         }
 
         $proxy = $settings->getProxyUrl();
-        if ($this->blockPrivateUrls && $proxy !== null && $this->ssrfGuard->isBlocked($proxy)) {
-            return new CheckResultDto(
-                CheckStatus::Down,
-                0,
-                null,
-                'Monitor proxy targets a private or local network address (blocked).',
-            );
+        if ($this->blockPrivateUrls && $proxy !== null) {
+            $proxy = $this->pinProxy($proxy);
+            if ($proxy === null) {
+                return new CheckResultDto(
+                    CheckStatus::Down,
+                    0,
+                    null,
+                    'Monitor proxy targets a private or local network address (blocked).',
+                );
+            }
         }
 
         $client = $this->httpClient ?? HttpClient::create();
@@ -107,8 +119,13 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
             $options = [
                 'timeout'       => $timeout,
                 'max_duration'  => $timeout + 2,
-                'max_redirects' => $settings->getMaxRedirects(),
+                'max_redirects' => $this->limits->clampRedirects($settings->getMaxRedirects()),
             ];
+
+            if ($certCheck) {
+                // Certificate of the connection that was just validated (pinned IP, proxy honoured) — no second lookup.
+                $options['capture_peer_cert_chain'] = true;
+            }
 
             $headers = $settings->getHeaders();
             $body    = $settings->getHttpBody();
@@ -134,10 +151,13 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
                 $options['auth_basic'] = [$settings->getAuthUsername(), $settings->getAuthPassword()];
             }
 
-            $response    = $client->request($method, $url, $options);
-            $statusCode  = $response->getStatusCode();
-            $latencyMs   = (int) ((hrtime(true) - $start) / 1_000_000);
-            $bodyContent = $response->getContent(false);
+            $response   = $client->request($method, $url, $options);
+            $statusCode = $response->getStatusCode();
+            $latencyMs  = (int) ((hrtime(true) - $start) / 1_000_000);
+            $chain      = $certCheck ? $response->getInfo('peer_certificate_chain') : null;
+            // Never buffer a body nobody reads: only a keyword check needs it, and only its first max_body_bytes.
+            $bodyContent = $keyword !== '' ? $this->readBodyPrefix($client, $response) : '';
+            $response->cancel();
 
             if (!StatusCodeMatcher::matches($statusCode, $expectedCodes)) {
                 return new CheckResultDto(
@@ -148,7 +168,7 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
                 );
             }
 
-            if (isset($config['keyword']) && is_string($config['keyword']) && $config['keyword'] !== '' && !str_contains($bodyContent, $config['keyword'])) {
+            if ($keyword !== '' && !str_contains($bodyContent, $keyword)) {
                 return new CheckResultDto(
                     CheckStatus::Down,
                     $latencyMs,
@@ -157,8 +177,8 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
                 );
             }
 
-            if ($settings->isCheckCertExpiry() && $monitor->getType() === MonitorType::Https) {
-                $certMessage = $this->checkCertificateExpiry($url);
+            if ($certCheck) {
+                $certMessage = $this->checkCertificateExpiry($chain);
                 if ($certMessage !== null) {
                     return new CheckResultDto(CheckStatus::Degraded, $latencyMs, $statusCode, $certMessage);
                 }
@@ -200,20 +220,53 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
         return $headers;
     }
 
-    private function checkCertificateExpiry(string $url): ?string
+    /**
+     * Resolves the proxy host once, rejects private/local answers and returns the proxy URL pinned to the validated IP
+     * (null when blocked or unresolvable), so curl cannot re-resolve it to another address (DNS rebinding).
+     */
+    private function pinProxy(string $proxy): ?string
     {
-        // The request above already succeeded, so the URL has a host.
-        $host       = (string) parse_url($url, PHP_URL_HOST);
-        $port       = (int) (parse_url($url, PHP_URL_PORT) ?? 443);
-        $connection = $this->connector->connect(sprintf('ssl://%s:%d', $host, $port), 5.0, [
-            'ssl' => [
-                'capture_peer_cert' => true,
-                'verify_peer'       => false,
-                'verify_peer_name'  => false,
-            ],
-        ]);
+        $parts = parse_url($proxy);
+        $host  = is_array($parts) ? trim($parts['host'] ?? '', '[]') : '';
+        if ($host === '') {
+            return null;
+        }
 
-        $cert   = $connection->peerCertificate;
+        $addresses = $this->ssrfGuard->resolveAddresses($host);
+        if ($addresses === [] || $this->ssrfGuard->isBlockedResolution($host, $addresses)) {
+            return null;
+        }
+
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return $proxy;
+        }
+
+        $ip       = str_contains($addresses[0], ':') ? '[' . $addresses[0] . ']' : $addresses[0];
+        $userInfo = isset($parts['user']) ? $parts['user'] . (isset($parts['pass']) ? ':' . $parts['pass'] : '') . '@' : '';
+
+        return ($parts['scheme'] ?? 'http') . '://' . $userInfo . $ip . (isset($parts['port']) ? ':' . $parts['port'] : '');
+    }
+
+    /**
+     * Reads at most `max_body_bytes` of the response body, then cancels the transfer.
+     */
+    private function readBodyPrefix(HttpClientInterface $client, ResponseInterface $response): string
+    {
+        $max  = $this->limits->maxBodyBytes;
+        $body = '';
+        foreach ($client->stream($response) as $chunk) {
+            $body .= $chunk->getContent();
+            if (strlen($body) >= $max) {
+                return substr($body, 0, $max);
+            }
+        }
+
+        return $body;
+    }
+
+    private function checkCertificateExpiry(mixed $chain): ?string
+    {
+        $cert   = is_array($chain) ? ($chain[0] ?? null) : null;
         $parsed = $cert instanceof OpenSSLCertificate ? openssl_x509_parse($cert) : false;
         if (!is_array($parsed) || !is_int($parsed['validTo_time_t'] ?? null)) {
             return null;

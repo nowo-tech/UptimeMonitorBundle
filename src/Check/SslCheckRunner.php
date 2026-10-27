@@ -37,12 +37,14 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
      * @param bool $blockPrivateUrls Whether private / local targets are refused (`checks.block_private_urls`)
      * @param ClockInterface $clock Clock for the days left until expiry
      * @param SocketConnectorInterface $connector Opens the TLS connection
+     * @param CheckLimits $limits Global caps; the monitor timeout is clamped to `checks.max_timeout_seconds`
      */
     public function __construct(
         private MonitorUrlSsrfGuard $ssrfGuard = new MonitorUrlSsrfGuard(),
         private bool $blockPrivateUrls = true,
         private ClockInterface $clock = new NativeClock(),
         private SocketConnectorInterface $connector = new StreamSocketConnector(),
+        private CheckLimits $limits = new CheckLimits(),
     ) {
     }
 
@@ -66,7 +68,7 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
         $minDays = isset($config['days_before_expiry']) && is_numeric($config['days_before_expiry'])
             ? (int) $config['days_before_expiry']
             : 14;
-        $timeout = isset($config['timeout']) && is_numeric($config['timeout']) ? (float) $config['timeout'] : 10.0;
+        $timeout = $this->limits->clampTimeout(isset($config['timeout']) && is_numeric($config['timeout']) ? (float) $config['timeout'] : 10.0);
 
         $connectHost = $host;
         if ($this->blockPrivateUrls) {

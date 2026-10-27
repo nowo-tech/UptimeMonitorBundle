@@ -10,6 +10,7 @@ use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 
@@ -227,7 +228,7 @@ final readonly class SummaryPayloadBuilder
             'is_group'         => $monitor->isGroup(),
             'history'          => $history,
             'uptime_24h'       => $uptime24h,
-            'target'           => $monitor->getTarget(),
+            'target'           => SecretRedactor::maskUrl($monitor->getTarget()),
             'paused'           => $monitor->isPaused(),
             'interval_seconds' => $monitor->getIntervalSeconds(),
             'next_check_at'    => $monitor->getNextCheckAt()?->format(DateTimeInterface::ATOM),

@@ -33,6 +33,8 @@ use Nowo\UptimeMonitorBundle\Service\TenantSettingsMapper;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
@@ -63,6 +65,7 @@ final class SettingsController extends AbstractUptimeController
      * Creates the settings controller with its repositories, services and configuration.
      *
      * @param TranslatorInterface $translator Translator for flash messages
+     * @param LoggerInterface $logger Receives rejected backup imports (exception class only)
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -80,6 +83,7 @@ final class SettingsController extends AbstractUptimeController
         #[Autowire('%nowo_uptime_monitor.notifications%')]
         private readonly array $notificationsConfig,
         private readonly UptimePages $pages = new UptimePages(),
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         parent::__construct($translator);
     }
@@ -493,9 +497,16 @@ final class SettingsController extends AbstractUptimeController
                     '%imported%'    => $result['imported'],
                     '%skipped%'     => $result['skipped'],
                     '%overwritten%' => $result['overwritten'],
+                    '%invalid%'     => $result['invalid'],
                 ]));
             } catch (Throwable $e) {
-                $this->addFlash('error', $this->transMessage('flash.settings.backup_import_failed', ['%error%' => $e->getMessage()]));
+                // Generic message: exception texts may echo file content, SQL or paths (SEC-004 L7).
+                $this->logger->warning('Uptime backup import rejected for tenant {tenant}: {error}', [
+                    'bundle' => 'NowoUptimeMonitorBundle',
+                    'tenant' => $tenant->getSlug(),
+                    'error'  => $e::class,
+                ]);
+                $this->addFlash('error', $this->transMessage('flash.settings.backup_import_failed'));
             }
         }
 

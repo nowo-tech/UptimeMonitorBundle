@@ -123,4 +123,31 @@ final class MonitorFormTypeTest extends TypeTestCase
             array_map(static fn ($choice): string => $choice->value, array_values($view['type']->vars['choices'])),
         );
     }
+
+    public function testTimeoutIsCappedByTheGlobalMaximum(): void
+    {
+        $factory = Forms::createFormFactoryBuilder()
+            ->addExtensions($this->getExtensions())
+            ->addTypes([FormKitTestSupport::withMerger(new MonitorFormType([], 30.0))])
+            ->getFormFactory();
+
+        $form = $factory->create(MonitorFormType::class, new MonitorFormData());
+        $form->submit(['name' => 'API', 'type' => MonitorType::Https->value, 'url' => 'https://example.test', 'requestTimeoutSeconds' => '86400'], false);
+
+        self::assertFalse($form->get('requestTimeoutSeconds')->isValid());
+        self::assertSame(30.0, $form->get('requestTimeoutSeconds')->getConfig()->getOption('attr')['max']);
+    }
+
+    public function testModelConstraintsRejectOutOfRangeValues(): void
+    {
+        $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
+        $data      = new MonitorFormData();
+        self::assertCount(0, $validator->validate($data));
+
+        $data->retries      = -1;
+        $data->method       = 'DELETE';
+        $data->maxRedirects = 500;
+        $data->port         = 70000;
+        self::assertCount(4, $validator->validate($data));
+    }
 }

@@ -8,6 +8,7 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Ui\UiFramework;
 
 use function array_key_exists;
+use function in_array;
 use function is_bool;
 use function is_string;
 
@@ -83,11 +84,25 @@ final readonly class TenantSettings
     }
 
     /**
-     * Returns the Steam API key (Uptime Kuma parity setting).
+     * Status page visibility of the tenant: `public`, `private` or `default` (follows `status_page.default_public`).
      */
-    public function getSteamApiKey(): string
+    public function getStatusPageVisibility(): string
     {
-        return $this->string('steam_api_key', '');
+        $value = $this->string('status_page_public', 'default');
+
+        return in_array($value, ['public', 'private'], true) ? $value : 'default';
+    }
+
+    /**
+     * Whether the public status page of the tenant is reachable, given the global `status_page.default_public`.
+     */
+    public function isStatusPagePublic(bool $defaultPublic): bool
+    {
+        return match ($this->getStatusPageVisibility()) {
+            'public'  => true,
+            'private' => false,
+            default   => $defaultPublic,
+        };
     }
 
     /**
@@ -104,14 +119,6 @@ final readonly class TenantSettings
     public function isHttpDnsCacheEnabled(): bool
     {
         return $this->bool('http_dns_cache', false);
-    }
-
-    /**
-     * Returns the Chromium executable (`auto` by default).
-     */
-    public function getChromiumExecutable(): string
-    {
-        return $this->string('chromium_executable', 'auto');
     }
 
     /**

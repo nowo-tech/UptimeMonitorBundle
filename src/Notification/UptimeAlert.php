@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Notification;
 
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
+use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 
 use function sprintf;
 
@@ -77,7 +78,7 @@ final readonly class UptimeAlert
         return sprintf(
             'Monitor "%s" (%s) is now %s',
             $this->monitor->getName(),
-            $this->monitor->getTarget(),
+            SecretRedactor::maskUrl($this->monitor->getTarget()),
             $this->currentStatus->value,
         );
     }

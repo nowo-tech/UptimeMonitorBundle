@@ -29,7 +29,7 @@ use const PHP_URL_HOST;
  * themselves (TCP/SSL/ping) connect to the address returned by {@see self::resolveAddresses()} so the target
  * cannot be re-resolved to a private address between the check and the connection (DNS rebinding).
  */
-final class MonitorUrlSsrfGuard
+final readonly class MonitorUrlSsrfGuard
 {
     /**
      * IpUtils::PRIVATE_SUBNETS (loopback, RFC1918, link-local, 0.0.0.0/8, 100.64/10, fc00::/7, IPv4-mapped, ::, …)
@@ -46,10 +46,10 @@ final class MonitorUrlSsrfGuard
     private const BLOCKED_HOSTNAMES = ['localhost', 'metadata.google.internal'];
 
     /** @var Closure(string): (false|list<string>) */
-    private readonly Closure $ipv4Lookup;
+    private Closure $ipv4Lookup;
 
     /** @var Closure(string, int): (array<int, array<string, mixed>>|false) */
-    private readonly Closure $recordLookup;
+    private Closure $recordLookup;
 
     /**
      * The lookups are the guard's DNS seam (tests resolve names without network access).
