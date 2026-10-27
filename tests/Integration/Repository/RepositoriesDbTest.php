@@ -107,6 +107,8 @@ final class RepositoriesDbTest extends TestCase
 
         self::assertSame(['a-api', 'b-api', 'future', 'group', 'paused'], $this->names($repository->findByTenantSlug('main')));
         self::assertSame(['group'], $this->names($repository->findGroupsByTenantSlug('main')));
+        // Groups are not counted against the tenant limit; other tenants' monitors neither.
+        self::assertSame(4, $repository->countChecksByTenantSlug('main'));
         self::assertSame(['a-api', 'b-api'], $this->names($repository->findChildrenOf((int) $group->getId())));
 
         // Paused and not-yet-due monitors are skipped; where NULL next_check_at sorts is platform-specific.

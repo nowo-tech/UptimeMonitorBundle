@@ -9,11 +9,14 @@ services:
             - '../../DependencyInjection/'
             - '../../Doctrine/'
             - '../../Entity/'
+            - '../../Event/'
             - '../../Notification/Channel/'
             - '../../UptimeMonitorBundle.php'
             - '../../Security/UptimeMonitorAccessCheckerInterface.php'
             - '../../Security/ConfigurableUptimeMonitorAccessChecker.php'
             - '../../Security/AllowAllUptimeMonitorAccessChecker.php'
+            - '../../Limits/TenantLimitsInterface.php'
+            - '../../Limits/ConfigurableTenantLimits.php'
 
     Nowo\UptimeMonitorBundle\Notification\Channel\EmailNotificationChannel:
         tags: ['nowo.uptime_monitor.notification_channel']

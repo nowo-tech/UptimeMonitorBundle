@@ -61,6 +61,19 @@ describe('monitor detail', () => {
     expect(() => applyHistoryPayload(bare, PAYLOAD)).not.toThrow();
   });
 
+  it('reveals the history, figures and log once the first check arrives', () => {
+    const root = mount();
+    root.insertAdjacentHTML('beforeend', '<p data-detail-unchecked>Not checked yet</p><div data-detail-pending hidden></div>');
+
+    applyHistoryPayload(root, { ...PAYLOAD, last_checked_at: null });
+    expect(root.querySelector('[data-detail-unchecked]')).not.toBeNull();
+    expect(root.querySelector<HTMLElement>('[data-detail-pending]')?.hidden).toBe(true);
+
+    applyHistoryPayload(root, PAYLOAD);
+    expect(root.querySelector('[data-detail-unchecked]')).toBeNull();
+    expect(root.querySelector<HTMLElement>('[data-detail-pending]')?.hidden).toBe(false);
+  });
+
   it('polls the history API and keeps the page on errors', async () => {
     const root = mount();
     vi.stubGlobal('fetch', vi.fn()

@@ -1,11 +1,13 @@
 {#
   Monitor detail (REQ-UI-003): UiKit show scaffold. Variables: page (View\ShowPage from MonitorController::show():
-  header = monitor name, intro = target, back link to the dashboard, action Edit (opens the monitor form dialog;
-  plain link without JavaScript); section "details" (type, group / project, target, interval)), and the 1.x
-  variables tenant_slug, monitor, latest, detail, chart_series_json, latency_series_json, api_history_url,
-  api_aggregates_url.
-  Data block filled: nowo_ui_show_after (status, check history bar, uptime / latency cards, charts, check log,
-  group children — updated live by uptime-monitor-detail.js).
+  header = monitor name, intro = target, back link to the dashboard, the actions the user may use (Edit opens the
+  monitor form dialog, a plain link without JavaScript; Pause / Resume; Delete behind a confirm) and the host's;
+  section "details" (type, group / project, target, interval)), page_sections (UptimePageEvent: before / after),
+  log_events + log_pagination (the check log page, web_ui.per_page), and the 1.x variables tenant_slug, monitor,
+  latest, detail, chart_series_json, latency_series_json, api_history_url, api_aggregates_url.
+  Data block filled: nowo_ui_show_after (host sections, status, check history bar, uptime / latency cards, charts,
+  check log, group children — updated live by uptime-monitor-detail.js; until the first check one notice stands
+  for the history, figures, charts and log, which the script reveals once a check arrives).
 #}
 {% extends '@NowoUiKit/page/show.html.twig' %}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -29,6 +31,9 @@
     {% set _b = page.bundle %}
     {% set _theme = uptime_theme() %}
     {% set status = latest ? latest.status.value : 'unknown' %}
+    {% for section in page_sections.before|default([]) %}
+        {{ include(section.template, section.context) }}
+    {% endfor %}
     <div class="uptime-app uptime-app--embedded uptime-theme-{{ _theme }} uptime-page uptime-page--monitor"{% if _theme != 'auto' %} data-theme="{{ _theme }}"{% endif %}>
         <div class="uptime-detail" id="uptime-monitor-detail-root"
              data-monitor-id="{{ monitor.id }}"
@@ -56,6 +61,11 @@
                 </section>
             {% endif %}
 
+            {% if not latest %}
+                <p class="uptime-detail-unchecked {{ nowo_ui_class('muted', _b) }}" role="status" data-detail-unchecked data-testid="uptime-monitor-no-checks">{{ 'monitor.show.not_checked'|trans }}</p>
+            {% endif %}
+
+            <div class="uptime-detail-checked-content" data-detail-pending{% if not latest %} hidden{% endif %}>
             <section class="uptime-detail-history-section {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
                 <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.show.history'|trans }}</h2>
                 {{ include('@NowoUptimeMonitorBundle/_history_bar.html.twig', {history: detail.history, large: true}) }}
@@ -100,7 +110,7 @@
                 </div>
             </section>
 
-            <section class="uptime-events {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
+            <section class="uptime-events {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-monitor-log">
                 <header class="uptime-events-header {{ nowo_ui_class('card_header', _b) }}">
                     <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.show.check_log'|trans }}</h2>
                 </header>
@@ -116,7 +126,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for event in detail.events|reverse %}
+                            {% for event in log_events|default(detail.events|reverse) %}
                                 <tr>
                                     <td><span class="uptime-status uptime-status-{{ event.status }}">{{ ('status.' ~ event.status)|trans }}</span></td>
                                     <td>{{ event.checked_at|date('Y-m-d H:i:s') }}</td>
@@ -132,9 +142,18 @@
                         </tbody>
                     </table>
                 </div>
+                {% if log_pagination is defined and log_pagination.totalPages > 1 %}
+                    <div class="uptime-events-pagination" data-testid="uptime-monitor-log-pagination">
+                        {{ include(nowo_ui_partial('pagination', _b), {pagination: log_pagination, item_count: log_events|length, bundle: _b}, false) }}
+                    </div>
+                {% endif %}
             </section>
+            </div>
         </div>
     </div>
+    {% for section in page_sections.after|default([]) %}
+        {{ include(section.template, section.context) }}
+    {% endfor %}
 {% endblock %}
 
 {% block nowo_ui_modals %}

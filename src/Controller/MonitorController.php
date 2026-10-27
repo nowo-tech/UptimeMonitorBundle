@@ -11,12 +11,15 @@ use Nowo\UiKitBundle\View\DetailItem;
 use Nowo\UiKitBundle\View\DetailSection;
 use Nowo\UiKitBundle\View\FormPage;
 use Nowo\UiKitBundle\View\PageHeader;
+use Nowo\UiKitBundle\View\Pagination;
 use Nowo\UiKitBundle\View\ShowPage;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
+use Nowo\UptimeMonitorBundle\Event\UptimePageEvent;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
+use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -24,7 +27,10 @@ use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
+use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -32,9 +38,14 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_reverse;
+use function array_slice;
+use function count;
 use function in_array;
+use function is_int;
 use function sprintf;
 
 use const JSON_THROW_ON_ERROR;
@@ -49,6 +60,11 @@ final class MonitorController extends AbstractUptimeController
      * Creates the monitor controller with its repositories and services.
      *
      * @param TranslatorInterface $translator Translator for flash messages
+     * @param UptimeActions|null $actions Page actions for the users allowed to use them (since 1.12)
+     * @param TenantQuota|null $quota Per-tenant monitor limits (since 1.12)
+     * @param EventDispatcherInterface|null $eventDispatcher Dispatches {@see UptimePageEvent} (since 1.12)
+     * @param array<string, mixed> $webUi Processed `web_ui` config (`per_page`)
+     * @param list<string> $hiddenFields `form.hidden_fields`: monitor fields the host left out
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -60,28 +76,44 @@ final class MonitorController extends AbstractUptimeController
         private readonly DashboardViewBuilder $dashboardViewBuilder,
         private readonly EntityManagerInterface $entityManager,
         private readonly UptimePages $pages = new UptimePages(),
+        private readonly ?UptimeActions $actions = null,
+        private readonly ?TenantQuota $quota = null,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        #[Autowire('%nowo_uptime_monitor.web_ui%')]
+        private readonly array $webUi = [],
+        #[Autowire('%nowo_uptime_monitor.form.hidden_fields%')]
+        private readonly array $hiddenFields = [],
     ) {
         parent::__construct($translator);
     }
 
     /**
-     * Renders the monitor detail page (history bar, uptime, latency and daily charts, events).
+     * Renders the monitor detail page (history bar, uptime, latency and daily charts, the check log paginated by
+     * `web_ui.per_page`, newest first).
      *
      * @param string $tenantSlug Tenant slug from the route
      * @param int $id Monitor id
+     * @param Request|null $request Current request (`page` of the check log)
      *
      * @throws NotFoundHttpException When the monitor does not belong to the tenant
      */
     #[Route('/{id}', name: 'show', requirements: ['id' => '\d+'], methods: ['GET'])]
-    public function show(string $tenantSlug, int $id): Response
+    public function show(string $tenantSlug, int $id, ?Request $request = null): Response
     {
         $monitor = $this->requireMonitor($tenantSlug, $id);
         $series  = $this->chartService->buildMonitorSeries($monitor, AggregatePeriod::Day, 30);
         $detail  = $this->dashboardViewBuilder->buildMonitorDetail($monitor);
         $latest  = $this->checkResultRepository->findLatestForMonitor($monitor);
+        $event   = $this->dispatchPageEvent(new UptimePageEvent('monitor_show', $tenantSlug, $monitor));
+        $log     = array_reverse($detail['events']);
+        $perPage = $this->perPage();
+        $pager   = Pagination::fromTotal(count($log), $request?->query->getInt('page', 1) ?? 1, $perPage, [$perPage], variant: Pagination::VARIANT_COMPACT);
 
         return $this->render($this->pages->template('monitor_show', '@NowoUptimeMonitorBundle/monitor/show.html.twig'), $this->pages->context([
-            'page'                => $this->buildShowPage($tenantSlug, $monitor),
+            'page'                => $this->buildShowPage($tenantSlug, $monitor, $event),
+            'page_sections'       => ['before' => $event->getSections('before'), 'after' => $event->getSections('after')],
+            'log_events'          => array_slice($log, ($pager->page - 1) * $perPage, $perPage),
+            'log_pagination'      => $pager,
             'tenant_slug'         => $tenantSlug,
             'monitor'             => $monitor,
             'latest'              => $latest,
@@ -113,9 +145,14 @@ final class MonitorController extends AbstractUptimeController
         $tenant = $this->requireTenant($tenantSlug);
         $data   = new MonitorFormData();
         $form   = $this->createForm(MonitorFormType::class, $data, [
-            'group_choices' => $this->buildGroupChoices($tenantSlug),
+            'group_choices'        => $this->buildGroupChoices($tenantSlug),
+            'min_interval_seconds' => $this->minIntervalSeconds($tenantSlug),
         ]);
         $form->handleRequest($request);
+        // A full tenant: the form says why before anything is typed, and refuses the monitor.
+        if ($this->quota instanceof TenantQuota && !$this->quota->canAdd($tenantSlug)) {
+            $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota->max($tenantSlug)])));
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
             $monitor = $this->monitorFactory->createFromFormData($tenant, $data);
@@ -169,7 +206,8 @@ final class MonitorController extends AbstractUptimeController
         $monitor = $this->requireMonitor($tenantSlug, $id);
         $data    = $this->monitorFactory->toFormData($monitor);
         $form    = $this->createForm(MonitorFormType::class, $data, [
-            'group_choices' => $this->buildGroupChoices($tenantSlug, $monitor),
+            'group_choices'        => $this->buildGroupChoices($tenantSlug, $monitor),
+            'min_interval_seconds' => $this->minIntervalSeconds($tenantSlug),
         ]);
         $form->handleRequest($request);
 
@@ -254,43 +292,45 @@ final class MonitorController extends AbstractUptimeController
             $this->entityManager->flush();
         }
 
+        // From the monitor page (`?return=show`), back to it.
+        if ($request->query->get('return') === 'show') {
+            return $this->redirectToRoute('nowo_uptime_monitor_show', ['tenantSlug' => $tenantSlug, 'id' => $id]);
+        }
+
         return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenantSlug]);
     }
 
     /**
-     * Monitor detail view model: name, target, back link, Edit (opens the monitor form dialog; plain link without
-     * JavaScript) and the details section.
+     * Monitor detail view model: name, target, back link, the monitor actions of {@see UptimeActions} (edit opens the
+     * monitor form dialog, a plain link without JavaScript; pause / resume; delete behind a confirm) and the host's
+     * ({@see UptimePageEvent}), and the details section (the project only when the form keeps that field).
      */
-    private function buildShowPage(string $tenantSlug, Monitor $monitor): ShowPage
+    private function buildShowPage(string $tenantSlug, Monitor $monitor, UptimePageEvent $event): ShowPage
     {
-        $editUrl = $this->generateUrl('nowo_uptime_monitor_edit', ['tenantSlug' => $tenantSlug, 'id' => $monitor->getId()]);
         $parent  = $monitor->getParent();
+        $actions = $this->actions instanceof UptimeActions
+            ? $this->actions->monitor($tenantSlug, $monitor)
+            : [$this->editAction($tenantSlug, $monitor)];
+        $items = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
+        if ($parent instanceof Monitor || !in_array('project', $this->hiddenFields, true)) {
+            $items[] = new DetailItem(
+                UptimePages::label($parent instanceof Monitor ? 'monitor.show.group' : 'monitor.show.project'),
+                $parent instanceof Monitor ? $parent->getName() : $monitor->getProject(),
+                $parent instanceof Monitor && $parent->getId() !== null ? $this->generateUrl('nowo_uptime_monitor_show', ['tenantSlug' => $tenantSlug, 'id' => $parent->getId()]) : null,
+            );
+        }
+        $items[] = new DetailItem(UptimePages::label('monitor.show.target'), SecretRedactor::maskUrl($monitor->getTarget()));
+        $items[] = new DetailItem(UptimePages::label('monitor.show.interval_label'), UptimePages::label('monitor.show.seconds', ['%seconds%' => $monitor->getIntervalSeconds()]));
 
         return new ShowPage(
             new PageHeader(
                 $monitor->getName(),
                 SecretRedactor::maskUrl($monitor->getTarget()),
-                [
-                    new Action('edit', UptimePages::label('monitor.edit'), $editUrl, attributes: [
-                        'data-monitor-form-open'   => true,
-                        'data-monitor-form-url'    => $editUrl,
-                        'data-monitor-form-return' => 'show',
-                        'data-testid'              => 'uptime-monitor-edit',
-                    ]),
-                ],
+                [...$actions, ...$event->getActions()],
                 back: new BackLink($this->dashboardUrl($tenantSlug), UptimePages::label('nav.dashboard')),
             ),
             [
-                new DetailSection(UptimePages::label('monitor.show.details'), [
-                    new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral'),
-                    new DetailItem(
-                        UptimePages::label($parent instanceof Monitor ? 'monitor.show.group' : 'monitor.show.project'),
-                        $parent instanceof Monitor ? $parent->getName() : $monitor->getProject(),
-                        $parent instanceof Monitor && $parent->getId() !== null ? $this->generateUrl('nowo_uptime_monitor_show', ['tenantSlug' => $tenantSlug, 'id' => $parent->getId()]) : null,
-                    ),
-                    new DetailItem(UptimePages::label('monitor.show.target'), SecretRedactor::maskUrl($monitor->getTarget())),
-                    new DetailItem(UptimePages::label('monitor.show.interval_label'), UptimePages::label('monitor.show.seconds', ['%seconds%' => $monitor->getIntervalSeconds()])),
-                ], 'uptime-monitor-details'),
+                new DetailSection(UptimePages::label('monitor.show.details'), $items, 'uptime-monitor-details'),
             ],
             bundle: UptimePages::BUNDLE,
             layout: $this->pages->layout(),
@@ -319,6 +359,49 @@ final class MonitorController extends AbstractUptimeController
             formThemes: $this->pages->formThemes(),
             formAttributes: ['class' => 'uptime-monitor-form'],
         );
+    }
+
+    /**
+     * Edit of a monitor without {@see UptimeActions} (a controller built by hand): opens the monitor form dialog.
+     */
+    private function editAction(string $tenantSlug, Monitor $monitor): Action
+    {
+        $editUrl = $this->generateUrl('nowo_uptime_monitor_edit', ['tenantSlug' => $tenantSlug, 'id' => $monitor->getId()]);
+
+        return new Action('edit', UptimePages::label('monitor.edit'), $editUrl, attributes: [
+            'data-monitor-form-open'   => true,
+            'data-monitor-form-url'    => $editUrl,
+            'data-monitor-form-return' => 'show',
+            'data-testid'              => 'uptime-monitor-edit',
+        ]);
+    }
+
+    /**
+     * Dispatches the host extension event of a page (returned as is without a dispatcher).
+     */
+    private function dispatchPageEvent(UptimePageEvent $event): UptimePageEvent
+    {
+        $this->eventDispatcher?->dispatch($event);
+
+        return $event;
+    }
+
+    /**
+     * Rows per page of the check log (`web_ui.per_page`).
+     */
+    private function perPage(): int
+    {
+        $perPage = $this->webUi['per_page'] ?? 20;
+
+        return is_int($perPage) && $perPage > 0 ? $perPage : 20;
+    }
+
+    /**
+     * Shortest check interval of the tenant's monitors (`limits`), 30 s without a quota service.
+     */
+    private function minIntervalSeconds(string $tenantSlug): int
+    {
+        return $this->quota?->minIntervalSeconds($tenantSlug) ?? 30;
     }
 
     private function dashboardUrl(string $tenantSlug): string

@@ -16,6 +16,7 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
+use function is_int;
 use function is_string;
 use function trim;
 
@@ -78,9 +79,12 @@ final class MonitorFormType extends AbstractUptimeFormType
             'required' => false,
             'help'     => 'form.monitor.project_help',
         ]);
+        /** @var int $minInterval */
+        $minInterval = $options['min_interval_seconds'];
         $this->addInteger($builder, 'intervalSeconds', [
-            'label' => 'form.monitor.interval',
-            'attr'  => ['min' => 30],
+            'label'       => 'form.monitor.interval',
+            'attr'        => ['min' => $minInterval],
+            'constraints' => [new Callback(static fn (mixed $value, ExecutionContextInterface $context) => self::validateInterval($value, $context, $minInterval))],
         ]);
         $this->addInteger($builder, 'retries', [
             'label'    => 'form.monitor.retries',
@@ -231,15 +235,34 @@ final class MonitorFormType extends AbstractUptimeFormType
     }
 
     /**
+     * Adds a `form.monitor.interval_min` violation when a monitor that runs checks (not a group) is checked more often
+     * than `$minSeconds` (`min_interval_seconds` option: the tenant limit).
+     */
+    public static function validateInterval(mixed $value, ExecutionContextInterface $context, int $minSeconds): void
+    {
+        $data = $context->getRoot()->getData();
+        if (!is_int($value) || $value >= $minSeconds || ($data instanceof MonitorFormData && $data->type === MonitorType::Group)) {
+            return;
+        }
+
+        $context->buildViolation('form.monitor.interval_min')
+            ->setParameter('%seconds%', (string) $minSeconds)
+            ->setTranslationDomain(UptimeTranslation::DOMAIN)
+            ->addViolation();
+    }
+
+    /**
      * Configures the monitor options.
      */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);
         $resolver->setDefaults([
-            'data_class'    => MonitorFormData::class,
-            'group_choices' => [],
+            'data_class'           => MonitorFormData::class,
+            'group_choices'        => [],
+            'min_interval_seconds' => 30,
         ]);
         $resolver->setAllowedTypes('group_choices', 'array');
+        $resolver->setAllowedTypes('min_interval_seconds', 'int');
     }
 }

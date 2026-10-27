@@ -1,0 +1,67 @@
+// Table dashboard (web_ui.dashboard.view: table) and the monitor page additions (1.12): layout only, colours and
+// type from the UiKit theme slots (badge_*, muted, table…).
+
+.uptime-dashboard-table {
+  // The dashboard scaffold lays its cards out in a grid: the table view spans every column, and its cards may shrink
+  // so the table scroller (not the page) scrolls.
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+
+  > * {
+    min-width: 0;
+  }
+}
+
+.uptime-dashboard-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.uptime-dashboard-row td {
+  vertical-align: top;
+}
+
+.uptime-dashboard-row td[data-column='monitor'] {
+  min-width: 14rem;
+}
+
+.uptime-dashboard-row--nested td[data-column='monitor'] {
+  padding-left: 1.75rem;
+}
+
+.uptime-dashboard-row-name {
+  margin-right: 0.5rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.uptime-dashboard-row-target,
+.uptime-dashboard-latency {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.uptime-dashboard-nowrap {
+  white-space: nowrap;
+}
+
+.uptime-dashboard-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.uptime-events-pagination {
+  margin-top: 0.75rem;
+}
+
+.uptime-detail-unchecked {
+  margin: 0 0 1.25rem;
+}

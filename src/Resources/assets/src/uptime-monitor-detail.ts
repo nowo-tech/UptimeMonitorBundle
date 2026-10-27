@@ -122,6 +122,14 @@ export function applyHistoryPayload(root: HTMLElement, payload: HistoryPayload):
     checkedEl.textContent = payload.last_checked_at.replace('T', ' ').slice(0, 19);
   }
 
+  // The first check of a new monitor: the history, figures, charts and log replace the "not checked yet" notice.
+  if (payload.last_checked_at !== null) {
+    root.querySelector('[data-detail-unchecked]')?.remove();
+    root.querySelectorAll<HTMLElement>('[data-detail-pending]').forEach((pending) => {
+      pending.hidden = false;
+    });
+  }
+
   const uptime24 = root.querySelector<HTMLElement>('[data-uptime-24h]');
   if (uptime24 !== null) {
     uptime24.textContent =
