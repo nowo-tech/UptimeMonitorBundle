@@ -245,6 +245,7 @@ flash.settings.purged: '%count% abgelaufene Detailzeilen bereinigt.'
 flash.settings.cleared: '%checks% Prüfungen, %aggregates% Aggregationen und %incidents% Vorfälle gelöscht.'
 flash.settings.backup_no_file: 'Keine Sicherungsdatei hochgeladen.'
 flash.settings.backup_imported: 'Import abgeschlossen: %imported% neu, %skipped% übersprungen, %overwritten% überschrieben, %invalid% ungültig.'
+flash.settings.backup_over_quota: '%count% Monitor(e) nicht importiert: das Monitor-Limit des Mandanten ist erreicht.'
 flash.settings.backup_import_failed: 'Import fehlgeschlagen: Die Datei ist keine gültige Sicherung.'
 
 # Pages (UiKit page contract, REQ-UI-003)
@@ -296,6 +297,7 @@ monitor.delete_confirm: 'Den Monitor „%name%“ und seinen Prüfverlauf lösch
 monitor.limits.max_monitors: 'Das Limit von %count% Monitoren ist erreicht.'
 monitor.show.not_checked: 'Noch nicht geprüft: die erste Prüfung erfolgt innerhalb eines Prüfintervalls.'
 form.monitor.interval_min: 'Höchstens alle %seconds% Sekunden prüfen.'
+form.monitor.url_invalid: 'Geben Sie eine vollständige http://- oder https://-URL ein.'
 dashboard.empty.title: 'Noch keine Monitore'
 dashboard.not_checked: 'Noch nicht geprüft'
 dashboard.table.title: 'Monitore'

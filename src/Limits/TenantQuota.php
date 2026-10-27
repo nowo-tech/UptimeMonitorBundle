@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Limits;
 
+use Doctrine\DBAL\LockMode;
+use Doctrine\ORM\EntityManagerInterface;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 
 use function max;
@@ -60,5 +63,27 @@ final readonly class TenantQuota
     public function minIntervalSeconds(string $tenantSlug): int
     {
         return $this->limits->minIntervalSeconds($tenantSlug);
+    }
+
+    /**
+     * Runs a write that adds monitors under the quota without a count-then-insert race (SEC-004 Q3): one transaction
+     * holding a PESSIMISTIC_WRITE lock on the tenant row, the remaining quota counted after the lock, the write's
+     * changes flushed and committed before the lock is released. Concurrent writers of the same tenant queue up.
+     *
+     * @template T
+     *
+     * @param EntityManagerInterface $entityManager Entity manager of the tenant and its monitors
+     * @param Tenant $tenant Managed tenant entity (the locked row)
+     * @param callable(int|null): T $write Receives the remaining quota (null = no limit)
+     *
+     * @return T The write's result
+     */
+    public function withTenantLock(EntityManagerInterface $entityManager, Tenant $tenant, callable $write): mixed
+    {
+        return $entityManager->wrapInTransaction(function () use ($entityManager, $tenant, $write): mixed {
+            $entityManager->lock($tenant, LockMode::PESSIMISTIC_WRITE);
+
+            return $write($this->remaining($tenant->getSlug()));
+        });
     }
 }

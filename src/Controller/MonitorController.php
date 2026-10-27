@@ -16,6 +16,7 @@ use Nowo\UiKitBundle\View\ShowPage;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
+use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Event\UptimePageEvent;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
@@ -156,8 +157,11 @@ final class MonitorController extends AbstractUptimeController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $monitor = $this->monitorFactory->createFromFormData($tenant, $data);
-            $this->entityManager->persist($monitor);
-            $this->entityManager->flush();
+            if (!$this->saveUnderQuota($tenant, $monitor, $data->type !== MonitorType::Group)) {
+                $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
+
+                return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.new');
+            }
 
             $message = $this->transMessage('flash.monitor.created', ['%name%' => $monitor->getName()]);
 
@@ -174,21 +178,7 @@ final class MonitorController extends AbstractUptimeController
             return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenantSlug]);
         }
 
-        if ($this->isModalRequest($request)) {
-            $status = $form->isSubmitted() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK;
-
-            return $this->render('@NowoUptimeMonitorBundle/monitor/_monitor_form_modal.html.twig', $this->pages->context([
-                'tenant_slug' => $tenantSlug,
-                'form'        => $form,
-            ]), new Response('', $status));
-        }
-
-        return $this->render($this->pages->template('monitor_form', '@NowoUptimeMonitorBundle/monitor/form.html.twig'), $this->pages->context([
-            'page'        => $this->buildFormPage($tenantSlug, $form, 'monitor.new'),
-            'tenant_slug' => $tenantSlug,
-            'form'        => $form,
-            'title'       => 'monitor.new',
-        ]));
+        return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.new');
     }
 
     /**
@@ -211,9 +201,18 @@ final class MonitorController extends AbstractUptimeController
         ]);
         $form->handleRequest($request);
 
+        // A group (not counted) turned into a check takes one slot of the tenant quota (SEC-004 Q2).
+        $takesSlot = $monitor->isGroup() && $data->type !== MonitorType::Group;
+        if ($form->isSubmitted() && $takesSlot && $this->quota instanceof TenantQuota && !$this->quota->canAdd($tenantSlug)) {
+            $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota->max($tenantSlug)])));
+        }
+
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->monitorFactory->applyFormData($monitor, $data);
-            $this->entityManager->flush();
+            if (!$this->saveUnderQuota($monitor->getTenant(), $monitor, $takesSlot, $data)) {
+                $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
+
+                return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.edit', $monitor);
+            }
 
             $message = $this->transMessage('flash.monitor.updated', ['%name%' => $monitor->getName()]);
 
@@ -230,23 +229,60 @@ final class MonitorController extends AbstractUptimeController
             return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenantSlug]);
         }
 
+        return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.edit', $monitor);
+    }
+
+    /**
+     * Renders the monitor form page, or the dialog body (422 once submitted) for `X-Uptime-Modal: 1`.
+     *
+     * @param FormInterface<mixed> $form
+     */
+    private function renderMonitorForm(Request $request, string $tenantSlug, FormInterface $form, string $title, ?Monitor $monitor = null): Response
+    {
+        $extra = $monitor instanceof Monitor ? ['monitor' => $monitor] : [];
         if ($this->isModalRequest($request)) {
             $status = $form->isSubmitted() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK;
 
             return $this->render('@NowoUptimeMonitorBundle/monitor/_monitor_form_modal.html.twig', $this->pages->context([
                 'tenant_slug' => $tenantSlug,
                 'form'        => $form,
-                'monitor'     => $monitor,
-            ]), new Response('', $status));
+            ] + $extra), new Response('', $status));
         }
 
         return $this->render($this->pages->template('monitor_form', '@NowoUptimeMonitorBundle/monitor/form.html.twig'), $this->pages->context([
-            'page'        => $this->buildFormPage($tenantSlug, $form, 'monitor.edit'),
+            'page'        => $this->buildFormPage($tenantSlug, $form, $title),
             'tenant_slug' => $tenantSlug,
             'form'        => $form,
-            'title'       => 'monitor.edit',
-            'monitor'     => $monitor,
-        ]));
+            'title'       => $title,
+        ] + $extra));
+    }
+
+    /**
+     * Saves a new monitor (`$data` null) or applies an edit. When the save takes a slot of the tenant quota it runs
+     * under the tenant row lock with the quota counted again (SEC-004 Q3: no count-then-insert race); false, with
+     * nothing written, when the tenant is full.
+     */
+    private function saveUnderQuota(Tenant $tenant, Monitor $monitor, bool $takesSlot, ?MonitorFormData $data = null): bool
+    {
+        $write = function (?int $remaining) use ($monitor, $takesSlot, $data): bool {
+            if ($takesSlot && $remaining === 0) {
+                return false;
+            }
+            if ($data instanceof MonitorFormData) {
+                $this->monitorFactory->applyFormData($monitor, $data);
+            } else {
+                $this->entityManager->persist($monitor);
+            }
+            $this->entityManager->flush();
+
+            return true;
+        };
+
+        if ($takesSlot && $this->quota instanceof TenantQuota) {
+            return $this->quota->withTenantLock($this->entityManager, $tenant, $write);
+        }
+
+        return $write(null);
     }
 
     /**

@@ -245,6 +245,7 @@ flash.settings.purged: '%count% verlopen detailrijen opgeschoond.'
 flash.settings.cleared: '%checks% controles, %aggregates% aggregaten en %incidents% incidenten verwijderd.'
 flash.settings.backup_no_file: 'Geen back-upbestand geüpload.'
 flash.settings.backup_imported: 'Import voltooid: %imported% nieuw, %skipped% overgeslagen, %overwritten% overschreven, %invalid% ongeldig.'
+flash.settings.backup_over_quota: '%count% monitor(s) niet geïmporteerd: de monitorlimiet van de tenant is bereikt.'
 flash.settings.backup_import_failed: 'Import mislukt: het bestand is geen geldige back-up.'
 
 # Pages (UiKit page contract, REQ-UI-003)
@@ -296,6 +297,7 @@ monitor.delete_confirm: 'De monitor “%name%” en zijn controlegeschiedenis ve
 monitor.limits.max_monitors: 'De limiet van %count% monitors is bereikt.'
 monitor.show.not_checked: 'Nog niet gecontroleerd: de eerste controle volgt binnen één interval.'
 form.monitor.interval_min: 'Controleer hooguit elke %seconds% seconden.'
+form.monitor.url_invalid: 'Voer een volledige http://- of https://-URL in.'
 dashboard.empty.title: 'Nog geen monitors'
 dashboard.not_checked: 'Nog niet gecontroleerd'
 dashboard.table.title: 'Monitors'

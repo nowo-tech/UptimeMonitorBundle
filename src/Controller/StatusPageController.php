@@ -78,7 +78,11 @@ final class StatusPageController extends AbstractController
             static fn (Monitor $m): bool => !$m->isPaused(),
         ));
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {
-            $monitors = $this->eventDispatcher->dispatch(new StatusPageMonitorsEvent($tenant, $monitors))->getMonitors();
+            // Listeners may only narrow the list (SEC-004 I1): monitors of another tenant or paused ones are dropped.
+            $monitors = array_values(array_filter(
+                $this->eventDispatcher->dispatch(new StatusPageMonitorsEvent($tenant, $monitors))->getMonitors(),
+                static fn (Monitor $m): bool => $m->getTenant()->getSlug() === $tenantSlug && !$m->isPaused(),
+            ));
         }
 
         $ids = array_values(array_filter(array_map(
