@@ -53,7 +53,7 @@ help:
 	@echo "  test-coverage-with-db Same as test-with-db, with text coverage"
 	@echo "  test-coverage-90      test-coverage + fail under 90% lines"
 	@echo "  test-coverage-100     test-coverage + fail under 100% lines"
-	@echo "  test-ts               Vitest with coverage (dashboard TypeScript)"
+	@echo "  test-ts               Vitest with coverage, fails under 90% (dashboard TypeScript, REQ-TEST-003)"
 	@echo "  validate-translations YAML syntax + key parity of NowoUptimeMonitorBundle.<locale>.yaml (REQ-MAKE-004)"
 	@echo "  twig-lint             Twig-CS-Fixer lint"
 	@echo "  check-twig-extra      Twig extra filters/functions are required"
@@ -115,9 +115,12 @@ test-coverage-90: ensure-up
 test-coverage-100: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer test-coverage-100
 
+# REQ-TEST-003: fails when Vitest coverage is under the vitest.config.ts thresholds (90%); exit status kept (no pipe).
 test-ts: ensure-up
-	$(COMPOSE) exec -T -e CI=true $(SERVICE_PHP) pnpm run test:coverage | tee coverage-ts.txt
-	@./.scripts/ts-coverage-percent.sh coverage-ts.txt
+	@rc=0; $(COMPOSE) exec -T -e CI=true $(SERVICE_PHP) pnpm run test:coverage > coverage-ts.txt 2>&1 || rc=$$?; \
+	cat coverage-ts.txt; \
+	./.scripts/ts-coverage-percent.sh coverage-ts.txt; \
+	exit $$rc
 
 # REQ-TEST-005: the suite against the real databases of docker-compose.yml (DATABASE_URL = MySQL,
 # DATABASE_URL_PG = PostgreSQL). Tests that use tests/Support/SqliteEntityManagerFactory switch from SQLite

@@ -117,7 +117,7 @@ make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 | Language | Coverage (approx.) | Command |
 |----------|-------------------|---------|
 | PHP | 95% | `make test-coverage` |
-| TypeScript | Vitest (api-client, poll-controller, chart-theme) | `make test-ts` |
+| TypeScript | 99.08% lines (Vitest, gate ≥ 90% in `vitest.config.ts`) | `make test-ts` |
 | Python | N/A | — |
 
 ```bash

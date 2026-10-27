@@ -35,4 +35,12 @@ describe('fetchSummary', () => {
 
     await expect(fetchSummary('/api/uptime/main/summary')).rejects.toThrow('500');
   });
+
+  it('passes the since cursor encoded', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ monitors: [] }) }));
+    await fetchSummary('/api/summary', '2026-05-20T12:00:00+00:00');
+    expect(fetch).toHaveBeenCalledWith('/api/summary?since=2026-05-20T12%3A00%3A00%2B00%3A00', {
+      headers: { Accept: 'application/json' },
+    });
+  });
 });

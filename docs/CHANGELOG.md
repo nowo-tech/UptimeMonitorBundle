@@ -76,6 +76,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- TypeScript coverage gate (REQ-TEST-003 rule 3): Vitest tests for every dashboard module (polling, Mercure, layout
+  refresh, events filter, sidebar, monitor dialog, monitor detail charts / history) — 99.08% lines, 93.63% branches;
+  `vitest.config.ts` fails under 90% (lines, statements, functions, branches). `make test-ts` keeps the Vitest exit
+  status (it was lost in a pipe), and CI runs a new **Frontend (Vitest, coverage gate)** job (install, coverage, build).
 - Demo Playwright e2e (REQ-DEMO-013): `demo/symfony8/e2e` happy path (dashboard, monitor create + detail, public status page, settings) and a screenshots project; `make test-e2e` / `make demo-screenshots` (root and demo Makefiles, PNG → WebP with `sharp`). `release-check` runs `test-e2e`.
 - README **Screenshots** section with `docs/images/demo/dashboard.webp` and `docs/images/demo/monitor-detail.webp`.
 - Demo-only `app:uptime:demo-history` command: three extra local-probe monitors and 24 h of deterministic check history for every monitor and the group (one resolved outage, one latency spike); `reset-demo` runs it plus `nowo:uptime:rollup`.

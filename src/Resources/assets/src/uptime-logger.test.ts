@@ -44,4 +44,31 @@ describe('uptime-logger', () => {
     getLogger().warn('test');
     expect(warnSpy).toHaveBeenCalledWith('%c⚠️ [uptime]', 'color:#d97706', 'test');
   });
+
+  it('logs without build id or arguments, and stays silent unless alwaysLog', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const loud = createBundleLogger('uptime', { alwaysLog: true });
+    loud.scriptLoaded();
+    loud.setDebug(true);
+    loud.error();
+    loud.error(new Error('x'), 'plain');
+    expect(logSpy).toHaveBeenCalledWith('%c📦 [uptime] script loaded', 'color:#0ea5e9;font-weight:bold');
+    expect(errorSpy).toHaveBeenCalledWith('%c❌ [uptime]', 'color:#dc2626;font-weight:bold');
+    expect(errorSpy).toHaveBeenCalledTimes(2);
+
+    createBundleLogger('uptime').error('quiet');
+    expect(errorSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('the default logger is a no-op for every method', () => {
+    const log = getLogger();
+    expect(() => {
+      log.scriptLoaded();
+      log.setDebug(true);
+      log.info('x');
+      log.warn('x');
+      log.error('x');
+    }).not.toThrow();
+  });
 });

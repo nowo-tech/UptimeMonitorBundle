@@ -14,7 +14,7 @@ type LatencySeries = {
   latency_ms: number[];
 };
 
-type HistoryPayload = {
+export type HistoryPayload = {
   last_status: string | null;
   last_checked_at: string | null;
   uptime_24h: number | null;
@@ -23,7 +23,8 @@ type HistoryPayload = {
   latency_series: LatencySeries;
 };
 
-function parseJson<T>(raw: string | undefined): T | null {
+/** JSON of a data attribute, null when missing or invalid. Exported for tests. */
+export function parseJson<T>(raw: string | undefined): T | null {
   if (raw === undefined || raw === '') {
     return null;
   }
@@ -107,7 +108,8 @@ function renderAggregateCharts(series: SeriesData): void {
   }
 }
 
-function applyHistoryPayload(root: HTMLElement, payload: HistoryPayload): void {
+/** Applies the history API payload to the detail page. Exported for tests. */
+export function applyHistoryPayload(root: HTMLElement, payload: HistoryPayload): void {
   const status = payload.last_status ?? 'unknown';
   const statusEl = root.querySelector<HTMLElement>('[data-detail-status]');
   if (statusEl !== null) {
@@ -138,7 +140,8 @@ function applyHistoryPayload(root: HTMLElement, payload: HistoryPayload): void {
   }
 }
 
-async function pollHistory(root: HTMLElement, apiUrl: string): Promise<void> {
+/** One history API poll; keeps the server-rendered state on errors. Exported for tests. */
+export async function pollHistory(root: HTMLElement, apiUrl: string): Promise<void> {
   try {
     const response = await fetch(apiUrl, { headers: { Accept: 'application/json' } });
     if (!response.ok) {
@@ -151,7 +154,8 @@ async function pollHistory(root: HTMLElement, apiUrl: string): Promise<void> {
   }
 }
 
-function bootstrap(): void {
+/** Charts, history polling and the monitor dialog of the detail page. Exported for tests. */
+export function bootstrap(): void {
   const root = document.getElementById('uptime-monitor-detail-root');
   if (root === null) {
     return;

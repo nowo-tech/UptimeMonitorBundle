@@ -23,12 +23,14 @@ import { subscribeMercure } from './mercure-subscriber';
 import { createBundleLogger, setBundleLogger, getLogger } from './uptime-logger';
 import { initMonitorFormModal, initMonitorFormTypeToggle } from './monitor-form-modal';
 
-async function syncFromSummary(root: HTMLElement, apiUrl: string): Promise<void> {
+/** Applies one summary snapshot (layout sync, rows, stats, events). Exported for tests. */
+export async function syncFromSummary(root: HTMLElement, apiUrl: string): Promise<void> {
   const data = await fetchSummary(apiUrl);
   await applyDashboardSnapshot(root, data);
 }
 
-function bootstrapPolling(root: HTMLElement, apiUrl: string, interval: number): void {
+/** Summary polling on the configured interval. Exported for tests. */
+export function bootstrapPolling(root: HTMLElement, apiUrl: string, interval: number): void {
   const liveBadge = initLiveIndicator(root);
   let lastServerTime = '';
 
@@ -73,7 +75,8 @@ function bootstrapPolling(root: HTMLElement, apiUrl: string, interval: number): 
   window.setInterval(() => void tick(), interval);
 }
 
-function bootstrapMercure(root: HTMLElement, hubUrl: string, topic: string): void {
+/** Mercure SSE with a polling fallback after a connection error. Exported for tests. */
+export function bootstrapMercure(root: HTMLElement, hubUrl: string, topic: string): void {
   const liveBadge = initLiveIndicator(root);
   const apiUrl = root.dataset.apiSummary ?? '';
   const interval = Number.parseInt(root.dataset.pollInterval ?? '30000', 10);
@@ -120,7 +123,8 @@ function bootstrapMercure(root: HTMLElement, hubUrl: string, topic: string): voi
   });
 }
 
-function bootstrap(): void {
+/** Wires the dashboard (or the monitor form page) found in the document. Exported for tests. */
+export function bootstrap(): void {
   const root = document.getElementById('uptime-dashboard-root');
   if (root === null) {
     // Monitor form page: show the fieldsets of the selected monitor type.
