@@ -9,6 +9,10 @@ nowo_uptime_monitor:
         settings_roles: []
     ui:
         framework: bootstrap
+    # Demo-only: every demo monitor probes this app over the Compose network (http://php/demo/uptime/*), a
+    # private address the SSRF guard blocks by default. Keep the default (true) in production.
+    checks:
+        block_private_urls: false
     scheduler:
         enabled: true
         mode: scheduler

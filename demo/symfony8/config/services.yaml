@@ -6,3 +6,7 @@ services:
     App\Controller\:
         resource: '../src/Controller/'
         tags: ['controller.service_arguments']
+
+    # Demo-only console commands (app:uptime:demo-history backfills screenshot/e2e history).
+    App\Command\:
+        resource: '../src/Command/'

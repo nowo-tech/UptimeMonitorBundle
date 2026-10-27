@@ -1,7 +1,10 @@
-.PHONY: help up down build install shell logs test test-coverage cache-clear clear-data reset-demo link-bundle update-bundle ensure-up restart release-check sync-schema
+.PHONY: help up down build install shell logs test test-coverage cache-clear clear-data reset-demo demo-history link-bundle update-bundle ensure-up restart release-check sync-schema test-e2e demo-screenshots
 
 help:
 	@echo "Symfony 8 Demo - Uptime Monitor Bundle"
+	@echo "  make up | down | reset-demo (seed + 24 h history) | demo-history"
+	@echo "  make test-e2e          # Playwright: dashboard, monitor create/show, status page, settings"
+	@echo "  make demo-screenshots  # refresh docs/images/demo/*.webp (README screenshots)"
 
 up:
 	@if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
@@ -80,7 +83,13 @@ sync-schema: ensure-up
 
 reset-demo: ensure-up
 	$(COMPOSE) exec -T php php bin/console nowo:uptime:seed-demo --fresh --no-interaction
+	@$(MAKE) demo-history
 	$(COMPOSE) exec -T php php bin/console nowo:uptime:run-due-checks
+
+# Demo only: extra local-probe monitors + 24 h of deterministic check history, then rebuild aggregates.
+demo-history: ensure-up
+	$(COMPOSE) exec -T php php bin/console app:uptime:demo-history --no-interaction
+	$(COMPOSE) exec -T php php bin/console nowo:uptime:rollup --days=2 --no-interaction
 
 link-bundle: ensure-up
 	$(COMPOSE) exec php sh -c "rm -rf vendor/nowo-tech/uptime-monitor-bundle && ln -s /var/uptime-monitor-bundle vendor/nowo-tech/uptime-monitor-bundle && php bin/console cache:clear && php bin/console assets:install public"
@@ -90,6 +99,35 @@ update-bundle: ensure-up
 	$(COMPOSE) exec php sh -c "php bin/console cache:clear --env=dev && php bin/console assets:install public"
 
 release-check: ensure-up update-bundle test test-coverage
+
+# REQ-DEMO-013: Playwright runs in the official image (host network) against the running demo on PORT.
+PLAYWRIGHT_IMAGE ?= mcr.microsoft.com/playwright:v1.63.0-jammy
+DEMO_PORT = $$(grep "^PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); PORT=$${PORT:-8011}
+
+# Happy path: dashboard, monitor create + show, status page, settings (data reset first so runs are repeatable).
+test-e2e: ensure-up reset-demo
+	@mkdir -p e2e/node_modules
+	@PORT=$(DEMO_PORT); \
+	docker run --rm --network host --user "$$(id -u):$$(id -g)" -e HOME=/tmp \
+		-v "$(CURDIR)/e2e:/e2e" -w /e2e \
+		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
+		$(PLAYWRIGHT_IMAGE) \
+		bash -lc 'npm ci --no-fund --no-audit && npx playwright test --project=chromium --workers=1'
+
+# Reseeds the demo (history included), captures PNGs with the screenshots project, converts them to WebP
+# (sharp, quality 90) under docs/images/demo/ and deletes the PNGs. One command to refresh README images.
+demo-screenshots: ensure-up reset-demo
+	@mkdir -p ../../docs/images/demo e2e/node_modules
+	@PORT=$(DEMO_PORT); \
+	docker run --rm --network host --user "$$(id -u):$$(id -g)" -e HOME=/tmp \
+		-v "$(CURDIR)/e2e:/e2e" \
+		-v "$(CURDIR)/../../docs/images/demo:/screenshots" \
+		-w /e2e \
+		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
+		-e SCREENSHOT_DIR=/screenshots \
+		$(PLAYWRIGHT_IMAGE) \
+		bash -lc 'npm ci --no-fund --no-audit && npx playwright test --project=screenshots --workers=1 && node scripts/to-webp.mjs /screenshots 90'
+	@echo "Screenshots written under docs/images/demo/ (WebP)"
 
 # Prefer Compose V2; absolute docker path avoids shadowing by local docker/ when PATH has "." (REQ-MAKE-010).
 DOCKER_BIN := $(shell PATH="/usr/local/bin:/usr/bin:/bin:$$PATH" command -v docker 2>/dev/null)

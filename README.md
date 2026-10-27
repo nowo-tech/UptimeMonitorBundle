@@ -13,6 +13,23 @@
 This bundle is **FrankenPHP worker mode friendly**. Checks and notifications run only in CLI / Messenger workers with
 explicit per-call deadlines, so they never pin a FrankenPHP thread — see [Timeouts](docs/CONFIGURATION.md#timeouts-frankenphp-safe-req-runtime-001).
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/images/demo/dashboard.webp" alt="Uptime dashboard: monitor tree with uptime percentages and heartbeat bars, status counters and the recent checks feed" />
+      <br /><sub>Multi-tenant dashboard — heartbeat history, live status counters and recent checks</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/images/demo/monitor-detail.webp" alt="Monitor detail page with 24 h check history, uptime ratios and the response-time chart" />
+      <br /><sub>Monitor detail — 24 h heartbeat, uptime ratios and response-time chart</sub>
+    </td>
+  </tr>
+</table>
+
+Captured from the Symfony 8 demo (seeded monitors + 24 h of history) by Playwright: `make demo-screenshots` refreshes them.
+
 ## Features
 
 - ✅ HTTP/HTTPS, TCP, DNS, SSL certificate, and Ping (ICMP) checks
@@ -57,6 +74,13 @@ make up
 make test
 make assets
 make -C demo up-symfony8
+```
+
+Demo Playwright e2e and README screenshots (**REQ-DEMO-013**, Playwright runs in the official Docker image against `demo/symfony8`):
+
+```bash
+make test-e2e           # dashboard, monitor create + detail, public status page, settings
+make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 ```
 
 ## Documentation
