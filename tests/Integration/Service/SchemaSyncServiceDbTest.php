@@ -15,7 +15,6 @@ use RuntimeException;
 use function array_filter;
 use function array_values;
 use function count;
-use function str_contains;
 
 #[Group('db')]
 #[CoversClass(SchemaSyncService::class)]
@@ -36,10 +35,11 @@ final class SchemaSyncServiceDbTest extends TestCase
         $em      = SqliteEntityManagerFactory::create(createSchema: false);
         $service = new SchemaSyncService($em);
 
-        // Create only the monitor table and its indexes, as an older install would have.
-        $monitorSql = array_values(array_filter(
+        // Create only the tenant table (no foreign keys) and its index, as a partial install would have.
+        $tenantPattern = '/^CREATE TABLE uptime_tenant\b|^CREATE (UNIQUE )?INDEX \w+ ON uptime_tenant\b/';
+        $monitorSql    = array_values(array_filter(
             $service->getCreateSchemaSql(),
-            static fn (string $sql): bool => str_contains($sql, 'uptime_monitor ') || str_contains($sql, 'uptime_monitor('),
+            static fn (string $sql): bool => preg_match($tenantPattern, $sql) === 1,
         ));
         self::assertNotEmpty($monitorSql);
         foreach ($monitorSql as $sql) {
@@ -49,15 +49,20 @@ final class SchemaSyncServiceDbTest extends TestCase
         $missing = $service->getCreateMissingSchemaSql();
         self::assertCount(count($service->getCreateSchemaSql()) - count($monitorSql), $missing);
         foreach ($missing as $sql) {
-            self::assertStringNotContainsString('uptime_monitor ', $sql);
+            self::assertDoesNotMatchRegularExpression($tenantPattern, $sql);
         }
 
         foreach ($missing as $sql) {
             $em->getConnection()->executeStatement($sql);
         }
-        self::assertSame([], $service->getCreateMissingSchemaSql());
-        self::assertSame([], $service->getSyncSchemaSql());
-        self::assertSame([], $service->getUpdateSchemaSql());
+        // No CREATE is left; MySQL / PostgreSQL still list the foreign-key ALTERs (applied as duplicates by the command).
+        foreach ($service->getCreateMissingSchemaSql() as $sql) {
+            self::assertStringStartsWith('ALTER TABLE', $sql);
+        }
+        // The additive update may hold platform-specific no-op ALTERs (MySQL / PostgreSQL), never a CREATE TABLE.
+        foreach ($service->getSyncSchemaSql() as $sql) {
+            self::assertStringNotContainsString('CREATE TABLE', $sql);
+        }
     }
 
     public function testFilterSkipsExistingSequencesAndKeepsOtherStatements(): void

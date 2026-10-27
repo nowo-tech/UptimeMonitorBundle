@@ -109,11 +109,10 @@ final class RepositoriesDbTest extends TestCase
         self::assertSame(['group'], self::names($repository->findGroupsByTenantSlug('main')));
         self::assertSame(['a-api', 'b-api'], self::names($repository->findChildrenOf((int) $group->getId())));
 
-        // NULL next_check_at sorts first on SQLite; paused and not-yet-due monitors are skipped.
-        self::assertSame(
-            ['a-api', 'group', 'b-api'],
-            self::names($repository->findDue(new DateTimeImmutable('2026-01-01 12:00:00'))),
-        );
+        // Paused and not-yet-due monitors are skipped; where NULL next_check_at sorts is platform-specific.
+        $due = self::names($repository->findDue(new DateTimeImmutable('2026-01-01 12:00:00')));
+        self::assertEqualsCanonicalizing(['a-api', 'group', 'b-api'], $due);
+        self::assertLessThan(array_search('b-api', $due, true), array_search('group', $due, true));
     }
 
     public function testCheckResultRepositoryQueries(): void
