@@ -245,6 +245,7 @@ flash.settings.purged: '%count% lignes de détail expirées purgées.'
 flash.settings.cleared: '%checks% contrôles, %aggregates% agrégats et %incidents% incidents supprimés.'
 flash.settings.backup_no_file: 'Aucun fichier de sauvegarde téléversé.'
 flash.settings.backup_imported: 'Importation terminée : %imported% nouveaux, %skipped% ignorés, %overwritten% écrasés, %invalid% invalides.'
+flash.settings.backup_over_quota: '%count% moniteur(s) non importé(s) : la limite de moniteurs du tenant est atteinte.'
 flash.settings.backup_import_failed: 'Échec de l''importation : le fichier n''est pas une sauvegarde valide.'
 
 # Pages (UiKit page contract, REQ-UI-003)
@@ -296,6 +297,7 @@ monitor.delete_confirm: 'Supprimer le moniteur « %name% » et son historique de
 monitor.limits.max_monitors: 'La limite de %count% moniteurs est atteinte.'
 monitor.show.not_checked: 'Pas encore vérifié : la première vérification a lieu dans un intervalle.'
 form.monitor.interval_min: 'Vérifiez au plus toutes les %seconds% secondes.'
+form.monitor.url_invalid: 'Saisissez une URL complète en http:// ou https://.'
 dashboard.empty.title: 'Aucun moniteur pour l’instant'
 dashboard.not_checked: 'Pas encore vérifié'
 dashboard.table.title: 'Moniteurs'

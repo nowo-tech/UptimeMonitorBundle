@@ -245,6 +245,7 @@ flash.settings.purged: 'Eliminadas %count% linhas de detalhe expiradas.'
 flash.settings.cleared: 'Eliminadas %checks% verificações, %aggregates% agregados, %incidents% incidentes.'
 flash.settings.backup_no_file: 'Nenhum ficheiro de cópia de segurança carregado.'
 flash.settings.backup_imported: 'Importação concluída: %imported% novos, %skipped% ignorados, %overwritten% substituídos, %invalid% inválidos.'
+flash.settings.backup_over_quota: '%count% monitor(es) não importado(s): o limite de monitores do tenant foi atingido.'
 flash.settings.backup_import_failed: 'Falha na importação: o ficheiro não é uma cópia de segurança válida.'
 
 # Pages (UiKit page contract, REQ-UI-003)
@@ -296,6 +297,7 @@ monitor.delete_confirm: 'Excluir o monitor “%name%” e o histórico de verifi
 monitor.limits.max_monitors: 'O limite de %count% monitores foi atingido.'
 monitor.show.not_checked: 'Ainda não verificado: a primeira verificação ocorre dentro de um intervalo.'
 form.monitor.interval_min: 'Verifique no máximo a cada %seconds% segundos.'
+form.monitor.url_invalid: 'Introduza um URL completo com http:// ou https://.'
 dashboard.empty.title: 'Ainda não há monitores'
 dashboard.not_checked: 'Ainda não verificado'
 dashboard.table.title: 'Monitores'

@@ -12,6 +12,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
+use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 use Psr\Log\LoggerInterface;
@@ -24,6 +25,7 @@ use Throwable;
 use function count;
 use function is_array;
 use function is_string;
+use function max;
 use function sprintf;
 use function strtoupper;
 
@@ -33,6 +35,10 @@ use function strtoupper;
  * SEC-004 L7: exports redact secrets (URL / proxy userinfo, basic-auth password, custom header values); imports
  * accept at most {@see self::MAX_IMPORT_ROWS} rows, look names up once, and skip rows that fail the monitor form
  * constraints (counted as `invalid`). Export and import are logged with the tenant slug and counts (REQ-OBS-001).
+ *
+ * Tenant limits (SEC-004 Q1): with a {@see TenantQuota}, monitors (groups not counted) beyond the tenant's remaining
+ * quota are not created — nor an existing group overwritten into a monitor — and are counted as `over_quota`; the
+ * check interval of every imported or overwritten monitor is raised to the tenant minimum.
  */
 final readonly class MonitorBackupService
 {
@@ -48,6 +54,7 @@ final readonly class MonitorBackupService
      * @param ClockInterface $clock Clock for the export timestamp
      * @param ValidatorInterface|null $validator Validates import rows against the monitor form constraints
      * @param LoggerInterface $logger Receives export / import start, success (counts) and failure (exception class)
+     * @param TenantQuota|null $quota Tenant limits (max monitors, minimum interval) applied to imported rows
      */
     public function __construct(
         private MonitorRepository $monitorRepository,
@@ -57,6 +64,7 @@ final readonly class MonitorBackupService
         private ClockInterface $clock = new NativeClock(),
         private ?ValidatorInterface $validator = null,
         private LoggerInterface $logger = new NullLogger(),
+        private ?TenantQuota $quota = null,
     ) {
     }
 
@@ -91,7 +99,7 @@ final readonly class MonitorBackupService
     /**
      * @param array<string, mixed> $payload
      *
-     * @return array{imported: int, skipped: int, overwritten: int, invalid: int}
+     * @return array{imported: int, skipped: int, overwritten: int, invalid: int, over_quota: int}
      */
     public function import(Tenant $tenant, array $payload, string $mode = self::IMPORT_SKIP): array
     {
@@ -106,16 +114,50 @@ final readonly class MonitorBackupService
 
         $this->logger->info('Uptime backup import started for tenant {tenant}: {rows} row(s)', $context + ['rows' => count($rows)]);
 
+        try {
+            // SEC-004 Q3: with a quota the rows are written under the tenant row lock, the remaining quota counted
+            // once after the lock (null = no monitor limit); without one, a plain flush.
+            $result = $this->quota instanceof TenantQuota
+                ? $this->quota->withTenantLock($this->entityManager, $tenant, fn (?int $remaining): array => $this->importRows($tenant, $rows, $mode, $remaining))
+                : $this->importRows($tenant, $rows, $mode, null);
+        } catch (Throwable $e) {
+            if ($this->registry instanceof ManagerRegistry && !$this->entityManager->isOpen()) {
+                $this->resetClosedManagers($this->registry);
+            }
+
+            $this->logger->error('Uptime backup import failed for tenant {tenant}: {error}', $context + ['error' => $e::class]);
+
+            throw $e;
+        }
+
+        $this->logger->info('Uptime backup imported for tenant {tenant}', $context + $result);
+
+        return $result;
+    }
+
+    /**
+     * Creates / overwrites the monitors of the backup rows and flushes them.
+     *
+     * @param array<mixed> $rows
+     * @param int|null $remaining Monitors the tenant may still add (null = no limit)
+     *
+     * @return array{imported: int, skipped: int, overwritten: int, invalid: int, over_quota: int}
+     */
+    private function importRows(Tenant $tenant, array $rows, string $mode, ?int $remaining): array
+    {
         // One lookup for the whole import (name => monitor), not one query per row.
         $byName = [];
         foreach ($this->monitorRepository->findByTenantSlug($tenant->getSlug()) as $monitor) {
             $byName[$monitor->getName()] ??= $monitor;
         }
 
+        $minInterval = $this->quota?->minIntervalSeconds($tenant->getSlug()) ?? 0;
+
         $imported    = 0;
         $skipped     = 0;
         $overwritten = 0;
         $invalid     = 0;
+        $overQuota   = 0;
 
         foreach ($rows as $row) {
             if (!is_array($row)) {
@@ -135,9 +177,19 @@ final readonly class MonitorBackupService
                 continue;
             }
 
+            $countsAgainstQuota = $data->type !== MonitorType::Group;
+            if ($countsAgainstQuota) {
+                $data->intervalSeconds = max($minInterval, $data->intervalSeconds);
+            }
+
             $existing = $byName[$name] ?? null;
             if ($existing instanceof Monitor) {
                 if ($mode === self::IMPORT_OVERWRITE) {
+                    // A group (not counted) overwritten into a monitor takes one slot of the quota.
+                    if ($countsAgainstQuota && $existing->isGroup() && !$this->takeSlot($remaining)) {
+                        ++$overQuota;
+                        continue;
+                    }
                     $this->monitorFactory->applyFormData($existing, $data);
                     ++$overwritten;
                     continue;
@@ -147,28 +199,36 @@ final readonly class MonitorBackupService
                 continue;
             }
 
+            if ($countsAgainstQuota && !$this->takeSlot($remaining)) {
+                ++$overQuota;
+                continue;
+            }
+
             $monitor = $this->monitorFactory->createFromFormData($tenant, $data);
             $this->entityManager->persist($monitor);
             $byName[$name] = $monitor;
             ++$imported;
         }
 
-        try {
-            $this->entityManager->flush();
-        } catch (Throwable $e) {
-            if ($this->registry instanceof ManagerRegistry && !$this->entityManager->isOpen()) {
-                $this->resetClosedManagers($this->registry);
-            }
+        $this->entityManager->flush();
 
-            $this->logger->error('Uptime backup import failed for tenant {tenant}: {error}', $context + ['error' => $e::class]);
+        return ['imported' => $imported, 'skipped' => $skipped, 'overwritten' => $overwritten, 'invalid' => $invalid, 'over_quota' => $overQuota];
+    }
 
-            throw $e;
+    /**
+     * Takes one slot of the remaining quota; false when the tenant is full (null = no limit).
+     */
+    private function takeSlot(?int &$remaining): bool
+    {
+        if ($remaining === null) {
+            return true;
         }
+        if ($remaining <= 0) {
+            return false;
+        }
+        --$remaining;
 
-        $result = ['imported' => $imported, 'skipped' => $skipped, 'overwritten' => $overwritten, 'invalid' => $invalid];
-        $this->logger->info('Uptime backup imported for tenant {tenant}', $context + $result);
-
-        return $result;
+        return true;
     }
 
     private function resetClosedManagers(ManagerRegistry $registry): void

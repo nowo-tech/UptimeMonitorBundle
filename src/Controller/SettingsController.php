@@ -499,6 +499,9 @@ final class SettingsController extends AbstractUptimeController
                     '%overwritten%' => $result['overwritten'],
                     '%invalid%'     => $result['invalid'],
                 ]));
+                if ($result['over_quota'] > 0) {
+                    $this->addFlash('warning', $this->transMessage('flash.settings.backup_over_quota', ['%count%' => $result['over_quota']]));
+                }
             } catch (Throwable $e) {
                 // Generic message: exception texts may echo file content, SQL or paths (SEC-004 L7).
                 $this->logger->warning('Uptime backup import rejected for tenant {tenant}: {error}', [
