@@ -41,7 +41,7 @@
                                 <th scope="col" data-column="last_check" data-priority="2">{{ 'dashboard.table.last_check'|trans }}</th>
                                 <th scope="col" data-column="interval" data-priority="3">{{ 'dashboard.table.interval'|trans }}</th>
                                 <th scope="col" data-column="actions" data-priority="4"><span class="visually-hidden">{{ 'dashboard.table.actions'|trans }}</span></th>
-                                {% include '@NowoUiKitBundle/partials/_row_detail_head.html.twig' only %}
+                                {{ include('@NowoUiKitBundle/partials/_row_detail_head.html.twig', {}, false) }}
                             </tr>
                         </thead>
                         <tbody>
@@ -70,7 +70,7 @@
                                     <td data-column="actions">
                                         {{ include(nowo_ui_partial('row_actions', _b), {actions: monitor_row_actions[monitor.id]|default([]), menu: true, popover: true, bundle: _b}, false) }}
                                     </td>
-                                    {% include '@NowoUiKitBundle/partials/_row_detail_cell.html.twig' only %}
+                                    {{ include('@NowoUiKitBundle/partials/_row_detail_cell.html.twig', {}, false) }}
                                 </tr>
                             {% endfor %}
                         </tbody>

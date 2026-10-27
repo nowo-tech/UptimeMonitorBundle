@@ -55,6 +55,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **UiKit 2.15.4**: `nowo-tech/ui-kit-bundle` constraint raised to `^2.15.4` (root and demo locks). UiKit now spaces
+  Bootstrap form rows (`mb-3`), gives file inputs the `input` slot (`form-control`), sets `data-bs-theme` with
+  `data-theme` and prints the back link label once with `icon_set: none`, so the workarounds of 1.11.0 are gone: the
+  demo host layout no longer mirrors `data-theme` into `data-bs-theme`, and the bundle CSS spaces only the rows of its
+  own fieldsets that carry no UiKit row class (other stacks than Bootstrap), not every form row.
+- **URL fields** (`url` of the monitor form, `primaryBaseUrl` of Settings → General) set `default_protocol: null` on
+  every Symfony version: the value is kept as typed and the field renders as `type="url"`. On Symfony 7.4 a URL typed
+  without a scheme was prefixed with `http://` (and the deprecated implicit default of symfony/form 7.1 was
+  triggered); Symfony 8 already behaved like this. See [UPGRADING](UPGRADING.md#unreleased).
+- **Deprecation gate** (REQ-SF-005): PHPUnit fails on any deprecation, silenced `trigger_deprecation()` calls
+  included (`failOnDeprecation`, `failOnPhpunitDeprecation`, `ignoreSuppressionOfDeprecations` in
+  `phpunit.xml.dist`; symfony/phpunit-bridge does nothing on PHPUnit ≥ 10). Tests of the deprecated 1.x keys assert
+  their deprecations; the two Twig deprecations raised inside UiKit's `PageContractTestCase` are ignored for that one
+  test ([#123](https://github.com/nowo-tech/UptimeMonitorBundle/issues/123)). `phpunit/phpunit` dev constraint
+  `^11.5`.
+
+### Fixed
+
+- Spec Kit `code-inventory.md` lists the 1.12.0 table dashboard template and SCSS partial (REQ-SPECKIT-001); README
+  coverage figures refreshed for 1.12.0 (4745/4745 lines, REQ-TEST-007).
+- `dashboard/_table_view.html.twig` uses the `include()` function (Twig-CS-Fixer `make twig-lint` was failing).
+
 ## [1.12.0] - 2026-10-27
 
 Host embedding: page actions by access, per-tenant limits, a table dashboard, a paginated check log and extension

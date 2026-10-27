@@ -118,7 +118,7 @@ Measured on 2026-10-27 (same commands as CI):
 
 | Language | Line coverage | Gate | Command |
 |----------|---------------|------|---------|
-| PHP | **100%** (4296/4296 lines, 525/525 methods) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
+| PHP | **100%** (4745/4745 lines, 573/573 methods) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
 | TypeScript | **99.08%** lines (Vitest v8) | 90% — `vitest.config.ts` thresholds (CI `frontend` job, `make test-ts`) | `make test-ts` |
 | Python | N/A (no Python code) | — | — |
 
@@ -127,6 +127,9 @@ Measured on 2026-10-27 (same commands as CI):
   on in-memory SQLite, and on MySQL and PostgreSQL with `make test-with-db` (`UPTIME_TEST_DATABASE_URL`). Network
   checks run offline: `MockHttpClient` for HTTP, a fake `SocketConnectorInterface` and DNS lookups for
   TCP/SSL/DNS/ping, and a loopback-only TLS server for the default socket connector. Time-dependent code is tested with `Symfony\Component\Clock\MockClock`.
+- **Deprecations** — `phpunit.xml.dist` fails the run on any deprecation, Symfony's silenced `trigger_deprecation()`
+  calls included (`failOnDeprecation`, `ignoreSuppressionOfDeprecations`); tests of the deprecated 1.x config keys
+  assert their deprecation.
 - **Measured scope** — all of `src/` (controllers and the Twig extension included); no exclusion in
   `phpunit.xml.dist` and no `@codeCoverageIgnore`.
 - **TypeScript** — Vitest specs for the dashboard assets (`src/Resources/assets/src/*.test.ts`); the run fails below
