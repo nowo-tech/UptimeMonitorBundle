@@ -300,10 +300,8 @@ final class MonitorController extends AbstractUptimeController
     {
         $choices = [];
         foreach ($this->monitorRepository->findGroupsByTenantSlug($tenantSlug) as $group) {
-            $groupId = $group->getId();
-            if ($groupId === null) {
-                continue;
-            }
+            // Loaded from the database: the id is set.
+            $groupId = (int) $group->getId();
             if ($exclude instanceof Monitor && $exclude->getId() === $groupId) {
                 continue;
             }

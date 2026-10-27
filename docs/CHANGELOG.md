@@ -109,9 +109,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Network seams for checks**: TCP, SSL and the HTTPS certificate-expiry check open sockets through
   `Check\Network\SocketConnectorInterface` (default `StreamSocketConnector`); `MonitorUrlSsrfGuard` takes optional
   A/AAAA lookup closures; `PingCheckRunner` takes an optional command executor and OS family. Defaults are unchanged.
-- **Coverage gate (REQ-TEST-003)**: PHPUnit measures every `src/` directory except `src/Controller` and `src/Twig`
-  (temporary, pending the UiKit UI refactor); `make release-check` and CI run `test-coverage-100`. Repository, schema
-  sync, dashboard read-model and command tests run against a real Doctrine ORM schema (`db` group: SQLite in memory,
+- **Coverage gate (REQ-TEST-003)**: PHPUnit measures all of `src/` (no exclusions; controllers, Twig extension and
+  `Ui` included); `make release-check` and CI run `test-coverage-100`. Test metadata uses `#[CoversClass]`
+  attributes. Repository, schema sync, dashboard read-model and command tests run against a real Doctrine ORM schema (`db` group: SQLite in memory,
   MySQL / PostgreSQL with `make test-with-db`); network checks are tested offline (MockHttpClient, fake
   connector/DNS, loopback TLS fixture).
 

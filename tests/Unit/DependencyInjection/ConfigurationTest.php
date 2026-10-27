@@ -209,4 +209,16 @@ final class ConfigurationTest extends TestCase
         self::assertTrue($node->isDeprecated());
         self::assertSame('1.11', $node->getDeprecation($node->getName(), 'nowo_uptime_monitor')['version']);
     }
+
+    public function testRoleListsRejectEmptyOrNonStringRoles(): void
+    {
+        foreach ([['ROLE_A', ''], ['ROLE_A', 3]] as $roles) {
+            try {
+                (new Processor())->processConfiguration(new Configuration(), [['security' => ['roles' => ['manage' => $roles]]]]);
+                self::fail('Expected an invalid role list.');
+            } catch (InvalidConfigurationException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
 }

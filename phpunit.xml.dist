@@ -17,16 +17,6 @@
         <include>
             <directory>src</directory>
         </include>
-        <exclude>
-            <!--
-                REQ-TEST-003: every other src/ file is measured (gate: 100% lines, `composer test-coverage-100`).
-                Temporary exclusions: src/Controller and src/Twig are being refactored for UiKit (REQ-UI-003) on a
-                separate branch; their tests are kept (tests/Unit/Controller, tests/Unit/Twig) and these two
-                directories are brought back into the measured set once that refactor lands.
-            -->
-            <directory>src/Controller</directory>
-            <directory>src/Twig</directory>
-        </exclude>
     </source>
     <php>
         <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[direct]=0"/>

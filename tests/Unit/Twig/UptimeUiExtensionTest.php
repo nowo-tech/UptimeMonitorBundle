@@ -8,6 +8,7 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
 use Nowo\UptimeMonitorBundle\Twig\UptimeUiExtension;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -19,9 +20,7 @@ use function array_map;
 use function crc32;
 use function ucfirst;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Twig\UptimeUiExtension
- */
+#[CoversClass(UptimeUiExtension::class)]
 final class UptimeUiExtensionTest extends TestCase
 {
     use EntityIdTrait;

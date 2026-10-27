@@ -118,17 +118,17 @@ Measured on 2026-10-27 (same commands as CI):
 
 | Language | Line coverage | Gate | Command |
 |----------|---------------|------|---------|
-| PHP | **100%** (3442/3442 lines, 439/439 methods) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
+| PHP | **100%** (4296/4296 lines, 525/525 methods) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
 | TypeScript | **99.08%** lines (Vitest v8) | 90% — `vitest.config.ts` thresholds (CI `frontend` job, `make test-ts`) | `make test-ts` |
 | Python | N/A (no Python code) | — | — |
 
 - **PHP** — PHPUnit `tests/Unit` and `tests/Integration`. Repository, schema-sync, dashboard read-model, backup and
   console-command tests run against a real Doctrine ORM schema (PHPUnit group `db`: `vendor/bin/phpunit --group db`)
-  on in-memory SQLite, and on MySQL and PostgreSQL with `make test-with-db` (`UPTIME_TEST_DATABASE_URL`). Network checks run offline: `MockHttpClient` for HTTP, a fake
-  `SocketConnectorInterface` and DNS lookups for TCP/SSL/DNS/ping, and a loopback-only TLS server for the default
-  socket connector. Time-dependent code is tested with `Symfony\Component\Clock\MockClock`.
-- **Measured scope** — all of `src/` except `src/Controller` and `src/Twig` (excluded in `phpunit.xml.dist` while the
-  UiKit UI refactor (REQ-UI-003) rewrites them; their tests still run). No `@codeCoverageIgnore` is used.
+  on in-memory SQLite, and on MySQL and PostgreSQL with `make test-with-db` (`UPTIME_TEST_DATABASE_URL`). Network
+  checks run offline: `MockHttpClient` for HTTP, a fake `SocketConnectorInterface` and DNS lookups for
+  TCP/SSL/DNS/ping, and a loopback-only TLS server for the default socket connector. Time-dependent code is tested with `Symfony\Component\Clock\MockClock`.
+- **Measured scope** — all of `src/` (controllers and the Twig extension included); no exclusion in
+  `phpunit.xml.dist` and no `@codeCoverageIgnore`.
 - **TypeScript** — Vitest specs for the dashboard assets (`src/Resources/assets/src/*.test.ts`); the run fails below
   the 90% thresholds of `vitest.config.ts`.
 

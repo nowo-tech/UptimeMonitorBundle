@@ -9,12 +9,11 @@ use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Controller\TenantController
- */
+#[CoversClass(TenantController::class)]
 final class TenantControllerTest extends TestCase
 {
     use ControllerContainerTrait;
@@ -101,5 +100,16 @@ final class TenantControllerTest extends TestCase
         $this->bindController($controller, true, $request);
 
         self::assertTrue($controller->new($request)->isRedirect());
+    }
+
+    public function testListDisabledFallsBackToTheFirstTenantWhenTheDefaultIsMissing(): void
+    {
+        $tenantRepo = $this->createStub(TenantRepository::class);
+        $tenantRepo->method('findBy')->willReturn([new Tenant('acme', 'Acme'), new Tenant('beta', 'Beta')]);
+
+        $controller = $this->createController(['list_enabled' => false], $tenantRepo);
+        $this->bindController($controller);
+
+        self::assertTrue($controller->index()->isRedirect('/generated/nowo_uptime_dashboard'));
     }
 }

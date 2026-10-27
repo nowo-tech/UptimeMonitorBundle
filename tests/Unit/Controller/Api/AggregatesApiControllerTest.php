@@ -14,13 +14,12 @@ use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * @covers \Nowo\UptimeMonitorBundle\Controller\Api\AggregatesApiController
- */
+#[CoversClass(AggregatesApiController::class)]
 final class AggregatesApiControllerTest extends TestCase
 {
     use ControllerContainerTrait;
@@ -107,5 +106,21 @@ final class AggregatesApiControllerTest extends TestCase
 
         $response = $controller->tenantOverview('missing', new Request());
         self::assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
+    }
+
+    public function testUnknownPeriodFallsBackToDays(): void
+    {
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'API', MonitorType::Https, 'https://x.test');
+        $this->setEntityId($monitor, 9);
+        $monitorRepo = $this->createStub(MonitorRepository::class);
+        $monitorRepo->method('find')->willReturn($monitor);
+
+        $controller = new AggregatesApiController($this->createStub(TenantRepository::class), $monitorRepo, $this->chartService());
+        $this->bindController($controller);
+
+        $data = json_decode((string) $controller->monitorAggregates('main', 9, new Request(['period' => 'week', 'days' => '0']))->getContent(), true);
+
+        self::assertSame('day', $data['period']);
+        self::assertSame(1, $data['days']);
     }
 }
