@@ -83,6 +83,8 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-CHECK-006**: TCP / SSL probes open sockets through `Check\Network\SocketConnectorInterface` (stream socket with a deadline).
 - **FR-CHECK-007**: `CheckLimits` caps every check (`checks.max_timeout_seconds`, `max_body_bytes`, `max_redirects`); the due-check scan isolates failing monitors (resetting a closed entity manager and rescheduling the monitor), honours `checks.max_scan_seconds` (300 s) and stores only scrubbed, bounded UTF-8 check data (`CheckResultDto::sanitized()`).
 - **FR-EVENT-001**: `MonitorWentDownEvent` / `MonitorRecoveredEvent` dispatched when an incident opens / resolves.
+- **FR-EVENT-002**: `UptimePageEvent` (host header actions and sections of the dashboard and monitor pages) and
+  `StatusPageMonitorsEvent` (the monitors a public status page shows) — since 1.12.
 
 ### Dashboard & API
 
@@ -112,6 +114,10 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-FORM-001 / FR-FORM-002**: Monitor, tenant, tag, settings, backup import and monitor search form types with DTO models.
 - **FR-FORM-003**: CSRF-only action form (`CsrfActionFormType`) for destructive POST actions.
 - **FR-UI-003 / FR-UI-004**: UiKit page contract (`UptimePages`: layout, per-page templates, form themes) and area navigation provider (`UptimeAreaNav`).
+- **FR-UI-005**: page actions by access (`UptimeActions`), the table dashboard (`web_ui.dashboard.view`, `header`,
+  `actions`) and the paginated check log (`web_ui.per_page`) — since 1.12.
+- **FR-LIMIT-001**: per-tenant limits (`limits.*`, `TenantLimitsInterface`, `TenantQuota`): New monitor disabled with
+  the reason, the form refuses a monitor beyond the limit or checked more often than the minimum — since 1.12.
 - **FR-VIEW-001–011**: Twig dashboard, monitor, settings, status, and shared partials; SCSS themes (Bootstrap/Tailwind/Kuma).
 - **FR-UI-010–012**: Vite TypeScript dashboard modules; built assets under `Resources/public/`.
 - **FR-I18N-003 / FR-I18N-004**: Translation helper and seven locale YAML files (`NowoUptimeMonitorBundle.<locale>.yaml`, constraint messages included — no `validators` catalogue).

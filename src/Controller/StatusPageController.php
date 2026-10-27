@@ -9,6 +9,7 @@ use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
+use Nowo\UptimeMonitorBundle\Event\StatusPageMonitorsEvent;
 use Nowo\UptimeMonitorBundle\Monitor\TenantSettings;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
@@ -19,6 +20,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function is_string;
 use function sprintf;
@@ -30,6 +32,7 @@ final class StatusPageController extends AbstractController
 {
     /**
      * @param array<string, mixed> $statusPageConfig
+     * @param EventDispatcherInterface|null $eventDispatcher Dispatches {@see StatusPageMonitorsEvent} (since 1.12)
      */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
@@ -38,6 +41,7 @@ final class StatusPageController extends AbstractController
         #[Autowire('%nowo_uptime_monitor.status_page%')]
         private readonly array $statusPageConfig,
         private readonly UptimePages $pages = new UptimePages(),
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -73,6 +77,9 @@ final class StatusPageController extends AbstractController
             $this->monitorRepository->findByTenantSlug($tenantSlug),
             static fn (Monitor $m): bool => !$m->isPaused(),
         ));
+        if ($this->eventDispatcher instanceof EventDispatcherInterface) {
+            $monitors = $this->eventDispatcher->dispatch(new StatusPageMonitorsEvent($tenant, $monitors))->getMonitors();
+        }
 
         $ids = array_values(array_filter(array_map(
             static fn (Monitor $m): ?int => $m->getId(),

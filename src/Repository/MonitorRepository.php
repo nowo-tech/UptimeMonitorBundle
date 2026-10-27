@@ -27,6 +27,22 @@ class MonitorRepository extends ServiceEntityRepository
     }
 
     /**
+     * Number of the tenant's monitors that run checks (groups not counted).
+     */
+    public function countChecksByTenantSlug(string $tenantSlug): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->innerJoin('m.tenant', 't')
+            ->andWhere('t.slug = :slug')
+            ->andWhere('m.type <> :group')
+            ->setParameter('slug', $tenantSlug)
+            ->setParameter('group', MonitorType::Group)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * @return list<Monitor>
      */
     public function findByTenantSlug(string $tenantSlug): array

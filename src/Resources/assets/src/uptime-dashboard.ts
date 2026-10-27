@@ -129,6 +129,10 @@ export function bootstrap(): void {
   if (root === null) {
     // Monitor form page: show the fieldsets of the selected monitor type.
     initMonitorFormTypeToggle(document);
+    // Table dashboard (web_ui.dashboard.view: table): the New / Edit monitor dialog without the live tree.
+    if (document.querySelector('[data-uptime-dashboard-table]') !== null) {
+      initMonitorFormModal(document);
+    }
     return;
   }
 

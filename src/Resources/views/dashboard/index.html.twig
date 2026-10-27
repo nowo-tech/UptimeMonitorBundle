@@ -4,7 +4,11 @@
   one opens the monitor form dialog), and the 1.x variables tenant, tenant_slug, groups, stats, events,
   events_filter_monitor(_id), dashboard_sync, poll_interval_ms, api_summary_url, layout_fragment_url,
   mercure_hub_url, mercure_topic, heartbeat_bar_theme, elapsed_time_display, monitor_search_form.
-  Data block filled: nowo_ui_dashboard_cards (live Kuma layout: monitor tree, quick stats, recent checks).
+  Since 1.12: dashboard_view (web_ui.dashboard.view: tree | table — the table variables in
+  dashboard/_table_view.html.twig) and page_sections (UptimePageEvent: before / after); header actions from
+  UptimeActions (web_ui.dashboard.actions, each one for the users allowed to use it).
+  Data block filled: nowo_ui_dashboard_cards (host sections, then the live tree layout — monitor tree, quick stats,
+  recent checks — or the table).
 #}
 {% extends '@NowoUiKit/page/dashboard.html.twig' %}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -27,6 +31,12 @@
 {% endblock %}
 
 {% block nowo_ui_dashboard_cards %}
+    {% for section in page_sections.before|default([]) %}
+        {{ include(section.template, section.context) }}
+    {% endfor %}
+    {% if dashboard_view|default('tree') == 'table' %}
+        {{ include('@NowoUptimeMonitorBundle/dashboard/_table_view.html.twig') }}
+    {% else %}
     {% set _b = page.bundle %}
     {% set _theme = uptime_theme() %}
     {% set dashboard_i18n = {
@@ -122,6 +132,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
+    {% for section in page_sections.after|default([]) %}
+        {{ include(section.template, section.context) }}
+    {% endfor %}
 {% endblock %}
 
 {% block nowo_ui_modals %}

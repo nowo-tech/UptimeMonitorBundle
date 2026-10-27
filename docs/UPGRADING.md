@@ -8,6 +8,8 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.12.0](#to-1120)
+  - [Template contract](#template-contract)
 - [To 1.11.0](#to-1110)
   - [Security hardening (SEC-004 2026-10-27)](#security-hardening-sec-004-2026-10-27)
   - [Clock and check seams (REQ-DI-001)](#clock-and-check-seams-req-di-001)
@@ -95,6 +97,40 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.12.0
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+Nothing is required; every new option keeps the 1.11 behaviour by default.
+
+- **Actions by access**: the dashboard's Settings and New monitor and a monitor's Edit now appear only for users the
+  access checker allows (`canManageTenantSettings` / `canManageTenantMonitors`, or `canManageSettings` /
+  `canManageMonitors`). A checker that refused those actions already answered 403; now the buttons are gone too.
+- **New options**: `web_ui.dashboard.view` (`tree` | `table`), `web_ui.dashboard.header` (`tenant` | `monitors`),
+  `web_ui.dashboard.actions` (`settings`, `status_page`, `new_monitor`), `web_ui.per_page` (20), `limits.provider`,
+  `limits.max_monitors` (0 = no limit), `limits.min_interval_seconds` (30, the former HTML minimum, now validated).
+- **Host limits**: implement `Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface` (`maxMonitors()`,
+  `minIntervalSeconds()` per tenant slug) and set its service id as `limits.provider`; a host form extension that
+  enforced its own limits can go.
+- **Host pages**: listen to `Nowo\UptimeMonitorBundle\Event\UptimePageEvent` to add header actions and sections
+  (`addSection('template', [vars], 'before'|'after')`) instead of overriding `dashboard` / `monitor_show`, and to
+  `StatusPageMonitorsEvent` to choose the monitors of a public status page instead of overriding `status`.
+- **Constructor additions** (optional, appended): `MonitorController` (`UptimeActions`, `TenantQuota`, event
+  dispatcher, `web_ui`, `form.hidden_fields`), `DashboardController` (`UptimeActions`, event dispatcher, `web_ui`),
+  `StatusPageController` (event dispatcher); `MonitorController::show()` takes the request (optional). New repository
+  method `MonitorRepository::countChecksByTenantSlug()`.
+
+### Template contract
+
+- `dashboard/index.html.twig`: new variables `dashboard_view`, `dashboard_header`, `page_sections`; with the table
+  view the data block renders `dashboard/_table_view.html.twig` (variables in [TEMPLATES.md](TEMPLATES.md)).
+- `monitor/show.html.twig`: new variables `page_sections`, `log_events`, `log_pagination`; the check log section
+  carries `data-testid="uptime-monitor-log"`, the history / figures / charts / log sit in `[data-detail-pending]`
+  (hidden until the first check) after a `[data-detail-unchecked]` notice.
+- `monitor/_monitor_form_fields.html.twig`: renders `form_errors(form)` first and each field only when the form has it.
 
 ## To 1.11.0
 

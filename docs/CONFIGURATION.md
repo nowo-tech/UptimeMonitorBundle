@@ -42,6 +42,15 @@ nowo_uptime_monitor:
         layout_template: null  # null = nowo_ui_kit.layouts.admin; else a layout rendering the UiKit canonical blocks
         templates: {}          # per-page override, e.g. { dashboard: 'uptime/dashboard.html.twig' } (ids: docs/TEMPLATES.md)
         form_themes: ['@NowoUiKitBundle/form/nowo_ui_layout.html.twig']   # [] = only twig.form_themes
+        dashboard:             # since 1.12
+            view: tree         # tree (live monitor tree) | table (monitors table + paginated latest checks)
+            header: tenant     # tenant (name, slug as intro) | monitors ("Monitors": the host shows the tenant)
+            actions: [settings, status_page, new_monitor]   # header actions, in this order, each one by access
+        per_page: 20           # check log (monitor page) and latest checks (table dashboard) rows per page
+    limits:                    # since 1.12: New monitor disabled with the reason, the form refuses beyond them
+        provider: null         # service id of a Limits\TenantLimitsInterface (per-tenant limits); null = the values below
+        max_monitors: 0        # per tenant, groups not counted; 0 = no limit
+        min_interval_seconds: 30
     dashboard:
         # enabled: true        # deprecated (1.11): web_ui.enabled
         # path: /uptime        # deprecated (1.11): web_ui.path_prefix
@@ -94,6 +103,19 @@ execution fails (e.g. the database write) is logged and skipped, the scan goes o
 and metadata (strings ≤ 1000 characters, ≤ 50 entries per list, ≤ 4 levels) are scrubbed to valid UTF-8 before they are
 stored. If a flush still closes the entity manager, the scan resets it through the Doctrine registry, reschedules the
 failing monitor (`next_check_at` = now + interval) and continues with the remaining monitors.
+
+### Embedding the pages in a host (1.12)
+
+A host that shows the bundle pages inside its own navigation (tabs, its own settings and status pages):
+
+- `web_ui.dashboard.view: table`, `header: monitors` and `actions: [new_monitor]` — a monitors table under the host's
+  title, without the bundle's Settings / Status page buttons;
+- a tenant-aware access checker (`TenantAwareUptimeMonitorAccessCheckerInterface`): users without
+  `canManageTenantMonitors()` see the pages without New monitor, Edit, Pause or Delete;
+- `limits.provider`: a `Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface` service with the host's plans or
+  instance settings;
+- listeners of `Event\UptimePageEvent` (header actions, sections before / after the dashboard or a monitor page) and
+  `Event\StatusPageMonitorsEvent` (the monitors of a public status page) instead of template overrides.
 
 ### Public status page
 

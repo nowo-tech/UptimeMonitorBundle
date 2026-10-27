@@ -32,15 +32,22 @@ use Twig\Environment;
 
 trait ControllerContainerTrait
 {
+    /** @var array<string, mixed> Variables of the last template the bound controller rendered */
+    protected array $renderedContext = [];
+
     protected function bindController(AbstractController $controller, bool $csrfValid = true, ?Request $request = null): void
     {
         $router = $this->createMock(UrlGeneratorInterface::class);
         $router->method('generate')->willReturnCallback(
-            static fn (string $route): string => '/generated/' . $route,
+            static fn (string $route, array $parameters = []): string => '/generated/' . $route . (isset($parameters['return']) ? '?return=' . $parameters['return'] : ''),
         );
 
         $twig = $this->createMock(Environment::class);
-        $twig->method('render')->willReturn('rendered');
+        $twig->method('render')->willReturnCallback(function (string $name, array $context = []): string {
+            $this->renderedContext = $context;
+
+            return 'rendered';
+        });
 
         $csrf = $this->createMock(CsrfTokenManagerInterface::class);
         $csrf->method('isTokenValid')->willReturn($csrfValid);

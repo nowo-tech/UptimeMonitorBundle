@@ -8,6 +8,8 @@ use LogicException;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
+use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
+use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -420,6 +422,38 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $checker = $container->getDefinition('nowo_uptime_monitor.access_checker.default');
         self::assertSame(['ROLE_OPS'], $checker->getArgument('$manageRoles'));
         self::assertSame(['ROLE_ADMIN'], $checker->getArgument('$dashboardRoles'));
+    }
+
+    public function testTenantLimitsDefaultToTheConfiguredValues(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[
+            'limits' => ['max_monitors' => 25, 'min_interval_seconds' => 60],
+            'web_ui' => ['dashboard' => ['view' => 'table', 'actions' => ['new_monitor']], 'per_page' => 50],
+        ]], $container);
+
+        self::assertSame('nowo_uptime_monitor.tenant_limits.default', (string) $container->getAlias(TenantLimitsInterface::class));
+        $limits = $container->getDefinition('nowo_uptime_monitor.tenant_limits.default');
+        self::assertSame(ConfigurableTenantLimits::class, $limits->getClass());
+        self::assertSame(25, $limits->getArgument('$maxMonitors'));
+        self::assertSame(60, $limits->getArgument('$minIntervalSeconds'));
+        /** @var array<string, mixed> $webUi */
+        $webUi = $container->getParameter('nowo_uptime_monitor.web_ui');
+        self::assertEquals(['view' => 'table', 'header' => 'tenant', 'actions' => ['new_monitor']], $webUi['dashboard']);
+        self::assertSame(50, $webUi['per_page']);
+    }
+
+    public function testTenantLimitsProviderIsAliased(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['limits' => ['provider' => 'app.uptime_limits']]], $container);
+
+        self::assertSame('app.uptime_limits', (string) $container->getAlias(TenantLimitsInterface::class));
+        self::assertFalse($container->hasDefinition('nowo_uptime_monitor.tenant_limits.default'));
+        /** @var array<string, mixed> $webUi */
+        $webUi = $container->getParameter('nowo_uptime_monitor.web_ui');
+        self::assertSame(['view' => 'tree', 'header' => 'tenant', 'actions' => ['settings', 'status_page', 'new_monitor']], $webUi['dashboard']);
+        self::assertSame(20, $webUi['per_page']);
     }
 
     public function testDeprecatedDashboardKeysStillApply(): void

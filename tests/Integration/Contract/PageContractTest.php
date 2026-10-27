@@ -18,6 +18,7 @@ use function array_map;
 use function dirname;
 use function is_string;
 use function str_starts_with;
+use function strpos;
 use function substr;
 use function substr_count;
 
@@ -70,6 +71,9 @@ final class PageContractTest extends PageContractTestCase
             'dashboard (filtered, Mercure)' => 'dashboard/index.html.twig',
             'monitor detail'                => 'monitor/show.html.twig',
             'monitor detail (group)'        => 'monitor/show.html.twig',
+            'monitor detail (log pages)'    => 'monitor/show.html.twig',
+            'dashboard (table)'             => 'dashboard/index.html.twig',
+            'dashboard (table, empty)'      => 'dashboard/index.html.twig',
             'new monitor'                   => 'monitor/form.html.twig',
             'edit monitor'                  => 'monitor/form.html.twig',
         ];
@@ -101,6 +105,9 @@ final class PageContractTest extends PageContractTestCase
             'dashboard (filtered, Mercure)' => PageFixtures::dashboard(false, true),
             'monitor detail'                => PageFixtures::monitorShow(),
             'monitor detail (group)'        => PageFixtures::monitorShow(true),
+            'monitor detail (log pages)'    => PageFixtures::monitorShowPaged(),
+            'dashboard (table)'             => PageFixtures::dashboardTable(),
+            'dashboard (table, empty)'      => PageFixtures::dashboardTable(true),
             'new monitor'                   => PageFixtures::monitorForm(),
             'edit monitor'                  => PageFixtures::monitorForm(true),
             'status page'                   => PageFixtures::status(),
@@ -184,6 +191,34 @@ final class PageContractTest extends PageContractTestCase
         self::assertStringNotContainsString('data-bs-dismiss', $html);
     }
 
+    public function testTableDashboardAndPagedMonitorPage(): void
+    {
+        $table = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboardTable()))->html;
+        self::assertStringContainsString('data-uptime-dashboard-table', $table);
+        self::assertStringNotContainsString('id="uptime-dashboard-root"', $table);
+        self::assertStringContainsString('data-testid="uptime-count-up"', $table);
+        self::assertStringContainsString('data-responsive-table-target="table"', $table);
+        self::assertStringContainsString('href="/main/monitors/7"', $table);
+        self::assertStringContainsString('Delete the monitor “API health” and its check history?', $table);
+        self::assertStringContainsString('data-testid="uptime-events-pagination"', $table);
+        self::assertStringContainsString('<p class="host-section">Shared with Ana</p>', $table);
+        self::assertStringContainsString('data-uptime-monitor-form-modal', $table);
+
+        $empty = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboardTable(true)))->html;
+        self::assertStringContainsString('data-testid="uptime-monitors-empty"', $empty);
+        self::assertStringContainsString('No monitors yet', $empty);
+        self::assertStringNotContainsString('data-testid="uptime-events"', $empty);
+
+        $show = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShowPaged()))->html;
+        self::assertStringContainsString('data-testid="uptime-monitor-log-pagination"', $show);
+        self::assertLessThan(strpos($show, 'id="uptime-monitor-detail-root"'), strpos($show, 'Shared with Ana'));
+        self::assertStringNotContainsString('data-detail-unchecked', $show);
+
+        $unchecked = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShow(true)))->html;
+        self::assertStringContainsString('data-detail-unchecked', $unchecked);
+        self::assertMatchesRegularExpression('#data-detail-pending\s+hidden#', $unchecked);
+    }
+
     public function testSettingsPagesUseSectionTabsAndConfirmedActions(): void
     {
         $pages = PageFixtures::settingsPages();
@@ -253,6 +288,8 @@ final class PageContractTest extends PageContractTestCase
             // 1.x host layout (renders uptime_content), wrapped by the deprecated legacy bridge.
             'host/legacy.html.twig' => '<legacy-layout><title>{% block title %}{% endblock %}</title><head-css>{% block stylesheets %}<host-css/>{% endblock %}</head-css>{% block uptime_content %}{% endblock %}<js>{% block javascripts %}{% endblock %}</js></legacy-layout>',
             // web_ui.templates.tenant_index: thin override of a data block.
+            // UptimePageEvent section of a host.
+            'host/_section.html.twig'         => '<p class="host-section">{{ note }}</p>',
             'host/tenants_override.html.twig' => "{% extends '@NowoUptimeMonitorBundle/tenant/index.html.twig' %}{% block nowo_ui_list_after %}<p class=\"host-note\">Managed by the host.</p>{% endblock %}",
         ];
     }

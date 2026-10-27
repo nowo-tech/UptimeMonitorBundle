@@ -97,6 +97,23 @@ describe('dashboard bootstrap', () => {
     expect(document.querySelector<HTMLElement>('[data-monitor-fields="http"]')?.hidden).toBe(true);
   });
 
+  it('binds the monitor dialog on the table dashboard (no live tree)', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    document.documentElement.replaceChild(document.createElement('body'), document.body);
+    document.body.innerHTML = `
+      <div data-uptime-dashboard-table><a href="/new" data-monitor-form-open data-monitor-form-url="/new">New</a></div>
+      <dialog data-uptime-monitor-form-modal><div data-monitor-form-body>Loading</div></dialog>`;
+    bootstrap();
+    const link = document.querySelector('[data-monitor-form-open]') as HTMLElement;
+    expect(link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))).toBe(false);
+
+    document.documentElement.replaceChild(document.createElement('body'), document.body);
+    document.body.innerHTML = '<a href="/new" data-monitor-form-open>New</a><dialog data-uptime-monitor-form-modal><div data-monitor-form-body></div></dialog>';
+    bootstrap();
+    const plain = document.querySelector('[data-monitor-form-open]') as HTMLElement;
+    expect(plain.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))).toBe(true);
+  });
+
   it('uses Mercure when configured and falls back to polling after an error', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockImplementation(async () => summary());

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.12.0] - 2026-10-27](#1120---2026-10-27)
 - [[1.11.0] - 2026-10-27](#1110---2026-10-27)
 - [[1.10.0] - 2026-10-27](#1100---2026-10-27)
 - [[1.9.4] - 2026-10-26](#194---2026-10-26)
@@ -53,6 +54,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.12.0] - 2026-10-27
+
+Host embedding: page actions by access, per-tenant limits, a table dashboard, a paginated check log and extension
+events, so a host shows the bundle pages in its own navigation without copying templates. See
+[UPGRADING](UPGRADING.md#to-1120).
+
+### Added
+
+- **Page actions follow the access checker** (`Ui\UptimeActions`): the dashboard's Settings / New monitor and a
+  monitor's Edit only for users allowed to use them; a monitor page also offers **Pause / Resume** (back to the page)
+  and **Delete** behind the UiKit confirm. `web_ui.dashboard.actions` chooses and orders the dashboard header actions.
+- **Per-tenant limits** (`limits.max_monitors`, `limits.min_interval_seconds`, or a host
+  `Limits\TenantLimitsInterface` as `limits.provider`): New monitor is disabled with the reason once the tenant is
+  full, the form says why and refuses the monitor, and the interval field refuses checks more often than the minimum
+  (groups excepted).
+- **Table dashboard** (`web_ui.dashboard.view: table`): the monitors' state as counts, a UiKit responsive table
+  (name, type, target with secrets masked, status — "not checked yet" until the first check —, 24 h uptime, last
+  check, interval, row actions in one menu) and the latest checks newest first, paginated; the empty state offers New
+  monitor. `web_ui.dashboard.header: monitors` titles the page "Monitors" for hosts that show the tenant around it.
+- **Paginated check log** on the monitor page (`web_ui.per_page`, default 20) and a "not checked yet" notice in place
+  of the empty history, figures and log until the first check (the page reveals them when it arrives).
+- **Extension events**: `Event\UptimePageEvent` (dashboard and monitor page: header actions and host sections before
+  or after the bundle content) and `Event\StatusPageMonitorsEvent` (the monitors a public status page shows; the
+  overall status follows them).
+
+### Fixed
+
+- **Monitor form with hidden fields**: a field left out by `form.hidden_fields` (e.g. `project`) no longer breaks the
+  create / edit page; the monitor page leaves out the project row then.
+- **Monitor form errors**: root errors (tenant limit, expired form) are shown above the fields.
 
 ## [1.11.0] - 2026-10-27
 

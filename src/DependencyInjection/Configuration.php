@@ -32,6 +32,12 @@ final class Configuration implements ConfigurationInterface
     /** Default form theme of the bundle forms (UiKit form theme: nowo-ui input / row slots). */
     public const DEFAULT_FORM_THEME = '@NowoUiKitBundle/form/nowo_ui_layout.html.twig';
 
+    /** Dashboard layouts (`web_ui.dashboard.view`). */
+    public const DASHBOARD_VIEWS = ['tree', 'table'];
+
+    /** Dashboard header actions (`web_ui.dashboard.actions`), default order. */
+    public const DASHBOARD_ACTIONS = ['settings', 'status_page', 'new_monitor'];
+
     /** Page ids accepted by web_ui.templates (REQ-UI-003 per-page override). */
     public const PAGES = [
         'dashboard',
@@ -304,6 +310,53 @@ final class Configuration implements ConfigurationInterface
                             ->info('Form themes of the bundle forms (UiKit FormPage / SettingsSection formThemes). Empty = only the host twig.form_themes.')
                             ->scalarPrototype()->end()
                             ->defaultValue([self::DEFAULT_FORM_THEME])
+                        ->end()
+                        ->arrayNode('dashboard')
+                            ->addDefaultsIfNotSet()
+                            ->info('Tenant dashboard page.')
+                            ->children()
+                                ->enumNode('view')
+                                    ->values(self::DASHBOARD_VIEWS)
+                                    ->defaultValue('tree')
+                                    ->info('tree: the live monitor tree with quick stats and recent checks; table: a monitors table (status, 24 h uptime, last check, interval, row actions) and a paginated card of the latest checks — for hosts that embed the pages in their own navigation.')
+                                ->end()
+                                ->enumNode('header')
+                                    ->values(['tenant', 'monitors'])
+                                    ->defaultValue('tenant')
+                                    ->info('Page header title: tenant (its name, the slug as intro) or monitors ("Monitors" — for hosts that already show the tenant around the page; the table view then drops its card title).')
+                                ->end()
+                                ->arrayNode('actions')
+                                    ->info('Page header actions, in this order (each one only for users allowed to use it): ' . implode(', ', self::DASHBOARD_ACTIONS) . '.')
+                                    ->enumPrototype()->values(self::DASHBOARD_ACTIONS)->end()
+                                    ->defaultValue(self::DASHBOARD_ACTIONS)
+                                ->end()
+                            ->end()
+                        ->end()
+                        ->integerNode('per_page')
+                            ->min(5)
+                            ->max(200)
+                            ->defaultValue(20)
+                            ->info('Rows per page of the check log (monitor page) and of the latest checks (table dashboard).')
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('limits')
+                    ->addDefaultsIfNotSet()
+                    ->info('Per-tenant monitor limits: the New monitor action is disabled and the form refuses a monitor beyond them.')
+                    ->children()
+                        ->scalarNode('provider')
+                            ->defaultNull()
+                            ->info('Service id of a Nowo\\UptimeMonitorBundle\\Limits\\TenantLimitsInterface deciding the limits per tenant; null = max_monitors / min_interval_seconds for every tenant.')
+                        ->end()
+                        ->integerNode('max_monitors')
+                            ->min(0)
+                            ->defaultValue(0)
+                            ->info('Monitors per tenant, groups not counted (0 = no limit).')
+                        ->end()
+                        ->integerNode('min_interval_seconds')
+                            ->min(1)
+                            ->defaultValue(30)
+                            ->info('Shortest check interval of a monitor, in seconds.')
                         ->end()
                     ->end()
                 ->end()

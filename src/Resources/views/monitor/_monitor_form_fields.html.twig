@@ -1,69 +1,71 @@
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
 {# Grouped layout (REQ-TWIG-003 rule 3): the fieldsets are toggled per monitor type (data-monitor-fields), so each
-   renders its children explicitly; the child loop at the end renders any remaining field. #}
+   renders its children explicitly (each one only when the form has it: form.hidden_fields leaves some out); the
+   child loop at the end renders any remaining field. Root errors first (the tenant limit, an expired form). #}
+{{ form_errors(form) }}
 <fieldset class="uptime-form-section">
     <legend>{{ 'monitor.form.section.general'|trans }}</legend>
-    {{ form_row(form.type, {attr: {'data-monitor-type-select': '1'}}) }}
-    {{ form_row(form.name) }}
-    {{ form_row(form.parentId) }}
-    {{ form_row(form.project) }}
-    {{ form_row(form.description) }}
+    {% if form.type is defined %}{{ form_row(form.type, {attr: {'data-monitor-type-select': '1'}}) }}{% endif %}
+    {% if form.name is defined %}{{ form_row(form.name) }}{% endif %}
+    {% if form.parentId is defined %}{{ form_row(form.parentId) }}{% endif %}
+    {% if form.project is defined %}{{ form_row(form.project) }}{% endif %}
+    {% if form.description is defined %}{{ form_row(form.description) }}{% endif %}
 </fieldset>
 
 <fieldset class="uptime-form-section" data-monitor-fields="check">
     <legend>{{ 'monitor.form.section.heartbeat'|trans }}</legend>
-    {{ form_row(form.intervalSeconds) }}
-    {{ form_row(form.retries) }}
-    {{ form_row(form.retryIntervalSeconds) }}
-    {{ form_row(form.requestTimeoutSeconds) }}
-    {{ form_row(form.resendNotificationAfterDown) }}
-    {{ form_row(form.paused) }}
+    {% if form.intervalSeconds is defined %}{{ form_row(form.intervalSeconds) }}{% endif %}
+    {% if form.retries is defined %}{{ form_row(form.retries) }}{% endif %}
+    {% if form.retryIntervalSeconds is defined %}{{ form_row(form.retryIntervalSeconds) }}{% endif %}
+    {% if form.requestTimeoutSeconds is defined %}{{ form_row(form.requestTimeoutSeconds) }}{% endif %}
+    {% if form.resendNotificationAfterDown is defined %}{{ form_row(form.resendNotificationAfterDown) }}{% endif %}
+    {% if form.paused is defined %}{{ form_row(form.paused) }}{% endif %}
 </fieldset>
 
 <fieldset class="uptime-form-section" data-monitor-fields="http">
     <legend>{{ 'monitor.form.section.http'|trans }}</legend>
-    {{ form_row(form.url) }}
-    {{ form_row(form.method) }}
-    {{ form_row(form.expectedStatusCodes) }}
-    {{ form_row(form.maxRedirects) }}
-    {{ form_row(form.keyword) }}
+    {% if form.url is defined %}{{ form_row(form.url) }}{% endif %}
+    {% if form.method is defined %}{{ form_row(form.method) }}{% endif %}
+    {% if form.expectedStatusCodes is defined %}{{ form_row(form.expectedStatusCodes) }}{% endif %}
+    {% if form.maxRedirects is defined %}{{ form_row(form.maxRedirects) }}{% endif %}
+    {% if form.keyword is defined %}{{ form_row(form.keyword) }}{% endif %}
 </fieldset>
 
 <fieldset class="uptime-form-section" data-monitor-fields="http-advanced">
     <legend>{{ 'monitor.form.section.advanced'|trans }}</legend>
-    {{ form_row(form.ignoreTls) }}
-    {{ form_row(form.upsideDown) }}
-    {{ form_row(form.checkCertExpiry) }}
-    {{ form_row(form.proxy) }}
-    {{ form_row(form.tags) }}
+    {% if form.ignoreTls is defined %}{{ form_row(form.ignoreTls) }}{% endif %}
+    {% if form.upsideDown is defined %}{{ form_row(form.upsideDown) }}{% endif %}
+    {% if form.checkCertExpiry is defined %}{{ form_row(form.checkCertExpiry) }}{% endif %}
+    {% if form.proxy is defined %}{{ form_row(form.proxy) }}{% endif %}
+    {% if form.tags is defined %}{{ form_row(form.tags) }}{% endif %}
 </fieldset>
 
 <fieldset class="uptime-form-section" data-monitor-fields="http-options">
     <legend>{{ 'monitor.form.section.http_options'|trans }}</legend>
-    {{ form_row(form.bodyEncoding) }}
-    {{ form_row(form.httpBody) }}
-    {{ form_row(form.httpHeaders) }}
-    {{ form_row(form.authMethod) }}
-    {{ form_row(form.authUsername) }}
-    {{ form_row(form.authPassword) }}
+    {% if form.bodyEncoding is defined %}{{ form_row(form.bodyEncoding) }}{% endif %}
+    {% if form.httpBody is defined %}{{ form_row(form.httpBody) }}{% endif %}
+    {% if form.httpHeaders is defined %}{{ form_row(form.httpHeaders) }}{% endif %}
+    {% if form.authMethod is defined %}{{ form_row(form.authMethod) }}{% endif %}
+    {% if form.authUsername is defined %}{{ form_row(form.authUsername) }}{% endif %}
+    {% if form.authPassword is defined %}{{ form_row(form.authPassword) }}{% endif %}
 </fieldset>
 
 <fieldset class="uptime-form-section" data-monitor-fields="tcp">
     <legend>{{ 'monitor.form.section.tcp'|trans }}</legend>
-    {{ form_row(form.host) }}
-    {{ form_row(form.port) }}
+    {% if form.host is defined %}{{ form_row(form.host) }}{% endif %}
+    {% if form.port is defined %}{{ form_row(form.port) }}{% endif %}
 </fieldset>
 
 <fieldset class="uptime-form-section" data-monitor-fields="dns">
     <legend>{{ 'monitor.form.section.dns'|trans }}</legend>
-    {{ form_row(form.hostname) }}
-    {{ form_row(form.recordType) }}
-    {{ form_row(form.expectedDnsValue) }}
+    {% if form.hostname is defined %}{{ form_row(form.hostname) }}{% endif %}
+    {% if form.recordType is defined %}{{ form_row(form.recordType) }}{% endif %}
+    {% if form.expectedDnsValue is defined %}{{ form_row(form.expectedDnsValue) }}{% endif %}
 </fieldset>
 
 <fieldset class="uptime-form-section" data-monitor-fields="ssl">
     <legend>{{ 'monitor.form.section.ssl'|trans }}</legend>
-    {{ form_row(form.daysBeforeExpiry) }}
+    {% if form.daysBeforeExpiry is defined %}{{ form_row(form.daysBeforeExpiry) }}{% endif %}
 </fieldset>
 
 {% for child in form %}

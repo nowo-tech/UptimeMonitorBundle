@@ -45,6 +45,24 @@ final class MonitorFormTypeTest extends TypeTestCase
         self::assertSame('form.monitor.name_required', $form->get('name')->getErrors()->current()->getMessage());
     }
 
+    public function testTheIntervalHasTheTenantMinimumExceptForGroups(): void
+    {
+        $form = $this->factory->create(MonitorFormType::class, new MonitorFormData(), ['min_interval_seconds' => 120]);
+        $form->submit(['name' => 'API', 'type' => MonitorType::Https->value, 'url' => 'https://example.test', 'intervalSeconds' => '60'], false);
+
+        self::assertSame(120, $form->get('intervalSeconds')->getConfig()->getOption('attr')['min']);
+        self::assertFalse($form->get('intervalSeconds')->isValid());
+        self::assertSame('form.monitor.interval_min', $form->get('intervalSeconds')->getErrors()->current()->getMessageTemplate());
+
+        $group = $this->factory->create(MonitorFormType::class, new MonitorFormData(), ['min_interval_seconds' => 120]);
+        $group->submit(['name' => 'Team', 'type' => MonitorType::Group->value, 'intervalSeconds' => '60'], false);
+        self::assertTrue($group->get('intervalSeconds')->isValid());
+
+        $enough = $this->factory->create(MonitorFormType::class, new MonitorFormData(), ['min_interval_seconds' => 120]);
+        $enough->submit(['name' => 'API', 'type' => MonitorType::Https->value, 'url' => 'https://example.test', 'intervalSeconds' => '180'], false);
+        self::assertTrue($enough->get('intervalSeconds')->isValid());
+    }
+
     public function testHiddenFieldsAreLeftOutAndKeepTheirValues(): void
     {
         $factory = Forms::createFormFactoryBuilder()

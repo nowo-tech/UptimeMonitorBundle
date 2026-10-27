@@ -1,0 +1,129 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+{#
+  Table dashboard (web_ui.dashboard.view: table, since 1.12): for hosts that embed the pages in their own navigation.
+  A card with the monitors' state as compact counts (only the states some monitor is in) and the monitors as a UiKit
+  responsive table (name and type, target, status — "not checked yet" until the first check —, 24 h uptime, last
+  check, interval, the row actions of UptimeActions in one menu); a card with the latest checks, newest first, one web_ui.per_page
+  page; the empty state (with New monitor) when there is no monitor. Variables (DashboardController): monitor_rows,
+  monitor_row_actions (monitor id => list<Action>), monitor_targets (monitor id => target, secrets masked),
+  dashboard_empty (EmptyState), dashboard_header (tenant | monitors), stats, events_page, events_pagination, tenant_slug, page.
+#}
+{% set _b = page.bundle %}
+{% set _badge = {up: 'badge_success', down: 'badge_danger', degraded: 'badge_warning'} %}
+<div class="uptime-dashboard-table" data-uptime-dashboard-table data-testid="uptime-dashboard-table">
+    {% if monitor_rows is empty %}
+        <div data-testid="uptime-monitors-empty">
+            {{ include(nowo_ui_partial('empty', _b), {empty: dashboard_empty, bundle: _b}, false) }}
+        </div>
+    {% else %}
+        {% set _monitors %}
+            <ul class="uptime-dashboard-counts" data-testid="uptime-counts">
+                {% for key in ['down', 'degraded', 'up', 'unknown', 'paused'] %}
+                    {% if attribute(stats, key)|default(0) > 0 %}
+                        <li class="{{ nowo_ui_class(_badge[key]|default('badge_neutral'), _b) }}" data-testid="uptime-count-{{ key }}">
+                            {{ attribute(stats, key) }} {{ ('dashboard.count.' ~ key)|trans }}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            {% embed '@NowoUiKitBundle/partials/_responsive_table.html.twig' with {
+                dialog_id: 'uptime-monitors',
+                attr: {'data-testid': 'uptime-monitors-table-root'},
+            } %}
+                {% trans_default_domain 'NowoUptimeMonitorBundle' %}
+                {% block table %}
+                    <table class="{{ nowo_ui_class('table', _b) }}" data-responsive-table-target="table" data-testid="uptime-monitors-table">
+                        <thead class="{{ nowo_ui_class('table_head', _b) }}">
+                            <tr>
+                                <th scope="col" data-column="monitor" data-required="1">{{ 'dashboard.table.monitor'|trans }}</th>
+                                <th scope="col" data-column="status" data-required="1">{{ 'dashboard.col.status'|trans }}</th>
+                                <th scope="col" data-column="uptime" data-priority="1">{{ 'dashboard.table.uptime'|trans }}</th>
+                                <th scope="col" data-column="last_check" data-priority="2">{{ 'dashboard.table.last_check'|trans }}</th>
+                                <th scope="col" data-column="interval" data-priority="3">{{ 'dashboard.table.interval'|trans }}</th>
+                                <th scope="col" data-column="actions" data-priority="4"><span class="visually-hidden">{{ 'dashboard.table.actions'|trans }}</span></th>
+                                {% include '@NowoUiKitBundle/partials/_row_detail_head.html.twig' only %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in monitor_rows %}
+                                {% set monitor = row.monitor %}
+                                {% set status = monitor.paused ? 'paused' : (row.latest ? row.latest.status.value : 'unknown') %}
+                                <tr class="uptime-dashboard-row{% if row.nested %} uptime-dashboard-row--nested{% endif %}" data-testid="uptime-monitor-row" data-status="{{ status }}">
+                                    <td data-column="monitor">
+                                        <a class="uptime-dashboard-row-name" href="{{ path('nowo_uptime_monitor_show', {tenantSlug: tenant_slug, id: monitor.id}) }}" data-testid="uptime-monitor-link">{{ monitor.name }}</a>
+                                        <span class="{{ nowo_ui_class('badge', _b) }}">{{ ('form.monitor.type.' ~ monitor.type.value)|trans }}</span>
+                                        {% if not monitor.group %}
+                                            <span class="uptime-dashboard-row-target {{ nowo_ui_class('muted', _b) }}">{{ monitor_targets[monitor.id]|default('') }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="status">
+                                        <span class="{{ nowo_ui_class(_badge[status]|default('badge_neutral'), _b) }}">{{ (row.latest or monitor.paused ? 'status.' ~ status : 'dashboard.not_checked')|trans }}</span>
+                                    </td>
+                                    <td data-column="uptime" class="uptime-dashboard-num">{{ row.uptime_24h is not null and not monitor.paused ? row.uptime_24h|number_format(2) ~ ' %' : '—' }}</td>
+                                    <td data-column="last_check" class="uptime-dashboard-nowrap">
+                                        {% if row.latest %}
+                                            <time datetime="{{ row.latest.checkedAt|date('c') }}">{{ row.latest.checkedAt|date('Y-m-d H:i') }}</time>
+                                            <span class="{{ nowo_ui_class('muted', _b) }} uptime-dashboard-latency">{{ row.latest.latencyMs }} ms</span>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                    <td data-column="interval" class="uptime-dashboard-nowrap uptime-dashboard-num">{{ monitor.group ? '—' : 'monitor.show.seconds'|trans({'%seconds%': monitor.intervalSeconds}) }}</td>
+                                    <td data-column="actions">
+                                        {{ include(nowo_ui_partial('row_actions', _b), {actions: monitor_row_actions[monitor.id]|default([]), menu: true, popover: true, bundle: _b}, false) }}
+                                    </td>
+                                    {% include '@NowoUiKitBundle/partials/_row_detail_cell.html.twig' only %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endblock %}
+            {% endembed %}
+        {% endset %}
+        <div class="uptime-dashboard-monitors" data-testid="uptime-monitors">
+            {# With the "Monitors" page header (web_ui.dashboard.header: monitors) the card needs no title of its own. #}
+            {{ include(nowo_ui_partial('card', _b), {
+                title: dashboard_header|default('tenant') == 'monitors' ? null : {key: 'dashboard.table.title', domain: 'NowoUptimeMonitorBundle'},
+                body: _monitors,
+                bundle: _b,
+            }, false) }}
+        </div>
+
+        {% if events_page is not empty %}
+            {% set _checks %}
+                <div class="{{ nowo_ui_class('table_wrap', _b) }}">
+                    <table class="{{ nowo_ui_class('table', _b) }}" data-testid="uptime-events-table">
+                        <thead class="{{ nowo_ui_class('table_head', _b) }}">
+                            <tr>
+                                <th scope="col">{{ 'dashboard.col.name'|trans }}</th>
+                                <th scope="col">{{ 'dashboard.col.status'|trans }}</th>
+                                <th scope="col">{{ 'dashboard.col.datetime'|trans }}</th>
+                                <th scope="col">{{ 'dashboard.col.message'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in events_page %}
+                                <tr data-testid="uptime-event-row">
+                                    <td>{{ event.monitor_name ?: '—' }}</td>
+                                    <td><span class="{{ nowo_ui_class(_badge[event.status]|default('badge_neutral'), _b) }}">{{ ('status.' ~ event.status)|trans }}</span></td>
+                                    <td class="uptime-dashboard-nowrap"><time datetime="{{ event.checked_at|date('c') }}">{{ event.checked_at|date('Y-m-d H:i:s') }}</time></td>
+                                    <td class="uptime-event-message">{{ event.message ?? '—' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if events_pagination.totalPages > 1 %}
+                    <div class="uptime-events-pagination" data-testid="uptime-events-pagination">
+                        {{ include(nowo_ui_partial('pagination', _b), {pagination: events_pagination, item_count: events_page|length, bundle: _b}, false) }}
+                    </div>
+                {% endif %}
+            {% endset %}
+            <div class="uptime-dashboard-events" data-testid="uptime-events">
+                {{ include(nowo_ui_partial('card', _b), {
+                    title: {key: 'dashboard.recent_checks', domain: 'NowoUptimeMonitorBundle'},
+                    body: _checks,
+                    bundle: _b,
+                }, false) }}
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

@@ -101,12 +101,18 @@ colours to the UiKit `--nowo-ui-*` tokens.
 | `dashboard/_quick_stats.html.twig` | Quick stats (`kpis` / `kpi*` slots, `data-stat-*`) |
 | `dashboard/_events_body.html.twig` | Recent checks `<tbody>` |
 | `dashboard/_layout_fragment.html.twig` | XHR fragment (tree + stats + events) for live layout refresh; not a page |
+| `dashboard/_table_view.html.twig` | Table dashboard (`web_ui.dashboard.view: table`, 1.12): counts, UiKit responsive table with row actions in a `menu`, latest checks with the `pagination` partial, `empty` with New monitor. Variables: `monitor_rows`, `monitor_row_actions`, `monitor_targets`, `dashboard_empty`, `dashboard_header`, `events_page`, `events_pagination` |
 | `monitor/_monitor_edit_modal.html.twig` | Monitor dialog: the UiKit `dialog` partial (native `<dialog>`, header / body; `data-uptime-monitor-form-modal`) |
 | `monitor/_monitor_form_modal.html.twig`, `_monitor_form_body.html.twig` | Monitor form fragment loaded into the dialog (`X-Uptime-Modal`); not a page |
 | `monitor/_monitor_form_fields.html.twig` | Monitor fieldsets per type + REQ-TWIG-003 child loop (form page and dialog) |
 
 The bundle ships no local pagination, flash, confirm, modal shell, page header or empty-state partial: the
-scaffolds and the UiKit partials (`action`, `dialog`, `confirm`, `detail_list`, `empty`, `flashes`) render them.
+scaffolds and the UiKit partials (`action`, `dialog`, `confirm`, `detail_list`, `empty`, `flashes`, `pagination`,
+`row_actions`, `card`, `responsive_table`) render them.
+
+Since 1.12 the dashboard and the monitor page also render `page_sections` (`before` / `after`: the templates and
+variables a host added through `Event\UptimePageEvent`); the monitor page renders one check log page (`log_events`,
+`log_pagination`, `web_ui.per_page`).
 
 ## Navigation
 

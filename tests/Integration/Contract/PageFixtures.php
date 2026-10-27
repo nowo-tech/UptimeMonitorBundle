@@ -19,6 +19,7 @@ use Nowo\UiKitBundle\View\FormPage;
 use Nowo\UiKitBundle\View\Label;
 use Nowo\UiKitBundle\View\ListPage;
 use Nowo\UiKitBundle\View\PageHeader;
+use Nowo\UiKitBundle\View\Pagination;
 use Nowo\UiKitBundle\View\SettingsPage;
 use Nowo\UiKitBundle\View\SettingsSection;
 use Nowo\UiKitBundle\View\ShowPage;
@@ -171,6 +172,53 @@ final class PageFixtures
             'mercure_topic'            => $filtered ? '/uptime/main' : null,
             'monitor_search_form'      => self::forms()->create(MonitorSearchFormType::class)->createView(),
         ] + self::shared();
+    }
+
+    /**
+     * The table dashboard (`web_ui.dashboard.view: table`), with a host section after it.
+     *
+     * @return array<string, mixed>
+     */
+    public static function dashboardTable(bool $empty = false): array
+    {
+        $context = self::dashboard($empty);
+        $rows    = $empty ? [] : $context['groups'][0]['children'];
+
+        return [
+            'dashboard_view'      => 'table',
+            'dashboard_header'    => $empty ? 'tenant' : 'monitors',
+            'monitor_rows'        => $rows,
+            'monitor_row_actions' => $empty ? [] : [7 => [
+                Action::view('/main/monitors/7', UptimePages::label('monitor.view')),
+                Action::delete('/main/monitors/7/delete', 'token-delete7', new Confirm(
+                    UptimePages::label('monitor.delete'),
+                    UptimePages::label('monitor.delete_confirm', ['%name%' => 'API health']),
+                    UptimePages::label('monitor.delete'),
+                    id: 'uptime-monitor-delete-7',
+                ), UptimePages::label('monitor.delete_short')),
+            ]],
+            'monitor_targets'   => [7 => 'https://example.com/health'],
+            'dashboard_empty'   => new EmptyState(UptimePages::label('dashboard.empty.title'), UptimePages::label('dashboard.no_monitors'), Action::create('/main/monitors/new', UptimePages::label('monitor.new'))),
+            'events_page'       => $context['events'],
+            'events_pagination' => new Pagination(1, 1, 2, 2, 'nowo_uptime_dashboard', routeParams: ['tenantSlug' => self::SLUG]),
+            'page_sections'     => ['before' => [], 'after' => [['template' => 'host/_section.html.twig', 'context' => ['note' => 'Shared with Ana']]]],
+        ] + $context;
+    }
+
+    /**
+     * A monitor page with two check log pages and a host section before the bundle content.
+     *
+     * @return array<string, mixed>
+     */
+    public static function monitorShowPaged(): array
+    {
+        $context = self::monitorShow();
+
+        return [
+            'log_events'     => $context['detail']['events'],
+            'log_pagination' => new Pagination(1, 1, 2, 2, 'nowo_uptime_monitor_show', routeParams: ['tenantSlug' => self::SLUG, 'id' => 7]),
+            'page_sections'  => ['before' => [['template' => 'host/_section.html.twig', 'context' => ['note' => 'Shared with Ana']]], 'after' => []],
+        ] + $context;
     }
 
     /**

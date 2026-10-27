@@ -210,6 +210,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | --- | --- |
 | `Event/MonitorRecoveredEvent.php` | Dispatched when an incident resolves | FR-EVENT-001 |
 | `Event/MonitorWentDownEvent.php` | Dispatched when an incident opens | FR-EVENT-001 |
+| `Event/StatusPageMonitorsEvent.php` | The monitors a public status page shows (host filter) | FR-EVENT-002 |
+| `Event/UptimePageEvent.php` | Host header actions and sections of the dashboard and monitor pages | FR-EVENT-002 |
 
 ## Routing & tenants
 
@@ -227,6 +229,15 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Ui/UiFramework.php` | UI framework selector (deprecated: pages follow nowo_ui_kit.css_framework) | FR-UI-003 |
 | `Ui/UptimePages.php` | UiKit page contract plumbing: layout, per-page templates, form themes (REQ-UI-003) | FR-UI-003 |
 | `Ui/UptimeAreaNav.php` | UiKit area-nav provider (tenant + settings navigation) | FR-UI-004 |
+| `Ui/UptimeActions.php` | Page actions by access (dashboard header, New monitor with the tenant limit, monitor edit / pause / delete) | FR-UI-005 |
+
+## Tenant limits
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Limits/TenantLimitsInterface.php` | Per-tenant limits port (`limits.provider`) | FR-LIMIT-001 |
+| `Limits/ConfigurableTenantLimits.php` | Default limits from `limits.max_monitors` / `min_interval_seconds` | FR-LIMIT-001 |
+| `Limits/TenantQuota.php` | Monitors a tenant may still add | FR-LIMIT-001 |
 
 ## Frontend TypeScript
 

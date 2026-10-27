@@ -6,6 +6,8 @@ namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use LogicException;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
+use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
+use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -198,7 +200,27 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         );
 
         $this->registerAccessChecker($container, $config['security']);
+        $this->registerTenantLimits($container, $config['limits']);
         $this->registerTablePrefixListener($container);
+    }
+
+    /**
+     * Aliases {@see TenantLimitsInterface} to `limits.provider`, else to the configured {@see ConfigurableTenantLimits}.
+     *
+     * @param array{provider: ?string, max_monitors: int, min_interval_seconds: int} $limits
+     */
+    private function registerTenantLimits(ContainerBuilder $container, array $limits): void
+    {
+        $providerId = $limits['provider'];
+        if (!is_string($providerId) || $providerId === '') {
+            $providerId = 'nowo_uptime_monitor.tenant_limits.default';
+            $container->setDefinition($providerId, (new Definition(ConfigurableTenantLimits::class))
+                ->setArgument('$maxMonitors', $limits['max_monitors'])
+                ->setArgument('$minIntervalSeconds', $limits['min_interval_seconds'])
+                ->setPublic(false));
+        }
+
+        $container->setAlias(TenantLimitsInterface::class, $providerId);
     }
 
     /**
