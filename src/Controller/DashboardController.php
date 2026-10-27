@@ -21,6 +21,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Mercure\Authorization;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Routing\Attribute\Route;
@@ -54,6 +55,15 @@ final class DashboardController extends AbstractController
     ) {
     }
 
+    /**
+     * Renders the tenant dashboard (monitor tree, quick stats, event log) and, with Mercure sync, sets the subscriber
+     * cookie.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (`monitor` query filters the event log)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route(
         path: '/{tenantSlug}',
         name: 'nowo_uptime_dashboard',
@@ -122,6 +132,14 @@ final class DashboardController extends AbstractController
         return $response;
     }
 
+    /**
+     * Renders the dashboard layout fragment the polling client swaps in after each refresh.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (`monitor` query filters the event log)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route(
         path: '/{tenantSlug}/fragment/layout',
         name: 'nowo_uptime_dashboard_layout_fragment',

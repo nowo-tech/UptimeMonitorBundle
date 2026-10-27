@@ -29,6 +29,12 @@ final readonly class MonitorBackupService
     public const IMPORT_SKIP      = 'skip';
     public const IMPORT_OVERWRITE = 'overwrite';
 
+    /**
+     * Creates the backup service.
+     *
+     * @param ManagerRegistry|null $registry Resets closed managers after a failed import flush
+     * @param ClockInterface $clock Clock for the export timestamp
+     */
     public function __construct(
         private MonitorRepository $monitorRepository,
         private MonitorFactory $monitorFactory,

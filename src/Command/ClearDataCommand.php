@@ -17,12 +17,21 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use function is_string;
 use function sprintf;
 
+/**
+ * Console command `nowo:uptime:clear-data`: deletes checks, aggregates and incidents (monitors and tenants are kept).
+ */
 #[AsCommand(
     name: 'nowo:uptime:clear-data',
     description: 'Delete all check results, aggregates, and incidents (keeps tenants and monitors)',
 )]
 final class ClearDataCommand extends Command
 {
+    /**
+     * Creates the command.
+     *
+     * @param UptimeDataClearService $dataClearService Deletes the operational records
+     * @param DashboardSyncDispatcher $dashboardSyncDispatcher Notifies open dashboards afterwards
+     */
     public function __construct(
         private readonly UptimeDataClearService $dataClearService,
         private readonly DashboardSyncDispatcher $dashboardSyncDispatcher,

@@ -24,6 +24,11 @@ final class TenantFormType extends AbstractUptimeFormType
 {
     public const SLUG_PATTERN = '/^[a-z0-9\-]+$/';
 
+    /**
+     * Adds the tenant fields.
+     *
+     * @param array<string, mixed> $options Form options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $this->addText($builder, 'slug', [
@@ -59,6 +64,9 @@ final class TenantFormType extends AbstractUptimeFormType
             ->addViolation();
     }
 
+    /**
+     * Configures the tenant options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);

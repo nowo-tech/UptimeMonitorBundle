@@ -52,6 +52,9 @@ final class Configuration implements ConfigurationInterface
 
     private const PAGES_LIST = 'dashboard, monitor_show, monitor_form, settings_general, settings_appearance, settings_notifications, settings_reverse_proxy, settings_tags, settings_history, settings_backup, settings_about, tenant_index, tenant_form, status';
 
+    /**
+     * Builds the `nowo_uptime_monitor` configuration tree (with the deprecated 1.x keys and their replacements).
+     */
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder(self::ALIAS);

@@ -12,9 +12,18 @@ namespace Nowo\UptimeMonitorBundle\Security;
  */
 interface TenantAwareUptimeMonitorAccessCheckerInterface extends UptimeMonitorAccessCheckerInterface
 {
+    /**
+     * Whether the user may open the dashboard of this tenant.
+     */
     public function canAccessTenant(object $user, string $tenantSlug): bool;
 
+    /**
+     * Whether the user may create, edit, pause or delete monitors of this tenant.
+     */
     public function canManageTenantMonitors(object $user, string $tenantSlug): bool;
 
+    /**
+     * Whether the user may change the settings of this tenant.
+     */
     public function canManageTenantSettings(object $user, string $tenantSlug): bool;
 }

@@ -1,4 +1,4 @@
-.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix rector rector-dry phpstan igor qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form twig-lint test-e2e demo-screenshots
+.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix rector rector-dry phpstan igor qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form twig-lint test-e2e demo-screenshots validate-phpdoc
 
 COMPOSE_FILE ?= docker-compose.yml
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -33,6 +33,7 @@ help:
 	@echo "  rector                Apply Rector"
 	@echo "  rector-dry            Rector dry-run"
 	@echo "  phpstan               PHPStan static analysis"
+	@echo "  validate-phpdoc       Fail when a class or public method in src/ has no PHPDoc (REQ-CS-001)"
 	@echo "  igor                  Igor worker-state audit (REQ-CS-008)"
 	@echo "  qa                    cs-check + test"
 	@echo ""
@@ -139,6 +140,10 @@ cs-check: ensure-up
 cs-fix: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer cs-fix
 
+# REQ-CS-001: every class-like and public method in src/ has a PHPDoc block (read-only check).
+validate-phpdoc: ensure-up
+	$(COMPOSE) exec -T $(SERVICE_PHP) php .scripts/complete-public-phpdoc.php
+
 phpstan: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer phpstan
 
@@ -180,7 +185,7 @@ check-no-raw-html-form:
 	@chmod +x .scripts/check-no-raw-html-form.sh
 	@./.scripts/check-no-raw-html-form.sh
 
-release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form composer-sync cs-fix cs-check rector-dry phpstan igor validate-translations test-coverage-100 release-check-demos test-e2e test-ts
+release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form composer-sync cs-fix cs-check rector-dry phpstan validate-phpdoc igor validate-translations test-coverage-100 release-check-demos test-e2e test-ts
 
 clean:
 	rm -rf vendor coverage coverage-ts .phpunit.cache coverage-php.txt coverage-ts.txt node_modules

@@ -33,6 +33,9 @@ final readonly class AggregateService
     ) {
     }
 
+    /**
+     * Adds one check to the current hour, day, month and year buckets (the configured periods) of the monitor.
+     */
     public function recordFromCheck(Monitor $monitor, CheckResultDto $dto): void
     {
         $periods = $this->aggregatesConfig['periods'] ?? ['hour', 'day', 'month', 'year'];

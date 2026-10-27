@@ -16,6 +16,7 @@ use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 use function is_string;
@@ -39,6 +40,13 @@ final class StatusPageController extends AbstractController
     ) {
     }
 
+    /**
+     * Renders the public status page of a tenant (unpaused monitors and the overall status).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     *
+     * @throws NotFoundHttpException When the status page is disabled or the tenant does not exist
+     */
     #[Route(
         path: '/{tenantSlug}',
         name: 'nowo_uptime_status_page',

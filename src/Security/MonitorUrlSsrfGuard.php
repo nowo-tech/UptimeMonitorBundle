@@ -63,6 +63,9 @@ final class MonitorUrlSsrfGuard
         $this->recordLookup = $recordLookup ?? static fn (string $host, int $type): array|false => @dns_get_record($host, $type);
     }
 
+    /**
+     * Whether the URL has no host, or its host is or resolves to a private / local address.
+     */
     public function isBlocked(string $url): bool
     {
         $host = parse_url($url, PHP_URL_HOST);
@@ -103,6 +106,9 @@ final class MonitorUrlSsrfGuard
         return false;
     }
 
+    /**
+     * Whether the string is not an IP address or lies in one of the blocked subnets.
+     */
     public function isBlockedIp(string $ip): bool
     {
         if (filter_var($ip, FILTER_VALIDATE_IP) === false) {

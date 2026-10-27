@@ -29,6 +29,9 @@ final readonly class DashboardSyncDispatcher
     ) {
     }
 
+    /**
+     * Publishes a full dashboard reset for the tenant over Mercure (no-op with polling or without a hub).
+     */
     public function dispatchTenantRefresh(string $tenantSlug): void
     {
         if (($this->dashboardConfig['sync'] ?? 'polling') !== 'mercure') {
@@ -55,6 +58,9 @@ final readonly class DashboardSyncDispatcher
         ));
     }
 
+    /**
+     * Publishes the updated monitor row, event and stats after a check over Mercure (no-op with polling or without a hub).
+     */
     public function dispatchAfterCheck(Monitor $monitor, CheckResult $result): void
     {
         if (($this->dashboardConfig['sync'] ?? 'polling') !== 'mercure') {
@@ -81,6 +87,9 @@ final readonly class DashboardSyncDispatcher
         ));
     }
 
+    /**
+     * Returns the Mercure topic of the tenant dashboard (`dashboard.mercure.topic_template`).
+     */
     public function resolveTopic(string $tenantSlug): string
     {
         $template = (string) ($this->dashboardConfig['mercure']['topic_template'] ?? '/uptime/{tenant}');
@@ -88,6 +97,9 @@ final readonly class DashboardSyncDispatcher
         return str_replace('{tenant}', $tenantSlug, $template);
     }
 
+    /**
+     * Whether dashboard updates go through Mercure (sync mode `mercure` and a hub available).
+     */
     public function isMercureEnabled(): bool
     {
         return ($this->dashboardConfig['sync'] ?? 'polling') === 'mercure' && $this->hub instanceof HubInterface;

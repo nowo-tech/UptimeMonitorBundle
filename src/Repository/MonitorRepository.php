@@ -16,6 +16,11 @@ use SortDirection;
  */
 class MonitorRepository extends ServiceEntityRepository
 {
+    /**
+     * Creates the repository of monitors.
+     *
+     * @param ManagerRegistry $registry Doctrine registry
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Monitor::class);

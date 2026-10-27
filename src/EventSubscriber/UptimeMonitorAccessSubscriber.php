@@ -44,6 +44,12 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
     /** HTTP methods treated as read-only for the default (unmapped) branch. */
     private const SAFE_HTTP_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
+    /**
+     * Creates the subscriber with the configured access checker.
+     *
+     * @param bool $allowUnauthenticated When true the access checks are skipped (demo / trusted networks)
+     * @param TokenStorageInterface|null $tokenStorage Current security token; null when SecurityBundle is not installed
+     */
     public function __construct(
         private UptimeMonitorAccessCheckerInterface $accessChecker,
         private bool $allowUnauthenticated,
@@ -51,6 +57,11 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
     ) {
     }
 
+    /**
+     * Runs the access check on kernel.controller, once the bundle controller is known.
+     *
+     * @return array<string, array{0: string, 1: int}>
+     */
     public static function getSubscribedEvents(): array
     {
         return [
@@ -58,6 +69,11 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
         ];
     }
 
+    /**
+     * Denies access to bundle dashboard, monitor and settings actions the current user may not use.
+     *
+     * @throws AccessDeniedException When the access checker refuses the action
+     */
     public function onKernelController(ControllerEvent $event): void
     {
         if ($this->allowUnauthenticated) {

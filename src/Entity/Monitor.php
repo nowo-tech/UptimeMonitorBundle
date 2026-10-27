@@ -12,6 +12,9 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 
 use function sprintf;
 
+/**
+ * A monitored target (HTTP, TCP, DNS, SSL, ping or group) of a tenant, with its schedule and last known status.
+ */
 #[ORM\Entity]
 #[ORM\Table(name: 'uptime_monitor')]
 #[ORM\Index(name: 'idx_uptime_monitor_tenant_next', columns: ['tenant_id', 'next_check_at'])]
@@ -52,6 +55,11 @@ class Monitor
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
 
+    /**
+     * Creates a monitor of a tenant, due for its first check now.
+     *
+     * @param string $target Checked target (URL, host:port, hostname or group name)
+     */
     public function __construct(#[ORM\ManyToOne(targetEntity: Tenant::class)]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         private Tenant $tenant, #[ORM\Column(type: Types::STRING, length: 255)]
@@ -63,26 +71,41 @@ class Monitor
         $this->nextCheckAt = new DateTimeImmutable();
     }
 
+    /**
+     * Returns the database id (null until persisted).
+     */
     public function getId(): ?int
     {
         return $this->id;
     }
 
+    /**
+     * Returns the owning tenant.
+     */
     public function getTenant(): Tenant
     {
         return $this->tenant;
     }
 
+    /**
+     * Returns the display name.
+     */
     public function getName(): string
     {
         return $this->name;
     }
 
+    /**
+     * Returns the project label used to group monitors without a parent group.
+     */
     public function getProject(): ?string
     {
         return $this->project;
     }
 
+    /**
+     * Sets the project label (trimmed; an empty value clears it).
+     */
     public function setProject(?string $project): self
     {
         $trimmed = $project !== null ? trim($project) : null;
@@ -92,11 +115,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Returns the parent group, if any.
+     */
     public function getParent(): ?self
     {
         return $this->parent;
     }
 
+    /**
+     * Sets the parent group; a monitor in a group takes the group name as project.
+     */
     public function setParent(?self $parent): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -109,11 +138,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Whether the monitor is a group of other monitors.
+     */
     public function isGroup(): bool
     {
         return $this->type === MonitorType::Group;
     }
 
+    /**
+     * Returns how many consecutive failures are tolerated before the monitor is reported down.
+     */
     public function getRetries(): int
     {
         $retries = $this->config['retries'] ?? 0;
@@ -121,6 +156,9 @@ class Monitor
         return is_numeric($retries) ? max(0, (int) $retries) : 0;
     }
 
+    /**
+     * Sets the tolerated consecutive failures (negative values become 0).
+     */
     public function setRetries(int $retries): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -129,6 +167,9 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Returns the interval between retries in seconds (at least 30).
+     */
     public function getRetryIntervalSeconds(): int
     {
         $seconds = $this->config['retry_interval_seconds'] ?? 60;
@@ -136,6 +177,9 @@ class Monitor
         return is_numeric($seconds) ? max(30, (int) $seconds) : 60;
     }
 
+    /**
+     * Sets the interval between retries in seconds (at least 30).
+     */
     public function setRetryIntervalSeconds(int $seconds): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -144,11 +188,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Returns the check type.
+     */
     public function getType(): MonitorType
     {
         return $this->type;
     }
 
+    /**
+     * Returns the checked target.
+     */
     public function getTarget(): string
     {
         return $this->target;
@@ -169,11 +219,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Returns the interval between checks in seconds.
+     */
     public function getIntervalSeconds(): int
     {
         return $this->intervalSeconds;
     }
 
+    /**
+     * Sets the interval between checks in seconds.
+     */
     public function setIntervalSeconds(int $intervalSeconds): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -182,6 +238,9 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Sets the display name.
+     */
     public function setName(string $name): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -190,6 +249,9 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Sets the check type.
+     */
     public function setType(MonitorType $type): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -198,6 +260,9 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Sets the checked target.
+     */
     public function setTarget(string $target): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -206,11 +271,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Whether the checks of this monitor are paused.
+     */
     public function isPaused(): bool
     {
         return $this->paused;
     }
 
+    /**
+     * Pauses or resumes the checks.
+     */
     public function setPaused(bool $paused): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -219,11 +290,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Returns the status of the last check (after retries), if any.
+     */
     public function getLastKnownStatus(): ?CheckStatus
     {
         return $this->lastKnownStatus;
     }
 
+    /**
+     * Sets the status of the last check.
+     */
     public function setLastKnownStatus(?CheckStatus $lastKnownStatus): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -232,11 +309,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Returns when the last notification was sent, if ever.
+     */
     public function getLastAlertAt(): ?DateTimeImmutable
     {
         return $this->lastAlertAt;
     }
 
+    /**
+     * Sets when the last notification was sent.
+     */
     public function setLastAlertAt(?DateTimeImmutable $lastAlertAt): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -245,11 +328,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Returns when the next check is due (null = due now).
+     */
     public function getNextCheckAt(): ?DateTimeImmutable
     {
         return $this->nextCheckAt;
     }
 
+    /**
+     * Sets when the next check is due.
+     */
     public function setNextCheckAt(?DateTimeImmutable $nextCheckAt): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -258,11 +347,17 @@ class Monitor
         return $this;
     }
 
+    /**
+     * Returns the creation time.
+     */
     public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;
     }
 
+    /**
+     * Schedules the next check one interval after the given time.
+     */
     public function scheduleNextCheck(DateTimeImmutable $from): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.

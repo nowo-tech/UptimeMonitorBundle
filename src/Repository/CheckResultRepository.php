@@ -18,11 +18,19 @@ use function count;
  */
 class CheckResultRepository extends ServiceEntityRepository
 {
+    /**
+     * Creates the repository of check results.
+     *
+     * @param ManagerRegistry $registry Doctrine registry
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, CheckResult::class);
     }
 
+    /**
+     * Finds the most recent check result of a monitor, if any.
+     */
     public function findLatestForMonitor(Monitor $monitor): ?CheckResult
     {
         return $this->createQueryBuilder('c')

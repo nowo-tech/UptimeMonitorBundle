@@ -53,11 +53,17 @@ final readonly class DnsCheckRunner implements CheckRunnerInterface
         $this->lookup = $lookup ?? static fn (string $hostname, int $type): array|false => @dns_get_record($hostname, $type);
     }
 
+    /**
+     * Whether the monitor is a DNS check.
+     */
     public function supports(Monitor $monitor): bool
     {
         return $monitor->getType() === MonitorType::Dns;
     }
 
+    /**
+     * Resolves the record type of the hostname and checks the expected value, refusing private answers when blocking.
+     */
     public function run(Monitor $monitor): CheckResultDto
     {
         $config   = $monitor->getConfig();

@@ -25,6 +25,11 @@ final readonly class DemoSeedService
 
     private const DEMO_GROUP_KEY = 'demo';
 
+    /**
+     * Creates the demo seeder.
+     *
+     * @param ClockInterface $clock Clock for the first check time of the seeded monitors
+     */
     public function __construct(
         private EntityManagerInterface $entityManager,
         private TenantRepository $tenantRepository,

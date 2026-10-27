@@ -15,6 +15,11 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class SettingsReverseProxyFormType extends AbstractUptimeFormType
 {
+    /**
+     * Adds the Reverse proxy settings fields.
+     *
+     * @param array<string, mixed> $options Form options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $this->addCheckbox($builder, 'trustedProxy', [
@@ -24,6 +29,9 @@ final class SettingsReverseProxyFormType extends AbstractUptimeFormType
         ]);
     }
 
+    /**
+     * Configures the Reverse proxy settings options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);

@@ -237,6 +237,9 @@ jobs:
       - name: PHPStan (level and ignoreErrors from phpstan.neon.dist; fails the build on any error)
         run: composer phpstan --no-interaction
 
+      - name: PHPDoc on every class and public method of src/ (REQ-CS-001)
+        run: php .scripts/complete-public-phpdoc.php
+
   frontend:
     name: Frontend (Vitest, coverage gate)
     runs-on: ubuntu-latest

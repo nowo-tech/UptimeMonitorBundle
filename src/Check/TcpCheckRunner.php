@@ -24,6 +24,13 @@ use function str_contains;
  */
 final readonly class TcpCheckRunner implements CheckRunnerInterface
 {
+    /**
+     * Creates the TCP runner; the defaults block private targets and use real sockets.
+     *
+     * @param MonitorUrlSsrfGuard $ssrfGuard Validates targets against private and local networks
+     * @param bool $blockPrivateUrls Whether private / local targets are refused (`checks.block_private_urls`)
+     * @param SocketConnectorInterface $connector Opens the TCP connection
+     */
     public function __construct(
         private MonitorUrlSsrfGuard $ssrfGuard = new MonitorUrlSsrfGuard(),
         private bool $blockPrivateUrls = true,
@@ -31,11 +38,17 @@ final readonly class TcpCheckRunner implements CheckRunnerInterface
     ) {
     }
 
+    /**
+     * Whether the monitor is a TCP port check.
+     */
     public function supports(Monitor $monitor): bool
     {
         return $monitor->getType() === MonitorType::Tcp;
     }
 
+    /**
+     * Connects to the monitor host and port: up when the connection opens, down otherwise.
+     */
     public function run(Monitor $monitor): CheckResultDto
     {
         $config  = $monitor->getConfig();

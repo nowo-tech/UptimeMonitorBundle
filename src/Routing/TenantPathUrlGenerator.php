@@ -27,6 +27,12 @@ use function str_starts_with;
 #[AsDecorator(decorates: 'router', onInvalid: ContainerInterface::IGNORE_ON_INVALID_REFERENCE)]
 final readonly class TenantPathUrlGenerator implements RouterInterface, RequestMatcherInterface, WarmableInterface
 {
+    /**
+     * Decorates the router with the tenant path routing.
+     *
+     * @param RequestMatcherInterface&RouterInterface&WarmableInterface $inner The decorated `router` service
+     * @param TenantPaths $tenantPaths Tenant path entries matched by slug prefix
+     */
     public function __construct(
         #[AutowireDecorated]
         private RouterInterface&RequestMatcherInterface&WarmableInterface $inner,
@@ -48,17 +54,26 @@ final readonly class TenantPathUrlGenerator implements RouterInterface, RequestM
         return $this->inner->generate($name, $parameters, $referenceType);
     }
 
+    /**
+     * Sets the request context on the decorated router.
+     */
     public function setContext(RequestContext $context): void
     {
         // @igor-ignore - The router contract: Symfony sets the request context on the router each request.
         $this->inner->setContext($context);
     }
 
+    /**
+     * Returns the request context of the decorated router.
+     */
     public function getContext(): RequestContext
     {
         return $this->inner->getContext();
     }
 
+    /**
+     * Returns the route collection of the decorated router (tenant path copies included).
+     */
     public function getRouteCollection(): RouteCollection
     {
         return $this->inner->getRouteCollection();
@@ -80,6 +95,11 @@ final readonly class TenantPathUrlGenerator implements RouterInterface, RequestM
         return $this->inner->matchRequest($request);
     }
 
+    /**
+     * Warms up the decorated router cache.
+     *
+     * @return array<string> Classes to preload, as returned by the decorated router
+     */
     public function warmUp(string $cacheDir, ?string $buildDir = null): array
     {
         return $this->inner->warmUp($cacheDir, $buildDir);

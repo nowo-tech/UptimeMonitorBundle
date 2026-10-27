@@ -38,6 +38,10 @@ final readonly class CheckExecutorService
     ) {
     }
 
+    /**
+     * Runs the monitor check, stores the result, aggregates, incidents and notifications, schedules the next check,
+     * notifies the dashboards and refreshes the parent group.
+     */
     public function execute(Monitor $monitor): CheckResult
     {
         $raw = $this->runCheck($monitor);

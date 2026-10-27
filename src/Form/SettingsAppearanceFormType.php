@@ -15,6 +15,11 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class SettingsAppearanceFormType extends AbstractUptimeFormType
 {
+    /**
+     * Adds the Appearance settings fields.
+     *
+     * @param array<string, mixed> $options Form options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $full = ['row_attr' => ['class' => 'uptime-settings-field--full']];
@@ -58,6 +63,9 @@ final class SettingsAppearanceFormType extends AbstractUptimeFormType
         ] + $full);
     }
 
+    /**
+     * Configures the Appearance settings options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);

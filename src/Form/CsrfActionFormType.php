@@ -20,11 +20,19 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class CsrfActionFormType extends AbstractUptimeFormType
 {
+    /**
+     * Adds no field: the form only carries the CSRF token.
+     *
+     * @param array<string, mixed> $options Form options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         // CSRF only — no application fields.
     }
 
+    /**
+     * Configures the CSRF-only action form options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);
@@ -37,6 +45,9 @@ final class CsrfActionFormType extends AbstractUptimeFormType
         $resolver->setAllowedTypes('csrf_token_id', 'string');
     }
 
+    /**
+     * Returns an empty block prefix so the token is posted flat (`_token`).
+     */
     #[Override]
     public function getBlockPrefix(): string
     {

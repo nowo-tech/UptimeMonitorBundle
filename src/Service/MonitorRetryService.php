@@ -18,6 +18,9 @@ use function sprintf;
  */
 final class MonitorRetryService
 {
+    /**
+     * Applies upside-down mode and the retry budget: a failure within the retries keeps the previous status.
+     */
     public function normalizeResult(Monitor $monitor, CheckResultDto $raw): CheckResultDto
     {
         $dto = $this->applyUpsideDown($monitor, $raw);
@@ -25,6 +28,9 @@ final class MonitorRetryService
         return $this->applyRetries($monitor, $dto);
     }
 
+    /**
+     * Whether the next check uses the retry interval (a failure while retries are left).
+     */
     public function shouldUseRetryInterval(Monitor $monitor, CheckResultDto $raw): bool
     {
         if ($monitor->getRetries() === 0 || !$this->isFailure($raw->status)) {
@@ -36,6 +42,11 @@ final class MonitorRetryService
         return $settings->getFailureStreak() < $monitor->getRetries();
     }
 
+    /**
+     * Sets the next check time from the retry interval or the normal interval.
+     *
+     * @param DateTimeImmutable $from Time of the check that just ran
+     */
     public function scheduleAfterCheck(Monitor $monitor, DateTimeImmutable $from, CheckResultDto $raw): void
     {
         if ($this->shouldUseRetryInterval($monitor, $raw)) {

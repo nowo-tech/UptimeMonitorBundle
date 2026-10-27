@@ -24,11 +24,21 @@ final readonly class ClosedEntityManagerSubscriber implements EventSubscriberInt
 {
     private const ROUTE_PREFIX = 'nowo_uptime_';
 
+    /**
+     * Creates the subscriber for the Doctrine managers of the registry.
+     *
+     * @param ManagerRegistry $registry Doctrine registry whose closed managers are reset
+     */
     public function __construct(
         private ManagerRegistry $registry,
     ) {
     }
 
+    /**
+     * Listens on kernel.request right after the router resolved the route.
+     *
+     * @return array<string, array{0: string, 1: int}>
+     */
     public static function getSubscribedEvents(): array
     {
         // After RouterListener (32) so that `_route` is known.
@@ -37,6 +47,9 @@ final readonly class ClosedEntityManagerSubscriber implements EventSubscriberInt
         ];
     }
 
+    /**
+     * Resets every closed Doctrine entity manager before a bundle route (`nowo_uptime_*`) of the main request runs.
+     */
     public function onKernelRequest(RequestEvent $event): void
     {
         if (!$event->isMainRequest()) {

@@ -21,12 +21,22 @@ use Throwable;
 #[AsMessageHandler]
 final readonly class RunDueChecksMessageHandler
 {
+    /**
+     * Creates the handler around the due-check runner.
+     *
+     * @param LoggerInterface|null $logger Logger for the scan result and failures
+     */
     public function __construct(
         private DueChecksRunner $dueChecksRunner,
         private ?LoggerInterface $logger = null,
     ) {
     }
 
+    /**
+     * Runs every due monitor check and logs how many ran.
+     *
+     * @throws Throwable Any scan failure, rethrown for the Messenger retry strategy
+     */
     public function __invoke(RunDueChecksMessage $message): void
     {
         $context = ['bundle' => 'NowoUptimeMonitorBundle', 'message' => RunDueChecksMessage::class];

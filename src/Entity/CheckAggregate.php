@@ -9,6 +9,9 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 
+/**
+ * Rolled-up check counts and latency of one monitor for one period bucket.
+ */
 #[ORM\Entity]
 #[ORM\Table(name: 'uptime_check_aggregate')]
 #[ORM\UniqueConstraint(name: 'uniq_uptime_aggregate_bucket', columns: ['monitor_id', 'period', 'period_start'])]
@@ -35,6 +38,11 @@ class CheckAggregate
     #[ORM\Column(type: Types::INTEGER)]
     private int $latencyAvgMs = 0;
 
+    /**
+     * Creates an empty bucket of a monitor.
+     *
+     * @param DateTimeImmutable $periodStart Start of the bucket
+     */
     public function __construct(
         #[ORM\ManyToOne(targetEntity: Monitor::class)]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -46,26 +54,41 @@ class CheckAggregate
     ) {
     }
 
+    /**
+     * Returns the database id (null until persisted).
+     */
     public function getId(): ?int
     {
         return $this->id;
     }
 
+    /**
+     * Returns the monitor of the bucket.
+     */
     public function getMonitor(): Monitor
     {
         return $this->monitor;
     }
 
+    /**
+     * Returns the bucket size.
+     */
     public function getPeriod(): AggregatePeriod
     {
         return $this->period;
     }
 
+    /**
+     * Returns the start of the bucket.
+     */
     public function getPeriodStart(): DateTimeImmutable
     {
         return $this->periodStart;
     }
 
+    /**
+     * Adds one check to the bucket and updates the uptime ratio and the average latency.
+     */
     public function recordCheck(bool $isUp, int $latencyMs): void
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -81,6 +104,9 @@ class CheckAggregate
         $this->recalculateMetrics($latencyMs);
     }
 
+    /**
+     * Replaces the bucket totals (rollup rebuild).
+     */
     public function applyTotals(int $checksTotal, int $checksUp, int $latencyAvgMs): void
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -97,26 +123,41 @@ class CheckAggregate
             : 0.0;
     }
 
+    /**
+     * Returns the number of checks in the bucket.
+     */
     public function getChecksTotal(): int
     {
         return $this->checksTotal;
     }
 
+    /**
+     * Returns the number of up checks in the bucket.
+     */
     public function getChecksUp(): int
     {
         return $this->checksUp;
     }
 
+    /**
+     * Returns the number of non-up checks in the bucket.
+     */
     public function getChecksDown(): int
     {
         return $this->checksDown;
     }
 
+    /**
+     * Returns the up ratio (0..1, four decimals).
+     */
     public function getUptimeRatio(): float
     {
         return $this->uptimeRatio;
     }
 
+    /**
+     * Returns the average latency in milliseconds.
+     */
     public function getLatencyAvgMs(): int
     {
         return $this->latencyAvgMs;

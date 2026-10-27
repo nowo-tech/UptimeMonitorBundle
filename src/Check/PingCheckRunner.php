@@ -44,11 +44,17 @@ final readonly class PingCheckRunner implements CheckRunnerInterface
         };
     }
 
+    /**
+     * Whether the monitor is an ICMP ping check.
+     */
     public function supports(Monitor $monitor): bool
     {
         return $monitor->getType() === MonitorType::Ping;
     }
 
+    /**
+     * Pings the (validated) host once with the system ping binary and parses the round-trip time.
+     */
     public function run(Monitor $monitor): CheckResultDto
     {
         $config  = $monitor->getConfig();

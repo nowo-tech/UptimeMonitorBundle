@@ -12,6 +12,12 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
  */
 final readonly class MonitorRecoveredEvent
 {
+    /**
+     * Creates the event for a resolved incident.
+     *
+     * @param Monitor $monitor Monitor that is up again
+     * @param Incident $incident Incident that was just resolved
+     */
     public function __construct(
         public Monitor $monitor,
         public Incident $incident,

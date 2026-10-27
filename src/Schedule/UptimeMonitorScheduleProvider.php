@@ -26,6 +26,9 @@ final readonly class UptimeMonitorScheduleProvider implements ScheduleProviderIn
     ) {
     }
 
+    /**
+     * Returns the `uptime_monitor` schedule: a RunDueChecksMessage every `scheduler.tick` (empty when the scheduler is disabled or not in `scheduler` mode).
+     */
     public function getSchedule(): Schedule
     {
         $schedule = new Schedule();

@@ -38,6 +38,11 @@ final readonly class DetailRetentionService
     ) {
     }
 
+    /**
+     * Deletes the expired check details of every tenant.
+     *
+     * @return int Number of deleted rows
+     */
     public function purgeExpiredDetail(): int
     {
         if (!($this->retentionConfig['purge_enabled'] ?? true)) {
@@ -52,6 +57,11 @@ final readonly class DetailRetentionService
         return $total;
     }
 
+    /**
+     * Deletes the check details of a tenant older than its retention (tenant override or global days).
+     *
+     * @return int Number of deleted rows
+     */
     public function purgeExpiredDetailForTenant(string $tenantSlug): int
     {
         if (!($this->retentionConfig['purge_enabled'] ?? true)) {

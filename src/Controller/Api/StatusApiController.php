@@ -24,12 +24,23 @@ use function is_string;
 #[AsController]
 final class StatusApiController extends AbstractController
 {
+    /**
+     * Creates the polling API controller.
+     *
+     * @param SummaryPayloadBuilder $payloadBuilder Builds the summary shared with Mercure updates
+     */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
         private readonly SummaryPayloadBuilder $payloadBuilder,
     ) {
     }
 
+    /**
+     * Returns the tenant monitor summary for dashboard polling; `since` (a date such as ISO 8601; invalid values are ignored) limits it to monitors checked after it.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (`since` query)
+     */
     #[Route(
         path: '/api/uptime/{tenantSlug}/summary',
         name: 'nowo_uptime_api_summary',

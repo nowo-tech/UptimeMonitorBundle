@@ -14,6 +14,12 @@ use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
  */
 final readonly class TenantProvisioner
 {
+    /**
+     * Creates the provisioner.
+     *
+     * @param TenantRepository $tenants Tenant lookup by slug
+     * @param EntityManagerInterface $entityManager Persists created and changed tenants
+     */
     public function __construct(
         private TenantRepository $tenants,
         private EntityManagerInterface $entityManager,

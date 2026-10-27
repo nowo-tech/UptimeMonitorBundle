@@ -17,11 +17,17 @@ final class UptimeMonitorBundle extends Bundle
 {
     public const TRANSLATION_DOMAIN = 'NowoUptimeMonitorBundle';
 
+    /**
+     * Registers the bundle compiler passes (Twig template paths).
+     */
     public function build(ContainerBuilder $container): void
     {
         $container->addCompilerPass(new TwigPathsPass());
     }
 
+    /**
+     * Returns the bundle extension (alias `nowo_uptime_monitor`).
+     */
     public function getContainerExtension(): ExtensionInterface
     {
         if (!$this->extension instanceof ExtensionInterface) {

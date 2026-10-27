@@ -15,6 +15,11 @@ use SortDirection;
  */
 final class TagRepository extends ServiceEntityRepository
 {
+    /**
+     * Creates the repository of tags.
+     *
+     * @param ManagerRegistry $registry Doctrine registry
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Tag::class);

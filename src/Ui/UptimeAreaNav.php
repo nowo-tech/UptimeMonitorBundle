@@ -37,6 +37,11 @@ final readonly class UptimeAreaNav implements AreaNavProviderInterface
         'about'         => 'nowo_uptime_settings_about',
     ];
 
+    /**
+     * Creates the navigation provider.
+     *
+     * @param UrlGeneratorInterface $urlGenerator Builds the navigation links
+     */
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
     ) {

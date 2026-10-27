@@ -19,17 +19,29 @@ use function sprintf;
  */
 final readonly class GroupCheckRunner implements CheckRunnerInterface
 {
+    /**
+     * Creates the group runner.
+     *
+     * @param MonitorRepository $monitorRepository Loads the group children
+     * @param CheckResultRepository $checkResultRepository Loads the latest child results
+     */
     public function __construct(
         private MonitorRepository $monitorRepository,
         private CheckResultRepository $checkResultRepository,
     ) {
     }
 
+    /**
+     * Whether the monitor is a group.
+     */
     public function supports(Monitor $monitor): bool
     {
         return $monitor->getType() === MonitorType::Group;
     }
 
+    /**
+     * Rolls up the latest status of the group children: the worst child status, the highest latency.
+     */
     public function run(Monitor $monitor): CheckResultDto
     {
         $groupId = $monitor->getId();

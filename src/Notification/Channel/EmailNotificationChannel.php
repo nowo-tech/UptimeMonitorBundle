@@ -12,6 +12,9 @@ use Symfony\Component\Mime\Email;
 
 use function is_array;
 
+/**
+ * Sends uptime alerts by email through Symfony Mailer.
+ */
 final readonly class EmailNotificationChannel implements NotificationChannelInterface
 {
     /**
@@ -24,11 +27,17 @@ final readonly class EmailNotificationChannel implements NotificationChannelInte
     ) {
     }
 
+    /**
+     * Returns the channel key (`email`).
+     */
     public function getName(): string
     {
         return 'email';
     }
 
+    /**
+     * Whether notifications and email are enabled and a mailer is available.
+     */
     public function isEnabled(): bool
     {
         $config = $this->notificationsConfig['email'] ?? [];
@@ -38,6 +47,11 @@ final readonly class EmailNotificationChannel implements NotificationChannelInte
             && $this->mailer instanceof MailerInterface;
     }
 
+    /**
+     * Emails the alert to the configured recipients.
+     *
+     * @return bool False when the channel is disabled
+     */
     public function send(UptimeAlert $alert): bool
     {
         if (!$this->isEnabled()) {

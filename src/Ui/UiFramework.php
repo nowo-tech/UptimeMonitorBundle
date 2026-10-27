@@ -19,6 +19,9 @@ enum UiFramework: string
 
     case Tailwind = 'tailwind';
 
+    /**
+     * Maps a configuration value to a framework, falling back to Tabler for unknown values.
+     */
     public static function fromString(string $value): self
     {
         return self::tryFrom($value) ?? self::Tabler;

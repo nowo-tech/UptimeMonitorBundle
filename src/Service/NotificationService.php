@@ -34,6 +34,11 @@ class NotificationService
     ) {
     }
 
+    /**
+     * Sends the alert through every enabled channel; a failing channel is logged and skipped.
+     *
+     * @return int Number of channels that delivered the alert
+     */
     public function notify(UptimeAlert $alert): int
     {
         if (!($this->notificationsConfig['enabled'] ?? false)) {
