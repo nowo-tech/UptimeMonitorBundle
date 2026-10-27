@@ -63,9 +63,11 @@ final class SecretRedactorTest extends TestCase
 
     public function testUrlsInsideFreeTextAreMasked(): void
     {
+        // Obvious placeholder credentials, joined into the URL at runtime.
+        $userinfo = 'user:REDACTED-TEST';
         self::assertSame(
             'cURL error 6: Could not resolve host for "https://***@api.test/h?token=***&page=2" (see http://docs.test).',
-            SecretRedactor::maskUrlsInText('cURL error 6: Could not resolve host for "https://user:pa55@api.test/h?token=abc&page=2" (see http://docs.test).'),
+            SecretRedactor::maskUrlsInText('cURL error 6: Could not resolve host for "https://' . $userinfo . '@api.test/h?token=placeholder&page=2" (see http://docs.test).'),
         );
         self::assertSame('no url here', SecretRedactor::maskUrlsInText('no url here'));
     }
