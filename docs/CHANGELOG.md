@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.12.1] - 2026-10-27](#1121---2026-10-27)
 - [[1.12.0] - 2026-10-27](#1120---2026-10-27)
 - [[1.11.0] - 2026-10-27](#1110---2026-10-27)
 - [[1.10.0] - 2026-10-27](#1100---2026-10-27)
@@ -54,6 +55,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.12.1] - 2026-10-27
+
+UiKit ^2.15.4 (workarounds removed), real deprecation gate; SEC-004 1.12 delta: empty role lists deny, tenant quota on import/edit/concurrent creates, status page re-filter, URL validation, masked URLs in check messages See [UPGRADING](UPGRADING.md#to-1121).
 
 ### Security
 
@@ -870,7 +875,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.12.1...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0

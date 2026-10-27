@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.12.1](#to-1121)
 - [To 1.12.0](#to-1120)
   - [Template contract](#template-contract)
 - [To 1.11.0](#to-1110)
@@ -97,6 +98,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.12.1
+
+From **1.12.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 - **Empty role lists no longer mean "everyone"** (SEC-004 P1). With the built-in checker an area whose list and
   `security.access_roles` are both empty is denied to everyone, and a configuration where `access_roles` and every
