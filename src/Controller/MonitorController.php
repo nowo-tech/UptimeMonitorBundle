@@ -29,6 +29,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -37,9 +38,17 @@ use function sprintf;
 
 use const JSON_THROW_ON_ERROR;
 
+/**
+ * Monitor detail, create, edit, delete and pause actions of a tenant (page and dialog flows).
+ */
 #[Route(path: '/{tenantSlug}/monitors', name: 'nowo_uptime_monitor_', requirements: ['tenantSlug' => '[a-z0-9\-]+'])]
 final class MonitorController extends AbstractUptimeController
 {
+    /**
+     * Creates the monitor controller with its repositories and services.
+     *
+     * @param TranslatorInterface $translator Translator for flash messages
+     */
     public function __construct(
         TranslatorInterface $translator,
         private readonly TenantRepository $tenantRepository,
@@ -54,6 +63,14 @@ final class MonitorController extends AbstractUptimeController
         parent::__construct($translator);
     }
 
+    /**
+     * Renders the monitor detail page (history bar, uptime, latency and daily charts, events).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param int $id Monitor id
+     *
+     * @throws NotFoundHttpException When the monitor does not belong to the tenant
+     */
     #[Route('/{id}', name: 'show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(string $tenantSlug, int $id): Response
     {
@@ -128,6 +145,15 @@ final class MonitorController extends AbstractUptimeController
         ]));
     }
 
+    /**
+     * Shows and saves the monitor form; with `X-Uptime-Modal: 1` it renders the dialog body and answers JSON on success.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param int $id Monitor id
+     * @param Request $request Current request
+     *
+     * @throws NotFoundHttpException When the monitor does not belong to the tenant
+     */
     #[Route('/{id}/edit', name: 'edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function edit(string $tenantSlug, int $id, Request $request): Response
     {
@@ -176,6 +202,15 @@ final class MonitorController extends AbstractUptimeController
         ]));
     }
 
+    /**
+     * Deletes a monitor (CSRF-protected) and returns to the dashboard.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param int $id Monitor id
+     * @param Request $request Current request (CSRF token)
+     *
+     * @throws NotFoundHttpException When the monitor does not belong to the tenant
+     */
     #[Route('/{id}/delete', name: 'delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function delete(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
@@ -190,6 +225,15 @@ final class MonitorController extends AbstractUptimeController
         return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenantSlug]);
     }
 
+    /**
+     * Pauses or resumes a monitor (CSRF-protected) and returns to the dashboard.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param int $id Monitor id
+     * @param Request $request Current request (CSRF token)
+     *
+     * @throws NotFoundHttpException When the monitor does not belong to the tenant
+     */
     #[Route('/{id}/toggle-pause', name: 'toggle_pause', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function togglePause(string $tenantSlug, int $id, Request $request): RedirectResponse
     {

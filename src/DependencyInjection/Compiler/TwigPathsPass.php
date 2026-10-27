@@ -19,6 +19,10 @@ final class TwigPathsPass implements CompilerPassInterface
 {
     private const TWIG_NAMESPACE = 'NowoUptimeMonitorBundle';
 
+    /**
+     * Registers the bundle templates under `@NowoUptimeMonitorBundle` on the native Twig loader, after the application
+     * override directory `templates/bundles/NowoUptimeMonitorBundle` when it exists.
+     */
     public function process(ContainerBuilder $container): void
     {
         $loaderId = $this->getNativeLoaderServiceId($container);

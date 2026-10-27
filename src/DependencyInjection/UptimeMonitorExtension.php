@@ -25,6 +25,9 @@ use function is_string;
  */
 final class UptimeMonitorExtension extends Extension implements PrependExtensionInterface
 {
+    /**
+     * Prepends FormKit, framework, Twig and UiKit defaults the bundle relies on.
+     */
     public function prepend(ContainerBuilder $container): void
     {
         $this->prependFormKitDefaults($container);
@@ -142,6 +145,11 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         ]);
     }
 
+    /**
+     * Loads the bundle services and exposes the processed configuration as `nowo_uptime_monitor.*` parameters.
+     *
+     * @param array<int, array<string, mixed>> $configs Raw configuration from every config file
+     */
     public function load(array $configs, ContainerBuilder $container): void
     {
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
@@ -216,6 +224,9 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         return $config;
     }
 
+    /**
+     * Returns the configuration alias (`nowo_uptime_monitor`).
+     */
     public function getAlias(): string
     {
         return Configuration::ALIAS;

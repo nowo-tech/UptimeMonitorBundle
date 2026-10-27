@@ -40,6 +40,15 @@ use const PHP_URL_PORT;
  */
 final readonly class HttpCheckRunner implements CheckRunnerInterface
 {
+    /**
+     * Creates the HTTP runner; the defaults block private targets and use the system clock and real sockets.
+     *
+     * @param HttpClientInterface|null $httpClient HTTP client (a default client is created when null)
+     * @param MonitorUrlSsrfGuard $ssrfGuard Validates targets against private and local networks
+     * @param bool $blockPrivateUrls Whether private / local targets are refused (`checks.block_private_urls`)
+     * @param ClockInterface $clock Clock for the certificate expiry check
+     * @param SocketConnectorInterface $connector Opens the TLS connection of the certificate expiry check
+     */
     public function __construct(
         private ?HttpClientInterface $httpClient,
         private MonitorUrlSsrfGuard $ssrfGuard,
@@ -49,11 +58,17 @@ final readonly class HttpCheckRunner implements CheckRunnerInterface
     ) {
     }
 
+    /**
+     * Whether the monitor is an HTTP or HTTPS check.
+     */
     public function supports(Monitor $monitor): bool
     {
         return in_array($monitor->getType(), [MonitorType::Http, MonitorType::Https], true);
     }
 
+    /**
+     * Sends the configured request and checks the status code, the keyword and, for HTTPS, the certificate expiry.
+     */
     public function run(Monitor $monitor): CheckResultDto
     {
         $settings      = MonitorSettings::from($monitor);

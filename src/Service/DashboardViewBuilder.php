@@ -20,6 +20,11 @@ use Symfony\Component\Clock\NativeClock;
  */
 final readonly class DashboardViewBuilder
 {
+    /**
+     * Creates the dashboard read-model builder.
+     *
+     * @param ClockInterface $clock Clock for the 24 h / 30 d windows
+     */
     public function __construct(
         private MonitorRepository $monitorRepository,
         private CheckResultRepository $checkResultRepository,

@@ -55,6 +55,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- PHPDoc on every class and public method of `src/` (REQ-CS-001): an English summary, plus `@param` / `@return` /
+  `@throws` where the native types need detail. `make validate-phpdoc` (`.scripts/complete-public-phpdoc.php`, read-only)
+  fails on a missing docblock; `release-check` and the CI PHPStan job run it.
 - Demo Playwright e2e (REQ-DEMO-013): `demo/symfony8/e2e` happy path (dashboard, monitor create + detail, public status page, settings) and a screenshots project; `make test-e2e` / `make demo-screenshots` (root and demo Makefiles, PNG → WebP with `sharp`). `release-check` runs `test-e2e`.
 - README **Screenshots** section with `docs/images/demo/dashboard.webp` and `docs/images/demo/monitor-detail.webp`.
 - Demo-only `app:uptime:demo-history` command: three extra local-probe monitors and 24 h of deterministic check history for every monitor and the group (one resolved outage, one latency spike); `reset-demo` runs it plus `nowo:uptime:rollup`.

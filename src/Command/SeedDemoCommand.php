@@ -15,12 +15,21 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 use function sprintf;
 
+/**
+ * Console command `nowo:uptime:seed-demo`: creates (or, with --fresh, recreates) the demo monitor tree.
+ */
 #[AsCommand(
     name: 'nowo:uptime:seed-demo',
     description: 'Seed demo tenant with one project group and local HTTP probe monitors',
 )]
 final class SeedDemoCommand extends Command
 {
+    /**
+     * Creates the command.
+     *
+     * @param DemoSeedService $demoSeedService Creates the demo tenant and monitors
+     * @param DashboardSyncDispatcher $dashboardSyncDispatcher Notifies open dashboards afterwards
+     */
     public function __construct(
         private readonly DemoSeedService $demoSeedService,
         private readonly DashboardSyncDispatcher $dashboardSyncDispatcher,

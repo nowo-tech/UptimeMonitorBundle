@@ -29,16 +29,25 @@ final readonly class ConfigurableUptimeMonitorAccessChecker implements UptimeMon
     ) {
     }
 
+    /**
+     * Whether the user passes the access roles and holds one of the dashboard roles.
+     */
     public function canAccessDashboard(object $user): bool
     {
         return $this->passesAccessGate() && $this->hasAnyRole($this->dashboardRoles);
     }
 
+    /**
+     * Whether the user passes the access roles and holds one of the manage roles.
+     */
     public function canManageMonitors(object $user): bool
     {
         return $this->passesAccessGate() && $this->hasAnyRole($this->manageRoles);
     }
 
+    /**
+     * Whether the user passes the access roles and holds one of the settings roles.
+     */
     public function canManageSettings(object $user): bool
     {
         return $this->passesAccessGate() && $this->hasAnyRole($this->settingsRoles);

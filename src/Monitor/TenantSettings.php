@@ -16,11 +16,19 @@ use function is_string;
  */
 final readonly class TenantSettings
 {
+    /**
+     * Wraps the tenant settings.
+     *
+     * @param Tenant $tenant Tenant whose settings are read
+     */
     public function __construct(
         private Tenant $tenant,
     ) {
     }
 
+    /**
+     * Creates the accessor for a tenant.
+     */
     public static function from(Tenant $tenant): self
     {
         return new self($tenant);
@@ -32,26 +40,41 @@ final readonly class TenantSettings
         return $this->tenant->getSettings();
     }
 
+    /**
+     * Returns the display time zone (`auto` = the browser one).
+     */
     public function getDisplayTimezone(): string
     {
         return $this->string('display_timezone', 'auto');
     }
 
+    /**
+     * Returns the server time zone (default UTC).
+     */
     public function getServerTimezone(): string
     {
         return $this->string('server_timezone', 'UTC');
     }
 
+    /**
+     * Whether search engines may index the pages.
+     */
     public function isSearchEngineIndexAllowed(): bool
     {
         return $this->bool('search_engine_index', false);
     }
 
+    /**
+     * Returns the entry page (`dashboard` or `status`).
+     */
     public function getEntryPage(): string
     {
         return $this->string('entry_page', 'dashboard');
     }
 
+    /**
+     * Returns the primary base URL, if set.
+     */
     public function getPrimaryBaseUrl(): ?string
     {
         $url = $this->string('primary_base_url', '');
@@ -59,21 +82,33 @@ final readonly class TenantSettings
         return $url !== '' ? $url : null;
     }
 
+    /**
+     * Returns the Steam API key (Uptime Kuma parity setting).
+     */
     public function getSteamApiKey(): string
     {
         return $this->string('steam_api_key', '');
     }
 
+    /**
+     * Whether NSCD caching is enabled (Uptime Kuma parity setting).
+     */
     public function isNscdEnabled(): bool
     {
         return $this->bool('nscd_enabled', true);
     }
 
+    /**
+     * Whether the HTTP DNS cache is enabled (Uptime Kuma parity setting).
+     */
     public function isHttpDnsCacheEnabled(): bool
     {
         return $this->bool('http_dns_cache', false);
     }
 
+    /**
+     * Returns the Chromium executable (`auto` by default).
+     */
     public function getChromiumExecutable(): string
     {
         return $this->string('chromium_executable', 'auto');
@@ -87,16 +122,25 @@ final readonly class TenantSettings
         return $this->string('language', 'en');
     }
 
+    /**
+     * Returns the theme (`light`, `dark` or `auto`).
+     */
     public function getTheme(): string
     {
         return $this->string('theme', 'auto');
     }
 
+    /**
+     * Returns the heartbeat bar placement (`normal`, `bottom` or `none`).
+     */
     public function getHeartbeatBarTheme(): string
     {
         return $this->string('heartbeat_bar_theme', 'normal');
     }
 
+    /**
+     * Returns how elapsed times are shown (`show`, `show_line` or `none`).
+     */
     public function getElapsedTimeDisplay(): string
     {
         return $this->string('elapsed_time', 'show');
@@ -117,6 +161,9 @@ final readonly class TenantSettings
         return UiFramework::fromString($value);
     }
 
+    /**
+     * Whether the reverse proxy headers are trusted.
+     */
     public function isTrustedProxy(): bool
     {
         return $this->bool('trusted_proxy', false);

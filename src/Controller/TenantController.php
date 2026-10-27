@@ -25,6 +25,9 @@ use Symfony\Component\Routing\Attribute\Route;
 
 use function count;
 
+/**
+ * Tenant list and creation pages (`/tenants`).
+ */
 #[Route(path: '/tenants', name: 'nowo_uptime_tenant_', priority: 1)]
 final class TenantController extends AbstractController
 {
@@ -43,6 +46,9 @@ final class TenantController extends AbstractController
     ) {
     }
 
+    /**
+     * Lists the tenants, or redirects to a dashboard when the list is disabled or there is a single tenant to open.
+     */
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(): Response
     {

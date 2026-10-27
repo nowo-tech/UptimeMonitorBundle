@@ -13,12 +13,20 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 use function sprintf;
 
+/**
+ * Console command `nowo:uptime:run-due-checks`: runs every monitor check that is due now.
+ */
 #[AsCommand(
     name: 'nowo:uptime:run-due-checks',
     description: 'Run all uptime monitors that are due for a check',
 )]
 final class RunDueChecksCommand extends Command
 {
+    /**
+     * Creates the command.
+     *
+     * @param DueChecksRunner $dueChecksRunner Runs the due monitor checks
+     */
     public function __construct(
         private readonly DueChecksRunner $dueChecksRunner,
     ) {

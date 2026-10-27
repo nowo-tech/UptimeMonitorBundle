@@ -16,6 +16,11 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class TagFormType extends AbstractUptimeFormType
 {
+    /**
+     * Adds the tag fields.
+     *
+     * @param array<string, mixed> $options Form options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $this->addText($builder, 'name', ['label' => 'form.settings.tag_name']);
@@ -26,6 +31,9 @@ final class TagFormType extends AbstractUptimeFormType
         ]);
     }
 
+    /**
+     * Configures the tag options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);

@@ -16,6 +16,11 @@ use const STREAM_CLIENT_CONNECT;
  */
 final readonly class StreamSocketConnector implements SocketConnectorInterface
 {
+    /**
+     * Opens the connection with stream_socket_client(), captures the peer certificate the context asks for and closes it.
+     *
+     * @param array<string, array<string, mixed>> $contextOptions Stream context options (for example ['ssl' => [...]])
+     */
     public function connect(string $remote, float $timeout, array $contextOptions = []): SocketConnection
     {
         $errno  = 0;

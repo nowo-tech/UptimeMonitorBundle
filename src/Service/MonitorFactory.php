@@ -21,11 +21,19 @@ use function sprintf;
  */
 final readonly class MonitorFactory
 {
+    /**
+     * Creates the factory.
+     *
+     * @param MonitorRepository $monitorRepository Resolves the parent group of a monitor
+     */
     public function __construct(
         private MonitorRepository $monitorRepository,
     ) {
     }
 
+    /**
+     * Applies the submitted form model to the monitor (target, config, schedule, parent group), keeping internal counters.
+     */
     public function applyFormData(Monitor $monitor, MonitorFormData $data): void
     {
         $previousConfig    = $monitor->getConfig();
@@ -52,6 +60,9 @@ final readonly class MonitorFactory
         }
     }
 
+    /**
+     * Builds the monitor form model from the monitor and its type-specific config.
+     */
     public function toFormData(Monitor $monitor): MonitorFormData
     {
         $config                      = $monitor->getConfig();
@@ -122,6 +133,9 @@ final readonly class MonitorFactory
         return $parent !== null && $parent->isGroup() ? $parent : null;
     }
 
+    /**
+     * Creates a new monitor of the tenant from the submitted form model.
+     */
     public function createFromFormData(Tenant $tenant, MonitorFormData $data): Monitor
     {
         [$target] = $this->buildTargetAndConfig($data);

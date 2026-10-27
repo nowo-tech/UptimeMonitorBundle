@@ -19,12 +19,21 @@ use Throwable;
 
 use function sprintf;
 
+/**
+ * Console command `nowo:uptime:sync-schema`: creates missing bundle tables and applies additive updates.
+ */
 #[AsCommand(
     name: 'nowo:uptime:sync-schema',
     description: 'Create or update database tables for Uptime Monitor entities',
 )]
 final class SyncSchemaCommand extends Command
 {
+    /**
+     * Creates the command for the configured entity manager.
+     *
+     * @param ManagerRegistry $registry Doctrine registry
+     * @param string $connectionName Entity manager holding the bundle tables (`nowo_uptime_monitor.connection`)
+     */
     public function __construct(
         private readonly ManagerRegistry $registry,
         #[Autowire('%nowo_uptime_monitor.connection%')]

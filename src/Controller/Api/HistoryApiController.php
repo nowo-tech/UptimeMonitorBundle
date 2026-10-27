@@ -22,6 +22,11 @@ use Symfony\Component\Routing\Attribute\Route;
 #[AsController]
 final class HistoryApiController extends AbstractController
 {
+    /**
+     * Creates the monitor history API controller.
+     *
+     * @param DashboardViewBuilder $dashboardViewBuilder Builds the monitor detail read model
+     */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
         private readonly MonitorRepository $monitorRepository,
@@ -30,6 +35,12 @@ final class HistoryApiController extends AbstractController
     ) {
     }
 
+    /**
+     * Returns the monitor detail data (status, uptime, history bar, events, latency) for the detail page polling.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param int $id Monitor id
+     */
     #[Route(
         path: '/api/uptime/{tenantSlug}/monitors/{id}/history',
         name: 'nowo_uptime_api_monitor_history',

@@ -22,6 +22,9 @@ final readonly class CheckLatencyNormalizer
     ) {
     }
 
+    /**
+     * Raises the measured latency to the configured minimum (`checks.min_latency_ms`), never below 0.
+     */
     public function normalize(Monitor $monitor, int $latencyMs): int
     {
         $min = $this->resolveMinLatencyMs($monitor);
@@ -32,6 +35,9 @@ final readonly class CheckLatencyNormalizer
         return max($min, $latencyMs);
     }
 
+    /**
+     * Returns the check result with its latency normalised (the same instance when nothing changes).
+     */
     public function normalizeDto(Monitor $monitor, CheckResultDto $dto): CheckResultDto
     {
         $latencyMs = $this->normalize($monitor, $dto->latencyMs);

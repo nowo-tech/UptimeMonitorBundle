@@ -20,6 +20,11 @@ final readonly class SchemaSyncService
 {
     private const ENTITY_NAMESPACE_PREFIX = 'Nowo\\UptimeMonitorBundle\\Entity\\';
 
+    /**
+     * Creates the schema sync service.
+     *
+     * @param EntityManagerInterface $entityManager Entity manager holding the bundle tables
+     */
     public function __construct(
         private EntityManagerInterface $entityManager,
     ) {
@@ -109,6 +114,9 @@ final readonly class SchemaSyncService
         ));
     }
 
+    /**
+     * Whether the error (or a previous one) says the table, index, constraint or column already exists.
+     */
     public function isDuplicateSchemaObjectException(Throwable $exception): bool
     {
         $codes = ['42P07', '42701', '42S01', '1050'];

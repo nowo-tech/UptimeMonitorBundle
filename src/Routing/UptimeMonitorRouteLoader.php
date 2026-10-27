@@ -47,6 +47,12 @@ final class UptimeMonitorRouteLoader extends Loader
         parent::__construct($env);
     }
 
+    /**
+     * Imports the bundle routes and, when the dashboard path holds `{tenantSlug}`, copies the tenant routes under
+     * that path and under every configured tenant path.
+     *
+     * @param mixed $resource Route resource (unused: the loader always imports the bundle routes.yaml)
+     */
     public function load(mixed $resource, ?string $type = null): RouteCollection
     {
         /** @var RouteCollection $routes */
@@ -95,6 +101,11 @@ final class UptimeMonitorRouteLoader extends Loader
         return $routes;
     }
 
+    /**
+     * Whether the import is of the `nowo_uptime_monitor` route type.
+     *
+     * @param mixed $resource Route resource (unused)
+     */
     public function supports(mixed $resource, ?string $type = null): bool
     {
         return $type === self::TYPE;

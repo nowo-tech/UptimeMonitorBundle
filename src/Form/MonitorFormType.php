@@ -33,6 +33,11 @@ final class MonitorFormType extends AbstractUptimeFormType
     ) {
     }
 
+    /**
+     * Adds the monitor fields.
+     *
+     * @param array<string, mixed> $options Form options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var array<string, int> $groupChoices */
@@ -220,6 +225,9 @@ final class MonitorFormType extends AbstractUptimeFormType
             ->addViolation();
     }
 
+    /**
+     * Configures the monitor options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);

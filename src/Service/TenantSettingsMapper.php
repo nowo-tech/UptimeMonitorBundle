@@ -17,6 +17,9 @@ use Nowo\UptimeMonitorBundle\Ui\UiFramework;
  */
 final class TenantSettingsMapper
 {
+    /**
+     * Builds the General settings form model from the tenant settings.
+     */
     public function toGeneralData(Tenant $tenant): SettingsGeneralData
     {
         $s                        = TenantSettings::from($tenant);
@@ -34,6 +37,9 @@ final class TenantSettingsMapper
         return $data;
     }
 
+    /**
+     * Stores the submitted General settings on the tenant (empty base URL / Steam key become null).
+     */
     public function applyGeneral(Tenant $tenant, SettingsGeneralData $data): void
     {
         TenantSettings::from($tenant)->merge([
@@ -49,6 +55,9 @@ final class TenantSettingsMapper
         ]);
     }
 
+    /**
+     * Builds the Appearance settings form model from the tenant settings.
+     */
     public function toAppearanceData(Tenant $tenant): SettingsAppearanceData
     {
         $s                       = TenantSettings::from($tenant);
@@ -62,6 +71,9 @@ final class TenantSettingsMapper
         return $data;
     }
 
+    /**
+     * Stores the submitted Appearance settings on the tenant and drops the legacy `language` key.
+     */
     public function applyAppearance(Tenant $tenant, SettingsAppearanceData $data): void
     {
         $settings = $tenant->getSettings();
@@ -82,6 +94,11 @@ final class TenantSettingsMapper
         $tenant->setSettings(array_merge($settings, $patch));
     }
 
+    /**
+     * Builds the Monitor history form model: the tenant override, or the global default when none is set.
+     *
+     * @param int $globalDetailDays Global `retention.detail_days`
+     */
     public function toHistoryData(Tenant $tenant, int $globalDetailDays): SettingsHistoryData
     {
         $data     = new SettingsHistoryData();
@@ -99,6 +116,9 @@ final class TenantSettingsMapper
         return $data;
     }
 
+    /**
+     * Stores the tenant retention override, or removes it when the global default is chosen.
+     */
     public function applyHistory(Tenant $tenant, SettingsHistoryData $data): void
     {
         if ($data->useGlobalDefault) {
@@ -112,6 +132,9 @@ final class TenantSettingsMapper
         TenantSettings::from($tenant)->merge(['detail_days' => max(0, $data->detailDays)]);
     }
 
+    /**
+     * Builds the Reverse proxy settings form model from the tenant settings.
+     */
     public function toReverseProxyData(Tenant $tenant): SettingsReverseProxyData
     {
         $data               = new SettingsReverseProxyData();
@@ -120,6 +143,9 @@ final class TenantSettingsMapper
         return $data;
     }
 
+    /**
+     * Stores the submitted Reverse proxy settings on the tenant.
+     */
     public function applyReverseProxy(Tenant $tenant, SettingsReverseProxyData $data): void
     {
         TenantSettings::from($tenant)->merge(['trusted_proxy' => $data->trustedProxy]);

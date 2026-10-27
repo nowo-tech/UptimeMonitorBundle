@@ -15,6 +15,12 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 final readonly class DueChecksRunner
 {
+    /**
+     * Creates the runner.
+     *
+     * @param bool $enabled Global `nowo_uptime_monitor.enabled` switch
+     * @param ClockInterface $clock Clock for the due-time reference
+     */
     public function __construct(
         private MonitorRepository $monitorRepository,
         private CheckExecutorService $checkExecutor,

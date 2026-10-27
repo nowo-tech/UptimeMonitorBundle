@@ -17,11 +17,19 @@ use SortDirection;
  */
 class CheckAggregateRepository extends ServiceEntityRepository
 {
+    /**
+     * Creates the repository of check aggregates.
+     *
+     * @param ManagerRegistry $registry Doctrine registry
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, CheckAggregate::class);
     }
 
+    /**
+     * Finds the aggregate of one monitor bucket (period + start), if it exists.
+     */
     public function findOneForBucket(
         Monitor $monitor,
         AggregatePeriod $period,

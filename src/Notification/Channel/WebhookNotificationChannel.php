@@ -19,6 +19,9 @@ use function is_numeric;
 use function max;
 use function sprintf;
 
+/**
+ * Posts uptime alerts as JSON to a generic webhook or a Slack incoming webhook.
+ */
 final readonly class WebhookNotificationChannel implements NotificationChannelInterface
 {
     public const CHANNEL_GENERIC = 'webhook';
@@ -39,11 +42,17 @@ final readonly class WebhookNotificationChannel implements NotificationChannelIn
     ) {
     }
 
+    /**
+     * Returns the channel key (`webhook` or `slack`).
+     */
     public function getName(): string
     {
         return $this->channelKey;
     }
 
+    /**
+     * Whether notifications and this channel are enabled and a URL is configured.
+     */
     public function isEnabled(): bool
     {
         $config = $this->notificationsConfig[$this->channelKey] ?? [];
@@ -53,6 +62,13 @@ final readonly class WebhookNotificationChannel implements NotificationChannelIn
             && $this->resolveUrl($config) !== '';
     }
 
+    /**
+     * Posts the alert payload to the configured URL.
+     *
+     * @throws NotificationDeliveryException On a transport error or a non-2xx answer
+     *
+     * @return bool False when the channel is disabled
+     */
     public function send(UptimeAlert $alert): bool
     {
         if (!$this->isEnabled()) {

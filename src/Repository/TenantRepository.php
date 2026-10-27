@@ -13,11 +13,19 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
  */
 class TenantRepository extends ServiceEntityRepository
 {
+    /**
+     * Creates the repository of tenants.
+     *
+     * @param ManagerRegistry $registry Doctrine registry
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Tenant::class);
     }
 
+    /**
+     * Finds the tenant with this slug, if any.
+     */
     public function findOneBySlug(string $slug): ?Tenant
     {
         return $this->findOneBy(['slug' => $slug]);

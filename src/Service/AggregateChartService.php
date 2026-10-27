@@ -19,6 +19,11 @@ use function sprintf;
  */
 final readonly class AggregateChartService
 {
+    /**
+     * Creates the chart service.
+     *
+     * @param ClockInterface $clock Clock for the end of the chart range
+     */
     public function __construct(
         private CheckAggregateRepository $aggregateRepository,
         private ClockInterface $clock = new NativeClock(),

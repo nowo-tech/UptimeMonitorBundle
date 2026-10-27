@@ -47,6 +47,11 @@ final class UptimeUiExtension extends AbstractExtension implements GlobalsInterf
         $this->resolved = new WeakMap();
     }
 
+    /**
+     * Registers `uptime_ui_framework()` and `uptime_theme()` (per-request tenant values).
+     *
+     * @return list<TwigFunction>
+     */
     public function getFunctions(): array
     {
         return [
@@ -93,6 +98,9 @@ final class UptimeUiExtension extends AbstractExtension implements GlobalsInterf
         return $this->resolve()['theme'];
     }
 
+    /**
+     * Forgets the per-request memoized values (worker mode).
+     */
     public function reset(): void
     {
         $this->resolved = new WeakMap();

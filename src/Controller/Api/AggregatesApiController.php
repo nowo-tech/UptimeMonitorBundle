@@ -17,9 +17,17 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\Routing\Attribute\Route;
 
+/**
+ * JSON API for rollup charts (per monitor and tenant overview).
+ */
 #[AsController]
 final class AggregatesApiController extends AbstractController
 {
+    /**
+     * Creates the chart API controller.
+     *
+     * @param AggregateChartService $chartService Builds the chart series from stored aggregates
+     */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
         private readonly MonitorRepository $monitorRepository,
@@ -27,6 +35,13 @@ final class AggregatesApiController extends AbstractController
     ) {
     }
 
+    /**
+     * Returns a monitor chart series; `period` (hour, day, month, year) and `days` (1-365) select the range.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param int $id Monitor id
+     * @param Request $request Current request (`period`, `days` query)
+     */
     #[Route(
         path: '/api/uptime/{tenantSlug}/monitors/{id}/aggregates',
         name: 'nowo_uptime_api_monitor_aggregates',
@@ -52,6 +67,12 @@ final class AggregatesApiController extends AbstractController
         ]);
     }
 
+    /**
+     * Returns the daily uptime series of every monitor of the tenant; `days` (1-90) selects the range.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (`days` query)
+     */
     #[Route(
         path: '/api/uptime/{tenantSlug}/aggregates/overview',
         name: 'nowo_uptime_api_tenant_overview',

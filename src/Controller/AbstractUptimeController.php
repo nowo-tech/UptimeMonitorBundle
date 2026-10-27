@@ -13,6 +13,11 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 abstract class AbstractUptimeController extends AbstractController
 {
+    /**
+     * Creates the controller with the translator used for flash messages.
+     *
+     * @param TranslatorInterface $translator Translator for flash messages
+     */
     public function __construct(
         protected readonly TranslatorInterface $translator,
     ) {

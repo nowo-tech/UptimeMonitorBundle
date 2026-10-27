@@ -21,6 +21,11 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 #[FormKitConfig('uptime_monitor')]
 final class MonitorSearchFormType extends AbstractUptimeFormType
 {
+    /**
+     * Adds the dashboard monitor search fields.
+     *
+     * @param array<string, mixed> $options Form options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('q', SearchType::class, [
@@ -36,6 +41,9 @@ final class MonitorSearchFormType extends AbstractUptimeFormType
         ]);
     }
 
+    /**
+     * Configures the dashboard monitor search options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);
@@ -45,6 +53,9 @@ final class MonitorSearchFormType extends AbstractUptimeFormType
         ]);
     }
 
+    /**
+     * Returns an empty block prefix so the query field is posted flat (`q`).
+     */
     #[Override]
     public function getBlockPrefix(): string
     {

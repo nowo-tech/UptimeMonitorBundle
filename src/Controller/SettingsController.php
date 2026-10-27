@@ -41,6 +41,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Throwable;
@@ -58,6 +59,11 @@ use const JSON_THROW_ON_ERROR;
 #[Route(path: '/{tenantSlug}/settings', name: 'nowo_uptime_settings_', requirements: ['tenantSlug' => '[a-z0-9\-]+'])]
 final class SettingsController extends AbstractUptimeController
 {
+    /**
+     * Creates the settings controller with its repositories, services and configuration.
+     *
+     * @param TranslatorInterface $translator Translator for flash messages
+     */
     public function __construct(
         TranslatorInterface $translator,
         private readonly TenantRepository $tenantRepository,
@@ -78,12 +84,25 @@ final class SettingsController extends AbstractUptimeController
         parent::__construct($translator);
     }
 
+    /**
+     * Redirects to the first settings screen (General).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     */
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(string $tenantSlug): RedirectResponse
     {
         return $this->redirectToRoute('nowo_uptime_settings_general', ['tenantSlug' => $tenantSlug]);
     }
 
+    /**
+     * Shows and saves the General settings (time zones, entry page, base URL, ...).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (handles the form submission)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/general', name: 'general', methods: ['GET', 'POST'])]
     public function general(string $tenantSlug, Request $request): Response
     {
@@ -105,6 +124,14 @@ final class SettingsController extends AbstractUptimeController
         ]);
     }
 
+    /**
+     * Shows and saves the Appearance settings (theme, heartbeat bar, elapsed time).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (handles the form submission)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/appearance', name: 'appearance', methods: ['GET', 'POST'])]
     public function appearance(string $tenantSlug, Request $request): Response
     {
@@ -126,6 +153,13 @@ final class SettingsController extends AbstractUptimeController
         ]);
     }
 
+    /**
+     * Shows the notification channels configured in YAML (read-only).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/notifications', name: 'notifications', methods: ['GET'])]
     public function notifications(string $tenantSlug): Response
     {
@@ -137,6 +171,14 @@ final class SettingsController extends AbstractUptimeController
         ]);
     }
 
+    /**
+     * Shows and saves the Reverse proxy settings (trusted proxy).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (handles the form submission)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/reverse-proxy', name: 'reverse_proxy', methods: ['GET', 'POST'])]
     public function reverseProxy(string $tenantSlug, Request $request): Response
     {
@@ -158,6 +200,14 @@ final class SettingsController extends AbstractUptimeController
         ]);
     }
 
+    /**
+     * Lists the tenant tags and creates a new one.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (handles the form submission)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/tags', name: 'tags', methods: ['GET', 'POST'])]
     public function tags(string $tenantSlug, Request $request): Response
     {
@@ -207,6 +257,15 @@ final class SettingsController extends AbstractUptimeController
         ]);
     }
 
+    /**
+     * Deletes a tag of the tenant (CSRF-protected).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param int $id Tag id
+     * @param Request $request Current request (CSRF token)
+     *
+     * @throws NotFoundHttpException When the tenant or the tag does not exist
+     */
     #[Route('/tags/{id}/delete', name: 'tag_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function deleteTag(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
@@ -225,6 +284,14 @@ final class SettingsController extends AbstractUptimeController
         return $this->redirectToRoute('nowo_uptime_settings_tags', ['tenantSlug' => $tenantSlug]);
     }
 
+    /**
+     * Shows and saves the Monitor history retention, with the purge and clear actions.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (handles the form submission)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/history', name: 'history', methods: ['GET', 'POST'])]
     public function history(string $tenantSlug, Request $request): Response
     {
@@ -279,6 +346,14 @@ final class SettingsController extends AbstractUptimeController
         ]);
     }
 
+    /**
+     * Deletes check details older than the tenant retention (CSRF-protected).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (CSRF token)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/history/purge', name: 'history_purge', methods: ['POST'])]
     public function purgeHistory(string $tenantSlug, Request $request): RedirectResponse
     {
@@ -291,6 +366,14 @@ final class SettingsController extends AbstractUptimeController
         return $this->redirectToRoute('nowo_uptime_settings_history', ['tenantSlug' => $tenantSlug]);
     }
 
+    /**
+     * Deletes every check, aggregate and incident of the tenant (CSRF-protected).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (CSRF token)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/history/clear-stats', name: 'history_clear', methods: ['POST'])]
     public function clearStats(string $tenantSlug, Request $request): RedirectResponse
     {
@@ -308,6 +391,14 @@ final class SettingsController extends AbstractUptimeController
         return $this->redirectToRoute('nowo_uptime_settings_history', ['tenantSlug' => $tenantSlug]);
     }
 
+    /**
+     * Shows the backup screen and imports an uploaded monitor backup.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     * @param Request $request Current request (handles the form submission)
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/backup', name: 'backup', methods: ['GET', 'POST'])]
     public function backup(string $tenantSlug, Request $request): Response
     {
@@ -333,6 +424,13 @@ final class SettingsController extends AbstractUptimeController
         ]);
     }
 
+    /**
+     * Downloads the tenant monitors as a JSON backup file.
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/backup/export', name: 'backup_export', methods: ['GET'])]
     public function exportBackup(string $tenantSlug): JsonResponse
     {
@@ -348,6 +446,13 @@ final class SettingsController extends AbstractUptimeController
         return $response;
     }
 
+    /**
+     * Shows the About screen (product, style, tenant).
+     *
+     * @param string $tenantSlug Tenant slug from the route
+     *
+     * @throws NotFoundHttpException When the tenant does not exist
+     */
     #[Route('/about', name: 'about', methods: ['GET'])]
     public function about(string $tenantSlug): Response
     {

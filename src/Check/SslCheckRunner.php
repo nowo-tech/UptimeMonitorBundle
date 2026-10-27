@@ -30,6 +30,14 @@ use function trim;
  */
 final readonly class SslCheckRunner implements CheckRunnerInterface
 {
+    /**
+     * Creates the SSL runner; the defaults block private targets and use the system clock and real sockets.
+     *
+     * @param MonitorUrlSsrfGuard $ssrfGuard Validates targets against private and local networks
+     * @param bool $blockPrivateUrls Whether private / local targets are refused (`checks.block_private_urls`)
+     * @param ClockInterface $clock Clock for the days left until expiry
+     * @param SocketConnectorInterface $connector Opens the TLS connection
+     */
     public function __construct(
         private MonitorUrlSsrfGuard $ssrfGuard = new MonitorUrlSsrfGuard(),
         private bool $blockPrivateUrls = true,
@@ -38,11 +46,18 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
     ) {
     }
 
+    /**
+     * Whether the monitor is an SSL certificate check.
+     */
     public function supports(Monitor $monitor): bool
     {
         return $monitor->getType() === MonitorType::Ssl;
     }
 
+    /**
+     * Opens a verified TLS connection and checks the peer certificate expiry: down when expired or unreachable,
+     * degraded within `days_before_expiry`, up otherwise.
+     */
     public function run(Monitor $monitor): CheckResultDto
     {
         $config  = $monitor->getConfig();

@@ -13,12 +13,20 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 use function sprintf;
 
+/**
+ * Console command `nowo:uptime:purge-detail`: deletes check details older than the retention.
+ */
 #[AsCommand(
     name: 'nowo:uptime:purge-detail',
     description: 'Purge check detail rows older than the configured retention period',
 )]
 final class PurgeDetailCommand extends Command
 {
+    /**
+     * Creates the command.
+     *
+     * @param DetailRetentionService $retentionService Applies the detail retention
+     */
     public function __construct(
         private readonly DetailRetentionService $retentionService,
     ) {

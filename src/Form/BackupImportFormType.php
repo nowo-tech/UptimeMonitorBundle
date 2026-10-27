@@ -26,6 +26,11 @@ final class BackupImportFormType extends AbstractUptimeFormType
 {
     public const CSRF_TOKEN_ID = 'backup-import';
 
+    /**
+     * Adds the backup import fields.
+     *
+     * @param array<string, mixed> $options Form options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('action', HiddenType::class, [
@@ -51,6 +56,9 @@ final class BackupImportFormType extends AbstractUptimeFormType
         ]);
     }
 
+    /**
+     * Configures the backup import options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);
@@ -61,6 +69,9 @@ final class BackupImportFormType extends AbstractUptimeFormType
         ]);
     }
 
+    /**
+     * Returns an empty block prefix so the fields are posted flat (`backup`, `import_mode`).
+     */
     #[Override]
     public function getBlockPrefix(): string
     {

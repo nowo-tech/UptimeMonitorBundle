@@ -13,6 +13,13 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
  */
 final readonly class MonitorWentDownEvent
 {
+    /**
+     * Creates the event for a newly opened incident.
+     *
+     * @param Monitor $monitor Monitor that went down or degraded
+     * @param Incident $incident Incident opened for this outage
+     * @param string|null $message Failure message of the check that opened the incident
+     */
     public function __construct(
         public Monitor $monitor,
         public Incident $incident,

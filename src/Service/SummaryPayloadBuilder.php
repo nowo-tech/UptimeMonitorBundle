@@ -21,6 +21,11 @@ use function count;
  */
 final readonly class SummaryPayloadBuilder
 {
+    /**
+     * Creates the summary payload builder.
+     *
+     * @param ClockInterface $clock Clock for the server time and the 24 h window
+     */
     public function __construct(
         private MonitorRepository $monitorRepository,
         private CheckResultRepository $checkResultRepository,

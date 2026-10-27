@@ -64,6 +64,9 @@ abstract class AbstractUptimeFormType extends AbstractType
         $this->addWithDefaults($builder, $name, PasswordType::class, $options + ['empty_data' => '']);
     }
 
+    /**
+     * Sets the bundle translation domain for labels and choices.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([

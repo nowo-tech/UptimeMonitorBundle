@@ -42,6 +42,9 @@ final readonly class StatusTransitionService
     ) {
     }
 
+    /**
+     * Updates the known status, opens or resolves incidents and sends transition or resend notifications.
+     */
     public function handleAfterCheck(Monitor $monitor, CheckResult $result): void
     {
         $current  = $result->getStatus();
