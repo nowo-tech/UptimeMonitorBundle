@@ -31,18 +31,19 @@ nowo_uptime_monitor:
     web_ui:                    # UiKit page contract (REQ-UI-003)
         enabled: null          # null = dashboard.enabled (true)
         path_prefix: null      # URL prefix of the admin routes, may hold {tenantSlug}; null = dashboard.path (/uptime)
+        # More URL prefixes for the tenant pages, by tenant slug prefix (path_prefix must hold {tenantSlug}).
+        # Each copies the tenant routes as <name_prefix><route>; links to a matching slug use the copy.
+        tenant_paths: []
+        #   - { slug_prefix: 'user-', path: '/uptime/{tenantSlug}', name_prefix: 'personal_', slug_requirement: null }
         layout_template: null  # null = nowo_ui_kit.layouts.admin; else a layout rendering the UiKit canonical blocks
         templates: {}          # per-page override, e.g. { dashboard: 'uptime/dashboard.html.twig' } (ids: docs/TEMPLATES.md)
         form_themes: ['@NowoUiKitBundle/form/nowo_ui_layout.html.twig']   # [] = only twig.form_themes
     dashboard:
-        # enabled: true        # deprecated (1.10): web_ui.enabled
-        # path: /uptime        # deprecated (1.10): web_ui.path_prefix
+        # enabled: true        # deprecated (1.11): web_ui.enabled
+        # path: /uptime        # deprecated (1.11): web_ui.path_prefix
         sync: polling          # polling | mercure (requires symfony/mercure-bundle)
         poll_interval_ms: 30000
-        # More URL prefixes for the tenant pages, by tenant slug prefix (dashboard.path must hold {tenantSlug}).
-        # Each copies the tenant routes as <name_prefix><route>; links to a matching slug use the copy.
-        tenant_paths: []
-        #   - { slug_prefix: 'user-', path: '/uptime/{tenantSlug}', name_prefix: 'personal_', slug_requirement: null }
+        # tenant_paths: []     # deprecated (1.11): web_ui.tenant_paths
         mercure:
             topic_template: '/uptime/{tenant}'
             private: true
@@ -67,7 +68,7 @@ nowo_uptime_monitor:
             settings: [ROLE_ADMIN]    # was security.settings_roles
 ```
 
-Deprecated since **1.10** (REQ-UI-003 vocabulary, removed in 2.0): `templates.layout` / `templates.layout_template`,
+Deprecated since **1.11** (REQ-UI-003 vocabulary, removed in 2.0): `templates.layout` / `templates.layout_template`,
 `ui.*`, `dashboard.enabled`, `dashboard.path`, `security.dashboard_roles` / `manage_roles` / `settings_roles` — see
 [UPGRADING](UPGRADING.md#configuration-req-ui-003-vocabulary).
 
@@ -239,7 +240,7 @@ min_latency_ms: 5
 
 ### UI framework (deprecated `ui.*`)
 
-Since **1.10** the markup follows `nowo_ui_kit.css_framework` (no per-framework templates, no CDN). `ui.framework`
+Since **1.11** the markup follows `nowo_ui_kit.css_framework` (no per-framework templates, no CDN). `ui.framework`
 (alias `ui.css_framework`: `tabler`, `custom`, `bootstrap`, `tailwind`) only seeds `nowo_ui_kit.css_framework` when
 the host does not set it (`bootstrap` → `bootstrap5`); `ui.tabler.*`, `ui.bootstrap.*` and `ui.tailwind.*` have no
 effect. The tenant setting **Settings → Appearance → UI framework** is kept in the tenant JSON but no longer changes

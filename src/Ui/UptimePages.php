@@ -96,7 +96,7 @@ final readonly class UptimePages
             return null;
         }
 
-        trigger_deprecation('nowo-tech/uptime-monitor-bundle', '1.10', 'The 1.x layout "%s" (block uptime_content) is wrapped in "%s". Render the UiKit canonical blocks in your layout and set nowo_uptime_monitor.web_ui.layout_template (null = nowo_ui_kit.layouts.admin); see docs/UPGRADING.md.', $legacy, self::LEGACY_LAYOUT_BRIDGE);
+        trigger_deprecation('nowo-tech/uptime-monitor-bundle', '1.11', 'The 1.x layout "%s" (block uptime_content) is wrapped in "%s". Render the UiKit canonical blocks in your layout and set nowo_uptime_monitor.web_ui.layout_template (null = nowo_ui_kit.layouts.admin); see docs/UPGRADING.md.', $legacy, self::LEGACY_LAYOUT_BRIDGE);
 
         return $legacy;
     }

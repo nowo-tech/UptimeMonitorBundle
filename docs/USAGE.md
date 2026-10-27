@@ -141,7 +141,7 @@ templates/bundles/NowoUptimeMonitorBundle/
 └── status/index.html.twig
 ```
 
-Prefer **not** copying pages: since 1.10 they are UiKit page scaffolds (REQ-UI-003). Theme every page once through
+Prefer **not** copying pages: since 1.11 they are UiKit page scaffolds (REQ-UI-003). Theme every page once through
 `nowo_ui_kit` (layouts, `css_framework`, `theme`), and for a bundle-specific change point
 `nowo_uptime_monitor.web_ui.templates.<page>` at a thin template that extends the bundle page and overrides one data
 block — see [TEMPLATES.md](TEMPLATES.md) for the pages, view models and data blocks:
@@ -173,7 +173,7 @@ Template overrides and the demo **must not** reintroduce raw `<form>`, `<input>`
 
 ### Layout and CSS stack (REQ-UI-001 / REQ-UI-003)
 
-| Concern | Key (1.10+) | Deprecated 1.x key |
+| Concern | Key (1.11+) | Deprecated 1.x key |
 |---------|-------------|--------------------|
 | Admin layout | `nowo_ui_kit.layouts.admin`, or `nowo_uptime_monitor.web_ui.layout_template` (null = UiKit) | `templates.layout` / `templates.layout_template` |
 | CSS stack, row actions, theme | `nowo_ui_kit.css_framework`, `nowo_ui_kit.theme` | `ui.framework` / `ui.css_framework` (seed only) |

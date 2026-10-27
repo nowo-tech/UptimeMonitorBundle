@@ -186,6 +186,7 @@ final class ConfigurationTest extends TestCase
         yield 'ui.tailwind.cdn_script' => [['ui', 'tailwind', 'cdn_script']];
         yield 'dashboard.enabled' => [['dashboard', 'enabled']];
         yield 'dashboard.path' => [['dashboard', 'path']];
+        yield 'dashboard.tenant_paths' => [['dashboard', 'tenant_paths']];
         yield 'security.dashboard_roles' => [['security', 'dashboard_roles']];
         yield 'security.manage_roles' => [['security', 'manage_roles']];
         yield 'security.settings_roles' => [['security', 'settings_roles']];
@@ -207,6 +208,6 @@ final class ConfigurationTest extends TestCase
 
         self::assertInstanceOf(BaseNode::class, $node);
         self::assertTrue($node->isDeprecated());
-        self::assertSame('1.10', $node->getDeprecation($node->getName(), 'nowo_uptime_monitor')['version']);
+        self::assertSame('1.11', $node->getDeprecation($node->getName(), 'nowo_uptime_monitor')['version']);
     }
 }

@@ -190,7 +190,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
     }
 
     /**
-     * Maps the REQ-UI-003 canonical keys (web_ui.enabled, web_ui.path_prefix, security.roles.<action>) and their
+     * Maps the REQ-UI-003 canonical keys (web_ui.enabled, web_ui.path_prefix, web_ui.tenant_paths, security.roles.<action>) and their
      * deprecated 1.x names onto one resolved config: a canonical key wins, else the deprecated key (or its default).
      *
      * @param array<string, mixed> $config processed configuration
@@ -203,6 +203,10 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $config['web_ui']['path_prefix'] ??= (string) $config['dashboard']['path'];
         $config['dashboard']['enabled'] = $config['web_ui']['enabled'];
         $config['dashboard']['path']    = $config['web_ui']['path_prefix'];
+        if ($config['web_ui']['tenant_paths'] === []) {
+            $config['web_ui']['tenant_paths'] = $config['dashboard']['tenant_paths'];
+        }
+        $config['dashboard']['tenant_paths'] = $config['web_ui']['tenant_paths'];
 
         foreach (['dashboard', 'manage', 'settings'] as $action) {
             $config['security']['roles'][$action] ??= $config['security'][$action . '_roles'];

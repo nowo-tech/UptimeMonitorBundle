@@ -405,4 +405,21 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertSame('/monitoring', $container->getParameter('nowo_uptime_monitor.dashboard.path'));
         self::assertSame(['ROLE_OWNER'], $container->getDefinition('nowo_uptime_monitor.access_checker.default')->getArgument('$settingsRoles'));
     }
+
+    public function testCanonicalTenantPathsWinOverTheDeprecatedKey(): void
+    {
+        $path      = ['slug_prefix' => 'user-', 'path' => '/me/{tenantSlug}/uptime', 'name_prefix' => 'me_'];
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['web_ui' => ['tenant_paths' => [$path]]]], $container);
+
+        /** @var list<array<string, mixed>> $tenantPaths */
+        $tenantPaths = $container->getParameter('nowo_uptime_monitor.dashboard.tenant_paths');
+        self::assertSame('/me/{tenantSlug}/uptime', $tenantPaths[0]['path']);
+
+        $legacy = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['dashboard' => ['tenant_paths' => [$path]]]], $legacy);
+        /** @var array<string, mixed> $webUi */
+        $webUi = $legacy->getParameter('nowo_uptime_monitor.web_ui');
+        self::assertSame('me_', $webUi['tenant_paths'][0]['name_prefix']);
+    }
 }

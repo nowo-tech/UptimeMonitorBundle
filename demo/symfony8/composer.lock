@@ -1117,16 +1117,16 @@
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
-            "version": "v2.15.2",
+            "version": "v2.15.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/UiKitBundle.git",
-                "reference": "6e0ec6c61d051170031f113e1ae31c676be25824"
+                "reference": "3fec561cec962822083c755fc02385f56eb28715"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/6e0ec6c61d051170031f113e1ae31c676be25824",
-                "reference": "6e0ec6c61d051170031f113e1ae31c676be25824",
+                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/3fec561cec962822083c755fc02385f56eb28715",
+                "reference": "3fec561cec962822083c755fc02385f56eb28715",
                 "shasum": ""
             },
             "require": {
@@ -1207,7 +1207,7 @@
                 "issues": "https://github.com/nowo-tech/UiKitBundle/issues",
                 "source": "https://github.com/nowo-tech/UiKitBundle"
             },
-            "time": "2026-10-26T19:54:26+00:00"
+            "time": "2026-10-26T21:48:05+00:00"
         },
         {
             "name": "nowo-tech/uptime-monitor-bundle",
@@ -1215,7 +1215,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "3f7bd8b836a2846dbb132f855f87581dbd39fe84"
+                "reference": "412e8a08b87b315aeb2175d56e93f1775d64835d"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",

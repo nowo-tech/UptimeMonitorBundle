@@ -943,7 +943,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     enabled?: bool|Param, // Master switch for monitoring: false = no checks run (scheduler, nowo:uptime:run-due-checks and RunDueChecksMessage are no-ops). UI and data stay available. // Default: true
  *     environments?: list<scalar|Param|null>,
  *     connection?: scalar|Param|null, // Doctrine connection name for monitor storage // Default: "default"
- *     table_prefix?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.table_prefix.table_prefix" option is deprecated and has no effect: table names are fixed (uptime_*). // Deprecated: never read; tables are always uptime_*. // Default: "uptime_"
+ *     table_prefix?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.table_prefix.table_prefix" option is deprecated and has no effect: use "nowo_uptime_monitor.doctrine.table_prefix" (prepended to the uptime_* table names) instead. // Deprecated: never read. Use doctrine.table_prefix to prefix the uptime_* tables. // Default: "uptime_"
+ *     doctrine?: array{ // Doctrine storage options (REQ-ORM-002)
+ *         table_prefix?: scalar|Param|null, // Prefix prepended to every bundle table, index and unique constraint name (e.g. "app_" yields app_uptime_monitor). Empty = historical uptime_* names. // Default: ""
+ *     },
  *     scheduler?: array{
  *         enabled?: bool|Param, // Default: true
  *         mode?: "scheduler"|"cron"|"messenger"|Param, // Default: "scheduler"
@@ -987,14 +990,23 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     web_ui?: array{ // UiKit page contract (REQ-UI-003): pages extend UiKit scaffolds rendered in nowo_ui_kit.layouts.admin / .guest.
  *         enabled?: bool|Param|null, // Admin UI switch (REQ-UI-003 canonical key; replaces dashboard.enabled). null = dashboard.enabled (default true). // Default: null
  *         path_prefix?: scalar|Param|null, // URL prefix of every admin route, may hold {tenantSlug} (REQ-UI-003 canonical key; replaces dashboard.path). null = dashboard.path (default /uptime). // Default: null
+ *         tenant_paths?: list<array{ // Default: []
+ *             slug_prefix?: scalar|Param|null,
+ *             path?: scalar|Param|null,
+ *             name_prefix?: scalar|Param|null,
+ *             slug_requirement?: scalar|Param|null, // Route requirement of {tenantSlug}; default: the slug prefix then [a-z0-9-]+. // Default: null
+ *         }>,
  *         layout_template?: scalar|Param|null, // Admin layout of the bundle pages; null (default) = nowo_ui_kit.layouts.admin. The layout renders the UiKit canonical blocks (nowo_ui_content…). // Default: null
  *         templates?: array<string, scalar|Param|null>,
  *         form_themes?: list<scalar|Param|null>,
  *     },
- *     templates?: array{ // Deprecated since 1.10: use web_ui.layout_template (null = UiKit layout). A 1.x layout (block uptime_content) set here is wrapped by a BC bridge.
+ *     form?: array{ // Monitor form options.
+ *         hidden_fields?: list<scalar|Param|null>,
+ *     },
+ *     templates?: array{ // Deprecated since 1.11: use web_ui.layout_template (null = UiKit layout). A 1.x layout (block uptime_content) set here is wrapped by a BC bridge.
  *         layout?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.templates.layout.layout" option is deprecated: set "nowo_uptime_monitor.web_ui.layout_template" to a layout that renders the UiKit canonical blocks (null = nowo_ui_kit.layouts.admin). A 1.x layout set here is wrapped by a BC bridge until 2.0. // Deprecated: 1.x layout rendering {% block uptime_content %}, wrapped by @NowoUptimeMonitorBundle/_legacy_layout.html.twig. Alias: templates.layout_template. // Default: "@NowoUptimeMonitorBundle/layout.html.twig"
  *     },
- *     ui?: array{ // Deprecated since 1.10: the pages follow nowo_ui_kit (css_framework, layouts, theme). ui.framework only seeds nowo_ui_kit.css_framework when the host does not set it; the CDN keys are never read.
+ *     ui?: array{ // Deprecated since 1.11: the pages follow nowo_ui_kit (css_framework, layouts, theme). ui.framework only seeds nowo_ui_kit.css_framework when the host does not set it; the CDN keys are never read.
  *         framework?: "tabler"|"custom"|"bootstrap"|"tailwind"|Param, // Deprecated: The "nowo_uptime_monitor.ui.framework.framework" option is deprecated: set "nowo_ui_kit.css_framework" (the bundle pages are UiKit scaffolds). // Seeds nowo_ui_kit.css_framework (bootstrap = bootstrap5) when the host does not set it. Alias: ui.css_framework. // Default: "tabler"
  *         tabler?: array{ // Deprecated, never read: the bundle loads no CSS framework (the host layout owns it).
  *             skip_cdn?: bool|Param, // Deprecated: The "nowo_uptime_monitor.ui.tabler.skip_cdn.skip_cdn" option is deprecated and has no effect: the bundle no longer loads Tabler from a CDN. // Default: false
@@ -1015,6 +1027,12 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         roles?: list<scalar|Param|null>,
  *         sync?: "polling"|"mercure"|Param, // Default: "polling"
  *         poll_interval_ms?: int|Param, // Default: 30000
+ *         tenant_paths?: list<array{ // Default: []
+ *             slug_prefix?: scalar|Param|null,
+ *             path?: scalar|Param|null,
+ *             name_prefix?: scalar|Param|null,
+ *             slug_requirement?: scalar|Param|null, // Route requirement of {tenantSlug}; default: the slug prefix then [a-z0-9-]+. // Default: null
+ *         }>,
  *         mercure?: array{ // Mercure topics when dashboard.sync is mercure (requires symfony/mercure-bundle)
  *             topic_template?: scalar|Param|null, // Topic per tenant; {tenant} is replaced with tenant slug // Default: "/uptime/{tenant}"
  *             private?: bool|Param, // Default: true
@@ -1029,6 +1047,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     notifications?: array{
  *         enabled?: bool|Param, // Default: false
  *         cooldown_seconds?: int|Param, // Default: 300
+ *         http_timeout?: float|Param, // Webhook / Slack delivery deadline in seconds (HttpClient timeout + max_duration). Keep it below the PHP / worker time limits (REQ-RUNTIME-001). // Default: 10.0
  *         email?: array{
  *             enabled?: bool|Param, // Default: false
  *             from?: scalar|Param|null, // Default: ""

@@ -79,6 +79,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Demo Playwright e2e (REQ-DEMO-013): `demo/symfony8/e2e` happy path (dashboard, monitor create + detail, public status page, settings) and a screenshots project; `make test-e2e` / `make demo-screenshots` (root and demo Makefiles, PNG → WebP with `sharp`). `release-check` runs `test-e2e`.
 - README **Screenshots** section with `docs/images/demo/dashboard.webp` and `docs/images/demo/monitor-detail.webp`.
 - Demo-only `app:uptime:demo-history` command: three extra local-probe monitors and 24 h of deterministic check history for every monitor and the group (one resolved outage, one latency spike); `reset-demo` runs it plus `nowo:uptime:rollup`.
+- `web_ui` configuration (REQ-UI-003 vocabulary): `web_ui.enabled`, `web_ui.path_prefix`, `web_ui.tenant_paths`, `web_ui.layout_template`
+  (null = UiKit layout), `web_ui.templates.<page>` (per-page override), `web_ui.form_themes`; `security.roles.dashboard
+  | manage | settings`.
+- `Ui\UptimeAreaNav`: the bundle navigation published to the UiKit area-nav registry (`uptime_monitor`,
+  `uptime_monitor_settings`) for host menus.
+- `docs/TEMPLATES.md` and the UiKit contract test `tests/Integration/Contract/PageContractTest.php` (every page).
+- Translations for the monitor detail, tenant pages and tag delete confirmation (7 locales).
+
+### Deprecated
+
+- `templates.layout` / `templates.layout_template` (a 1.x layout rendering `uptime_content` is wrapped by
+  `@NowoUptimeMonitorBundle/_legacy_layout.html.twig`, also for an application override of the former
+  `layout.html.twig`), `ui.framework` (only seeds `nowo_ui_kit.css_framework`), `ui.tabler.*`, `ui.bootstrap.*`,
+  `ui.tailwind.*` (no effect), `dashboard.enabled`, `dashboard.path`, `dashboard.tenant_paths`, `security.dashboard_roles`,
+  `security.manage_roles`, `security.settings_roles`. Removed in 2.0.
+- The per-tenant "UI framework" setting no longer changes the markup (pages follow `nowo_ui_kit.css_framework`).
+
+### Removed
+
+- Template contract: `layout.html.twig` (CDN Tabler / Bootstrap / Tailwind layout), `_form_theme.html.twig`,
+  `_monitor_actions.html.twig`, `settings/_layout.html.twig`, `settings/_nav.html.twig`, the Bootstrap modal markup of
+  `monitor/_monitor_edit_modal.html.twig`, the `uptime_content` / `settings_body` / `title` / `stylesheets` /
+  `javascripts` page blocks (now the UiKit canonical and data blocks), and the `uptime-ui-bootstrap.css` /
+  `uptime-ui-tailwind.css` assets. See [UPGRADING.md](UPGRADING.md#unreleased).
 
 ### Fixed
 
@@ -127,30 +151,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   removed), with explicit PHP / Caddy / `max_wait_time` deadlines. The Flex leftover `compose.override.yaml` that
   published ports `5432` / `80` was removed (REQ-DEMO-006); the `dns:` block carries its explanatory comment
   (REQ-DEMO-009). `make up` rebuilds the (cached) image.
-- `web_ui` configuration (REQ-UI-003 vocabulary): `web_ui.enabled`, `web_ui.path_prefix`, `web_ui.layout_template`
-  (null = UiKit layout), `web_ui.templates.<page>` (per-page override), `web_ui.form_themes`; `security.roles.dashboard
-  | manage | settings`.
-- `Ui\UptimeAreaNav`: the bundle navigation published to the UiKit area-nav registry (`uptime_monitor`,
-  `uptime_monitor_settings`) for host menus.
-- `docs/TEMPLATES.md` and the UiKit contract test `tests/Integration/Contract/PageContractTest.php` (every page).
-- Translations for the monitor detail, tenant pages and tag delete confirmation (7 locales).
-
-### Deprecated
-
-- `templates.layout` / `templates.layout_template` (a 1.x layout rendering `uptime_content` is wrapped by
-  `@NowoUptimeMonitorBundle/_legacy_layout.html.twig`, also for an application override of the former
-  `layout.html.twig`), `ui.framework` (only seeds `nowo_ui_kit.css_framework`), `ui.tabler.*`, `ui.bootstrap.*`,
-  `ui.tailwind.*` (no effect), `dashboard.enabled`, `dashboard.path`, `security.dashboard_roles`,
-  `security.manage_roles`, `security.settings_roles`. Removed in 2.0.
-- The per-tenant "UI framework" setting no longer changes the markup (pages follow `nowo_ui_kit.css_framework`).
-
-### Removed
-
-- Template contract: `layout.html.twig` (CDN Tabler / Bootstrap / Tailwind layout), `_form_theme.html.twig`,
-  `_monitor_actions.html.twig`, `settings/_layout.html.twig`, `settings/_nav.html.twig`, the Bootstrap modal markup of
-  `monitor/_monitor_edit_modal.html.twig`, the `uptime_content` / `settings_body` / `title` / `stylesheets` /
-  `javascripts` page blocks (now the UiKit canonical and data blocks), and the `uptime-ui-bootstrap.css` /
-  `uptime-ui-tailwind.css` assets. See [UPGRADING.md](UPGRADING.md#unreleased).
 
 ## [1.9.4] - 2026-10-26
 

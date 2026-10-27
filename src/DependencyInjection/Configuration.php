@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use InvalidArgumentException;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -16,6 +17,7 @@ use function is_array;
 use function is_string;
 use function preg_match;
 use function sprintf;
+use function str_contains;
 
 /**
  * Configuration tree for {@see UptimeMonitorExtension}.
@@ -230,19 +232,19 @@ final class Configuration implements ConfigurationInterface
                             ->scalarPrototype()->end()
                             ->defaultValue(['ROLE_ADMIN'])
                             ->info('Deprecated: use security.roles.dashboard.')
-                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.dashboard".')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.dashboard".')
                         ->end()
                         ->arrayNode('manage_roles')
                             ->scalarPrototype()->end()
                             ->defaultValue(['ROLE_ADMIN'])
                             ->info('Deprecated: use security.roles.manage.')
-                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.manage".')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.manage".')
                         ->end()
                         ->arrayNode('settings_roles')
                             ->scalarPrototype()->end()
                             ->defaultValue(['ROLE_ADMIN'])
                             ->info('Deprecated: use security.roles.settings.')
-                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.settings".')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.settings".')
                         ->end()
                     ->end()
                 ->end()
@@ -258,6 +260,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultNull()
                             ->info('URL prefix of every admin route, may hold {tenantSlug} (REQ-UI-003 canonical key; replaces dashboard.path). null = dashboard.path (default /uptime).')
                         ->end()
+                        ->append(self::tenantPathsNode(false))
                         ->scalarNode('layout_template')
                             ->defaultNull()
                             ->info('Admin layout of the bundle pages; null (default) = nowo_ui_kit.layouts.admin. The layout renders the UiKit canonical blocks (nowo_ui_content…).')
@@ -294,7 +297,7 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->arrayNode('templates')
                     ->addDefaultsIfNotSet()
-                    ->info('Deprecated since 1.10: use web_ui.layout_template (null = UiKit layout). A 1.x layout (block uptime_content) set here is wrapped by a BC bridge.')
+                    ->info('Deprecated since 1.11: use web_ui.layout_template (null = UiKit layout). A 1.x layout (block uptime_content) set here is wrapped by a BC bridge.')
                     ->beforeNormalization()
                         ->ifArray()
                         ->then(static function (array $v): array {
@@ -311,13 +314,13 @@ final class Configuration implements ConfigurationInterface
                         ->scalarNode('layout')
                             ->defaultValue(self::LEGACY_LAYOUT)
                             ->info('Deprecated: 1.x layout rendering {% block uptime_content %}, wrapped by @NowoUptimeMonitorBundle/_legacy_layout.html.twig. Alias: templates.layout_template.')
-                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated: set "nowo_uptime_monitor.web_ui.layout_template" to a layout that renders the UiKit canonical blocks (null = nowo_ui_kit.layouts.admin). A 1.x layout set here is wrapped by a BC bridge until 2.0.')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: set "nowo_uptime_monitor.web_ui.layout_template" to a layout that renders the UiKit canonical blocks (null = nowo_ui_kit.layouts.admin). A 1.x layout set here is wrapped by a BC bridge until 2.0.')
                         ->end()
                     ->end()
                 ->end()
                 ->arrayNode('ui')
                     ->addDefaultsIfNotSet()
-                    ->info('Deprecated since 1.10: the pages follow nowo_ui_kit (css_framework, layouts, theme). ui.framework only seeds nowo_ui_kit.css_framework when the host does not set it; the CDN keys are never read.')
+                    ->info('Deprecated since 1.11: the pages follow nowo_ui_kit (css_framework, layouts, theme). ui.framework only seeds nowo_ui_kit.css_framework when the host does not set it; the CDN keys are never read.')
                     ->beforeNormalization()
                         ->ifArray()
                         ->then(static function (array $v): array {
@@ -335,7 +338,7 @@ final class Configuration implements ConfigurationInterface
                             ->values(['tabler', 'custom', 'bootstrap', 'tailwind'])
                             ->defaultValue('tabler')
                             ->info('Seeds nowo_ui_kit.css_framework (bootstrap = bootstrap5) when the host does not set it. Alias: ui.css_framework.')
-                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated: set "nowo_ui_kit.css_framework" (the bundle pages are UiKit scaffolds).')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: set "nowo_ui_kit.css_framework" (the bundle pages are UiKit scaffolds).')
                         ->end()
                         ->arrayNode('tabler')
                             ->addDefaultsIfNotSet()
@@ -343,7 +346,7 @@ final class Configuration implements ConfigurationInterface
                             ->children()
                                 ->booleanNode('skip_cdn')
                                     ->defaultFalse()
-                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Tabler from a CDN.')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Tabler from a CDN.')
                                 ->end()
                             ->end()
                         ->end()
@@ -352,11 +355,11 @@ final class Configuration implements ConfigurationInterface
                             ->children()
                                 ->scalarNode('css_url')
                                     ->defaultValue('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css')
-                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Bootstrap from a CDN.')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Bootstrap from a CDN.')
                                 ->end()
                                 ->scalarNode('js_url')
                                     ->defaultValue('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js')
-                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Bootstrap from a CDN.')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Bootstrap from a CDN.')
                                 ->end()
                             ->end()
                         ->end()
@@ -365,11 +368,11 @@ final class Configuration implements ConfigurationInterface
                             ->children()
                                 ->scalarNode('cdn_script')
                                     ->defaultValue('https://cdn.tailwindcss.com')
-                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Tailwind from a CDN.')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Tailwind from a CDN.')
                                 ->end()
                                 ->scalarNode('css_url')
                                     ->defaultNull()
-                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated and has no effect: the host layout loads its CSS.')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the host layout loads its CSS.')
                                     ->info('Optional compiled Tailwind CSS URL (overrides CDN script when set)')
                                 ->end()
                             ->end()
@@ -381,11 +384,11 @@ final class Configuration implements ConfigurationInterface
                     ->children()
                         ->booleanNode('enabled')
                             ->defaultTrue()
-                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.web_ui.enabled".')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.web_ui.enabled".')
                         ->end()
                         ->scalarNode('path')
                             ->defaultValue('/uptime')
-                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.10', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.web_ui.path_prefix".')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.web_ui.path_prefix".')
                         ->end()
                         ->scalarNode('prefix')
                             ->info('Deprecated: never read; dashboard.path is the URL prefix of every admin route.')
@@ -403,25 +406,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultValue('polling')
                         ->end()
                         ->integerNode('poll_interval_ms')->defaultValue(30000)->min(1000)->end()
-                        ->arrayNode('tenant_paths')
-                            ->info('More URL prefixes for the tenant pages, chosen by tenant slug prefix (e.g. personal tenants "user-…" under /uptime/{tenantSlug}): each copies the tenant routes as <name_prefix><route>; links to a matching slug use them.')
-                            ->arrayPrototype()
-                                ->children()
-                                    ->scalarNode('slug_prefix')->isRequired()->cannotBeEmpty()->end()
-                                    ->scalarNode('path')
-                                        ->isRequired()
-                                        ->cannotBeEmpty()
-                                        ->validate()
-                                            ->ifTrue(static fn (string $path): bool => !str_contains($path, '{tenantSlug}'))
-                                            ->thenInvalid('A tenant path needs the {tenantSlug} placeholder: %s')
-                                        ->end()
-                                    ->end()
-                                    ->scalarNode('name_prefix')->isRequired()->cannotBeEmpty()->end()
-                                    ->scalarNode('slug_requirement')->defaultNull()->info('Route requirement of {tenantSlug}; default: the slug prefix then [a-z0-9-]+.')->end()
-                                ->end()
-                            ->end()
-                            ->defaultValue([])
-                        ->end()
+                        ->append(self::tenantPathsNode(true))
                         ->arrayNode('mercure')
                             ->addDefaultsIfNotSet()
                             ->info('Mercure topics when dashboard.sync is mercure (requires symfony/mercure-bundle)')
@@ -481,6 +466,38 @@ final class Configuration implements ConfigurationInterface
             ->end();
 
         return $treeBuilder;
+    }
+
+    /**
+     * `web_ui.tenant_paths` (canonical) / `dashboard.tenant_paths` (deprecated alias): more URL prefixes for the tenant
+     * pages, chosen by tenant slug prefix.
+     */
+    private static function tenantPathsNode(bool $deprecated): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('tenant_paths'))->getRootNode();
+        $node
+            ->info('More URL prefixes for the tenant pages, chosen by tenant slug prefix (e.g. personal tenants "user-…" under /uptime/{tenantSlug}): each copies the tenant routes as <name_prefix><route>; links to a matching slug use them.' . ($deprecated ? ' Deprecated: use web_ui.tenant_paths.' : ''))
+            ->arrayPrototype()
+                ->children()
+                    ->scalarNode('slug_prefix')->isRequired()->cannotBeEmpty()->end()
+                    ->scalarNode('path')
+                        ->isRequired()
+                        ->cannotBeEmpty()
+                        ->validate()
+                            ->ifTrue(static fn (string $path): bool => !str_contains($path, '{tenantSlug}'))
+                            ->thenInvalid('A tenant path needs the {tenantSlug} placeholder: %s')
+                        ->end()
+                    ->end()
+                    ->scalarNode('name_prefix')->isRequired()->cannotBeEmpty()->end()
+                    ->scalarNode('slug_requirement')->defaultNull()->info('Route requirement of {tenantSlug}; default: the slug prefix then [a-z0-9-]+.')->end()
+                ->end()
+            ->end()
+            ->defaultValue([]);
+        if ($deprecated) {
+            $node->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.web_ui.tenant_paths".');
+        }
+
+        return $node;
     }
 
     /**

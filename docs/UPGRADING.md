@@ -144,6 +144,7 @@ scaffold, view model and data block.
 | `templates.layout` / `templates.layout_template` | `web_ui.layout_template` (null = `nowo_ui_kit.layouts.admin`) |
 | `dashboard.enabled` | `web_ui.enabled` |
 | `dashboard.path` | `web_ui.path_prefix` |
+| `dashboard.tenant_paths` (1.10.0) | `web_ui.tenant_paths` (same entries; `TenantPathUrlGenerator` unchanged) |
 | `security.dashboard_roles` / `manage_roles` / `settings_roles` | `security.roles.dashboard` / `manage` / `settings` |
 | `ui.framework` / `ui.css_framework` | `nowo_ui_kit.css_framework` |
 | `ui.tabler.skip_cdn`, `ui.bootstrap.*`, `ui.tailwind.*` | nothing (no CDN; the host layout loads its CSS) |
