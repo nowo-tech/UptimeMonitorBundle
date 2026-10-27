@@ -4,11 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
+use InvalidArgumentException;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
+use function array_diff;
+use function array_is_list;
+use function array_keys;
+use function implode;
+use function is_array;
 use function is_string;
 use function preg_match;
+use function sprintf;
+use function str_contains;
 
 /**
  * Configuration tree for {@see UptimeMonitorExtension}.
@@ -16,6 +25,32 @@ use function preg_match;
 final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_uptime_monitor';
+
+    /** 1.x default of the deprecated templates.layout (the bundle no longer ships it). */
+    public const LEGACY_LAYOUT = '@NowoUptimeMonitorBundle/layout.html.twig';
+
+    /** Default form theme of the bundle forms (UiKit form theme: nowo-ui input / row slots). */
+    public const DEFAULT_FORM_THEME = '@NowoUiKitBundle/form/nowo_ui_layout.html.twig';
+
+    /** Page ids accepted by web_ui.templates (REQ-UI-003 per-page override). */
+    public const PAGES = [
+        'dashboard',
+        'monitor_show',
+        'monitor_form',
+        'settings_general',
+        'settings_appearance',
+        'settings_notifications',
+        'settings_reverse_proxy',
+        'settings_tags',
+        'settings_history',
+        'settings_backup',
+        'settings_about',
+        'tenant_index',
+        'tenant_form',
+        'status',
+    ];
+
+    private const PAGES_LIST = 'dashboard, monitor_show, monitor_form, settings_general, settings_appearance, settings_notifications, settings_reverse_proxy, settings_tags, settings_history, settings_backup, settings_about, tenant_index, tenant_form, status';
 
     public function getConfigTreeBuilder(): TreeBuilder
     {
@@ -163,20 +198,89 @@ final class Configuration implements ConfigurationInterface
                             ->defaultFalse()
                             ->info('DEV/DEMO only: skip bundle access checks and allow UI without SecurityBundle. Production MUST keep false.')
                         ->end()
+                        ->arrayNode('roles')
+                            ->addDefaultsIfNotSet()
+                            ->info('Extra roles per action (REQ-UI-003 security.roles.<action>; replace dashboard_roles / manage_roles / settings_roles). null = the deprecated key (default [ROLE_ADMIN]).')
+                            ->children()
+                                ->variableNode('dashboard')
+                                    ->info('Dashboard / read / polling API. Empty = allow all who pass access_roles. List of roles.')
+                                    ->defaultNull()
+                                    ->validate()
+                                        ->ifTrue(static fn (mixed $v): bool => $v !== null && !self::isRoleList($v))
+                                        ->thenInvalid('Expected a list of role names, got %s.')
+                                    ->end()
+                                ->end()
+                                ->variableNode('manage')
+                                    ->info('Monitor CRUD mutations. List of roles.')
+                                    ->defaultNull()
+                                    ->validate()
+                                        ->ifTrue(static fn (mixed $v): bool => $v !== null && !self::isRoleList($v))
+                                        ->thenInvalid('Expected a list of role names, got %s.')
+                                    ->end()
+                                ->end()
+                                ->variableNode('settings')
+                                    ->info('Tenant settings, tenant creation and unmapped unsafe-method admin actions. List of roles.')
+                                    ->defaultNull()
+                                    ->validate()
+                                        ->ifTrue(static fn (mixed $v): bool => $v !== null && !self::isRoleList($v))
+                                        ->thenInvalid('Expected a list of role names, got %s.')
+                                    ->end()
+                                ->end()
+                            ->end()
+                        ->end()
                         ->arrayNode('dashboard_roles')
                             ->scalarPrototype()->end()
                             ->defaultValue(['ROLE_ADMIN'])
-                            ->info('Required roles for dashboard access. Empty = allow all who pass access_roles (not recommended).')
+                            ->info('Deprecated: use security.roles.dashboard.')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.dashboard".')
                         ->end()
                         ->arrayNode('manage_roles')
                             ->scalarPrototype()->end()
                             ->defaultValue(['ROLE_ADMIN'])
-                            ->info('Required roles for monitor CRUD mutations.')
+                            ->info('Deprecated: use security.roles.manage.')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.manage".')
                         ->end()
                         ->arrayNode('settings_roles')
                             ->scalarPrototype()->end()
                             ->defaultValue(['ROLE_ADMIN'])
-                            ->info('Required roles for tenant settings screens.')
+                            ->info('Deprecated: use security.roles.settings.')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.security.roles.settings".')
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('web_ui')
+                    ->addDefaultsIfNotSet()
+                    ->info('UiKit page contract (REQ-UI-003): pages extend UiKit scaffolds rendered in nowo_ui_kit.layouts.admin / .guest.')
+                    ->children()
+                        ->booleanNode('enabled')
+                            ->defaultNull()
+                            ->info('Admin UI switch (REQ-UI-003 canonical key; replaces dashboard.enabled). null = dashboard.enabled (default true).')
+                        ->end()
+                        ->scalarNode('path_prefix')
+                            ->defaultNull()
+                            ->info('URL prefix of every admin route, may hold {tenantSlug} (REQ-UI-003 canonical key; replaces dashboard.path). null = dashboard.path (default /uptime).')
+                        ->end()
+                        ->append(self::tenantPathsNode(false))
+                        ->scalarNode('layout_template')
+                            ->defaultNull()
+                            ->info('Admin layout of the bundle pages; null (default) = nowo_ui_kit.layouts.admin. The layout renders the UiKit canonical blocks (nowo_ui_content…).')
+                        ->end()
+                        ->arrayNode('templates')
+                            ->info('Per-page template override: page => template (a thin extends of the bundle page + data block override). Pages: ' . self::PAGES_LIST . '.')
+                            ->useAttributeAsKey('page')
+                            ->scalarPrototype()->end()
+                            ->defaultValue([])
+                            ->validate()
+                                ->ifTrue(static fn (array $v): bool => array_diff(array_keys($v), self::PAGES) !== [])
+                                ->then(static function (array $v): array {
+                                    throw new InvalidArgumentException(sprintf('Unknown nowo_uptime_monitor.web_ui.templates page(s) "%s"; known pages: %s.', implode('", "', array_diff(array_keys($v), self::PAGES)), self::PAGES_LIST));
+                                })
+                            ->end()
+                        ->end()
+                        ->arrayNode('form_themes')
+                            ->info('Form themes of the bundle forms (UiKit FormPage / SettingsSection formThemes). Empty = only the host twig.form_themes.')
+                            ->scalarPrototype()->end()
+                            ->defaultValue([self::DEFAULT_FORM_THEME])
                         ->end()
                     ->end()
                 ->end()
@@ -193,7 +297,7 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->arrayNode('templates')
                     ->addDefaultsIfNotSet()
-                    ->info('Twig layout for admin screens (override in templates/bundles/NowoUptimeMonitorBundle/). layout ≡ layout_template (REQ-UI-001).')
+                    ->info('Deprecated since 1.11: use web_ui.layout_template (null = UiKit layout). A 1.x layout (block uptime_content) set here is wrapped by a BC bridge.')
                     ->beforeNormalization()
                         ->ifArray()
                         ->then(static function (array $v): array {
@@ -208,14 +312,15 @@ final class Configuration implements ConfigurationInterface
                     ->end()
                     ->children()
                         ->scalarNode('layout')
-                            ->defaultValue('@NowoUptimeMonitorBundle/layout.html.twig')
-                            ->info('Twig layout extended by admin pages (globals uptime_layout / nowo_uptime_layout_template). Alias: templates.layout_template.')
+                            ->defaultValue(self::LEGACY_LAYOUT)
+                            ->info('Deprecated: 1.x layout rendering {% block uptime_content %}, wrapped by @NowoUptimeMonitorBundle/_legacy_layout.html.twig. Alias: templates.layout_template.')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: set "nowo_uptime_monitor.web_ui.layout_template" to a layout that renders the UiKit canonical blocks (null = nowo_ui_kit.layouts.admin). A 1.x layout set here is wrapped by a BC bridge until 2.0.')
                         ->end()
                     ->end()
                 ->end()
                 ->arrayNode('ui')
                     ->addDefaultsIfNotSet()
-                    ->info('UI framework for Twig screens: tabler (Nowo default), custom (BEM), bootstrap, or tailwind. ui.framework ≡ css_framework (REQ-UI-001).')
+                    ->info('Deprecated since 1.11: the pages follow nowo_ui_kit (css_framework, layouts, theme). ui.framework only seeds nowo_ui_kit.css_framework when the host does not set it; the CDN keys are never read.')
                     ->beforeNormalization()
                         ->ifArray()
                         ->then(static function (array $v): array {
@@ -232,15 +337,16 @@ final class Configuration implements ConfigurationInterface
                         ->enumNode('framework')
                             ->values(['tabler', 'custom', 'bootstrap', 'tailwind'])
                             ->defaultValue('tabler')
-                            ->info('Host CSS stack. Alias: ui.css_framework.')
+                            ->info('Seeds nowo_ui_kit.css_framework (bootstrap = bootstrap5) when the host does not set it. Alias: ui.css_framework.')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: set "nowo_ui_kit.css_framework" (the bundle pages are UiKit scaffolds).')
                         ->end()
                         ->arrayNode('tabler')
                             ->addDefaultsIfNotSet()
-                            ->info('Tabler integration when ui.framework / css_framework is tabler')
+                            ->info('Deprecated, never read: the bundle loads no CSS framework (the host layout owns it).')
                             ->children()
                                 ->booleanNode('skip_cdn')
                                     ->defaultFalse()
-                                    ->info('Skip Tabler CDN when the host app already serves Tabler (e.g. nowo-devkit Vite entry)')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Tabler from a CDN.')
                                 ->end()
                             ->end()
                         ->end()
@@ -249,9 +355,11 @@ final class Configuration implements ConfigurationInterface
                             ->children()
                                 ->scalarNode('css_url')
                                     ->defaultValue('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Bootstrap from a CDN.')
                                 ->end()
                                 ->scalarNode('js_url')
                                     ->defaultValue('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Bootstrap from a CDN.')
                                 ->end()
                             ->end()
                         ->end()
@@ -260,10 +368,11 @@ final class Configuration implements ConfigurationInterface
                             ->children()
                                 ->scalarNode('cdn_script')
                                     ->defaultValue('https://cdn.tailwindcss.com')
-                                    ->info('Tailwind Play CDN script for prototyping; use a built CSS file in production')
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the bundle no longer loads Tailwind from a CDN.')
                                 ->end()
                                 ->scalarNode('css_url')
                                     ->defaultNull()
+                                    ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated and has no effect: the host layout loads its CSS.')
                                     ->info('Optional compiled Tailwind CSS URL (overrides CDN script when set)')
                                 ->end()
                             ->end()
@@ -273,8 +382,14 @@ final class Configuration implements ConfigurationInterface
                 ->arrayNode('dashboard')
                     ->addDefaultsIfNotSet()
                     ->children()
-                        ->booleanNode('enabled')->defaultTrue()->end()
-                        ->scalarNode('path')->defaultValue('/uptime')->end()
+                        ->booleanNode('enabled')
+                            ->defaultTrue()
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.web_ui.enabled".')
+                        ->end()
+                        ->scalarNode('path')
+                            ->defaultValue('/uptime')
+                            ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.web_ui.path_prefix".')
+                        ->end()
                         ->scalarNode('prefix')
                             ->info('Deprecated: never read; dashboard.path is the URL prefix of every admin route.')
                             ->defaultValue('')
@@ -291,25 +406,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultValue('polling')
                         ->end()
                         ->integerNode('poll_interval_ms')->defaultValue(30000)->min(1000)->end()
-                        ->arrayNode('tenant_paths')
-                            ->info('More URL prefixes for the tenant pages, chosen by tenant slug prefix (e.g. personal tenants "user-…" under /uptime/{tenantSlug}): each copies the tenant routes as <name_prefix><route>; links to a matching slug use them.')
-                            ->arrayPrototype()
-                                ->children()
-                                    ->scalarNode('slug_prefix')->isRequired()->cannotBeEmpty()->end()
-                                    ->scalarNode('path')
-                                        ->isRequired()
-                                        ->cannotBeEmpty()
-                                        ->validate()
-                                            ->ifTrue(static fn (string $path): bool => !str_contains($path, '{tenantSlug}'))
-                                            ->thenInvalid('A tenant path needs the {tenantSlug} placeholder: %s')
-                                        ->end()
-                                    ->end()
-                                    ->scalarNode('name_prefix')->isRequired()->cannotBeEmpty()->end()
-                                    ->scalarNode('slug_requirement')->defaultNull()->info('Route requirement of {tenantSlug}; default: the slug prefix then [a-z0-9-]+.')->end()
-                                ->end()
-                            ->end()
-                            ->defaultValue([])
-                        ->end()
+                        ->append(self::tenantPathsNode(true))
                         ->arrayNode('mercure')
                             ->addDefaultsIfNotSet()
                             ->info('Mercure topics when dashboard.sync is mercure (requires symfony/mercure-bundle)')
@@ -369,5 +466,55 @@ final class Configuration implements ConfigurationInterface
             ->end();
 
         return $treeBuilder;
+    }
+
+    /**
+     * `web_ui.tenant_paths` (canonical) / `dashboard.tenant_paths` (deprecated alias): more URL prefixes for the tenant
+     * pages, chosen by tenant slug prefix.
+     */
+    private static function tenantPathsNode(bool $deprecated): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('tenant_paths'))->getRootNode();
+        $node
+            ->info('More URL prefixes for the tenant pages, chosen by tenant slug prefix (e.g. personal tenants "user-…" under /uptime/{tenantSlug}): each copies the tenant routes as <name_prefix><route>; links to a matching slug use them.' . ($deprecated ? ' Deprecated: use web_ui.tenant_paths.' : ''))
+            ->arrayPrototype()
+                ->children()
+                    ->scalarNode('slug_prefix')->isRequired()->cannotBeEmpty()->end()
+                    ->scalarNode('path')
+                        ->isRequired()
+                        ->cannotBeEmpty()
+                        ->validate()
+                            ->ifTrue(static fn (string $path): bool => !str_contains($path, '{tenantSlug}'))
+                            ->thenInvalid('A tenant path needs the {tenantSlug} placeholder: %s')
+                        ->end()
+                    ->end()
+                    ->scalarNode('name_prefix')->isRequired()->cannotBeEmpty()->end()
+                    ->scalarNode('slug_requirement')->defaultNull()->info('Route requirement of {tenantSlug}; default: the slug prefix then [a-z0-9-]+.')->end()
+                ->end()
+            ->end()
+            ->defaultValue([]);
+        if ($deprecated) {
+            $node->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.11', 'The "%path%.%node%" option is deprecated: use "nowo_uptime_monitor.web_ui.tenant_paths".');
+        }
+
+        return $node;
+    }
+
+    /**
+     * Whether a security.roles.<action> value is a list of role names.
+     */
+    private static function isRoleList(mixed $value): bool
+    {
+        if (!is_array($value) || !array_is_list($value)) {
+            return false;
+        }
+
+        foreach ($value as $role) {
+            if (!is_string($role) || $role === '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

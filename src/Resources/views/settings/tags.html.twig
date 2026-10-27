@@ -1,38 +1,46 @@
-{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+{#
+  Settings → Tags (REQ-UI-003): UiKit settings scaffold.
+  Variables: page (View\SettingsPage from SettingsController: header settings.title with a back link to the dashboard;
+  one section per settings screen with its href (section tabs), current = this screen), and the 1.x variables
+  tenant, tenant_slug, section, section_title. Section "tags": form = TagFormType, submit settings.tags.add_button; tags
+  (list<Tag>), tag_delete_actions (tag id => View\Action: POST + CSRF FormView behind the UiKit confirm dialog),
+  1.x tag_delete_forms.
+  Data block filled: nowo_ui_settings_section (tag list with delete actions, then parent(): the add-tag form).
+#}
+{% extends '@NowoUiKit/page/settings.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block settings_body %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    <div class="uptime-settings-tags">
-        <h4>{{ 'settings.tags.list'|trans }}</h4>
+{% block nowo_ui_head %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_robots.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_settings_section %}
+    {% set _b = page.bundle %}
+    <div class="uptime-app uptime-app--embedded uptime-settings-body uptime-settings-tags" data-testid="uptime-settings-{{ section.id }}">
         {% if tags is empty %}
-            <p>{{ 'settings.tags.empty'|trans }}</p>
+            {{ include(nowo_ui_partial('empty', _b), {message: 'settings.tags.empty'|trans, bundle: _b}, false) }}
         {% else %}
             <ul class="uptime-tag-list">
                 {% for tag in tags %}
-                    <li>
-                        {% if tag.color %}
-                            <span class="uptime-tag-swatch" style="background: {{ tag.color }}"></span>
+                    <li class="uptime-tag-list__item">
+                        <span class="uptime-tag-list__name">
+                            {% if tag.color %}<span class="uptime-tag-swatch" data-color="{{ tag.color }}" aria-hidden="true"><svg viewBox="0 0 10 10" width="10" height="10" focusable="false"><circle cx="5" cy="5" r="5" fill="{{ tag.color }}"/></svg></span>{% endif %}
+                            {{ tag.name }}
+                        </span>
+                        {% if tag_delete_actions[tag.id] is defined %}
+                            {{ include(nowo_ui_partial('action', _b), {action: tag_delete_actions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
                         {% endif %}
-                        {{ tag.name }}
-                        {# REQ-TWIG-005: one CSRF-only form per tag (tag_delete_forms, built by SettingsController). #}
-                        {% set delete_form = tag_delete_forms[tag.id] %}
-                        {{ form_start(delete_form, { attr: { class: 'uptime-inline-form' } }) }}
-                            {% for child in delete_form %}
-                                {% if not child.rendered %}
-                                    {{ form_row(child) }}
-                                {% endif %}
-                            {% endfor %}
-                            <button type="submit" class="uptime-btn-quiet">{{ 'settings.tags.delete'|trans }}</button>
-                        {{ form_end(delete_form) }}
                     </li>
                 {% endfor %}
             </ul>
         {% endif %}
-
-        <h4>{{ 'settings.tags.add'|trans }}</h4>
-        {{ form_start(form, { attr: { class: 'uptime-settings-form' } }) }}
-            {{ form_widget(form) }}
-            <button type="submit" class="uptime-btn uptime-btn-primary">{{ 'settings.tags.add_button'|trans }}</button>
-        {{ form_end(form) }}
+        <h3 class="uptime-settings-subtitle {{ nowo_ui_class('card_title', _b) }}">{{ 'settings.tags.add'|trans }}</h3>
+        {{ parent() }}
     </div>
 {% endblock %}

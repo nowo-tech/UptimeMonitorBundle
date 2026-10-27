@@ -1,19 +1,18 @@
+{#
+  Monitor form fragment of the monitor dialog (loaded by uptime-dashboard.js / uptime-monitor-detail.js). Variables:
+  form (MonitorFormType), uptime_form_themes (web_ui.form_themes), optional bundle.
+#}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
-{% set kit_fw = uptime_ui_framework() == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework() %}
-
-{% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
-{{ form_start(form, { attr: { class: 'uptime-monitor-form', 'data-monitor-form': '1' } }) }}
-{% include '@NowoUptimeMonitorBundle/monitor/_monitor_form_fields.html.twig' %}
-
-<div class="uptime-form-actions">
-    <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">{{ 'monitor.form.save'|trans }}</button>
-    {% if modal_mode|default(false) and uptime_ui_framework() in ['tabler', 'bootstrap'] %}
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ 'monitor.form.cancel'|trans }}</button>
-    {% endif %}
-</div>
-{{ form_end(form) }}
-
-{% if not modal_mode|default(false) %}
-    <p class="uptime-form-hint">{{ 'monitor.form.hint'|trans|raw }}</p>
+{% set _b = bundle|default('NowoUptimeMonitorBundle') %}
+{% if uptime_form_themes|default([]) is not empty %}
+    {% form_theme form with uptime_form_themes %}
 {% endif %}
+<div class="uptime-app uptime-app--embedded uptime-monitor-form-fields">
+{{ form_start(form, {attr: {class: ('uptime-monitor-form ' ~ nowo_ui_class('form', _b))|trim, 'data-monitor-form': '1'}}) }}
+    {{ include('@NowoUptimeMonitorBundle/monitor/_monitor_form_fields.html.twig') }}
+    <div class="uptime-form-actions {{ nowo_ui_class('form_actions', _b) }}"{{ nowo_ui_attrs('form_actions', _b) }}>
+        <button type="submit" class="{{ nowo_ui_class('btn_primary', _b) }}">{{ 'monitor.form.save'|trans }}</button>
+        <button type="button" class="{{ nowo_ui_class('btn_secondary', _b) }}" data-nowo-ui-dialog-close>{{ 'monitor.form.cancel'|trans }}</button>
+    </div>
+{{ form_end(form) }}
+</div>

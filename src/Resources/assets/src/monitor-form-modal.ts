@@ -3,17 +3,6 @@ import { refreshDashboardLayout } from './dashboard-panel';
 const MODAL_HEADER = 'X-Uptime-Modal';
 const RETURN_HEADER = 'X-Uptime-Return';
 
-type BootstrapModal = {
-  show: () => void;
-  hide: () => void;
-};
-
-type BootstrapNamespace = {
-  Modal: {
-    getOrCreateInstance: (element: Element) => BootstrapModal;
-  };
-};
-
 type FormReturnTarget = 'show' | 'dashboard' | 'reload';
 
 type FormSuccessPayload = {
@@ -64,38 +53,36 @@ export function initMonitorFormTypeToggle(scope: ParentNode): void {
   toggle();
 }
 
-function getBootstrapModal(element: HTMLElement): BootstrapModal | null {
-  const bootstrap = (window as Window & { bootstrap?: BootstrapNamespace }).bootstrap;
-  if (bootstrap?.Modal === undefined) {
-    return null;
-  }
-
-  return bootstrap.Modal.getOrCreateInstance(element);
+/** Native <dialog> of the monitor form (UiKit `dialog` partial); null when the page has none. */
+function asDialog(element: HTMLElement): HTMLDialogElement | null {
+  return typeof (element as HTMLDialogElement).showModal === 'function' ? (element as HTMLDialogElement) : null;
 }
 
 function showInlineFlash(message: string, type: 'success' | 'error'): void {
-  const host = document.querySelector('.uptime-app');
+  const host = document.querySelector('#nowo-ui-content') ?? document.querySelector('.uptime-app');
   if (host === null) {
     return;
   }
 
-  const alert = document.createElement('div');
-  alert.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show mb-3`;
-  alert.setAttribute('role', 'alert');
-  alert.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
-  host.prepend(alert);
+  const flash = document.createElement('div');
+  flash.className = `nowo-ui-flash nowo-ui-flash--${type}`;
+  flash.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  flash.textContent = message;
+  host.prepend(flash);
 }
 
-function readFormOpenConfig(button: HTMLElement): FormOpenConfig | null {
-  const url = button.dataset.monitorFormUrl ?? '';
+function readFormOpenConfig(trigger: HTMLElement): FormOpenConfig | null {
+  const url = trigger.dataset.monitorFormUrl ?? '';
   if (url === '') {
     return null;
   }
 
-  const returnRaw = button.dataset.monitorFormReturn ?? 'dashboard';
+  const returnRaw = trigger.dataset.monitorFormReturn ?? 'dashboard';
   const returnTarget: FormReturnTarget =
     returnRaw === 'show' || returnRaw === 'reload' ? returnRaw : 'dashboard';
-  const title = button.dataset.monitorFormTitle ?? '';
+  // Explicit title, else the accessible name / text of the opener (UiKit actions carry the translated label).
+  const title =
+    trigger.dataset.monitorFormTitle ?? trigger.getAttribute('aria-label') ?? trigger.textContent?.trim() ?? '';
 
   return { url, returnTarget, title };
 }
@@ -125,13 +112,20 @@ function syncDashboardEditButton(dashboardRoot: HTMLElement): void {
   button.dataset.monitorFormReturn = 'dashboard';
 }
 
+function setBodyMessage(bodyEl: HTMLElement, message: string, error = false): void {
+  const paragraph = document.createElement('p');
+  paragraph.className = error ? 'nowo-ui-flash nowo-ui-flash--error' : 'nowo-ui-muted';
+  paragraph.textContent = message;
+  bodyEl.replaceChildren(paragraph);
+}
+
 async function loadModalForm(
   bodyEl: HTMLElement,
   url: string,
   returnTarget: FormReturnTarget,
+  loadingText: string,
 ): Promise<void> {
-  bodyEl.innerHTML =
-    '<div class="text-center text-secondary py-5"><div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div></div>';
+  setBodyMessage(bodyEl, loadingText);
 
   const response = await fetch(url, {
     headers: {
@@ -143,7 +137,7 @@ async function loadModalForm(
   });
 
   if (!response.ok) {
-    bodyEl.innerHTML = '<p class="text-danger mb-0">Could not load monitor form.</p>';
+    setBodyMessage(bodyEl, 'Could not load monitor form.', true);
     return;
   }
 
@@ -195,7 +189,7 @@ async function submitModalForm(
       const payload = (await response.json()) as FormSuccessPayload;
       const modalEl = bodyEl.closest<HTMLElement>('[data-uptime-monitor-form-modal]');
       if (modalEl !== null) {
-        getBootstrapModal(modalEl)?.hide();
+        asDialog(modalEl)?.close();
       }
 
       if (payload.message !== undefined && payload.message !== '') {
@@ -238,18 +232,13 @@ async function submitModalForm(
 
 async function openFormModal(
   trigger: HTMLElement,
-  modalEl: HTMLElement,
+  dialog: HTMLDialogElement,
   bodyEl: HTMLElement,
   titleEl: HTMLElement | null,
+  loadingText: string,
 ): Promise<void> {
   const config = readFormOpenConfig(trigger);
   if (config === null) {
-    return;
-  }
-
-  const modal = getBootstrapModal(modalEl);
-  if (modal === null) {
-    window.location.href = config.url;
     return;
   }
 
@@ -257,20 +246,37 @@ async function openFormModal(
     titleEl.textContent = config.title;
   }
 
-  modal.show();
-  await loadModalForm(bodyEl, config.url, config.returnTarget);
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+  await loadModalForm(bodyEl, config.url, config.returnTarget, loadingText);
 }
 
 /** @deprecated Use initMonitorFormModal */
 export const initMonitorEditModal = initMonitorFormModal;
 
+/**
+ * Opens the monitor form in the native <dialog> ([data-uptime-monitor-form-modal]) for every
+ * [data-monitor-form-open] opener; openers are links to the form page, followed as-is without the dialog.
+ */
 export function initMonitorFormModal(doc: Document = document): void {
   const modalEl = doc.querySelector<HTMLElement>('[data-uptime-monitor-form-modal]');
+  const dialog = modalEl !== null ? asDialog(modalEl) : null;
   const bodyEl = modalEl?.querySelector<HTMLElement>('[data-monitor-form-body]') ?? null;
   const titleEl = modalEl?.querySelector<HTMLElement>('[data-monitor-form-title]') ?? null;
-  if (modalEl === null || bodyEl === null) {
+  if (modalEl === null || dialog === null || bodyEl === null) {
     return;
   }
+  const loadingText = bodyEl.textContent?.trim() ?? '';
+
+  // Close button / cancel (also handled by the UiKit dialog script when the host loads it).
+  modalEl.addEventListener('click', (event) => {
+    const closer = (event.target as HTMLElement).closest('[data-nowo-ui-dialog-close]');
+    if (closer !== null && modalEl.contains(closer)) {
+      event.preventDefault();
+      dialog.close();
+    }
+  });
 
   doc.body.addEventListener('click', (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-monitor-form-open]');
@@ -279,7 +285,7 @@ export function initMonitorFormModal(doc: Document = document): void {
     }
 
     event.preventDefault();
-    void openFormModal(target, modalEl, bodyEl, titleEl);
+    void openFormModal(target, dialog, bodyEl, titleEl, loadingText);
   });
 
   const dashboardRoot = doc.getElementById('uptime-dashboard-root');
@@ -288,9 +294,5 @@ export function initMonitorFormModal(doc: Document = document): void {
     dashboardRoot.addEventListener('uptime:events-filter-changed', () => {
       syncDashboardEditButton(dashboardRoot);
     });
-
-    if (dashboardRoot.dataset.eventsFilter !== undefined && dashboardRoot.dataset.eventsFilter !== '') {
-      syncDashboardEditButton(dashboardRoot);
-    }
   }
 }

@@ -1,14 +1,27 @@
-{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+{#
+  Settings → About (REQ-UI-003): UiKit settings scaffold.
+  Variables: page (View\SettingsPage from SettingsController: header settings.title with a back link to the dashboard;
+  one section per settings screen with its href (section tabs), current = this screen), and the 1.x variables
+  tenant, tenant_slug, section, section_title. Section "about" (no form); about_items (list<View\DetailItem>: product, style, tenant).
+  Data block filled: nowo_ui_settings_section (the UiKit `detail_list` partial + note).
+#}
+{% extends '@NowoUiKit/page/settings.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block settings_body %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    <dl class="uptime-settings-dl">
-        <dt>{{ 'settings.about.product'|trans }}</dt>
-        <dd>{{ 'settings.about.product_value'|trans }}</dd>
-        <dt>{{ 'settings.about.style'|trans }}</dt>
-        <dd>{{ 'settings.about.style_value'|trans }}</dd>
-        <dt>{{ 'settings.about.tenant'|trans }}</dt>
-        <dd>{{ tenant.name }} ({{ tenant_slug }})</dd>
-    </dl>
-    <p class="uptime-settings-note">{{ 'settings.about.not_implemented'|trans }}</p>
+{% block nowo_ui_head %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_robots.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_settings_section %}
+    {% set _b = page.bundle %}
+    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+        {{ include(nowo_ui_partial('detail_list', _b), {items: about_items, bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'settings.about.not_implemented'|trans }}</p>
+    </div>
 {% endblock %}

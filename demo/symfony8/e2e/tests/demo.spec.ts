@@ -9,8 +9,10 @@ import { OUTAGE_MONITOR, SEEDED_MONITORS, TENANT, openDashboard } from './helper
 test.describe('Uptime Monitor demo', () => {
   test('dashboard lists the seeded monitors with live status and history', async ({ page }) => {
     await openDashboard(page);
-    await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Status page' })).toBeVisible();
+    // Page header actions (the demo masthead has links with the same names).
+    const content = page.locator('#nowo-ui-content');
+    await expect(content.getByRole('link', { name: 'Settings' })).toBeVisible();
+    await expect(content.getByRole('link', { name: 'Status page' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Recent checks' })).toBeVisible();
     await expect(page.getByRole('searchbox', { name: 'Search monitors' }).or(page.getByLabel('Search monitors'))).toBeVisible();
   });
@@ -53,7 +55,7 @@ test.describe('Uptime Monitor demo', () => {
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'General' })).toBeVisible();
     for (const section of ['Appearance', 'Monitor history', 'About']) {
-      await page.getByRole('link', { name: section, exact: true }).click();
+      await page.locator('#nowo-ui-content').getByRole('link', { name: section, exact: true }).click();
       await expect(page.getByRole('heading', { name: section })).toBeVisible();
     }
   });

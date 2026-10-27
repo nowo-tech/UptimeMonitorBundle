@@ -1,23 +1,14 @@
+{#
+  Quick stats (UiKit KPI slots). Refreshed by uptime-dashboard.js ([data-quick-stats], [data-stat-*]) and the layout
+  fragment. Variables: stats ({up, down, degraded, unknown, paused}); optional nowo_ui_bundle.
+#}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-<section class="uptime-quick-stats" data-quick-stats>
-    <div class="uptime-stat-card uptime-stat-card--up">
-        <span class="uptime-stat-value" data-stat-up>{{ stats.up }}</span>
-        <span class="uptime-stat-label">{{ 'dashboard.stat.up'|trans }}</span>
-    </div>
-    <div class="uptime-stat-card uptime-stat-card--down">
-        <span class="uptime-stat-value" data-stat-down>{{ stats.down }}</span>
-        <span class="uptime-stat-label">{{ 'dashboard.stat.down'|trans }}</span>
-    </div>
-    <div class="uptime-stat-card uptime-stat-card--degraded">
-        <span class="uptime-stat-value" data-stat-degraded>{{ stats.degraded }}</span>
-        <span class="uptime-stat-label">{{ 'dashboard.stat.degraded'|trans }}</span>
-    </div>
-    <div class="uptime-stat-card uptime-stat-card--unknown">
-        <span class="uptime-stat-value" data-stat-unknown>{{ stats.unknown }}</span>
-        <span class="uptime-stat-label">{{ 'dashboard.stat.unknown'|trans }}</span>
-    </div>
-    <div class="uptime-stat-card uptime-stat-card--paused">
-        <span class="uptime-stat-value" data-stat-paused>{{ stats.paused }}</span>
-        <span class="uptime-stat-label">{{ 'dashboard.stat.paused'|trans }}</span>
-    </div>
+{% set _b = nowo_ui_bundle|default(null) %}
+<section class="uptime-quick-stats {{ nowo_ui_class('kpis', _b) }}" data-quick-stats{{ nowo_ui_attrs('kpis', _b) }}>
+    {% for key, variant in {up: 'success', down: 'danger', degraded: 'warning', unknown: 'neutral', paused: 'neutral'} %}
+        <div class="uptime-stat-card uptime-stat-card--{{ key }} {{ nowo_ui_class('kpi', _b) }} nowo-ui-kpi--{{ variant }}"{{ nowo_ui_attrs('kpi', _b) }}>
+            <span class="uptime-stat-label {{ nowo_ui_class('kpi_label', _b) }}">{{ ('dashboard.stat.' ~ key)|trans }}</span>
+            <span class="uptime-stat-value {{ nowo_ui_class('kpi_value', _b) }}" data-stat-{{ key }}>{{ attribute(stats, key) }}</span>
+        </div>
+    {% endfor %}
 </section>

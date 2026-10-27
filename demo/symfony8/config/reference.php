@@ -943,7 +943,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     enabled?: bool|Param, // Master switch for monitoring: false = no checks run (scheduler, nowo:uptime:run-due-checks and RunDueChecksMessage are no-ops). UI and data stay available. // Default: true
  *     environments?: list<scalar|Param|null>,
  *     connection?: scalar|Param|null, // Doctrine connection name for monitor storage // Default: "default"
- *     table_prefix?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.table_prefix.table_prefix" option is deprecated and has no effect: table names are fixed (uptime_*). // Deprecated: never read; tables are always uptime_*. // Default: "uptime_"
+ *     table_prefix?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.table_prefix.table_prefix" option is deprecated and has no effect: use "nowo_uptime_monitor.doctrine.table_prefix" (prepended to the uptime_* table names) instead. // Deprecated: never read. Use doctrine.table_prefix to prefix the uptime_* tables. // Default: "uptime_"
+ *     doctrine?: array{ // Doctrine storage options (REQ-ORM-002)
+ *         table_prefix?: scalar|Param|null, // Prefix prepended to every bundle table, index and unique constraint name (e.g. "app_" yields app_uptime_monitor). Empty = historical uptime_* names. // Default: ""
+ *     },
  *     scheduler?: array{
  *         enabled?: bool|Param, // Default: true
  *         mode?: "scheduler"|"cron"|"messenger"|Param, // Default: "scheduler"
@@ -975,34 +978,61 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         access_roles?: list<scalar|Param|null>,
  *         access_checker?: scalar|Param|null, // Optional service id implementing UptimeMonitorAccessCheckerInterface. null = built-in role checker. // Default: null
  *         allow_unauthenticated?: bool|Param, // DEV/DEMO only: skip bundle access checks and allow UI without SecurityBundle. Production MUST keep false. // Default: false
+ *         roles?: array{ // Extra roles per action (REQ-UI-003 security.roles.<action>; replace dashboard_roles / manage_roles / settings_roles). null = the deprecated key (default [ROLE_ADMIN]).
+ *             dashboard?: mixed, // Dashboard / read / polling API. Empty = allow all who pass access_roles. List of roles. // Default: null
+ *             manage?: mixed, // Monitor CRUD mutations. List of roles. // Default: null
+ *             settings?: mixed, // Tenant settings, tenant creation and unmapped unsafe-method admin actions. List of roles. // Default: null
+ *         },
  *         dashboard_roles?: list<scalar|Param|null>,
  *         manage_roles?: list<scalar|Param|null>,
  *         settings_roles?: list<scalar|Param|null>,
  *     },
- *     templates?: array{ // Twig layout for admin screens (override in templates/bundles/NowoUptimeMonitorBundle/). layout ≡ layout_template (REQ-UI-001).
- *         layout?: scalar|Param|null, // Twig layout extended by admin pages (globals uptime_layout / nowo_uptime_layout_template). Alias: templates.layout_template. // Default: "@NowoUptimeMonitorBundle/layout.html.twig"
+ *     web_ui?: array{ // UiKit page contract (REQ-UI-003): pages extend UiKit scaffolds rendered in nowo_ui_kit.layouts.admin / .guest.
+ *         enabled?: bool|Param|null, // Admin UI switch (REQ-UI-003 canonical key; replaces dashboard.enabled). null = dashboard.enabled (default true). // Default: null
+ *         path_prefix?: scalar|Param|null, // URL prefix of every admin route, may hold {tenantSlug} (REQ-UI-003 canonical key; replaces dashboard.path). null = dashboard.path (default /uptime). // Default: null
+ *         tenant_paths?: list<array{ // Default: []
+ *             slug_prefix?: scalar|Param|null,
+ *             path?: scalar|Param|null,
+ *             name_prefix?: scalar|Param|null,
+ *             slug_requirement?: scalar|Param|null, // Route requirement of {tenantSlug}; default: the slug prefix then [a-z0-9-]+. // Default: null
+ *         }>,
+ *         layout_template?: scalar|Param|null, // Admin layout of the bundle pages; null (default) = nowo_ui_kit.layouts.admin. The layout renders the UiKit canonical blocks (nowo_ui_content…). // Default: null
+ *         templates?: array<string, scalar|Param|null>,
+ *         form_themes?: list<scalar|Param|null>,
  *     },
- *     ui?: array{ // UI framework for Twig screens: tabler (Nowo default), custom (BEM), bootstrap, or tailwind. ui.framework ≡ css_framework (REQ-UI-001).
- *         framework?: "tabler"|"custom"|"bootstrap"|"tailwind"|Param, // Host CSS stack. Alias: ui.css_framework. // Default: "tabler"
- *         tabler?: array{ // Tabler integration when ui.framework / css_framework is tabler
- *             skip_cdn?: bool|Param, // Skip Tabler CDN when the host app already serves Tabler (e.g. nowo-devkit Vite entry) // Default: false
+ *     form?: array{ // Monitor form options.
+ *         hidden_fields?: list<scalar|Param|null>,
+ *     },
+ *     templates?: array{ // Deprecated since 1.11: use web_ui.layout_template (null = UiKit layout). A 1.x layout (block uptime_content) set here is wrapped by a BC bridge.
+ *         layout?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.templates.layout.layout" option is deprecated: set "nowo_uptime_monitor.web_ui.layout_template" to a layout that renders the UiKit canonical blocks (null = nowo_ui_kit.layouts.admin). A 1.x layout set here is wrapped by a BC bridge until 2.0. // Deprecated: 1.x layout rendering {% block uptime_content %}, wrapped by @NowoUptimeMonitorBundle/_legacy_layout.html.twig. Alias: templates.layout_template. // Default: "@NowoUptimeMonitorBundle/layout.html.twig"
+ *     },
+ *     ui?: array{ // Deprecated since 1.11: the pages follow nowo_ui_kit (css_framework, layouts, theme). ui.framework only seeds nowo_ui_kit.css_framework when the host does not set it; the CDN keys are never read.
+ *         framework?: "tabler"|"custom"|"bootstrap"|"tailwind"|Param, // Deprecated: The "nowo_uptime_monitor.ui.framework.framework" option is deprecated: set "nowo_ui_kit.css_framework" (the bundle pages are UiKit scaffolds). // Seeds nowo_ui_kit.css_framework (bootstrap = bootstrap5) when the host does not set it. Alias: ui.css_framework. // Default: "tabler"
+ *         tabler?: array{ // Deprecated, never read: the bundle loads no CSS framework (the host layout owns it).
+ *             skip_cdn?: bool|Param, // Deprecated: The "nowo_uptime_monitor.ui.tabler.skip_cdn.skip_cdn" option is deprecated and has no effect: the bundle no longer loads Tabler from a CDN. // Default: false
  *         },
  *         bootstrap?: array{
- *             css_url?: scalar|Param|null, // Default: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
- *             js_url?: scalar|Param|null, // Default: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+ *             css_url?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.ui.bootstrap.css_url.css_url" option is deprecated and has no effect: the bundle no longer loads Bootstrap from a CDN. // Default: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+ *             js_url?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.ui.bootstrap.js_url.js_url" option is deprecated and has no effect: the bundle no longer loads Bootstrap from a CDN. // Default: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
  *         },
  *         tailwind?: array{
- *             cdn_script?: scalar|Param|null, // Tailwind Play CDN script for prototyping; use a built CSS file in production // Default: "https://cdn.tailwindcss.com"
- *             css_url?: scalar|Param|null, // Optional compiled Tailwind CSS URL (overrides CDN script when set) // Default: null
+ *             cdn_script?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.ui.tailwind.cdn_script.cdn_script" option is deprecated and has no effect: the bundle no longer loads Tailwind from a CDN. // Default: "https://cdn.tailwindcss.com"
+ *             css_url?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.ui.tailwind.css_url.css_url" option is deprecated and has no effect: the host layout loads its CSS. // Optional compiled Tailwind CSS URL (overrides CDN script when set) // Default: null
  *         },
  *     },
  *     dashboard?: array{
- *         enabled?: bool|Param, // Default: true
- *         path?: scalar|Param|null, // Default: "/uptime"
+ *         enabled?: bool|Param, // Deprecated: The "nowo_uptime_monitor.dashboard.enabled.enabled" option is deprecated: use "nowo_uptime_monitor.web_ui.enabled". // Default: true
+ *         path?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.dashboard.path.path" option is deprecated: use "nowo_uptime_monitor.web_ui.path_prefix". // Default: "/uptime"
  *         prefix?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.dashboard.prefix.prefix" option is deprecated and has no effect: use "dashboard.path" as the admin URL prefix. // Deprecated: never read; dashboard.path is the URL prefix of every admin route. // Default: ""
  *         roles?: list<scalar|Param|null>,
  *         sync?: "polling"|"mercure"|Param, // Default: "polling"
  *         poll_interval_ms?: int|Param, // Default: 30000
+ *         tenant_paths?: list<array{ // Default: []
+ *             slug_prefix?: scalar|Param|null,
+ *             path?: scalar|Param|null,
+ *             name_prefix?: scalar|Param|null,
+ *             slug_requirement?: scalar|Param|null, // Route requirement of {tenantSlug}; default: the slug prefix then [a-z0-9-]+. // Default: null
+ *         }>,
  *         mercure?: array{ // Mercure topics when dashboard.sync is mercure (requires symfony/mercure-bundle)
  *             topic_template?: scalar|Param|null, // Topic per tenant; {tenant} is replaced with tenant slug // Default: "/uptime/{tenant}"
  *             private?: bool|Param, // Default: true
@@ -1017,6 +1047,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     notifications?: array{
  *         enabled?: bool|Param, // Default: false
  *         cooldown_seconds?: int|Param, // Default: 300
+ *         http_timeout?: float|Param, // Webhook / Slack delivery deadline in seconds (HttpClient timeout + max_duration). Keep it below the PHP / worker time limits (REQ-RUNTIME-001). // Default: 10.0
  *         email?: array{
  *             enabled?: bool|Param, // Default: false
  *             from?: scalar|Param|null, // Default: ""
@@ -1477,6 +1508,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         tokens_dark?: array<string, mixed>,
  *         confirm_message_in_header?: bool|Param, // Confirm dialogs and the full-page confirm render the message inside the header, under the title (hosts whose dialog header is title + message). View\Confirm::messageInHeader wins when set. // Default: false
  *         popover_menus?: bool|Param, // 2.4: menu / kebab / row-action menus render their panel as a native [popover] (browser top layer: never clipped by table scrollers or cards; nowo-ui-popover.js places it). The partial option `popover` wins. // Default: false
+ *         form_errors_after_widget?: bool|Param, // 2.10: the UiKit form theme (form/nowo_ui_layout.html.twig) prints a field's errors after its widget (and before the help), instead of Symfony's order (label, errors, widget, help). // Default: false
  *         bundles?: array<string, array{ // Default: []
  *             framework_defaults?: bool|Param, // Override of theme.framework_defaults for this bundle (unset = inherit).
  *             classes?: array<string, mixed>,
@@ -1496,6 +1528,35 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             attributes?: array<string, array<string, mixed>>,
  *             header_actions_in_filters?: bool|Param, // list only: render the page-header actions at the end of the filter row instead of the page header (ListPage::headerActionsInFilters wins when set; unset = false).
  *         }>,
+ *     },
+ *     error_pages?: array{ // Kit error pages (2.6): templates/bundles/TwigBundle/Exception/error.html.twig = {% extends '@NowoUiKit/error/status.html.twig' %}.
+ *         layout_template?: scalar|Param|null, // Document the status template extends: the kit layout, or a host template extending it (own <head> assets, brand, chat dock…). // Default: "@NowoUiKit/error/layout.html.twig"
+ *         translation_domain?: scalar|Param|null, // Domain of the page texts (e.g. messages). Keys missing there fall back to UiKit's own NowoUiKitBundle error.* texts. // Default: "NowoUiKitBundle"
+ *         translation_prefix?: scalar|Param|null, // Key prefix: <prefix>.<code>.title|lead|hint|image_alt, <prefix>.generic.*, <prefix>.home|retry|back|retry_after|auto_retry|skip_to_content. // Default: "error"
+ *         home_path?: scalar|Param|null, // Href of the "Back to home" button. // Default: "/"
+ *         illustrations?: array<string, Param|string|array{ // Default: []
+ *             path?: scalar|Param|null,
+ *             width?: int|Param, // Default: null
+ *             height?: int|Param, // Default: null
+ *             webp?: bool|Param|null, // Default: null
+ *             extension?: scalar|Param|null, // Default: null
+ *         }>,
+ *         illustration_width?: int|Param, // Default intrinsic width of the illustrations. // Default: 1024
+ *         illustration_height?: int|Param, // Default intrinsic height of the illustrations. // Default: 683
+ *         webp?: bool|Param, // Illustrations ship a .webp next to the fallback image (<source type="image/webp">). // Default: true
+ *         retry_statuses?: list<int|Param>,
+ *         back_link_statuses?: list<int|Param>,
+ *         auto_retry_seconds?: int|Param, // A 5xx on GET reloads itself after this many seconds (REQ-ERROR-001 item 10; 0 = never). Never on POST. // Default: 600
+ *         theme_storage?: scalar|Param|null, // localStorage key of the theme (data-nowo-ui-theme-storage on <html> and the toggle), e.g. the host's beacon-theme. // Default: "nowo-ui-theme"
+ *         theme_toggle?: bool|Param, // Render the light / dark toggle in the top controls. // Default: true
+ *         html_attributes?: array<string, mixed>,
+ *     },
+ *     shell?: array{ // Signed-in app shell (2.6, @NowoUiKit/shell/_open|_close|_shell|_burger.html.twig; Twig global nowo_ui_kit_shell).
+ *         kit_styles?: bool|Param, // Add the kit shell classes (nowo-ui-shell, nowo-ui-header, nowo-ui-aside…) painted by nowo-ui.css and driven by nowo-ui-shell.js. false: only the app_* slot classes (host shell CSS / JS). // Default: true
+ *         sidebar_cookie?: scalar|Param|null, // Cookie holding the desktop aside mode (e.g. beacon_sidebar), read server-side so the first paint is already collapsed / rail; null = expanded unless the template passes collapsed. // Default: null
+ *         sidebar_hidden_value?: scalar|Param|null, // Cookie value of the hidden aside. // Default: "collapsed"
+ *         sidebar_rail_value?: scalar|Param|null, // Cookie value of the icons-only rail. // Default: "rail"
+ *         sidebar_storage?: scalar|Param|null, // localStorage key of the aside mode (data-nowo-ui-sidebar-storage on the shell root; kit_styles + rail only). // Default: null
  *     },
  * }
  * @psalm-type NowoFormKitConfig = array{

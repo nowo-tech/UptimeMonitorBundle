@@ -8,6 +8,9 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+  - [Template contract (REQ-UI-003)](#template-contract-req-ui-003)
+  - [Configuration (REQ-UI-003 vocabulary)](#configuration-req-ui-003-vocabulary)
+  - [FormKit profile](#formkit-profile)
 - [To 1.10.0](#to-1100)
 - [To 1.9.4](#to-194)
 - [To 1.9.3](#to-193)
@@ -89,7 +92,73 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
-Nothing yet.
+### Template contract (REQ-UI-003)
+
+The admin pages are UiKit page scaffolds (UiKit ^2.15.1); see [TEMPLATES.md](TEMPLATES.md) for every page →
+scaffold, view model and data block.
+
+1. **Layout.** Pages render in `nowo_ui_kit.layouts.admin` (public status page: `.guest`). Set it once for every
+   Nowo bundle, or set `nowo_uptime_monitor.web_ui.layout_template` for this bundle only. The layout renders the
+   UiKit canonical blocks (`nowo_ui_document_title`, `nowo_ui_head`, `nowo_ui_styles`, `nowo_ui_navigation`,
+   `nowo_ui_page_header`, `nowo_ui_flashes`, `nowo_ui_content`, `nowo_ui_modals`, `nowo_ui_scripts`):
+
+   ```twig
+   {# templates/layouts/admin.html.twig #}
+   {% extends 'base.html.twig' %}
+   {% block title %}{% block nowo_ui_document_title %}{% endblock %}{% endblock %}
+   {% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('css/nowo-ui.css', 'nowo_ui_kit') }}">{% block nowo_ui_head %}{% endblock %}{% block nowo_ui_styles %}{% endblock %}{% endblock %}
+   {% block body %}
+       {% block nowo_ui_navigation %}{% endblock %}
+       {% block nowo_ui_page_header %}{% endblock %}
+       {% block nowo_ui_flashes %}{{ include(nowo_ui_partial('flashes')) }}{% endblock %}
+       {% block nowo_ui_content %}{% endblock %}
+       {% block nowo_ui_modals %}{% endblock %}
+   {% endblock %}
+   {% block javascripts %}{{ parent() }}{% block nowo_ui_scripts %}{{ include(nowo_ui_partial('scripts')) }}{% endblock %}{% endblock %}
+   ```
+
+   A 1.x layout set in the deprecated `templates.layout` (or an application override of
+   `@NowoUptimeMonitorBundle/layout.html.twig`) that renders `{% block uptime_content %}` keeps working through the
+   deprecated bridge `@NowoUptimeMonitorBundle/_legacy_layout.html.twig` (deprecation notice; removed in 2.0).
+2. **CSS framework and theme.** The bundle no longer loads Tabler / Bootstrap / Tailwind from CDNs and no longer
+   switches markup per `ui.framework`: set `nowo_ui_kit.css_framework` and `nowo_ui_kit.theme` (classes, tokens) once.
+   `ui.framework` still seeds `nowo_ui_kit.css_framework` when the host leaves it unset (deprecated). The tenant
+   "UI framework" setting no longer changes the markup; the tenant theme (light / dark / auto) still applies.
+3. **Removed templates / blocks.** `layout.html.twig`, `_form_theme.html.twig`, `_monitor_actions.html.twig`,
+   `settings/_layout.html.twig`, `settings/_nav.html.twig`; page blocks `uptime_content`, `settings_body`, `title`,
+   `stylesheets`, `javascripts`. Overrides in `templates/bundles/NowoUptimeMonitorBundle/` of a page must be redone on
+   the new data blocks — prefer `web_ui.templates.<page>` with a thin
+   `{% extends '@NowoUptimeMonitorBundle/<page>' %}` overriding `nowo_ui_dashboard_cards`, `nowo_ui_show_after`,
+   `nowo_ui_form_body`, `nowo_ui_settings_section`, `nowo_ui_list_row`, … Page CSS / JS stack in `nowo_ui_styles` /
+   `nowo_ui_scripts` with `{{ parent() }}`.
+4. **Monitor dialog.** `monitor/_monitor_edit_modal.html.twig` is a native `<dialog>` (UiKit `dialog` partial,
+   `data-uptime-monitor-form-modal`, `data-monitor-form-body`); Bootstrap JS is no longer needed. Rebuilt
+   `uptime-dashboard.js` / `uptime-monitor-detail.js` ship with the bundle (`assets:install`).
+5. **Confirmations.** Clear all statistics and tag delete open the UiKit confirm dialog; load the UiKit scripts in
+   your layout (`nowo_ui_partial('scripts')`, included by the UiKit layouts).
+
+### Configuration (REQ-UI-003 vocabulary)
+
+| Deprecated (1.x) | Use |
+| --- | --- |
+| `templates.layout` / `templates.layout_template` | `web_ui.layout_template` (null = `nowo_ui_kit.layouts.admin`) |
+| `dashboard.enabled` | `web_ui.enabled` |
+| `dashboard.path` | `web_ui.path_prefix` |
+| `dashboard.tenant_paths` (1.10.0) | `web_ui.tenant_paths` (same entries; `TenantPathUrlGenerator` unchanged) |
+| `security.dashboard_roles` / `manage_roles` / `settings_roles` | `security.roles.dashboard` / `manage` / `settings` |
+| `ui.framework` / `ui.css_framework` | `nowo_ui_kit.css_framework` |
+| `ui.tabler.skip_cdn`, `ui.bootstrap.*`, `ui.tailwind.*` | nothing (no CDN; the host layout loads its CSS) |
+
+New: `web_ui.templates.<page>` (per-page template override, ids in TEMPLATES.md) and `web_ui.form_themes` (default
+the UiKit form theme `@NowoUiKitBundle/form/nowo_ui_layout.html.twig`; `[]` = only your `twig.form_themes`).
+
+### FormKit profile
+
+When the host defines no `nowo_form_kit.profiles.uptime_monitor`, the seeded profile no longer adds Bootstrap
+classes (`form-control`, `form-select`, `mb-2`, …) and sets `convention_requires_translation: true`. Hosts that
+relied on those classes set them in their own profile or in `nowo_ui_kit.theme.classes` (`input`, `form_row`, …).
+
+### Demo (contributors)
 
 ## To 1.10.0
 

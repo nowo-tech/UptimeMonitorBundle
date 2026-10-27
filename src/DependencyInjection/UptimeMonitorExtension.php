@@ -92,31 +92,16 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         }
 
         if (!$hostHasProfile) {
+            // REQ-UI-003: no framework classes in the bundle forms (the UiKit form theme of web_ui.form_themes
+            // applies the theme slots); convention help / placeholder keys only when the catalogue has them.
             $seed['profiles'] = [
                 'uptime_monitor' => [
-                    'alias'              => 'uptime_monitor',
-                    'translation_domain' => 'NowoUptimeMonitorBundle',
-                    'defaults'           => [
-                        'attr'     => ['class' => 'nowo-ui-input form-control'],
-                        'row_attr' => ['class' => 'mb-2'],
-                    ],
-                    'field_types' => [
-                        'checkbox' => [
-                            'attr'     => ['class' => 'form-check-input'],
-                            'row_attr' => ['class' => 'form-check mb-2'],
-                        ],
-                        'choice' => [
-                            'attr' => ['class' => 'form-select'],
-                        ],
-                        'entity' => [
-                            'attr' => ['class' => 'form-select'],
-                        ],
-                        'file' => [
-                            'attr' => ['class' => 'nowo-ui-input form-control'],
-                        ],
-                        'textarea' => [
-                            'attr' => ['class' => 'nowo-ui-input form-control'],
-                        ],
+                    'alias'                           => 'uptime_monitor',
+                    'translation_domain'              => 'NowoUptimeMonitorBundle',
+                    'convention_requires_translation' => true,
+                    'defaults'                        => [
+                        'attr'     => [],
+                        'row_attr' => [],
                     ],
                 ],
             ];
@@ -162,7 +147,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
 
-        $config = $this->processConfiguration(new Configuration(), $configs);
+        $config = $this->resolveCanonicalKeys($this->processConfiguration(new Configuration(), $configs));
 
         if (
             $config['dashboard']['enabled']
@@ -185,6 +170,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.multi_tenant', $config['multi_tenant']);
         $container->setParameter(Configuration::ALIAS . '.tenants', $config['tenants']);
         $container->setParameter(Configuration::ALIAS . '.templates', $config['templates']);
+        $container->setParameter(Configuration::ALIAS . '.web_ui', $config['web_ui']);
         $container->setParameter(Configuration::ALIAS . '.ui', $config['ui']);
         $container->setParameter(Configuration::ALIAS . '.dashboard', $config['dashboard']);
         $container->setParameter(Configuration::ALIAS . '.dashboard.path', $config['dashboard']['path']);
@@ -201,6 +187,33 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
 
         $this->registerAccessChecker($container, $config['security']);
         $this->registerTablePrefixListener($container);
+    }
+
+    /**
+     * Maps the REQ-UI-003 canonical keys (web_ui.enabled, web_ui.path_prefix, web_ui.tenant_paths, security.roles.<action>) and their
+     * deprecated 1.x names onto one resolved config: a canonical key wins, else the deprecated key (or its default).
+     *
+     * @param array<string, mixed> $config processed configuration
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveCanonicalKeys(array $config): array
+    {
+        $config['web_ui']['enabled'] ??= (bool) $config['dashboard']['enabled'];
+        $config['web_ui']['path_prefix'] ??= (string) $config['dashboard']['path'];
+        $config['dashboard']['enabled'] = $config['web_ui']['enabled'];
+        $config['dashboard']['path']    = $config['web_ui']['path_prefix'];
+        if ($config['web_ui']['tenant_paths'] === []) {
+            $config['web_ui']['tenant_paths'] = $config['dashboard']['tenant_paths'];
+        }
+        $config['dashboard']['tenant_paths'] = $config['web_ui']['tenant_paths'];
+
+        foreach (['dashboard', 'manage', 'settings'] as $action) {
+            $config['security']['roles'][$action] ??= $config['security'][$action . '_roles'];
+            $config['security'][$action . '_roles'] = $config['security']['roles'][$action];
+        }
+
+        return $config;
     }
 
     public function getAlias(): string

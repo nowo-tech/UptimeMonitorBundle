@@ -491,6 +491,13 @@ export function initSidebarSelection(root: HTMLElement): void {
 }
 
 export function initMonitorSearch(root: HTMLElement): void {
+  // The search form only filters the tree client-side: never submit it (no inline handler, CSP).
+  root.querySelectorAll<HTMLFormElement>('form[data-monitor-search-form]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+    });
+  });
+
   const input = root.querySelector<HTMLInputElement>('[data-monitor-search]');
   if (input === null) {
     return;

@@ -1,21 +1,21 @@
+{#
+  Monitor create / edit dialog (native <dialog>, UiKit `dialog` partial). The [data-monitor-form-open] buttons and
+  links (header actions, dashboard filter bar) open it: uptime-dashboard.js / uptime-monitor-detail.js load the form
+  fragment (monitor/_monitor_form_modal.html.twig, header X-Uptime-Modal) into [data-monitor-form-body] and post it
+  back. Without JavaScript the openers are plain links to the monitor form page. Optional: bundle.
+#}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-{% if uptime_ui_framework() in ['tabler', 'bootstrap'] %}
-<div class="modal modal-blur fade uptime-monitor-form-modal" id="uptime-monitor-form-modal" tabindex="-1"
-     aria-labelledby="uptime-monitor-form-modal-title" aria-hidden="true"
-     data-uptime-monitor-form-modal>
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="uptime-monitor-form-modal-title" data-monitor-form-title>{{ 'monitor.edit'|trans }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'action.close'|trans }}"></button>
-            </div>
-            <div class="modal-body" data-monitor-form-body>
-                <div class="text-center text-secondary py-5" data-monitor-form-loading>
-                    <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
-                    {{ 'monitor.form.loading'|trans }}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
+{% set _b = bundle|default('NowoUptimeMonitorBundle') %}
+{% embed nowo_ui_partial('dialog', bundle) with {
+    id: 'uptime-monitor-form-modal',
+    title: 'monitor.edit'|trans,
+    size: 'xl',
+    bundle: _b,
+    attr: {'data-uptime-monitor-form-modal': true},
+    title_attr: {'data-monitor-form-title': true},
+    body_attr: {'data-monitor-form-body': true},
+} only %}
+    {% block nowo_ui_dialog_body %}
+        <p class="uptime-monitor-form-loading {{ nowo_ui_class('muted', bundle) }}" data-monitor-form-loading>{{ 'monitor.form.loading'|trans({}, 'NowoUptimeMonitorBundle') }}</p>
+    {% endblock %}
+{% endembed %}

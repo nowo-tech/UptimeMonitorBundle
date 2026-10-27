@@ -53,11 +53,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **UiKit page contract (REQ-UI-003, REQ-UI-001)**: every admin page now extends a UiKit 2.15 page scaffold fed by
+  UiKit view models built in the controllers — tenants (`page/list`), new tenant and monitor create / edit
+  (`page/form`), dashboard (`page/dashboard`), monitor detail (`page/show`) and the eight settings screens
+  (`page/settings`, one section tab per screen). The public status page is a declared unique page on the UiKit guest
+  layout. Pages render inside `nowo_ui_kit.layouts.admin` / `.guest` (or `web_ui.layout_template`); markup uses
+  `nowo-ui-*` classes and theme slots only (`nowo_ui_class()` / `nowo_ui_attrs()`), so `nowo_ui_kit.css_framework` and
+  `nowo_ui_kit.theme` style every page. See [TEMPLATES.md](TEMPLATES.md).
+- **Monitor dialog** is a native `<dialog>` (UiKit `dialog` partial) opened by `uptime-dashboard.js` /
+  `uptime-monitor-detail.js` without Bootstrap JS; its openers are links to the form page (works without JavaScript).
+- **Destructive actions** (Clear all statistics, delete tag) use the UiKit confirm dialog (`View\Action` +
+  `View\Confirm`, POST + CSRF-only Form Types); the inline `onsubmit="return confirm(…)"` is gone (CSP). The monitor
+  search form no longer has an inline `onsubmit` handler.
+- **Bundle CSS** colours (`--uptime-*`) follow the UiKit `--nowo-ui-*` tokens first (then `--tblr-*`, then the bundle
+  defaults); the per-tenant theme (Settings → Appearance) sets `data-theme` on the bundle widgets.
+- **FormKit profile** seeded by the bundle (`nowo_form_kit.profiles.uptime_monitor`, when the host defines none): no
+  Bootstrap classes, `convention_requires_translation: true` (no raw `*.help` / `*.placeholder` keys); the bundle
+  forms use the UiKit form theme (`web_ui.form_themes`). Requires `nowo-tech/form-kit-bundle` ^2.10.
+- Requires `nowo-tech/ui-kit-bundle` ^2.15.1.
+
 ### Added
 
 - Demo Playwright e2e (REQ-DEMO-013): `demo/symfony8/e2e` happy path (dashboard, monitor create + detail, public status page, settings) and a screenshots project; `make test-e2e` / `make demo-screenshots` (root and demo Makefiles, PNG → WebP with `sharp`). `release-check` runs `test-e2e`.
 - README **Screenshots** section with `docs/images/demo/dashboard.webp` and `docs/images/demo/monitor-detail.webp`.
 - Demo-only `app:uptime:demo-history` command: three extra local-probe monitors and 24 h of deterministic check history for every monitor and the group (one resolved outage, one latency spike); `reset-demo` runs it plus `nowo:uptime:rollup`.
+- `web_ui` configuration (REQ-UI-003 vocabulary): `web_ui.enabled`, `web_ui.path_prefix`, `web_ui.tenant_paths`, `web_ui.layout_template`
+  (null = UiKit layout), `web_ui.templates.<page>` (per-page override), `web_ui.form_themes`; `security.roles.dashboard
+  | manage | settings`.
+- `Ui\UptimeAreaNav`: the bundle navigation published to the UiKit area-nav registry (`uptime_monitor`,
+  `uptime_monitor_settings`) for host menus.
+- `docs/TEMPLATES.md` and the UiKit contract test `tests/Integration/Contract/PageContractTest.php` (every page).
+- Translations for the monitor detail, tenant pages and tag delete confirmation (7 locales).
+
+### Deprecated
+
+- `templates.layout` / `templates.layout_template` (a 1.x layout rendering `uptime_content` is wrapped by
+  `@NowoUptimeMonitorBundle/_legacy_layout.html.twig`, also for an application override of the former
+  `layout.html.twig`), `ui.framework` (only seeds `nowo_ui_kit.css_framework`), `ui.tabler.*`, `ui.bootstrap.*`,
+  `ui.tailwind.*` (no effect), `dashboard.enabled`, `dashboard.path`, `dashboard.tenant_paths`, `security.dashboard_roles`,
+  `security.manage_roles`, `security.settings_roles`. Removed in 2.0.
+- The per-tenant "UI framework" setting no longer changes the markup (pages follow `nowo_ui_kit.css_framework`).
+
+### Removed
+
+- Template contract: `layout.html.twig` (CDN Tabler / Bootstrap / Tailwind layout), `_form_theme.html.twig`,
+  `_monitor_actions.html.twig`, `settings/_layout.html.twig`, `settings/_nav.html.twig`, the Bootstrap modal markup of
+  `monitor/_monitor_edit_modal.html.twig`, the `uptime_content` / `settings_body` / `title` / `stylesheets` /
+  `javascripts` page blocks (now the UiKit canonical and data blocks), and the `uptime-ui-bootstrap.css` /
+  `uptime-ui-tailwind.css` assets. See [UPGRADING.md](UPGRADING.md#unreleased).
 
 ### Fixed
 

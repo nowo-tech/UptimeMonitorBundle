@@ -1,37 +1,36 @@
-{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
+{#
+  Settings → Monitor history (REQ-UI-003): UiKit settings scaffold.
+  Variables: page (View\SettingsPage from SettingsController: header settings.title with a back link to the dashboard;
+  one section per settings screen with its href (section tabs), current = this screen), and the 1.x variables
+  tenant, tenant_slug, section, section_title. Section "history": form = SettingsHistoryFormType, submit settings.save; history_actions
+  (list<View\Action>: Purge expired detail rows — POST + CSRF FormView —, Clear all statistics — POST + CSRF FormView
+  behind the UiKit confirm dialog), 1.x purge_form / clear_form, global_detail_days.
+  Data block filled: nowo_ui_settings_section (parent(): the retention form, then the retention note and the
+  maintenance actions through the UiKit `action` partial).
+#}
+{% extends '@NowoUiKit/page/settings.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block settings_body %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
-    {{ form_start(form, { attr: { class: 'uptime-settings-form' } }) }}
-        <div class="uptime-settings-form-grid">
-            {{ form_widget(form) }}
+{% block nowo_ui_head %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_robots.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_settings_section %}
+    {% set _b = page.bundle %}
+    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+        {{ parent() }}
+        <hr class="uptime-settings-divider">
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'settings.history.intro'|trans|raw }}</p>
+        <div class="uptime-settings-actions {{ nowo_ui_class('toolbar', _b) }}"{{ nowo_ui_attrs('toolbar', _b) }}>
+            {% for action in history_actions %}
+                {{ include(nowo_ui_partial('action', _b), {action: action, context: 'toolbar', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
+            {% endfor %}
         </div>
-        <div class="uptime-form-actions">
-            <button type="submit" class="uptime-btn uptime-btn-primary">{{ 'settings.save'|trans }}</button>
-        </div>
-    {{ form_end(form) }}
-
-    <hr class="uptime-settings-divider">
-
-    <p>{{ 'settings.history.intro'|trans|raw }}</p>
-
-    {# REQ-TWIG-005: CSRF-only Form Types built by SettingsController (purge_form / clear_form). #}
-    {{ form_start(purge_form, { attr: { class: 'uptime-settings-action' } }) }}
-        {% for child in purge_form %}
-            {% if not child.rendered %}
-                {{ form_row(child) }}
-            {% endif %}
-        {% endfor %}
-        <button type="submit" class="uptime-btn">{{ 'settings.history.purge'|trans }}</button>
-    {{ form_end(purge_form) }}
-
-    {{ form_start(clear_form, { attr: { class: 'uptime-settings-action', onsubmit: "return confirm('" ~ ('settings.history.clear_confirm'|trans|e('js')) ~ "');" } }) }}
-        {% for child in clear_form %}
-            {% if not child.rendered %}
-                {{ form_row(child) }}
-            {% endif %}
-        {% endfor %}
-        <button type="submit" class="uptime-btn uptime-btn-danger">{{ 'settings.history.clear'|trans }}</button>
-    {{ form_end(clear_form) }}
+    </div>
 {% endblock %}

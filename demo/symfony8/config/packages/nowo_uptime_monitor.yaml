@@ -4,11 +4,13 @@ nowo_uptime_monitor:
     security:
         access_roles: []
         allow_unauthenticated: true
-        dashboard_roles: []
-        manage_roles: []
-        settings_roles: []
-    ui:
-        framework: bootstrap
+        roles:
+            dashboard: []
+            manage: []
+            settings: []
+    # Pages are UiKit scaffolds (REQ-UI-003): layout and theme come from config/packages/nowo_ui_kit.yaml.
+    web_ui:
+        path_prefix: /uptime
     # Demo-only: every demo monitor probes this app over the Compose network (http://php/demo/uptime/*), a
     # private address the SSRF guard blocks by default. Keep the default (true) in production.
     checks:
@@ -21,7 +23,6 @@ nowo_uptime_monitor:
         detail_days: 30
         purge_enabled: true
     dashboard:
-        path: /uptime
         # Polling avoids Mercure cookie domain issues on localhost demo (smoke / release-verify).
         sync: polling
         poll_interval_ms: 30000

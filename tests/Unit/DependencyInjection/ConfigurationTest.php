@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\ArrayNode;
 use Symfony\Component\Config\Definition\BaseNode;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 
 /**
@@ -131,5 +132,82 @@ final class ConfigurationTest extends TestCase
         $enabled = $root->getChildren()['enabled'];
         self::assertInstanceOf(BaseNode::class, $enabled);
         self::assertFalse($enabled->isDeprecated());
+    }
+
+    public function testWebUiDefaults(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), []);
+
+        self::assertNull($config['web_ui']['enabled']);
+        self::assertNull($config['web_ui']['path_prefix']);
+        self::assertNull($config['web_ui']['layout_template']);
+        self::assertSame([], $config['web_ui']['templates']);
+        self::assertSame([Configuration::DEFAULT_FORM_THEME], $config['web_ui']['form_themes']);
+        self::assertSame(['dashboard' => null, 'manage' => null, 'settings' => null], $config['security']['roles']);
+    }
+
+    public function testWebUiAcceptsPageOverridesAndRoles(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [[
+            'web_ui'   => ['layout_template' => 'layouts/admin.html.twig', 'templates' => ['dashboard' => 'uptime/dashboard.html.twig'], 'form_themes' => []],
+            'security' => ['roles' => ['manage' => ['ROLE_OPS']]],
+        ]]);
+
+        self::assertSame('layouts/admin.html.twig', $config['web_ui']['layout_template']);
+        self::assertSame(['dashboard' => 'uptime/dashboard.html.twig'], $config['web_ui']['templates']);
+        self::assertSame([], $config['web_ui']['form_themes']);
+        self::assertSame(['ROLE_OPS'], $config['security']['roles']['manage']);
+    }
+
+    public function testWebUiRejectsUnknownPages(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Unknown nowo_uptime_monitor.web_ui.templates page(s) "nope"');
+
+        (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['templates' => ['nope' => 'x.html.twig']]]]);
+    }
+
+    public function testRolesMustBeAListOfRoleNames(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        (new Processor())->processConfiguration(new Configuration(), [['security' => ['roles' => ['dashboard' => 'ROLE_ADMIN']]]]);
+    }
+
+    /**
+     * @return iterable<string, array{0: list<string>}>
+     */
+    public static function uiContractDeprecatedKeyProvider(): iterable
+    {
+        yield 'templates.layout' => [['templates', 'layout']];
+        yield 'ui.framework' => [['ui', 'framework']];
+        yield 'ui.tabler.skip_cdn' => [['ui', 'tabler', 'skip_cdn']];
+        yield 'ui.bootstrap.css_url' => [['ui', 'bootstrap', 'css_url']];
+        yield 'ui.tailwind.cdn_script' => [['ui', 'tailwind', 'cdn_script']];
+        yield 'dashboard.enabled' => [['dashboard', 'enabled']];
+        yield 'dashboard.path' => [['dashboard', 'path']];
+        yield 'dashboard.tenant_paths' => [['dashboard', 'tenant_paths']];
+        yield 'security.dashboard_roles' => [['security', 'dashboard_roles']];
+        yield 'security.manage_roles' => [['security', 'manage_roles']];
+        yield 'security.settings_roles' => [['security', 'settings_roles']];
+    }
+
+    /**
+     * REQ-UI-003 configuration vocabulary: the 1.x names stay for one minor version, deprecated.
+     *
+     * @param list<string> $path
+     */
+    #[DataProvider('uiContractDeprecatedKeyProvider')]
+    public function testUiContractReplacedKeysAreDeprecated(array $path): void
+    {
+        $node = (new Configuration())->getConfigTreeBuilder()->buildTree();
+        foreach ($path as $segment) {
+            self::assertInstanceOf(ArrayNode::class, $node);
+            $node = $node->getChildren()[$segment];
+        }
+
+        self::assertInstanceOf(BaseNode::class, $node);
+        self::assertTrue($node->isDeprecated());
+        self::assertSame('1.11', $node->getDeprecation($node->getName(), 'nowo_uptime_monitor')['version']);
     }
 }

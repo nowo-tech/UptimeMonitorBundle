@@ -1,21 +1,13 @@
-{% extends uptime_layout %}
-{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
-{% set kit_fw = uptime_ui_framework() == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework() %}
+{#
+  New tenant (REQ-UI-003): UiKit form scaffold. Variables: page (View\FormPage from TenantController::new(): header
+  tenant.new.title with a back link to the tenants list; form = TenantFormType; submit tenant.form.create; cancel =
+  tenants list; formThemes = web_ui.form_themes), and the 1.x variables form, title.
+  Data blocks: the scaffold defaults (REQ-TWIG-003 child loop).
+#}
+{% extends '@NowoUiKit/page/form.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block title %}{{ title }}{% endblock %}
-
-{% block uptime_content %}
-    <nav class="uptime-nav">
-        <a href="{{ path('nowo_uptime_tenant_index') }}">← Tenants</a>
-    </nav>
-    <h2>{{ title }}</h2>
-    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
-    {{ form_start(form) }}
-        {% for child in form %}
-            {% if not child.rendered %}
-                {{ form_row(child) }}
-            {% endif %}
-        {% endfor %}
-        <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">Create tenant</button>
-    {{ form_end(form) }}
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
 {% endblock %}

@@ -1,60 +1,69 @@
+{#
+  Public status page (REQ-UI-003 unique page, listed in docs/TEMPLATES.md): read-only, no admin chrome, rendered on
+  the UiKit guest layout (nowo_ui_kit.layouts.guest) like other public pages. Variables: header (View\PageHeader:
+  title = status_page.title or the tenant name, intro = overall status text), tenant, tenant_slug, rows
+  (list<{monitor, latest}>), overall_status (operational | degraded | major | unknown), show_latency, title.
+  Blocks filled: nowo_ui_document_title, nowo_ui_styles (bundle CSS after parent()), nowo_ui_page_header (UiKit
+  page-header contract), nowo_ui_content (overall status + services list).
+#}
+{% extends nowo_ui_layout.guest %}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-<!DOCTYPE html>
-<html lang="{{ app.request.locale|default('en') }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }} — {{ 'status_page.title_suffix'|trans }}</title>
-    <link rel="stylesheet" href="{{ asset('uptime-dashboard.css', 'nowo_uptime_monitor') }}">
-    <link rel="stylesheet" href="{{ asset('uptime-theme.css', 'nowo_uptime_monitor') }}">
-</head>
-<body class="uptime-status-page">
-    <main class="uptime-status-main">
-        <header class="uptime-status-header">
-            <h1>{{ title }}</h1>
-            <p class="uptime-status-overall uptime-status-overall-{{ overall_status }}">
-                {% if overall_status == 'operational' %}
-                    {{ 'status_page.overall.operational'|trans }}
-                {% elseif overall_status == 'degraded' %}
-                    {{ 'status_page.overall.degraded'|trans }}
-                {% elseif overall_status == 'major' %}
-                    {{ 'status_page.overall.major'|trans }}
-                {% else %}
-                    {{ 'status_page.overall.unknown'|trans }}
-                {% endif %}
-            </p>
-            <p class="uptime-status-updated">
-                {{ 'status_page.updated'|trans({'%datetime%': "now"|date('Y-m-d H:i:s T')}) }}
-            </p>
-        </header>
+{% set nowo_ui_bundle = 'NowoUptimeMonitorBundle' %}
 
-        <section class="uptime-status-services">
-            <h2 class="uptime-status-visually-hidden">{{ 'status_page.services_heading'|trans }}</h2>
-            <ul class="uptime-status-list">
-                {% for row in rows %}
-                    {% set monitor = row.monitor %}
-                    {% set latest = row.latest %}
-                    {% set status = latest ? latest.status.value : 'unknown' %}
-                    <li class="uptime-status-item">
-                        <span class="uptime-status uptime-status-{{ status }}" aria-hidden="true"></span>
-                        <div class="uptime-status-item-body">
-                            <strong>{{ monitor.name }}</strong>
-                            <span class="uptime-status-item-meta">{{ monitor.type.value }}</span>
-                            {% if show_latency and latest %}
-                                <span class="uptime-status-item-latency">{{ latest.latencyMs }} ms</span>
-                            {% endif %}
-                        </div>
-                        <span class="uptime-status-label">{{ ('status.' ~ status)|trans }}</span>
-                    </li>
-                {% else %}
-                    <li class="uptime-status-item">{{ 'status_page.no_monitors'|trans }}</li>
-                {% endfor %}
-            </ul>
+{% block nowo_ui_document_title %}{{ title }} — {{ 'status_page.title_suffix'|trans }}{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_page_header %}{{ nowo_ui_page_header(header) }}{% endblock %}
+
+{% block nowo_ui_content %}
+    {% set _b = nowo_ui_bundle %}
+    {% set _tones = {operational: 'success', degraded: 'warning', major: 'danger', unknown: 'neutral'} %}
+    {% set _status_tones = {up: 'success', down: 'danger', degraded: 'warning', unknown: 'neutral', paused: 'neutral'} %}
+    <div class="uptime-status-page" data-testid="uptime-status-page">
+        <section class="uptime-status-header {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
+            <div class="{{ nowo_ui_class('card_body', _b) }}">
+                <p class="uptime-status-overall uptime-status-overall-{{ overall_status }}">
+                    <span class="{{ nowo_ui_class('badge_' ~ (_tones[overall_status] ?? 'neutral'), _b) }}">{{ ('status_page.overall.' ~ (overall_status in _tones|keys ? overall_status : 'unknown'))|trans }}</span>
+                </p>
+                <p class="uptime-status-updated {{ nowo_ui_class('muted', _b) }}">{{ 'status_page.updated'|trans({'%datetime%': 'now'|date('Y-m-d H:i:s T')}) }}</p>
+            </div>
         </section>
 
-        <footer class="uptime-status-footer">
+        <section class="uptime-status-services {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
+            <header class="{{ nowo_ui_class('card_header', _b) }}">
+                <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'status_page.services_heading'|trans }}</h2>
+            </header>
+            <div class="{{ nowo_ui_class('card_body', _b) }}">
+                {% if rows is empty %}
+                    {{ include(nowo_ui_partial('empty', _b), {message: 'status_page.no_monitors'|trans, bundle: _b}, false) }}
+                {% else %}
+                    <ul class="uptime-status-list">
+                        {% for row in rows %}
+                            {% set monitor = row.monitor %}
+                            {% set status = row.latest ? row.latest.status.value : 'unknown' %}
+                            <li class="uptime-status-item">
+                                <span class="uptime-status uptime-status-{{ status }}" aria-hidden="true"></span>
+                                <div class="uptime-status-item-body">
+                                    <strong>{{ monitor.name }}</strong>
+                                    <span class="uptime-status-item-meta {{ nowo_ui_class('muted', _b) }}">{{ monitor.type.value }}</span>
+                                    {% if show_latency and row.latest %}
+                                        <span class="uptime-status-item-latency {{ nowo_ui_class('muted', _b) }}">{{ row.latest.latencyMs }} ms</span>
+                                    {% endif %}
+                                </div>
+                                <span class="uptime-status-label {{ nowo_ui_class('badge_' ~ (_status_tones[status] ?? 'neutral'), _b) }}">{{ ('status.' ~ status)|trans }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </section>
+
+        <footer class="uptime-status-footer {{ nowo_ui_class('muted', _b) }}">
             <small>{{ 'status_page.powered_by'|trans }}</small>
         </footer>
-    </main>
-</body>
-</html>
+    </div>
+{% endblock %}

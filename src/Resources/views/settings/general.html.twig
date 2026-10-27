@@ -1,48 +1,51 @@
-{% extends '@NowoUptimeMonitorBundle/settings/_layout.html.twig' %}
-{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
-{% set kit_fw = uptime_ui_framework() == 'bootstrap' ? 'bootstrap5' : uptime_ui_framework() %}
+{#
+  Settings → General (REQ-UI-003): UiKit settings scaffold.
+  Variables: page (View\SettingsPage from SettingsController: header settings.title with a back link to the dashboard;
+  one section per settings screen with its href (section tabs), current = this screen), and the 1.x variables
+  tenant, tenant_slug, section, section_title. Section "general": form = SettingsGeneralFormType (also as `form`).
+  Data block filled: nowo_ui_settings_section (grouped fields, then the REQ-TWIG-003 child loop and the submit row).
+#}
+{% extends '@NowoUiKit/page/settings.html.twig' %}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
 
-{% block settings_body %}
-    {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-    {% include '@NowoUptimeMonitorBundle/_form_theme.html.twig' %}
-    {{ form_start(form, { attr: { class: 'uptime-settings-form uptime-settings-form--general' } }) }}
-    {# Grouped layout (REQ-TWIG-003 rule 3): each section renders its children; the child loop below renders any remaining field. #}
+{% block nowo_ui_head %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_robots.html.twig') }}
+{% endblock %}
 
-    <section class="uptime-settings-group">
-        <h4 class="uptime-settings-group__title">{{ 'form.settings.group.regional'|trans }}</h4>
-        <div class="uptime-settings-form-grid">
-            {{ form_row(form.displayTimezone) }}
-            {{ form_row(form.serverTimezone) }}
-        </div>
-    </section>
+{% block nowo_ui_styles %}
+    {{ parent() }}
+    {{ include('@NowoUptimeMonitorBundle/_stylesheets.html.twig') }}
+{% endblock %}
 
-    <section class="uptime-settings-group">
-        <h4 class="uptime-settings-group__title">{{ 'form.settings.group.site'|trans }}</h4>
-        <div class="uptime-settings-form-grid">
-            {{ form_row(form.searchEngineIndex) }}
-            {{ form_row(form.entryPage) }}
-            {{ form_row(form.primaryBaseUrl) }}
-            {{ form_row(form.steamApiKey) }}
-        </div>
-    </section>
-
-    <section class="uptime-settings-group">
-        <h4 class="uptime-settings-group__title">{{ 'form.settings.group.runtime'|trans }}</h4>
-        <div class="uptime-settings-form-grid">
-            {{ form_row(form.nscdEnabled) }}
-            {{ form_row(form.httpDnsCache) }}
-            {{ form_row(form.chromiumExecutable) }}
-        </div>
-    </section>
-
-    {% for child in form %}
-        {% if not child.rendered %}
-            {{ form_row(child) }}
-        {% endif %}
-    {% endfor %}
-
-    <div class="uptime-form-actions">
-        <button type="submit" class="{{ ui.btn('primary', null, kit_fw) }}">{{ 'settings.save'|trans }}</button>
+{% block nowo_ui_settings_section %}
+    {% set _b = page.bundle %}
+    {% set _form = section.form %}
+    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+        {{ form_start(_form, {attr: {class: nowo_ui_class('form', _b) ~ ' uptime-settings-form uptime-settings-form--general', 'data-nowo-ui-region': 'form'}}) }}
+            {# Grouped layout (REQ-TWIG-003 rule 3): each group renders its children; the child loop below renders any remaining field. #}
+            {% for group, fields in {
+                regional: ['displayTimezone', 'serverTimezone'],
+                site: ['searchEngineIndex', 'entryPage', 'primaryBaseUrl', 'steamApiKey'],
+                runtime: ['nscdEnabled', 'httpDnsCache', 'chromiumExecutable'],
+            } %}
+                <fieldset class="uptime-settings-group">
+                    <legend class="uptime-settings-group__title">{{ ('form.settings.group.' ~ group)|trans }}</legend>
+                    {% for field in fields %}
+                        {% if attribute(_form, field) is defined %}
+                            {{ form_row(attribute(_form, field)) }}
+                        {% endif %}
+                    {% endfor %}
+                </fieldset>
+            {% endfor %}
+            {% for child in _form %}
+                {% if not child.rendered %}
+                    {{ form_row(child) }}
+                {% endif %}
+            {% endfor %}
+            <div class="{{ nowo_ui_class('form_actions', _b) }}"{{ nowo_ui_attrs('form_actions', _b) }}>
+                <button type="submit" class="{{ nowo_ui_class('btn_primary', _b) }}">{{ 'settings.save'|trans }}</button>
+            </div>
+        {{ form_end(_form) }}
     </div>
-    {{ form_end(form) }}
 {% endblock %}
