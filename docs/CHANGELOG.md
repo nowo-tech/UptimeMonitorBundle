@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.2] - 2026-10-28](#1142---2026-10-28)
 - [[1.14.1] - 2026-10-28](#1141---2026-10-28)
 - [[1.14.0] - 2026-10-28](#1140---2026-10-28)
 - [[1.13.0] - 2026-10-27](#1130---2026-10-27)
@@ -58,6 +59,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.14.2] - 2026-10-28
+
+### Fixed
+
+- Settings screens and the monitor form body rendered on the dark Kuma shell (`#12141a`) in a light host: their
+  `uptime-app--embedded` wrapper lacked the `uptime-theme-*` class, so the host tokens never applied.
+- The tenant summary, the monitors table and the live dashboard took one 18rem column of UiKit's card grid; they take
+  the whole row now. The summary's "n of m operational" line is body-sized text, not a second title.
+- The 1.14.0 / 1.14.1 packages shipped the previous JavaScript build: the Server health charts and the push sections of
+  the monitor form were missing. Rebuilt; unused chunks removed.
+
+### Added
+
+- `web_ui.back_links` (default `true`): `false` drops the "← Dashboard" link of the monitor, monitor form and settings
+  pages, for hosts whose own navigation (tabs) already leads back.
 
 ## [1.14.1] - 2026-10-28
 

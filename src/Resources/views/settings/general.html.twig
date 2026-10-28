@@ -21,7 +21,7 @@
 {% block nowo_ui_settings_section %}
     {% set _b = page.bundle %}
     {% set _form = section.form %}
-    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+    <div class="uptime-app uptime-app--embedded uptime-theme-{{ uptime_theme() }} uptime-settings-body" data-testid="uptime-settings-{{ section.id }}"{% if uptime_theme() != 'auto' %} data-theme="{{ uptime_theme() }}"{% endif %}>
         {{ form_start(_form, {attr: {class: nowo_ui_class('form', _b) ~ ' uptime-settings-form uptime-settings-form--general', 'data-nowo-ui-region': 'form'}}) }}
             {# Grouped layout (REQ-TWIG-003 rule 3): each group renders its children; the child loop below renders any remaining field. #}
             {% for group, fields in {

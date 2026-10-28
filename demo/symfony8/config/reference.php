@@ -1019,6 +1019,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             sections?: list<"general"|"appearance"|"notifications"|"reverse_proxy"|"status_page"|"tags"|"history"|"backup"|"about"|Param>,
  *         },
  *         per_page?: int|Param, // Rows per page of the check log (monitor page) and of the latest checks (table dashboard). // Default: 20
+ *         back_links?: bool|Param, // Since 1.14.2: the "← Dashboard" link of the monitor, monitor form and settings pages. false when the host's own navigation (tabs) already leads back. // Default: true
  *     },
  *     limits?: array{ // Per-tenant monitor limits: the New monitor action is disabled and the form refuses a monitor beyond them.
  *         provider?: scalar|Param|null, // Service id of a Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface deciding the limits per tenant; null = max_monitors / min_interval_seconds for every tenant. // Default: null

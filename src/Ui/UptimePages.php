@@ -63,6 +63,14 @@ final readonly class UptimePages
     }
 
     /**
+     * Whether the pages show their way back to the dashboard (`web_ui.back_links`, since 1.14.2).
+     */
+    public function backLinks(): bool
+    {
+        return ($this->webUi['back_links'] ?? true) !== false;
+    }
+
+    /**
      * Layout the admin scaffolds extend (`page.layout`): `web_ui.layout_template`, the legacy bridge for a 1.x layout,
      * else null (UiKit `nowo_ui_layout.admin`).
      */

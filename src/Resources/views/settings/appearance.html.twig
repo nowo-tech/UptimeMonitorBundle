@@ -21,7 +21,7 @@
 {% block nowo_ui_settings_section %}
     {% set _b = page.bundle %}
     {% set _locale = app.request.locale|default('en') %}
-    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+    <div class="uptime-app uptime-app--embedded uptime-theme-{{ uptime_theme() }} uptime-settings-body" data-testid="uptime-settings-{{ section.id }}"{% if uptime_theme() != 'auto' %} data-theme="{{ uptime_theme() }}"{% endif %}>
         <div class="uptime-settings-locale-notice">
             <p class="uptime-settings-locale-notice__label">{{ 'settings.appearance.locale'|trans }}</p>
             <p class="uptime-settings-locale-notice__value">

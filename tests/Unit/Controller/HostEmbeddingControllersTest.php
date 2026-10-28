@@ -36,6 +36,7 @@ use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
+use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -107,6 +108,7 @@ final class HostEmbeddingControllersTest extends TestCase
         array $webUi = [],
         array $hiddenFields = [],
         ?EntityManagerInterface $em = null,
+        UptimePages $pages = new UptimePages(),
     ): MonitorController {
         $tenantRepo = $this->createStub(TenantRepository::class);
         $tenantRepo->method('findOneBySlug')->willReturn($monitor->getTenant());
@@ -124,6 +126,7 @@ final class HostEmbeddingControllersTest extends TestCase
             new AggregateChartService($aggregates),
             $this->dashboardViewBuilder($monitorRepo, $checks),
             $em ?? $this->createStub(EntityManagerInterface::class),
+            $pages,
             actions: $actions,
             quota: $quota,
             eventDispatcher: $this->dispatcher(),
@@ -178,6 +181,24 @@ final class HostEmbeddingControllersTest extends TestCase
         self::assertSame(3, $pager->page);
         self::assertSame(3, $pager->totalPages);
         self::assertCount(1, $this->renderedContext['log_events']);
+    }
+
+    public function testMonitorPagesDropTheBackLinkWhenTheHostNavigates(): void
+    {
+        $monitor = $this->monitor();
+        $checks  = $this->createStub(CheckResultRepository::class);
+        $checks->method('findRecentForMonitor')->willReturn([]);
+        $controller = $this->monitorController($monitor, $checks, null);
+        $this->bindController($controller);
+        $controller->show('main', 4);
+        self::assertNotNull($this->renderedContext['page']->header->back);
+
+        $controller = $this->monitorController($monitor, $checks, null, pages: new UptimePages(['back_links' => false]));
+        $this->bindController($controller, true, Request::create('/main/monitors/new'));
+        $controller->show('main', 4);
+        self::assertNull($this->renderedContext['page']->header->back);
+        $controller->new('main', Request::create('/main/monitors/new'));
+        self::assertNull($this->renderedContext['page']->header->back);
     }
 
     public function testMonitorPageWithoutActionsServiceKeepsEditAndTheProjectRow(): void
