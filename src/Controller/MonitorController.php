@@ -218,7 +218,6 @@ final class MonitorController extends AbstractUptimeController
             'series'      => $series,
             'series_json' => json_encode($series, JSON_THROW_ON_ERROR),
             'ranges'      => PushMetricsSeries::RANGES,
-            'can_manage'  => !$this->actions instanceof UptimeActions || $this->actions->canManageMonitors($tenantSlug),
         ];
     }
 
@@ -445,7 +444,7 @@ final class MonitorController extends AbstractUptimeController
     {
         $parent  = $monitor->getParent();
         $actions = $this->actions instanceof UptimeActions
-            ? $this->actions->monitor($tenantSlug, $monitor)
+            ? [...$this->actions->monitor($tenantSlug, $monitor), ...$this->actions->push($tenantSlug, $monitor)]
             : [$this->editAction($tenantSlug, $monitor)];
         $items = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
         if ($parent instanceof Monitor || !in_array('project', $this->hiddenFields, true)) {

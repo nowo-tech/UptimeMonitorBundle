@@ -1,7 +1,7 @@
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
 {#
   Server health view of a push monitor (since 1.14). Variables: push (MonitorController::pushView(): url, has_token,
-  signed, last_at, grace, gauges, series, series_json, ranges, can_manage), monitor, tenant_slug, _b (UiKit bundle
+  signed, last_at, grace, gauges, series, series_json, ranges), monitor, tenant_slug, _b (UiKit bundle
   key), and once, right after "Generate token", push_secret / push_signing_secret (never stored, never cached).
 #}
 <section class="uptime-push-credentials {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-push-credentials">
@@ -27,20 +27,7 @@ UPTIME_PUSH_SECRET={{ push_signing_secret }}{% endif %}
         </div>
     {% endif %}
 
-    {% if push.can_manage %}
-        <div class="uptime-push-actions">
-            <form method="post" action="{{ path('nowo_uptime_monitor_push_token', {tenantSlug: tenant_slug, id: monitor.id}) }}">
-                <input type="hidden" name="_token" value="{{ csrf_token('push_token' ~ monitor.id) }}">
-                <button type="submit" class="{{ nowo_ui_class(push.has_token ? 'btn_secondary' : 'btn_primary', _b) }}" data-testid="uptime-push-generate">{{ (push.has_token ? 'monitor.push.rotate' : 'monitor.push.generate')|trans }}</button>
-            </form>
-            {% if push.has_token %}
-                <form method="post" action="{{ path('nowo_uptime_monitor_push_revoke', {tenantSlug: tenant_slug, id: monitor.id}) }}">
-                    <input type="hidden" name="_token" value="{{ csrf_token('push_revoke' ~ monitor.id) }}">
-                    <button type="submit" class="{{ nowo_ui_class('btn_danger', _b) }}" data-testid="uptime-push-revoke">{{ 'monitor.push.revoke'|trans }}</button>
-                </form>
-            {% endif %}
-        </div>
-    {% endif %}
+    {# Generate / rotate / revoke: page header actions (UptimeActions::push()), POST + CSRF through UiKit. #}
 </section>
 
 <section class="uptime-push-health {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-push-health">

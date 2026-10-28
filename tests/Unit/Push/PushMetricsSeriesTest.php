@@ -102,7 +102,7 @@ final class PushMetricsSeriesTest extends TestCase
                 ['used_pct' => 10.0],
             ],
         ]);
-        $gauges = $series->gauges($this->monitor);
+        $gauges = $this->series([])->gauges($this->monitor);
 
         self::assertNotNull($gauges);
         self::assertSame([

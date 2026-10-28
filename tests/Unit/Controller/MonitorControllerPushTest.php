@@ -95,7 +95,6 @@ final class MonitorControllerPushTest extends TestCase
         self::assertSame(60, $push['grace']);
         self::assertSame(6, $push['series']['hours']);
         self::assertSame([['key' => 'cpu', 'value' => 5.0, 'level' => 'ok']], $push['gauges']['metrics']);
-        self::assertTrue($push['can_manage']);
         self::assertArrayNotHasKey('push_secret', $this->renderedContext);
     }
 
