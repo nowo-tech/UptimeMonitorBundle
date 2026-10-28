@@ -5,9 +5,10 @@
 {{ form_errors(form) }}
 <fieldset class="uptime-form-section">
     <legend>{{ 'monitor.form.section.general'|trans }}</legend>
+    {# Type and group first: the two short choices share a row of the form grid (1.16), then the full-width fields. #}
     {% if form.type is defined %}{{ form_row(form.type, {attr: {'data-monitor-type-select': '1'}}) }}{% endif %}
-    {% if form.name is defined %}{{ form_row(form.name) }}{% endif %}
     {% if form.parentId is defined %}{{ form_row(form.parentId) }}{% endif %}
+    {% if form.name is defined %}{{ form_row(form.name) }}{% endif %}
     {% if form.project is defined %}{{ form_row(form.project) }}{% endif %}
     {% if form.description is defined %}{{ form_row(form.description) }}{% endif %}
 </fieldset>

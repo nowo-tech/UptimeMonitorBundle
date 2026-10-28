@@ -87,12 +87,14 @@
   font-size: 0.875rem;
 }
 
-.uptime-app .uptime-monitor-form input[type='text'],
-.uptime-app .uptime-monitor-form input[type='url'],
-.uptime-app .uptime-monitor-form input[type='number'],
-.uptime-app .uptime-monitor-form input[type='password'],
-.uptime-app .uptime-monitor-form select,
-.uptime-app .uptime-monitor-form textarea {
+// 1.x dark shell only: in embedded (UiKit) mode the host's form controls follow its light / dark theme (1.16 — the
+// monitor dialog showed these dark controls in a light host).
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form input[type='text'],
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form input[type='url'],
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form input[type='number'],
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form input[type='password'],
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form select,
+.uptime-app:not(.uptime-app--embedded) .uptime-monitor-form textarea {
   background: #1e2128;
   border-color: #3a3f4b;
   color: #e8eaed;

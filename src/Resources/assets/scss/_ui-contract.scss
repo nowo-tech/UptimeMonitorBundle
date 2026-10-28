@@ -196,8 +196,9 @@
   }
 
   .uptime-form-section {
+    min-width: 0;
     margin: 0 0 1rem;
-    padding: 1rem 1.25rem 0.25rem;
+    padding: 0.875rem 1rem 0.125rem;
     border: 1px solid var(--nowo-ui-border, #e2e8f0);
     border-radius: var(--nowo-ui-radius, 0.375rem);
     background: var(--nowo-ui-surface, #fff);
@@ -208,7 +209,7 @@
     width: 100%;
     margin: 0 0 0.75rem;
     padding: 0;
-    font-size: 1rem;
+    font-size: 0.9375rem;
     font-weight: 600;
   }
 
@@ -246,10 +247,93 @@
   .uptime-settings-subtitle:first-child {
     margin-top: 0;
   }
+}
 
-  .uptime-monitor-form-fields {
-    max-width: 56rem;
+/* Monitor form (dialog and page, 1.16): the fields of a section sit in a grid — one column on narrow forms, two from
+   36rem of form width (a 48rem viewport); long values (name, URL, description, keyword, text areas…) span the row,
+   short ones (type, interval, retries, timeout, method, expected status…) pair up. The grid reads the form's own
+   field names: the markup, names and ids are unchanged. The wrapper is itself the embedded app element. */
+.uptime-app--embedded.uptime-monitor-form-fields {
+  max-width: 56rem;
+  container: uptime-monitor-form / inline-size;
+
+  .uptime-form-section:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 1.25rem;
+    align-items: start;
   }
+
+  .uptime-form-section > :is(legend, p, .uptime-threshold-row) {
+    grid-column: 1 / -1;
+  }
+
+  @container uptime-monitor-form (min-width: 36rem) {
+    .uptime-form-section:not([hidden]) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .uptime-form-section > :has(
+        :is(
+          textarea,
+          [name$='[name]'],
+          [name$='[project]'],
+          [name$='[url]'],
+          [name$='[keyword]'],
+          [name$='[proxy]'],
+          [name$='[tags]'],
+          [name$='[hostname]'],
+          [name$='[expectedDnsValue]']
+        )
+      ) {
+      grid-column: 1 / -1;
+    }
+
+    /* A checkbox beside a field lines up with the field's control, not with its label. */
+    .uptime-form-section > :has(> input[type='checkbox'], > * > input[type='checkbox']) {
+      align-self: center;
+    }
+  }
+}
+
+/* Monitor dialog (1.16): the title and close button stay at the top and the Save / Cancel actions at the bottom; only
+   the form scrolls between them. */
+[data-uptime-monitor-form-modal][open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-uptime-monitor-form-modal] > header {
+  flex: none;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--nowo-ui-border, currentColor);
+}
+
+[data-uptime-monitor-form-modal] > [data-monitor-form-body] {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1rem 1.25rem 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The form takes the dialog's whole width (the 56rem cap is for the page form). */
+[data-uptime-monitor-form-modal] .uptime-app--embedded.uptime-monitor-form-fields {
+  max-width: none;
+}
+
+[data-uptime-monitor-form-modal] .uptime-form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 -1.25rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--nowo-ui-border, currentColor);
+  background: var(--nowo-ui-surface, Canvas);
 }
 
 /* Public status page (guest layout): the 1.x standalone page rules (background, font) give way to the host. */
@@ -261,6 +345,15 @@
   display: grid;
   gap: 1rem;
 
+  .uptime-status-footer {
+    text-align: center;
+  }
+}
+
+/* Monitor rows of the public status page and of the tenant summary (UiKit dashboard scaffold, 1.16): flat rows split
+   by a divider in the host's border colour, no surface of their own — the 1.x boxed rows of _base.scss were white
+   boxes in a host's dark theme. Colours come from the --nowo-ui-* tokens only. */
+:is(.uptime-status-page, .uptime-summary) {
   .uptime-status-list {
     margin: 0;
     padding: 0;
@@ -274,14 +367,19 @@
     margin: 0;
     padding: 0.65rem 0;
     border: 0;
-    border-bottom: 1px solid var(--nowo-ui-border, #e2e8f0);
+    border-bottom: 1px solid var(--nowo-ui-border, currentColor);
     border-radius: 0;
     background: transparent;
     box-shadow: none;
     color: inherit;
   }
 
+  .uptime-status-item:first-child {
+    padding-top: 0;
+  }
+
   .uptime-status-item:last-child {
+    padding-bottom: 0;
     border-bottom: 0;
   }
 
@@ -294,9 +392,49 @@
     flex: 1;
     flex-wrap: wrap;
     gap: 0.25rem 0.75rem;
+    min-width: 0;
   }
 
-  .uptime-status-footer {
-    text-align: center;
+  .uptime-status-item-meta,
+  .uptime-status-item-latency {
+    color: var(--nowo-ui-muted, inherit);
+  }
+
+  /* The status label is a UiKit badge: its tone colours, not the 1.x grey of _base.scss (which outranks a layered
+     UiKit stylesheet). */
+  .uptime-status-label {
+    flex-shrink: 0;
+    color: var(--nowo-ui-muted, inherit);
+  }
+
+  .uptime-status-label.nowo-ui-badge--success {
+    color: var(--nowo-ui-badge-success-text, var(--nowo-ui-success-text, inherit));
+  }
+
+  .uptime-status-label.nowo-ui-badge--warning {
+    color: var(--nowo-ui-badge-warning-text, var(--nowo-ui-warning-text, inherit));
+  }
+
+  .uptime-status-label:is(.nowo-ui-badge--danger, .nowo-ui-badge--error) {
+    color: var(--nowo-ui-badge-danger-text, var(--nowo-ui-danger-text-strong, var(--nowo-ui-danger-text, inherit)));
+  }
+}
+
+/* The summary's overall line is plain text in the host page: status tones from the host tokens. */
+.uptime-summary {
+  .uptime-status-overall-operational {
+    color: var(--nowo-ui-success-text, inherit);
+  }
+
+  .uptime-status-overall-degraded {
+    color: var(--nowo-ui-warning-text, inherit);
+  }
+
+  .uptime-status-overall-major {
+    color: var(--nowo-ui-danger-text, inherit);
+  }
+
+  .uptime-status-overall-unknown {
+    color: var(--nowo-ui-muted, inherit);
   }
 }
