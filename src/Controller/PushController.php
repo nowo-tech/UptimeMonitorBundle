@@ -20,10 +20,8 @@ use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
-use function fclose;
 use function intdiv;
 use function is_resource;
-use function is_string;
 use function max;
 use function preg_match;
 use function str_starts_with;
@@ -142,14 +140,7 @@ final readonly class PushController
     private function readBody(Request $request, int $max): ?string
     {
         $stream = $request->getContent(true);
-        if (!is_resource($stream)) {
-            return '';
-        }
-        $body = stream_get_contents($stream, $max + 1);
-        fclose($stream);
-        if (!is_string($body)) {
-            return '';
-        }
+        $body   = is_resource($stream) ? (string) stream_get_contents($stream, $max + 1) : (string) $stream;
 
         return strlen($body) > $max ? null : $body;
     }
