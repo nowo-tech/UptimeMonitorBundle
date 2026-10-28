@@ -145,6 +145,46 @@
     margin-bottom: 1rem;
   }
 
+  /* Settings → Status page: the reachability note stands apart from the form, and the monitors to show sit in a grid
+     of bordered choices instead of one run-on line. */
+  .uptime-settings-status-page-link {
+    margin: 0 0 1.25rem;
+  }
+
+  .uptime-settings-status-page-link--private {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--nowo-ui-border, #e2e8f0);
+    border-left-width: 3px;
+    border-radius: var(--nowo-ui-radius, 0.375rem);
+  }
+
+  .uptime-settings-checks {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: 0.5rem;
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .uptime-settings-checks > label {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--nowo-ui-border, #e2e8f0);
+    border-radius: var(--nowo-ui-radius, 0.375rem);
+    cursor: pointer;
+  }
+
+  .uptime-settings-checks > label:has(:checked) {
+    border-color: var(--uptime-link, currentColor);
+  }
+
   .uptime-settings-divider {
     margin: 1.25rem 0;
     border: 0;

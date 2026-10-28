@@ -96,6 +96,8 @@ final class SettingsFormTypesTest extends TypeTestCase
         self::assertTrue($form->isValid());
         self::assertSame('public', $data->visibility);
         self::assertSame([7], $data->monitorIds);
+        // The layout hook of Settings → Status page: the monitors in a grid of choices.
+        self::assertSame(['class' => 'uptime-settings-checks'], $form->get('monitorIds')->getConfig()->getOption('attr'));
     }
 
     public function testHistoryUsesGlobalDetailDaysInHelp(): void

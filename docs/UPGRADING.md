@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.14.3](#to-1143)
 - [To 1.14.2](#to-1142)
 - [To 1.14.1](#to-1141)
 - [To 1.14.0](#to-1140)
@@ -102,6 +103,15 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.14.3
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console assets:install
+```
+
+Settings → Status page layout and wording; Spanish "Up" status reads "Operativo". No configuration change.
 
 ## To 1.14.2
 

@@ -43,6 +43,7 @@ final class SettingsStatusPageFormType extends AbstractUptimeFormType
             'multiple'                  => true,
             'expanded'                  => true,
             'required'                  => false,
+            'attr'                      => ['class' => 'uptime-settings-checks'],
         ] + $full);
     }
 
