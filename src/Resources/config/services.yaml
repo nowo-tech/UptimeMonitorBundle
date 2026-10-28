@@ -95,6 +95,17 @@ services:
             $tokenStorage: '@?security.token_storage'
             $webUiEnabled: '%nowo_uptime_monitor.web_ui.enabled%'
 
+    # Optional security services: an `#[Autowire('@?…')]` attribute does not make an optional reference, so the CSRF
+    # token manager of the POST page actions (pause, delete, push token) was never injected before 1.14.1.
+    Nowo\UptimeMonitorBundle\Ui\UptimeActions:
+        arguments:
+            $tokenStorage: '@?security.token_storage'
+            $csrf: '@?security.csrf.token_manager'
+
+    Nowo\UptimeMonitorBundle\Ui\UptimePages:
+        arguments:
+            $twig: '@?twig'
+
     Nowo\UptimeMonitorBundle\Service\DashboardSyncDispatcher:
         arguments:
             $hub: '@?mercure.hub.default'

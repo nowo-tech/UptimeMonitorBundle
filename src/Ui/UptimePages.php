@@ -37,7 +37,7 @@ final readonly class UptimePages
         private array $webUi = [],
         #[Autowire('%nowo_uptime_monitor.templates%')]
         private array $templates = [],
-        #[Autowire('@?twig')]
+        // Wired in services.yaml: `#[Autowire('@?twig')]` is not an optional reference (1.14.1).
         private ?Environment $twig = null,
     ) {
     }

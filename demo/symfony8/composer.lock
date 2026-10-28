@@ -1211,11 +1211,11 @@
         },
         {
             "name": "nowo-tech/uptime-monitor-bundle",
-            "version": "dev-feat/1.14.0-push-monitors",
+            "version": "dev-fix/1.14.1-actions-csrf",
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "598ccb3a10a90990600feff2173241287c5ec2d8"
+                "reference": "e3aa9503156325ccb58d6219d046a3c7bd7b356a"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",
