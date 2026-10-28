@@ -134,6 +134,7 @@ final class MonitorController extends AbstractUptimeController
             'push_secret'         => $token,
             'push_signing_secret' => ($monitor->getConfig()['push_signed'] ?? false) === true ? $credentials->signingSecret($monitor) : null,
         ]);
+        // @igor-ignore - Response built for this request only; a one-time token must never be cached.
         $response->headers->set('Cache-Control', 'no-store, private');
 
         return $response;
@@ -444,9 +445,10 @@ final class MonitorController extends AbstractUptimeController
     {
         $parent  = $monitor->getParent();
         $actions = $this->actions instanceof UptimeActions
-            ? [...$this->actions->monitor($tenantSlug, $monitor), ...$this->actions->push($tenantSlug, $monitor)]
+            ? $this->actions->monitor($tenantSlug, $monitor)
             : [$this->editAction($tenantSlug, $monitor)];
-        $items = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
+        $pushActions = $this->actions?->push($tenantSlug, $monitor) ?? [];
+        $items       = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
         if ($parent instanceof Monitor || !in_array('project', $this->hiddenFields, true)) {
             $items[] = new DetailItem(
                 UptimePages::label($parent instanceof Monitor ? 'monitor.show.group' : 'monitor.show.project'),
@@ -461,7 +463,7 @@ final class MonitorController extends AbstractUptimeController
             new PageHeader(
                 $monitor->getName(),
                 SecretRedactor::maskUrl($monitor->getTarget()),
-                [...$actions, ...$event->getActions()],
+                [...$actions, ...$pushActions, ...$event->getActions()],
                 back: new BackLink($this->dashboardUrl($tenantSlug), UptimePages::label('nav.dashboard')),
             ),
             [
