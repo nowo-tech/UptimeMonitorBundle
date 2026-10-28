@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.0] - 2026-10-28](#1140---2026-10-28)
 - [[1.13.0] - 2026-10-27](#1130---2026-10-27)
 - [[1.12.1] - 2026-10-27](#1121---2026-10-27)
 - [[1.12.0] - 2026-10-27](#1120---2026-10-27)
@@ -57,9 +58,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-10-28
+
 Server health push monitors: a server's agent pushes disk, CPU, memory and load to its own ingest URL; thresholds and
 "no data" make the monitor degraded or down; a Server health view with gauges, disks and charts. See
-[PUSH-MONITORS](PUSH-MONITORS.md) and [UPGRADING](UPGRADING.md#unreleased).
+[PUSH-MONITORS](PUSH-MONITORS.md) and [UPGRADING](UPGRADING.md#to-1140).
 
 ### Added
 

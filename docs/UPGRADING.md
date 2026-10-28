@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
 - [To 1.12.1](#to-1121)
 - [To 1.12.0](#to-1120)
@@ -99,6 +100,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.14.0
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+Server health push monitors ([PUSH-MONITORS](PUSH-MONITORS.md)).
 
 - **Schema:** `uptime_monitor` gains `push_key` (unique, nullable), `push_token_hash`, `push_last_at` and `push_sample`
   (nullable). Hosts on Doctrine migrations generate one (`doctrine:migrations:diff`); others run the bundle schema sync.
