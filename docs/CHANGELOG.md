@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.1] - 2026-10-28](#1141---2026-10-28)
 - [[1.14.0] - 2026-10-28](#1140---2026-10-28)
 - [[1.13.0] - 2026-10-27](#1130---2026-10-27)
 - [[1.12.1] - 2026-10-27](#1121---2026-10-27)
@@ -57,6 +58,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.14.1] - 2026-10-28
+
+### Fixed
+
+- The POST page actions (pause / resume, delete, push token rotate / revoke) were rendered without their CSRF token in
+  every host, so the controller refused them silently: `UptimeActions` asked for the CSRF token manager and the token
+  storage with `#[Autowire('@?…')]`, which is not an optional reference (the arguments were always `null`).
+  `services.yaml` now wires them (`@?security.csrf.token_manager`, `@?security.token_storage`), and `UptimePages` gets
+  `@?twig` the same way (the legacy-layout bridge could not see an application `layout.html.twig`).
 
 ## [1.14.0] - 2026-10-28
 

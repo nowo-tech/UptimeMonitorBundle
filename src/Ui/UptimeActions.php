@@ -46,9 +46,8 @@ final readonly class UptimeActions
         private UptimeMonitorAccessCheckerInterface $accessChecker,
         private UrlGeneratorInterface $urls,
         private TenantQuota $quota,
-        #[Autowire('@?security.token_storage')]
+        // Optional services are wired in services.yaml: `#[Autowire('@?…')]` is not an optional reference (1.14.1).
         private ?TokenStorageInterface $tokenStorage = null,
-        #[Autowire('@?security.csrf.token_manager')]
         private ?CsrfTokenManagerInterface $csrf = null,
         #[Autowire('%nowo_uptime_monitor.security.allow_unauthenticated%')]
         private bool $allowUnauthenticated = false,
