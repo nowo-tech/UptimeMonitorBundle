@@ -73,7 +73,7 @@ final class SettingsControllerScreensTest extends TestCase
      * @param list<Monitor> $monitors
      * @param array<string, mixed> $statusPage
      */
-    private function controller(?Tenant $tenant = null, array $notificationsConfig = [], LoggerInterface $logger = new NullLogger(), SettingsSections $sections = new SettingsSections(), array $monitors = [], array $statusPage = []): SettingsController
+    private function controller(?Tenant $tenant = null, array $notificationsConfig = [], LoggerInterface $logger = new NullLogger(), SettingsSections $sections = new SettingsSections(), array $monitors = [], array $statusPage = [], UptimePages $pages = new UptimePages()): SettingsController
     {
         $tenantRepo = $this->createStub(TenantRepository::class);
         $tenantRepo->method('findOneBySlug')->willReturnCallback(fn (string $slug): ?Tenant => $slug === 'main' ? ($tenant ?? $this->tenant) : null);
@@ -95,7 +95,7 @@ final class SettingsControllerScreensTest extends TestCase
             new DetailRetentionService($this->em, $tenantRepo, ['detail_days' => 30]),
             ['detail_days' => 30],
             $notificationsConfig,
-            new UptimePages(),
+            $pages,
             $logger,
             $sections,
             $monitorRepo,
@@ -150,6 +150,19 @@ final class SettingsControllerScreensTest extends TestCase
         $this->bindController($controller, true, new Request());
 
         self::assertSame('rendered', $controller->{$method}('main', new Request())->getContent());
+    }
+
+    public function testTheBackLinkFollowsWebUiBackLinks(): void
+    {
+        $controller = $this->controller();
+        $this->bindController($controller, true, new Request());
+        $controller->general('main', new Request());
+        self::assertNotNull($this->renderedContext['page']->header->back);
+
+        $controller = $this->controller(pages: new UptimePages(['back_links' => false]));
+        $this->bindController($controller, true, new Request());
+        $controller->general('main', new Request());
+        self::assertNull($this->renderedContext['page']->header->back);
     }
 
     public function testGeneralSaves(): void

@@ -464,7 +464,7 @@ final class MonitorController extends AbstractUptimeController
                 $monitor->getName(),
                 SecretRedactor::maskUrl($monitor->getTarget()),
                 [...$actions, ...$pushActions, ...$event->getActions()],
-                back: new BackLink($this->dashboardUrl($tenantSlug), UptimePages::label('nav.dashboard')),
+                back: $this->pages->backLinks() ? new BackLink($this->dashboardUrl($tenantSlug), UptimePages::label('nav.dashboard')) : null,
             ),
             [
                 new DetailSection(UptimePages::label('monitor.show.details'), $items, 'uptime-monitor-details'),
@@ -485,7 +485,7 @@ final class MonitorController extends AbstractUptimeController
         $dashboardUrl = $this->dashboardUrl($tenantSlug);
 
         return new FormPage(
-            new PageHeader(UptimePages::label($title), back: new BackLink($dashboardUrl, UptimePages::label('nav.dashboard'))),
+            new PageHeader(UptimePages::label($title), back: $this->pages->backLinks() ? new BackLink($dashboardUrl, UptimePages::label('nav.dashboard')) : null),
             $form->createView(),
             UptimePages::label('monitor.form.save'),
             $dashboardUrl,

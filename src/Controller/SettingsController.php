@@ -649,7 +649,7 @@ final class SettingsController extends AbstractUptimeController
             new PageHeader(
                 UptimePages::label('settings.title'),
                 $tenant->getName(),
-                back: new BackLink($this->generateUrl('nowo_uptime_dashboard', ['tenantSlug' => $tenantSlug]), UptimePages::label('nav.dashboard')),
+                back: $this->pages->backLinks() ? new BackLink($this->generateUrl('nowo_uptime_dashboard', ['tenantSlug' => $tenantSlug]), UptimePages::label('nav.dashboard')) : null,
             ),
             $sections,
             $section,

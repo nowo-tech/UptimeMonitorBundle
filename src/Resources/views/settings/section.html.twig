@@ -19,7 +19,7 @@
 {% endblock %}
 
 {% block nowo_ui_settings_section %}
-    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+    <div class="uptime-app uptime-app--embedded uptime-theme-{{ uptime_theme() }} uptime-settings-body" data-testid="uptime-settings-{{ section.id }}"{% if uptime_theme() != 'auto' %} data-theme="{{ uptime_theme() }}"{% endif %}>
         {{ parent() }}
     </div>
 {% endblock %}

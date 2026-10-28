@@ -24,7 +24,7 @@
 
 {% block nowo_ui_settings_section %}
     {% set _b = page.bundle %}
-    <div class="uptime-app uptime-app--embedded uptime-settings-body uptime-settings-tags" data-testid="uptime-settings-{{ section.id }}">
+    <div class="uptime-app uptime-app--embedded uptime-theme-{{ uptime_theme() }} uptime-settings-body uptime-settings-tags" data-testid="uptime-settings-{{ section.id }}"{% if uptime_theme() != 'auto' %} data-theme="{{ uptime_theme() }}"{% endif %}>
         {% if tags is empty %}
             {{ include(nowo_ui_partial('empty', _b), {message: 'settings.tags.empty'|trans, bundle: _b}, false) }}
         {% else %}

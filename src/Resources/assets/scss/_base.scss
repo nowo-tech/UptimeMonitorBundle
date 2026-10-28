@@ -241,6 +241,11 @@
   margin: 0 0 0.25rem;
 }
 
+// The tenant summary sits in a host page: the line reads as text, not as a second title (1.14.2).
+.uptime-summary .uptime-status-overall {
+  font-size: 1rem;
+}
+
 .uptime-status-overall-operational {
   color: #15803d;
 }
@@ -851,4 +856,10 @@ tr.uptime-push-level-critical td:first-child {
 .uptime-push-disks meter {
   width: 6rem;
   vertical-align: middle;
+}
+
+// UiKit's dashboard scaffold lays its cards out in an auto-fill grid; the summary, the monitors table and the live
+// dashboard are one block each and take the whole row (1.14.2: they were one 18rem column wide).
+.nowo-ui-cards > :is(.uptime-summary, .uptime-dashboard-table, .uptime-app) {
+  grid-column: 1 / -1;
 }

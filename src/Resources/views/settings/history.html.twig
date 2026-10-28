@@ -23,7 +23,7 @@
 
 {% block nowo_ui_settings_section %}
     {% set _b = page.bundle %}
-    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+    <div class="uptime-app uptime-app--embedded uptime-theme-{{ uptime_theme() }} uptime-settings-body" data-testid="uptime-settings-{{ section.id }}"{% if uptime_theme() != 'auto' %} data-theme="{{ uptime_theme() }}"{% endif %}>
         {{ parent() }}
         <hr class="uptime-settings-divider">
         <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'settings.history.intro'|trans|raw }}</p>

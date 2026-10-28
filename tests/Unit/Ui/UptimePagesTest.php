@@ -26,6 +26,13 @@ final class UptimePagesTest extends TestCase
         self::assertSame(['page' => 1, 'nowo_uptime_legacy_layout' => null, 'uptime_form_themes' => [Configuration::DEFAULT_FORM_THEME]], $pages->context(['page' => 1]));
     }
 
+    public function testBackLinksAreOnUnlessTheHostTurnsThemOff(): void
+    {
+        self::assertTrue((new UptimePages())->backLinks());
+        self::assertTrue((new UptimePages(['back_links' => true]))->backLinks());
+        self::assertFalse((new UptimePages(['back_links' => false]))->backLinks());
+    }
+
     public function testWithoutConfigurationOrTwig(): void
     {
         $pages = new UptimePages();

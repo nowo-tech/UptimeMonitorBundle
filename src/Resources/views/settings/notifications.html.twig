@@ -21,7 +21,7 @@
 
 {% block nowo_ui_settings_section %}
     {% set _b = page.bundle %}
-    <div class="uptime-app uptime-app--embedded uptime-settings-body" data-testid="uptime-settings-{{ section.id }}">
+    <div class="uptime-app uptime-app--embedded uptime-theme-{{ uptime_theme() }} uptime-settings-body" data-testid="uptime-settings-{{ section.id }}"{% if uptime_theme() != 'auto' %} data-theme="{{ uptime_theme() }}"{% endif %}>
         <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'settings.notifications.intro'|trans|raw }}</p>
         {{ include(nowo_ui_partial('detail_list', _b), {items: notification_items, bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
         <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'settings.notifications.per_monitor'|trans }}</p>
