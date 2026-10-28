@@ -22,7 +22,7 @@
 {% block nowo_ui_settings_section %}
     {% set _b = page.bundle %}
     <div class="uptime-app uptime-app--embedded uptime-theme-{{ uptime_theme() }} uptime-settings-body" data-testid="uptime-settings-{{ section.id }}"{% if uptime_theme() != 'auto' %} data-theme="{{ uptime_theme() }}"{% endif %}>
-        <p class="uptime-settings-status-page-link">
+        <p class="uptime-settings-status-page-link{{ status_page_url ? '' : ' uptime-settings-status-page-link--private' }}">
             {% if status_page_url %}
                 <a class="{{ nowo_ui_class('btn_secondary', _b) }}" href="{{ status_page_url }}" target="_blank" rel="noopener" data-testid="uptime-settings-status-page-open">{{ 'settings.status_page.open'|trans }}</a>
             {% else %}

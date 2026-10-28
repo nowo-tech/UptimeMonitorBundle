@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.3] - 2026-10-28](#1143---2026-10-28)
 - [[1.14.2] - 2026-10-28](#1142---2026-10-28)
 - [[1.14.1] - 2026-10-28](#1141---2026-10-28)
 - [[1.14.0] - 2026-10-28](#1140---2026-10-28)
@@ -59,6 +60,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.14.3] - 2026-10-28
+
+### Fixed
+
+- Settings → Status page: the reachability note stands apart from the form (a bordered note when the page is not
+  public), and the monitors to show sit in a grid of bordered choices instead of one run-on line.
+- The visibility help no longer names a configuration key (`status_page.default_public`): "Default" follows the
+  installation setting, in the 7 locales; the not-reachable note says why in plain words.
+- Spanish: the "Up" status reads "Operativo" (was "Arriba").
 
 ## [1.14.2] - 2026-10-28
 
