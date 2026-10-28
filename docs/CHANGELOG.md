@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.1] - 2026-10-28](#1151---2026-10-28)
 - [[1.15.0] - 2026-10-28](#1150---2026-10-28)
 - [[1.14.3] - 2026-10-28](#1143---2026-10-28)
 - [[1.14.2] - 2026-10-28](#1142---2026-10-28)
@@ -61,6 +62,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.15.1] - 2026-10-28
+
+Dependency update
+
+### Changed
+
+- **Dependencies updated** within their constraints: NowoFormKitBundle 2.14.0 and NowoUiKitBundle 2.17.1 in the development lock, PHPStan 2.3.3, Symfony polyfills; the JavaScript lock file. No change in the bundle's behaviour or configuration.
 
 ## [1.15.0] - 2026-10-28
 
