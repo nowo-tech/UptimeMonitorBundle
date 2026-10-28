@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Check;
 
+use DateTimeImmutable;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -50,12 +51,12 @@ final readonly class PushCheckRunner implements CheckRunnerInterface
         $since   = $now - ($last ?? $monitor->getCreatedAt())->getTimestamp();
 
         if ($since > $allowed) {
-            return new CheckResultDto(CheckStatus::Down, 0, null, $last === null
-                ? 'No push received yet'
-                : sprintf('No push for %d s (allowed %d s)', $since, $allowed));
+            return new CheckResultDto(CheckStatus::Down, 0, null, $last instanceof DateTimeImmutable
+                ? sprintf('No push for %d s (allowed %d s)', $since, $allowed)
+                : 'No push received yet');
         }
         $sample = $monitor->getPushSample();
-        if ($last === null || $sample === null) {
+        if (!$last instanceof DateTimeImmutable || $sample === null) {
             return new CheckResultDto(CheckStatus::Unknown, 0, null, 'Waiting for the first push');
         }
 

@@ -94,7 +94,7 @@ final readonly class PushThresholds
                 $warn !== null && $value >= $warn         => CheckStatus::Degraded,
                 default                                   => CheckStatus::Up,
             };
-            if (self::rank($status) > self::rank($worst)) {
+            if ($this->rank($status) > $this->rank($worst)) {
                 $worst   = $status;
                 $message = sprintf(
                     '%s at %s (%s ≥ %s)',
@@ -146,7 +146,7 @@ final readonly class PushThresholds
         return is_int($value) || is_float($value) ? (float) $value : null;
     }
 
-    private static function rank(CheckStatus $status): int
+    private function rank(CheckStatus $status): int
     {
         return match ($status) {
             CheckStatus::Down     => 2,

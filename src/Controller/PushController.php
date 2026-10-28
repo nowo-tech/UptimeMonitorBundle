@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Controller;
 
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Push\PushCredentials;
@@ -41,18 +42,18 @@ use function trim;
  * accepted (202).
  */
 #[AsController]
-final class PushController
+final readonly class PushController
 {
     /**
      * @param array{enabled: bool, max_body_bytes: int, signature_window_seconds: int, min_push_seconds: int} $push `push` configuration
      */
     public function __construct(
-        private readonly MonitorRepository $monitorRepository,
-        private readonly PushCredentials $credentials,
-        private readonly EntityManagerInterface $entityManager,
+        private MonitorRepository $monitorRepository,
+        private PushCredentials $credentials,
+        private EntityManagerInterface $entityManager,
         #[Autowire('%nowo_uptime_monitor.push%')]
-        private readonly array $push,
-        private readonly ClockInterface $clock = new NativeClock(),
+        private array $push,
+        private ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -70,43 +71,43 @@ final class PushController
         }
         $max = $this->push['max_body_bytes'];
         if ((int) $request->headers->get('Content-Length', '0') > $max) {
-            return self::reply(['error' => 'payload_too_large'], Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+            return $this->reply(['error' => 'payload_too_large'], Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
         }
-        $body = self::readBody($request, $max);
+        $body = $this->readBody($request, $max);
         if ($body === null) {
-            return self::reply(['error' => 'payload_too_large'], Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+            return $this->reply(['error' => 'payload_too_large'], Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
         }
 
         $monitor = $this->monitorRepository->findOneByPushKey($key);
-        $token   = self::bearer($request);
+        $token   = $this->bearer($request);
         if (!$this->credentials->verifyToken($monitor, $token) || !$monitor instanceof Monitor || !$this->signatureAccepted($monitor, $request, $body)) {
-            return self::reply(['error' => 'unauthorized'], Response::HTTP_UNAUTHORIZED, ['WWW-Authenticate' => 'Bearer']);
+            return $this->reply(['error' => 'unauthorized'], Response::HTTP_UNAUTHORIZED, ['WWW-Authenticate' => 'Bearer']);
         }
         if ($monitor->isPaused() || !$monitor->getTenant()->isEnabled()) {
-            return self::reply(['error' => 'monitor_disabled'], Response::HTTP_FORBIDDEN);
+            return $this->reply(['error' => 'monitor_disabled'], Response::HTTP_FORBIDDEN);
         }
 
         $now   = $this->clock->now();
         $last  = $monitor->getPushLastAt();
         $every = max($this->push['min_push_seconds'], intdiv($monitor->getIntervalSeconds(), 2));
-        if ($last !== null && $now->getTimestamp() - $last->getTimestamp() < $every) {
-            return self::reply(['error' => 'too_many_pushes'], Response::HTTP_TOO_MANY_REQUESTS, [
+        if ($last instanceof DateTimeImmutable && $now->getTimestamp() - $last->getTimestamp() < $every) {
+            return $this->reply(['error' => 'too_many_pushes'], Response::HTTP_TOO_MANY_REQUESTS, [
                 'Retry-After' => (string) max(1, $every - ($now->getTimestamp() - $last->getTimestamp())),
             ]);
         }
         if (trim($body) !== '' && !str_starts_with(strtolower((string) $request->headers->get('Content-Type', '')), 'application/json')) {
-            return self::reply(['error' => 'unsupported_media_type'], Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
+            return $this->reply(['error' => 'unsupported_media_type'], Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
         }
 
         [$sample, $errors] = PushPayload::parse(trim($body));
         if ($sample === null) {
-            return self::reply(['error' => 'invalid_payload', 'details' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->reply(['error' => 'invalid_payload', 'details' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $monitor->recordPush($now, $sample);
         $this->entityManager->flush();
 
-        return self::reply(['status' => 'accepted'], Response::HTTP_ACCEPTED);
+        return $this->reply(['status' => 'accepted'], Response::HTTP_ACCEPTED);
     }
 
     /**
@@ -128,7 +129,7 @@ final class PushController
         );
     }
 
-    private static function bearer(Request $request): string
+    private function bearer(Request $request): string
     {
         $header = (string) $request->headers->get('Authorization', '');
 
@@ -138,7 +139,7 @@ final class PushController
     /**
      * The body, read up to the limit (null when it is longer: the declared length is not trusted).
      */
-    private static function readBody(Request $request, int $max): ?string
+    private function readBody(Request $request, int $max): ?string
     {
         $stream = $request->getContent(true);
         if (!is_resource($stream)) {
@@ -157,7 +158,7 @@ final class PushController
      * @param array<string, mixed> $data
      * @param array<string, string> $headers
      */
-    private static function reply(array $data, int $status, array $headers = []): JsonResponse
+    private function reply(array $data, int $status, array $headers = []): JsonResponse
     {
         return new JsonResponse($data, $status, $headers + ['Cache-Control' => 'no-store', 'X-Content-Type-Options' => 'nosniff']);
     }

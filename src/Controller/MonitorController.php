@@ -190,7 +190,7 @@ final class MonitorController extends AbstractUptimeController
                 'tenantSlug' => $tenantSlug,
                 'id'         => $id,
             ]),
-            'push' => $this->pushView($tenantSlug, $monitor, $request),
+            'push' => $this->pushView($monitor, $request),
         ] + $extra));
     }
 
@@ -200,7 +200,7 @@ final class MonitorController extends AbstractUptimeController
      *
      * @return array<string, mixed>|null
      */
-    private function pushView(string $tenantSlug, Monitor $monitor, ?Request $request): ?array
+    private function pushView(Monitor $monitor, ?Request $request): ?array
     {
         if ($monitor->getType() !== MonitorType::Push || !$this->pushSeries instanceof PushMetricsSeries || $monitor->getPushKey() === null) {
             return null;

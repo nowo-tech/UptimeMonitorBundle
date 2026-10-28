@@ -64,18 +64,18 @@ final readonly class PushMetricsSeries
         $series = ['hours' => $hours, 'labels' => [], 'cpu' => [], 'memory' => [], 'swap' => [], 'load' => [], 'disks' => []];
         $mounts = [];
         foreach ($samples as [, $sample]) {
-            $mounts += self::disks($sample);
+            $mounts += $this->disks($sample);
         }
         foreach ($samples as $i => [$at, $sample]) {
             if ($i % $step !== 0) {
                 continue;
             }
-            $series['labels'][] = self::label($at, $hours);
-            $series['cpu'][]    = self::number($sample['cpu_pct'] ?? null);
-            $series['memory'][] = self::number($sample['mem_pct'] ?? null);
-            $series['swap'][]   = self::number($sample['swap_pct'] ?? null);
-            $series['load'][]   = self::loadPerCore($sample);
-            $disks              = self::disks($sample);
+            $series['labels'][] = $this->label($at, $hours);
+            $series['cpu'][]    = $this->number($sample['cpu_pct'] ?? null);
+            $series['memory'][] = $this->number($sample['mem_pct'] ?? null);
+            $series['swap'][]   = $this->number($sample['swap_pct'] ?? null);
+            $series['load'][]   = $this->loadPerCore($sample);
+            $disks              = $this->disks($sample);
             foreach (array_keys($mounts) as $mount) {
                 $series['disks'][$mount][] = $disks[$mount] ?? null;
             }
@@ -97,9 +97,9 @@ final readonly class PushMetricsSeries
         }
         $limits  = PushThresholds::of($monitor)->limits;
         $metrics = [];
-        foreach (['cpu' => self::number($sample['cpu_pct'] ?? null), 'memory' => self::number($sample['mem_pct'] ?? null), 'swap' => self::number($sample['swap_pct'] ?? null), 'load' => self::loadPerCore($sample)] as $key => $value) {
+        foreach (['cpu' => $this->number($sample['cpu_pct'] ?? null), 'memory' => $this->number($sample['mem_pct'] ?? null), 'swap' => $this->number($sample['swap_pct'] ?? null), 'load' => $this->loadPerCore($sample)] as $key => $value) {
             if ($value !== null) {
-                $metrics[] = ['key' => $key, 'value' => $value, 'level' => self::level($value, $limits[$key])];
+                $metrics[] = ['key' => $key, 'value' => $value, 'level' => $this->level($value, $limits[$key])];
             }
         }
         $disks = [];
@@ -107,9 +107,9 @@ final readonly class PushMetricsSeries
             if (!is_array($disk) || !is_string($disk['mount'] ?? null)) {
                 continue;
             }
-            $used    = self::number($disk['used_pct'] ?? null);
-            $inodes  = self::number($disk['inodes_pct'] ?? null);
-            $levels  = [$used === null ? 'ok' : self::level($used, $limits['disk']), $inodes === null ? 'ok' : self::level($inodes, $limits['inodes'])];
+            $used    = $this->number($disk['used_pct'] ?? null);
+            $inodes  = $this->number($disk['inodes_pct'] ?? null);
+            $levels  = [$used === null ? 'ok' : $this->level($used, $limits['disk']), $inodes === null ? 'ok' : $this->level($inodes, $limits['inodes'])];
             $disks[] = ['mount' => $disk['mount'], 'used' => $used, 'inodes' => $inodes, 'level' => in_array('critical', $levels, true) ? 'critical' : (in_array('warn', $levels, true) ? 'warn' : 'ok')];
         }
 
@@ -124,7 +124,7 @@ final readonly class PushMetricsSeries
     /**
      * @param array{0: float|null, 1: float|null} $limits
      */
-    private static function level(float $value, array $limits): string
+    private function level(float $value, array $limits): string
     {
         return match (true) {
             $limits[1] !== null && $value >= $limits[1] => 'critical',
@@ -138,12 +138,12 @@ final readonly class PushMetricsSeries
      *
      * @return array<string, float|null> mount => used %
      */
-    private static function disks(array $sample): array
+    private function disks(array $sample): array
     {
         $disks = [];
         foreach (is_array($sample['disks'] ?? null) ? $sample['disks'] : [] as $disk) {
             if (is_array($disk) && is_string($disk['mount'] ?? null)) {
-                $disks[$disk['mount']] = self::number($disk['used_pct'] ?? null);
+                $disks[$disk['mount']] = $this->number($disk['used_pct'] ?? null);
             }
         }
 
@@ -153,20 +153,20 @@ final readonly class PushMetricsSeries
     /**
      * @param array<mixed> $sample
      */
-    private static function loadPerCore(array $sample): ?float
+    private function loadPerCore(array $sample): ?float
     {
-        $load  = self::number($sample['load5'] ?? $sample['load1'] ?? null);
+        $load  = $this->number($sample['load5'] ?? $sample['load1'] ?? null);
         $cores = $sample['cpu_count'] ?? 1;
 
         return $load === null ? null : round($load / max(1, is_int($cores) ? $cores : 1), 2);
     }
 
-    private static function number(mixed $value): ?float
+    private function number(mixed $value): ?float
     {
         return is_int($value) || is_float($value) ? (float) $value : null;
     }
 
-    private static function label(DateTimeImmutable $at, int $hours): string
+    private function label(DateTimeImmutable $at, int $hours): string
     {
         return $at->format($hours > 24 ? 'm-d H:i' : 'H:i');
     }
