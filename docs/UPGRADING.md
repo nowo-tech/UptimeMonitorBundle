@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.16.0](#to-1160)
 - [To 1.15.1](#to-1151)
 - [To 1.15.0](#to-1150)
 - [To 1.14.3](#to-1143)
@@ -105,6 +106,20 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.16.0
+
+From **1.15.1**: no configuration change. Run `assets:install` (or your asset build) so the rebuilt `uptime-theme.css` /
+`uptime-dashboard.css` are served. Templates that override the bundle's styles may need a look:
+
+- The tenant summary rows (`.uptime-summary .uptime-status-item`) are flat now (no background, border box or radius;
+  a `--nowo-ui-border` divider between rows). A host rule that painted the boxed rows can go.
+- The monitor form sections (`.uptime-monitor-form-fields .uptime-form-section`) are CSS grids with two columns from
+  36rem of form width; a host override of `_monitor_form_fields.html.twig` keeps working (the grid reads the field
+  names). In that partial, Monitor group (`parentId`) now renders right after Monitor type.
+- The monitor dialog (`[data-uptime-monitor-form-modal]`) is a flex column whose body scrolls between a fixed header and
+  sticky form actions (`.uptime-form-actions`).
+- The 1.x dark input colours of the monitor form apply only outside `.uptime-app--embedded`.
 
 ## To 1.15.1
 

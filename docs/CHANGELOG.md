@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.16.0] - 2026-10-28](#1160---2026-10-28)
 - [[1.15.1] - 2026-10-28](#1151---2026-10-28)
 - [[1.15.0] - 2026-10-28](#1150---2026-10-28)
 - [[1.14.3] - 2026-10-28](#1143---2026-10-28)
@@ -62,6 +63,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.16.0] - 2026-10-28
+
+Flat summary rows and a form-sized monitor dialog
+
+### Fixed
+
+- **Status summary in a dark host theme**: the monitor rows of the tenant summary (`summary/index.html.twig`,
+  `.uptime-summary`) were white boxes, because the 1.x boxed row of `_base.scss` (`.uptime-status-item`, background
+  `--tblr-bg-surface` or `#fff`) still applied there. The summary now follows the same flat row contract as the public
+  status page: transparent rows split by a `--nowo-ui-border` divider, no radius or shadow; the type and latency take
+  `--nowo-ui-muted`, the status badges their UiKit tone colours, and the "n of m operational" line the
+  `--nowo-ui-success-text` / `-warning-text` / `-danger-text` tokens instead of fixed light-theme colours.
+- **Monitor form controls in a light host theme**: the 1.x dark-shell colours of the monitor form inputs
+  (`.uptime-app .uptime-monitor-form input…`) also hit the embedded dialog, so a light host showed dark fields. They now
+  apply only outside `.uptime-app--embedded`; embedded forms keep the host's controls.
+- The 56rem cap of the monitor form (`.uptime-monitor-form-fields`) never applied (the wrapper is itself the
+  `.uptime-app--embedded` element); it now caps the page form.
+
+### Changed
+
+- **Monitor dialog and form layout**: the fields of each section sit in a responsive grid — one column on narrow forms
+  (phones), two columns from 36rem of form width — with long values (name, project label, URL, description, keyword,
+  proxy, tags, DNS hostname / expected value, text areas) spanning the row and short ones (type, group, interval,
+  retries, retry interval, timeout, method, expected status codes, port…) side by side. Sections are compact fieldsets
+  with their legend. In the dialog the header (title and close button) and the Save / Cancel actions stay in view while
+  only the form scrolls, and the form takes the whole `xl` dialog width. The full-page monitor form uses the same grid.
+  Monitor group now follows Monitor type (it shares its row); every field name, id and `data-testid` is unchanged and
+  no inline style is added.
 
 ## [1.15.1] - 2026-10-28
 
