@@ -1211,11 +1211,11 @@
         },
         {
             "name": "nowo-tech/uptime-monitor-bundle",
-            "version": "dev-main",
+            "version": "dev-feat/1.14.0-push-monitors",
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "edbc8928150771d63149f918550a5a84cf65dfb4"
+                "reference": "598ccb3a10a90990600feff2173241287c5ec2d8"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",

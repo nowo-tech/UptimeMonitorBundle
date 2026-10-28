@@ -13,6 +13,7 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
+use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 use Psr\Log\LoggerInterface;
@@ -24,6 +25,7 @@ use Throwable;
 
 use function count;
 use function is_array;
+use function is_int;
 use function is_string;
 use function max;
 use function sprintf;
@@ -288,6 +290,15 @@ final readonly class MonitorBackupService
             $data->method = isset($config['method']) && is_string($config['method']) ? strtoupper($config['method']) : 'GET';
             if (isset($config['expected_status_codes']) && is_array($config['expected_status_codes'])) {
                 $data->expectedStatusCodes = implode(',', array_map(strval(...), $config['expected_status_codes']));
+            }
+            if ($data->type === MonitorType::Push) {
+                // A push monitor keeps its thresholds and options; it gets a new key, and a token must be generated.
+                $data->pushSigned       = ($config['push_signed'] ?? false) === true;
+                $data->pushGraceSeconds = isset($config['push_grace_seconds']) && is_int($config['push_grace_seconds']) ? $config['push_grace_seconds'] : null;
+                foreach (PushThresholds::fromConfig($config)->limits as $metric => [$warn, $critical]) {
+                    $data->pushThresholds[$metric . 'Warn']     = $warn;
+                    $data->pushThresholds[$metric . 'Critical'] = $critical;
+                }
             }
         }
 

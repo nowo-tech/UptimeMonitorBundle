@@ -960,6 +960,13 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         max_redirects?: int|Param, // Upper bound of the per-monitor redirect limit of HTTP checks. // Default: 20
  *         max_scan_seconds?: int|Param, // Time budget of one due-check scan; monitors left over stay due for the next tick (oldest first). 0 = no budget. // Default: 300
  *     },
+ *     push?: array{ // Push monitors (since 1.14): servers POST their health (disk, CPU, memory, load) to path/{key} with a bearer token.
+ *         enabled?: bool|Param, // false = the ingest route answers 404 (push monitors then go down for lack of data). // Default: true
+ *         path?: scalar|Param|null, // Prefix of the ingest URL (one route for every tenant; the key names the monitor). Keep it outside the dashboard path. // Default: "/uptime-push"
+ *         max_body_bytes?: int|Param, // Largest accepted push body (413 above). // Default: 8192
+ *         signature_window_seconds?: int|Param, // Accepted clock skew of a signed push (X-Uptime-Timestamp). // Default: 300
+ *         min_push_seconds?: int|Param, // Shortest time between two accepted pushes of one monitor (429 + Retry-After below it). // Default: 10
+ *     },
  *     retention?: array{
  *         detail_days?: int|Param, // Days to keep CheckResult detail rows; 0 = infinite (no purge) // Default: 30
  *         purge_enabled?: bool|Param, // Default: true
@@ -1007,6 +1014,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             view?: "tree"|"table"|Param, // tree: the live monitor tree with quick stats and recent checks; table: a monitors table (status, 24 h uptime, last check, interval, row actions) and a paginated card of the latest checks — for hosts that embed the pages in their own navigation. // Default: "tree"
  *             header?: "tenant"|"monitors"|Param, // Page header title: tenant (its name, the slug as intro) or monitors ("Monitors" — for hosts that already show the tenant around the page; the table view then drops its card title). // Default: "tenant"
  *             actions?: list<"settings"|"status_page"|"new_monitor"|Param>,
+ *         },
+ *         settings?: array{ // Tenant settings screens (since 1.13).
+ *             sections?: list<"general"|"appearance"|"notifications"|"reverse_proxy"|"status_page"|"tags"|"history"|"backup"|"about"|Param>,
  *         },
  *         per_page?: int|Param, // Rows per page of the check log (monitor page) and of the latest checks (table dashboard). // Default: 20
  *     },

@@ -133,6 +133,27 @@ final class MonitorBackupServiceDbTest extends TestCase
         );
     }
 
+    public function testAnImportedPushMonitorKeepsItsThresholdsAndGetsANewKeyWithoutToken(): void
+    {
+        $result = $this->service->import($this->tenant, ['monitors' => [[
+            'name'             => 'web-01',
+            'type'             => 'push',
+            'target'           => 'push',
+            'interval_seconds' => 60,
+            'config'           => ['push_signed' => true, 'push_grace_seconds' => 30, 'push_thresholds' => ['disk' => [70, 80]]],
+        ]]]);
+
+        self::assertSame(1, $result['imported']);
+        $monitor = $this->monitors->findOneBy(['name' => 'web-01']);
+        self::assertNotNull($monitor);
+        self::assertSame(MonitorType::Push, $monitor->getType());
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', (string) $monitor->getPushKey());
+        self::assertNull($monitor->getPushTokenHash());
+        self::assertTrue($monitor->getConfig()['push_signed']);
+        self::assertSame(30, $monitor->getConfig()['push_grace_seconds']);
+        self::assertSame([70.0, 80.0], $monitor->getConfig()['push_thresholds']['disk']);
+    }
+
     public function testImportRejectsAPayloadWithoutMonitors(): void
     {
         $this->expectException(InvalidArgumentException::class);

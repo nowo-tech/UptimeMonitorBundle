@@ -64,4 +64,20 @@ final class MonitorTest extends TestCase
 
         self::assertSame('2026-05-01 12:01:00', $monitor->getNextCheckAt()?->format('Y-m-d H:i:s'));
     }
+
+    public function testPushFields(): void
+    {
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'web', MonitorType::Push, 'push');
+        self::assertNull($monitor->getPushKey());
+        self::assertNull($monitor->getPushTokenHash());
+        self::assertNull($monitor->getPushLastAt());
+        self::assertNull($monitor->getPushSample());
+
+        $at = new DateTimeImmutable('2026-10-28 10:00:00');
+        self::assertSame($monitor, $monitor->setPushKey('key')->setPushTokenHash('hash')->recordPush($at, ['cpu_pct' => 1.0]));
+        self::assertSame('key', $monitor->getPushKey());
+        self::assertSame('hash', $monitor->getPushTokenHash());
+        self::assertSame($at, $monitor->getPushLastAt());
+        self::assertSame(['cpu_pct' => 1.0], $monitor->getPushSample());
+    }
 }

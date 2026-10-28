@@ -78,6 +78,21 @@ final class MonitorFormData
     #[Assert\Range(min: 0, max: 3650)]
     public int $daysBeforeExpiry = 14;
 
+    // Push (since 1.14): grace beyond the interval, signed pushes and the warning / critical limits (null = off).
+    #[Assert\Range(min: 0, max: 86400)]
+    public ?int $pushGraceSeconds = null;
+    public bool $pushSigned       = false;
+
+    /** @var array<string, float|null> e.g. `diskWarn` => 85.0, `diskCritical` => 95.0 */
+    public array $pushThresholds = [
+        'diskWarn'   => 85.0, 'diskCritical' => 95.0,
+        'inodesWarn' => 85.0, 'inodesCritical' => 95.0,
+        'memoryWarn' => 90.0, 'memoryCritical' => 97.0,
+        'cpuWarn'    => 85.0, 'cpuCritical' => 95.0,
+        'swapWarn'   => 50.0, 'swapCritical' => 80.0,
+        'loadWarn'   => 1.5, 'loadCritical' => 3.0,
+    ];
+
     /**
      * HTTP / HTTPS monitors (SEC-004 I2): a non-empty URL must be an absolute http:// or https:// URL with a host and
      * no whitespace (`form.monitor.url_invalid`); other monitor types ignore the field.

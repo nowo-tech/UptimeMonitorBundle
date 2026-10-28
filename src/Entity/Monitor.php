@@ -13,11 +13,12 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use function sprintf;
 
 /**
- * A monitored target (HTTP, TCP, DNS, SSL, ping or group) of a tenant, with its schedule and last known status.
+ * A monitored target (HTTP, TCP, DNS, SSL, ping, group or push) of a tenant, with its schedule and last known status.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'uptime_monitor')]
 #[ORM\Index(name: 'idx_uptime_monitor_tenant_next', columns: ['tenant_id', 'next_check_at'])]
+#[ORM\UniqueConstraint(name: 'uniq_uptime_monitor_push_key', columns: ['push_key'])]
 class Monitor
 {
     #[ORM\Id]
@@ -54,6 +55,21 @@ class Monitor
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
+
+    /** Push monitors: the opaque id of their ingest URL (never the numeric id, never the tenant). */
+    #[ORM\Column(name: 'push_key', type: Types::STRING, length: 32, nullable: true)]
+    private ?string $pushKey = null;
+
+    /** Push monitors: SHA-256 of the bearer token (the token itself is shown once and never stored). */
+    #[ORM\Column(name: 'push_token_hash', type: Types::STRING, length: 64, nullable: true)]
+    private ?string $pushTokenHash = null;
+
+    #[ORM\Column(name: 'push_last_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?DateTimeImmutable $pushLastAt = null;
+
+    /** @var array<string, mixed>|null last accepted push (validated metrics) */
+    #[ORM\Column(name: 'push_sample', type: Types::JSON, nullable: true)]
+    private ?array $pushSample = null;
 
     /**
      * Creates a monitor of a tenant, due for its first check now.
@@ -362,6 +378,77 @@ class Monitor
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->nextCheckAt = $from->modify(sprintf('+%d seconds', $this->intervalSeconds));
+
+        return $this;
+    }
+
+    /**
+     * Returns the opaque key of the push URL (push monitors only).
+     */
+    public function getPushKey(): ?string
+    {
+        return $this->pushKey;
+    }
+
+    /**
+     * Sets the opaque key of the push URL (null for other types).
+     */
+    public function setPushKey(?string $pushKey): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->pushKey = $pushKey;
+
+        return $this;
+    }
+
+    /**
+     * Returns the SHA-256 of the push token (null = no token: every push is refused).
+     */
+    public function getPushTokenHash(): ?string
+    {
+        return $this->pushTokenHash;
+    }
+
+    /**
+     * Sets the SHA-256 of the push token (null revokes it).
+     */
+    public function setPushTokenHash(?string $pushTokenHash): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->pushTokenHash = $pushTokenHash;
+
+        return $this;
+    }
+
+    /**
+     * Returns when the last push was accepted.
+     */
+    public function getPushLastAt(): ?DateTimeImmutable
+    {
+        return $this->pushLastAt;
+    }
+
+    /**
+     * Returns the metrics of the last accepted push.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getPushSample(): ?array
+    {
+        return $this->pushSample;
+    }
+
+    /**
+     * Records an accepted push: its time and validated metrics.
+     *
+     * @param array<string, mixed> $sample
+     */
+    public function recordPush(DateTimeImmutable $at, array $sample): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->pushLastAt = $at;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->pushSample = $sample;
 
         return $this;
     }

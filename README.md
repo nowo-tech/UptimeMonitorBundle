@@ -105,6 +105,7 @@ make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 - [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Scheduling](docs/SCHEDULING.md)
 - [Check types](docs/CHECK-TYPES.md)
+- [Push monitors — server health](docs/PUSH-MONITORS.md)
 - [Monitor configuration (Uptime Kuma parity)](docs/MONITOR-CONFIGURATION.md)
 - [Tenant settings (Uptime Kuma parity)](docs/SETTINGS.md)
 - [Translations (en, es, fr, it, pt, de, nl)](docs/TRANSLATIONS.md)

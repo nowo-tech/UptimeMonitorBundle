@@ -44,6 +44,8 @@ export function initMonitorFormTypeToggle(scope: ParentNode): void {
         show = value === dns;
       } else if (key === 'ssl') {
         show = value === 'ssl';
+      } else if (key === 'push') {
+        show = value === 'push';
       }
       element.hidden = !show;
     });

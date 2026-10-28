@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Form;
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
+use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Translation\UptimeTranslation;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -18,7 +19,10 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 use function is_int;
 use function is_string;
+use function sprintf;
+use function strtolower;
 use function trim;
+use function ucfirst;
 
 /**
  * @extends AbstractUptimeFormType<MonitorFormData>
@@ -58,6 +62,7 @@ final class MonitorFormType extends AbstractUptimeFormType
                 'form.monitor.type.dns'   => MonitorType::Dns,
                 'form.monitor.type.ssl'   => MonitorType::Ssl,
                 'form.monitor.type.ping'  => MonitorType::Ping,
+                'form.monitor.type.push'  => MonitorType::Push,
             ],
             // The option values are the type names (`https`, `tcp`, …): the form's field toggle reads them.
             'choice_value' => static fn (?MonitorType $type): ?string => $type?->value,
@@ -210,6 +215,30 @@ final class MonitorFormType extends AbstractUptimeFormType
             'label'    => 'form.monitor.ssl_days',
             'required' => false,
         ]);
+        $this->addInteger($builder, 'pushGraceSeconds', [
+            'label'    => 'form.monitor.push_grace',
+            'required' => false,
+            'attr'     => ['min' => 0],
+            'help'     => 'form.monitor.push_grace_help',
+        ]);
+        $this->addCheckbox($builder, 'pushSigned', [
+            'label'    => 'form.monitor.push_signed',
+            'required' => false,
+            'help'     => 'form.monitor.push_signed_help',
+        ]);
+        foreach (PushThresholds::DEFAULTS as $metric => $_) {
+            foreach (['Warn', 'Critical'] as $level) {
+                $this->addNumber($builder, 'push' . ucfirst($metric) . $level, [
+                    'label'         => 'form.monitor.push_threshold.' . $metric . '_' . strtolower($level),
+                    'required'      => false,
+                    'html5'         => true,
+                    'scale'         => 2,
+                    'property_path' => sprintf('pushThresholds[%s%s]', $metric, $level),
+                    'attr'          => ['min' => 0, 'max' => 100, 'step' => $metric === 'load' ? 0.1 : 1],
+                    'constraints'   => [new Range(min: 0, max: 100)],
+                ]);
+            }
+        }
         $this->addCheckbox($builder, 'paused', [
             'label'    => 'form.monitor.paused',
             'required' => false,

@@ -13,6 +13,7 @@ use Nowo\UiKitBundle\View\FormPage;
 use Nowo\UiKitBundle\View\PageHeader;
 use Nowo\UiKitBundle\View\Pagination;
 use Nowo\UiKitBundle\View\ShowPage;
+use Nowo\UptimeMonitorBundle\Check\PushCheckRunner;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
@@ -21,6 +22,8 @@ use Nowo\UptimeMonitorBundle\Event\UptimePageEvent;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
+use Nowo\UptimeMonitorBundle\Push\PushCredentials;
+use Nowo\UptimeMonitorBundle\Push\PushMetricsSeries;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -39,6 +42,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -47,6 +51,7 @@ use function array_slice;
 use function count;
 use function in_array;
 use function is_int;
+use function json_encode;
 use function sprintf;
 
 use const JSON_THROW_ON_ERROR;
@@ -66,6 +71,8 @@ final class MonitorController extends AbstractUptimeController
      * @param EventDispatcherInterface|null $eventDispatcher Dispatches {@see UptimePageEvent} (since 1.12)
      * @param array<string, mixed> $webUi Processed `web_ui` config (`per_page`)
      * @param list<string> $hiddenFields `form.hidden_fields`: monitor fields the host left out
+     * @param PushCredentials|null $pushCredentials Issues and revokes push tokens (since 1.14)
+     * @param PushMetricsSeries|null $pushSeries Server health view of push monitors (since 1.14)
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -84,6 +91,8 @@ final class MonitorController extends AbstractUptimeController
         private readonly array $webUi = [],
         #[Autowire('%nowo_uptime_monitor.form.hidden_fields%')]
         private readonly array $hiddenFields = [],
+        private readonly ?PushCredentials $pushCredentials = null,
+        private readonly ?PushMetricsSeries $pushSeries = null,
     ) {
         parent::__construct($translator);
     }
@@ -101,7 +110,60 @@ final class MonitorController extends AbstractUptimeController
     #[Route('/{id}', name: 'show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(string $tenantSlug, int $id, ?Request $request = null): Response
     {
-        $monitor = $this->requireMonitor($tenantSlug, $id);
+        return $this->renderShow($tenantSlug, $this->requireMonitor($tenantSlug, $id), $request);
+    }
+
+    /**
+     * Issues a new push token (the previous one stops working) and shows it once on the monitor page, never stored
+     * and never cached (CSRF-protected; push monitors only).
+     *
+     * @throws NotFoundHttpException When the monitor is not a push monitor of the tenant
+     */
+    #[Route('/{id}/push-token', name: 'push_token', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function pushToken(string $tenantSlug, int $id, Request $request): Response
+    {
+        $monitor = $this->requirePushMonitor($tenantSlug, $id);
+        if (!$this->isCsrfTokenValid('push_token' . $id, (string) $request->request->get('_token'))) {
+            return $this->redirectToRoute('nowo_uptime_monitor_show', ['tenantSlug' => $tenantSlug, 'id' => $id]);
+        }
+        $credentials = $this->pushCredentials ?? throw new NotFoundHttpException();
+        $token       = $credentials->issueToken($monitor);
+        $this->entityManager->flush();
+
+        $response = $this->renderShow($tenantSlug, $monitor, $request, [
+            'push_secret'         => $token,
+            'push_signing_secret' => ($monitor->getConfig()['push_signed'] ?? false) === true ? $credentials->signingSecret($monitor) : null,
+        ]);
+        // @igor-ignore - Response built for this request only; a one-time token must never be cached.
+        $response->headers->set('Cache-Control', 'no-store, private');
+
+        return $response;
+    }
+
+    /**
+     * Revokes the push token: every push is refused until a new one is issued (CSRF-protected).
+     *
+     * @throws NotFoundHttpException When the monitor is not a push monitor of the tenant
+     */
+    #[Route('/{id}/push-revoke', name: 'push_revoke', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function pushRevoke(string $tenantSlug, int $id, Request $request): RedirectResponse
+    {
+        $monitor = $this->requirePushMonitor($tenantSlug, $id);
+        if ($this->isCsrfTokenValid('push_revoke' . $id, (string) $request->request->get('_token'))) {
+            $this->pushCredentials?->revoke($monitor);
+            $this->entityManager->flush();
+            $this->addFlash('success', $this->transMessage('flash.monitor.push_revoked'));
+        }
+
+        return $this->redirectToRoute('nowo_uptime_monitor_show', ['tenantSlug' => $tenantSlug, 'id' => $id]);
+    }
+
+    /**
+     * @param array<string, mixed> $extra one-time context (a token just issued)
+     */
+    private function renderShow(string $tenantSlug, Monitor $monitor, ?Request $request, array $extra = []): Response
+    {
+        $id      = (int) $monitor->getId();
         $series  = $this->chartService->buildMonitorSeries($monitor, AggregatePeriod::Day, 30);
         $detail  = $this->dashboardViewBuilder->buildMonitorDetail($monitor);
         $latest  = $this->checkResultRepository->findLatestForMonitor($monitor);
@@ -129,7 +191,45 @@ final class MonitorController extends AbstractUptimeController
                 'tenantSlug' => $tenantSlug,
                 'id'         => $id,
             ]),
-        ]));
+            'push' => $this->pushView($monitor, $request),
+        ] + $extra));
+    }
+
+    /**
+     * Server health view of a push monitor (null for other types): ingest URL, token state, gauges and chart series
+     * of the `range` (hours) query.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function pushView(Monitor $monitor, ?Request $request): ?array
+    {
+        if ($monitor->getType() !== MonitorType::Push || !$this->pushSeries instanceof PushMetricsSeries || $monitor->getPushKey() === null) {
+            return null;
+        }
+        $hours  = $request?->query->getInt('range', 24) ?? 24;
+        $series = $this->pushSeries->series($monitor, $hours);
+
+        return [
+            'url'         => $this->generateUrl('nowo_uptime_push', ['key' => $monitor->getPushKey()], UrlGeneratorInterface::ABSOLUTE_URL),
+            'has_token'   => $monitor->getPushTokenHash() !== null,
+            'signed'      => ($monitor->getConfig()['push_signed'] ?? false) === true,
+            'last_at'     => $monitor->getPushLastAt(),
+            'grace'       => PushCheckRunner::graceSeconds($monitor),
+            'gauges'      => $this->pushSeries->gauges($monitor),
+            'series'      => $series,
+            'series_json' => json_encode($series, JSON_THROW_ON_ERROR),
+            'ranges'      => PushMetricsSeries::RANGES,
+        ];
+    }
+
+    private function requirePushMonitor(string $tenantSlug, int $id): Monitor
+    {
+        $monitor = $this->requireMonitor($tenantSlug, $id);
+        if ($monitor->getType() !== MonitorType::Push) {
+            throw new NotFoundHttpException('Not a push monitor.');
+        }
+
+        return $monitor;
     }
 
     /**
@@ -347,7 +447,8 @@ final class MonitorController extends AbstractUptimeController
         $actions = $this->actions instanceof UptimeActions
             ? $this->actions->monitor($tenantSlug, $monitor)
             : [$this->editAction($tenantSlug, $monitor)];
-        $items = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
+        $pushActions = $this->actions?->push($tenantSlug, $monitor) ?? [];
+        $items       = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
         if ($parent instanceof Monitor || !in_array('project', $this->hiddenFields, true)) {
             $items[] = new DetailItem(
                 UptimePages::label($parent instanceof Monitor ? 'monitor.show.group' : 'monitor.show.project'),
@@ -362,7 +463,7 @@ final class MonitorController extends AbstractUptimeController
             new PageHeader(
                 $monitor->getName(),
                 SecretRedactor::maskUrl($monitor->getTarget()),
-                [...$actions, ...$event->getActions()],
+                [...$actions, ...$pushActions, ...$event->getActions()],
                 back: new BackLink($this->dashboardUrl($tenantSlug), UptimePages::label('nav.dashboard')),
             ),
             [

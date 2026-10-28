@@ -21,6 +21,7 @@ use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use function array_key_exists;
 use function is_array;
 use function is_string;
+use function rtrim;
 
 /**
  * Loads bundle configuration and registers services.
@@ -191,6 +192,8 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.dashboard.tenant_paths', $config['dashboard']['tenant_paths']);
         $container->setParameter(Configuration::ALIAS . '.form.hidden_fields', $config['form']['hidden_fields']);
         $container->setParameter(Configuration::ALIAS . '.status_page', $config['status_page']);
+        $container->setParameter(Configuration::ALIAS . '.push', $config['push']);
+        $container->setParameter(Configuration::ALIAS . '.push.path', rtrim((string) $config['push']['path'], '/'));
         $container->setParameter(Configuration::ALIAS . '.status_page.path', $config['status_page']['path']);
         $container->setParameter(Configuration::ALIAS . '.notifications', $config['notifications']);
         $container->setParameter(Configuration::ALIAS . '.security', $config['security']);

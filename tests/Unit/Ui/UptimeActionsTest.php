@@ -184,6 +184,30 @@ final class UptimeActionsTest extends TestCase
         self::assertSame('dashboard', $row[1]->attributes['data-monitor-form-return']);
     }
 
+    public function testPushTokenActionsForManagersOnly(): void
+    {
+        $push = new Monitor(new Tenant('main', 'Main'), 'web', MonitorType::Push, 'push');
+        $this->setEntityId($push, 9);
+        $managers = $this->actions($this->tenantChecker(true, false));
+
+        $none = $managers->push('main', $push);
+        self::assertSame(['uptime-push-generate'], $this->testIds($none));
+        self::assertSame('/nowo_uptime_monitor_push_token', $none[0]->href);
+        self::assertSame('token-push_token9', $none[0]->csrfToken);
+        self::assertNull($none[0]->confirm);
+
+        $push->setPushTokenHash('hash');
+        $active = $managers->push('main', $push);
+        self::assertSame(['uptime-push-generate', 'uptime-push-revoke'], $this->testIds($active));
+        self::assertNotNull($active[0]->confirm);
+        self::assertSame('/nowo_uptime_monitor_push_revoke', $active[1]->href);
+        self::assertSame('token-push_revoke9', $active[1]->csrfToken);
+        self::assertSame('danger', $active[1]->variant);
+
+        self::assertSame([], $this->actions($this->tenantChecker(false, false))->push('main', $push), 'readers');
+        self::assertSame([], $managers->push('main', $this->monitor()), 'not a push monitor');
+    }
+
     public function testMonitorActionsForReaders(): void
     {
         $actions = $this->actions($this->tenantChecker(false, false), withCsrf: false);

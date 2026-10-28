@@ -8,6 +8,7 @@ use Nowo\UiKitBundle\View\Action;
 use Nowo\UiKitBundle\View\Confirm;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -188,6 +189,55 @@ final readonly class UptimeActions
             ),
             UptimePages::label($row ? 'monitor.delete_short' : 'monitor.delete'),
         );
+
+        return $actions;
+    }
+
+    /**
+     * Token actions of a push monitor page (since 1.14), for users who manage the tenant's monitors: generate (or
+     * rotate) the token — the page then shows it once — and revoke it behind a confirm.
+     *
+     * @return list<Action>
+     */
+    public function push(string $tenantSlug, Monitor $monitor): array
+    {
+        if ($monitor->getType() !== MonitorType::Push || !$this->canManageMonitors($tenantSlug)) {
+            return [];
+        }
+        $id      = (int) $monitor->getId();
+        $params  = ['tenantSlug' => $tenantSlug, 'id' => $id];
+        $active  = $monitor->getPushTokenHash() !== null;
+        $actions = [new Action(
+            'custom',
+            UptimePages::label($active ? 'monitor.push.rotate' : 'monitor.push.generate'),
+            $this->urls->generate('nowo_uptime_monitor_push_token', $params),
+            method: 'POST',
+            csrfToken: $this->token('push_token' . $id),
+            confirm: $active ? new Confirm(
+                UptimePages::label('monitor.push.rotate'),
+                UptimePages::label('monitor.push.rotate_confirm'),
+                UptimePages::label('monitor.push.rotate'),
+                id: 'uptime-push-rotate-' . $id,
+            ) : null,
+            attributes: ['data-testid' => 'uptime-push-generate'],
+        )];
+        if ($active) {
+            $actions[] = new Action(
+                'custom',
+                UptimePages::label('monitor.push.revoke'),
+                $this->urls->generate('nowo_uptime_monitor_push_revoke', $params),
+                method: 'POST',
+                csrfToken: $this->token('push_revoke' . $id),
+                confirm: new Confirm(
+                    UptimePages::label('monitor.push.revoke'),
+                    UptimePages::label('monitor.push.revoke_confirm'),
+                    UptimePages::label('monitor.push.revoke'),
+                    id: 'uptime-push-revoke-' . $id,
+                ),
+                variant: 'danger',
+                attributes: ['data-testid' => 'uptime-push-revoke'],
+            );
+        }
 
         return $actions;
     }
