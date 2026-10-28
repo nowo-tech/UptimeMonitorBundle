@@ -68,6 +68,26 @@
     {% if form.daysBeforeExpiry is defined %}{{ form_row(form.daysBeforeExpiry) }}{% endif %}
 </fieldset>
 
+<fieldset class="uptime-form-section" data-monitor-fields="push">
+    <legend>{{ 'monitor.form.section.push'|trans }}</legend>
+    <p class="uptime-form-help">{{ 'monitor.form.push_help'|trans }}</p>
+    {% if form.pushGraceSeconds is defined %}{{ form_row(form.pushGraceSeconds) }}{% endif %}
+    {% if form.pushSigned is defined %}{{ form_row(form.pushSigned) }}{% endif %}
+</fieldset>
+
+<fieldset class="uptime-form-section uptime-form-section--thresholds" data-monitor-fields="push">
+    <legend>{{ 'monitor.form.section.push_thresholds'|trans }}</legend>
+    <p class="uptime-form-help">{{ 'monitor.form.push_thresholds_help'|trans }}</p>
+    {% for metric in ['disk', 'inodes', 'memory', 'cpu', 'swap', 'load'] %}
+        {% set warn = attribute(form, 'push' ~ metric|capitalize ~ 'Warn') ?? null %}
+        {% set critical = attribute(form, 'push' ~ metric|capitalize ~ 'Critical') ?? null %}
+        <div class="uptime-threshold-row">
+            {% if warn %}{{ form_row(warn) }}{% endif %}
+            {% if critical %}{{ form_row(critical) }}{% endif %}
+        </div>
+    {% endfor %}
+</fieldset>
+
 {% for child in form %}
     {% if not child.rendered %}
         {{ form_row(child) }}

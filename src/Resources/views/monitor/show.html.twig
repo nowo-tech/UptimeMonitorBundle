@@ -4,7 +4,8 @@
   monitor form dialog, a plain link without JavaScript; Pause / Resume; Delete behind a confirm) and the host's;
   section "details" (type, group / project, target, interval)), page_sections (UptimePageEvent: before / after),
   log_events + log_pagination (the check log page, web_ui.per_page), and the 1.x variables tenant_slug, monitor,
-  latest, detail, chart_series_json, latency_series_json, api_history_url, api_aggregates_url.
+  latest, detail, chart_series_json, latency_series_json, api_history_url, api_aggregates_url; push (server health
+  view of a push monitor, null otherwise — _push_health.html.twig).
   Data block filled: nowo_ui_show_after (host sections, status, check history bar, uptime / latency cards, charts,
   check log, group children — updated live by uptime-monitor-detail.js; until the first check one notice stands
   for the history, figures, charts and log, which the script reveals once a check arrives).
@@ -61,6 +62,10 @@
                 </section>
             {% endif %}
 
+            {% if push|default(null) %}
+                {{ include('@NowoUptimeMonitorBundle/monitor/_push_health.html.twig') }}
+            {% endif %}
+
             {% if not latest %}
                 <p class="uptime-detail-unchecked {{ nowo_ui_class('muted', _b) }}" role="status" data-detail-unchecked data-testid="uptime-monitor-no-checks">{{ 'monitor.show.not_checked'|trans }}</p>
             {% endif %}
@@ -96,10 +101,12 @@
             </section>
 
             <section class="uptime-charts uptime-detail-charts">
+                {% if not push|default(null) %}
                 <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
                     <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.show.chart_response'|trans }}</h2>
                     <canvas id="uptime-chart-response" height="140"></canvas>
                 </div>
+                {% endif %}
                 <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
                     <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.show.chart_uptime'|trans }}</h2>
                     <canvas id="uptime-chart-uptime" height="120"></canvas>

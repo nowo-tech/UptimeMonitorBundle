@@ -136,6 +136,25 @@ final class RepositoriesDbTest extends TestCase
         self::assertEqualsCanonicalizing(['mine', 'foreign'], $this->names($repository->findDue($now)));
     }
 
+    public function testFindOneByPushKeyFindsOnlyThatPushMonitorWithItsTenant(): void
+    {
+        $push = $this->monitor('server', MonitorType::Push);
+        $push->setPushKey('0123456789abcdef0123456789abcdef')->recordPush(new DateTimeImmutable('2026-01-01 10:00:00'), ['cpu_pct' => 1.0]);
+        $http = $this->monitor('site');
+        $http->setPushKey('fedcba9876543210fedcba9876543210');
+        $this->em->flush();
+        $this->em->clear();
+
+        $repository = new MonitorRepository($this->registry);
+        $found      = $repository->findOneByPushKey('0123456789abcdef0123456789abcdef');
+
+        self::assertSame('server', $found?->getName());
+        self::assertSame(['cpu_pct' => 1.0], $found->getPushSample());
+        self::assertSame($this->tenant->getSlug(), $found->getTenant()->getSlug());
+        self::assertNull($repository->findOneByPushKey('fedcba9876543210fedcba9876543210'), 'not a push monitor');
+        self::assertNull($repository->findOneByPushKey('00000000000000000000000000000000'));
+    }
+
     public function testCheckResultRepositoryQueries(): void
     {
         $one     = $this->monitor('one');

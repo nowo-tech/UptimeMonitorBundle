@@ -31,3 +31,9 @@ nowo_uptime_monitor_status_page:
 nowo_uptime_monitor_api:
     resource: '../../Controller/Api/'
     type: attribute
+
+# Push monitors (since 1.14): one ingest route for every tenant, the key names the monitor.
+nowo_uptime_monitor_push:
+    resource: '../../Controller/PushController.php'
+    type: attribute
+    prefix: '%nowo_uptime_monitor.push.path%'

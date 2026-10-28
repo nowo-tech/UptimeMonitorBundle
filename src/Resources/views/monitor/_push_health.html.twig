@@ -1,0 +1,114 @@
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+{#
+  Server health view of a push monitor (since 1.14). Variables: push (MonitorController::pushView(): url, has_token,
+  signed, last_at, grace, gauges, series, series_json, ranges, can_manage), monitor, tenant_slug, _b (UiKit bundle
+  key), and once, right after "Generate token", push_secret / push_signing_secret (never stored, never cached).
+#}
+<section class="uptime-push-credentials {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-push-credentials">
+    <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.push.credentials'|trans }}</h2>
+    <dl class="uptime-push-facts">
+        <dt>{{ 'monitor.push.url'|trans }}</dt>
+        <dd><code data-testid="uptime-push-url">{{ push.url }}</code></dd>
+        <dt>{{ 'monitor.push.token'|trans }}</dt>
+        <dd data-testid="uptime-push-token-state">{{ (push.has_token ? 'monitor.push.token_active' : 'monitor.push.token_none')|trans }}</dd>
+        <dt>{{ 'monitor.push.last_push'|trans }}</dt>
+        <dd>{{ push.last_at ? push.last_at|date('Y-m-d H:i:s') : '—' }} · {{ 'monitor.push.every'|trans({'%interval%': monitor.intervalSeconds, '%grace%': push.grace}) }}</dd>
+    </dl>
+
+    {% if push_secret is defined and push_secret %}
+        <div class="uptime-push-secret {{ nowo_ui_class('flash', _b) ~ ' ' ~ nowo_ui_class('flash_warning', _b) }}" role="alert" data-testid="uptime-push-secret">
+            <p><strong>{{ 'monitor.push.secret_once'|trans }}</strong></p>
+            <pre class="uptime-push-config"><code>UPTIME_PUSH_URL={{ push.url }}
+UPTIME_PUSH_TOKEN={{ push_secret }}{% if push_signing_secret|default(null) %}
+UPTIME_PUSH_SECRET={{ push_signing_secret }}{% endif %}
+</code></pre>
+            <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'monitor.push.install_help'|trans({'%path%': '/etc/uptime-push-agent.conf'}) }}
+                <a href="{{ asset('agent/uptime-push-agent.sh', 'nowo_uptime_monitor') }}" download data-testid="uptime-push-agent">{{ 'monitor.push.download_agent'|trans }}</a></p>
+        </div>
+    {% endif %}
+
+    {% if push.can_manage %}
+        <div class="uptime-push-actions">
+            <form method="post" action="{{ path('nowo_uptime_monitor_push_token', {tenantSlug: tenant_slug, id: monitor.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('push_token' ~ monitor.id) }}">
+                <button type="submit" class="{{ nowo_ui_class(push.has_token ? 'btn_secondary' : 'btn_primary', _b) }}" data-testid="uptime-push-generate">{{ (push.has_token ? 'monitor.push.rotate' : 'monitor.push.generate')|trans }}</button>
+            </form>
+            {% if push.has_token %}
+                <form method="post" action="{{ path('nowo_uptime_monitor_push_revoke', {tenantSlug: tenant_slug, id: monitor.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('push_revoke' ~ monitor.id) }}">
+                    <button type="submit" class="{{ nowo_ui_class('btn_danger', _b) }}" data-testid="uptime-push-revoke">{{ 'monitor.push.revoke'|trans }}</button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+
+<section class="uptime-push-health {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-push-health">
+    <header class="uptime-push-health-header">
+        <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.push.health'|trans }}</h2>
+        <nav class="uptime-push-ranges" aria-label="{{ 'monitor.push.range'|trans }}">
+            {% for hours in push.ranges %}
+                <a href="?range={{ hours }}"{% if hours == push.series.hours %} aria-current="true" class="is-active"{% endif %}>{{ ('monitor.push.range_' ~ hours)|trans }}</a>
+            {% endfor %}
+        </nav>
+    </header>
+
+    {% if push.gauges is null %}
+        <p class="{{ nowo_ui_class('muted', _b) }}" data-testid="uptime-push-waiting">{{ 'monitor.push.waiting'|trans }}</p>
+    {% else %}
+        <div class="uptime-push-gauges" data-testid="uptime-push-gauges">
+            {% for metric in push.gauges.metrics %}
+                <div class="uptime-push-gauge uptime-push-level-{{ metric.level }}">
+                    <span class="uptime-push-gauge-label">{{ ('monitor.push.metric.' ~ metric.key)|trans }}</span>
+                    <span class="uptime-push-gauge-value">{{ metric.key == 'load' ? metric.value|number_format(2) : metric.value|number_format(1) ~ ' %' }}</span>
+                    {% if metric.key != 'load' %}<meter min="0" max="100" value="{{ metric.value }}"></meter>{% endif %}
+                </div>
+            {% endfor %}
+            {% if push.gauges.uptime_s is not null %}
+                <div class="uptime-push-gauge">
+                    <span class="uptime-push-gauge-label">{{ 'monitor.push.metric.uptime'|trans }}</span>
+                    <span class="uptime-push-gauge-value">{{ 'monitor.push.days'|trans({'%days%': (push.gauges.uptime_s / 86400)|round(1)}) }}</span>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if push.gauges.disks is not empty %}
+            <div class="{{ nowo_ui_class('table_wrap', _b) }}">
+                <table class="uptime-push-disks {{ nowo_ui_class('table', _b) }}" data-testid="uptime-push-disks">
+                    <thead class="{{ nowo_ui_class('table_head', _b) }}">
+                        <tr>
+                            <th scope="col">{{ 'monitor.push.disk.mount'|trans }}</th>
+                            <th scope="col">{{ 'monitor.push.disk.used'|trans }}</th>
+                            <th scope="col">{{ 'monitor.push.disk.inodes'|trans }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for disk in push.gauges.disks %}
+                            <tr class="uptime-push-level-{{ disk.level }}">
+                                <td><code>{{ disk.mount }}</code></td>
+                                <td>{% if disk.used is not null %}<meter min="0" max="100" value="{{ disk.used }}"></meter> {{ disk.used|number_format(1) }} %{% else %}—{% endif %}</td>
+                                <td>{{ disk.inodes is not null ? disk.inodes|number_format(1) ~ ' %' : '—' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <div class="uptime-charts uptime-push-charts" id="uptime-push-charts" data-push-series="{{ push.series_json|e('html_attr') }}"
+         data-push-labels="{{ {cpu: 'monitor.push.metric.cpu'|trans, memory: 'monitor.push.metric.memory'|trans, swap: 'monitor.push.metric.swap'|trans, load: 'monitor.push.metric.load'|trans}|json_encode|e('html_attr') }}">
+        <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
+            <h3>{{ 'monitor.push.chart_usage'|trans }}</h3>
+            <canvas id="uptime-push-chart-usage" height="140"></canvas>
+        </div>
+        <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
+            <h3>{{ 'monitor.push.chart_load'|trans }}</h3>
+            <canvas id="uptime-push-chart-load" height="120"></canvas>
+        </div>
+        <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
+            <h3>{{ 'monitor.push.chart_disks'|trans }}</h3>
+            <canvas id="uptime-push-chart-disks" height="120"></canvas>
+        </div>
+    </div>
+</section>

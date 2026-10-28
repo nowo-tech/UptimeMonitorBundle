@@ -170,7 +170,7 @@ final class MonitorFormTypeTest extends TypeTestCase
         $view = $this->factory->create(MonitorFormType::class, new MonitorFormData())->createView();
 
         self::assertSame(
-            ['group', 'http', 'https', 'tcp', 'dns', 'ssl', 'ping'],
+            ['group', 'http', 'https', 'tcp', 'dns', 'ssl', 'ping', 'push'],
             array_map(static fn ($choice): string => $choice->value, array_values($view['type']->vars['choices'])),
         );
     }

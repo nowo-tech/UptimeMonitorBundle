@@ -57,6 +57,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Server health push monitors: a server's agent pushes disk, CPU, memory and load to its own ingest URL; thresholds and
+"no data" make the monitor degraded or down; a Server health view with gauges, disks and charts. See
+[PUSH-MONITORS](PUSH-MONITORS.md) and [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- Monitor type `push` (`MonitorType::Push`) and `PushCheckRunner`: no network call; the last pushed sample is judged
+  against the thresholds each interval, and no push within interval + grace is down.
+- Ingest route `POST <push.path>/{key}` (`PushController`, route `nowo_uptime_push`) for every tenant: opaque 128-bit key,
+  write-only bearer token (SHA-256 stored, constant-time check, shown once), optional HMAC-SHA256 signature with a
+  timestamp window, strict JSON schema (`PushPayload`), body limit, per-monitor rate limit, identical 401 for every
+  authentication failure, tenant taken from the monitor only.
+- Monitor page: credentials (generate / rotate / revoke token, routes `nowo_uptime_monitor_push_token` and
+  `nowo_uptime_monitor_push_revoke`, monitor mutations) and a Server health view (gauges, disks, charts over 1 h – 7 days).
+- Monitor form: *Push* section (grace, signed pushes) and *Thresholds* (warning / critical per metric).
+- Configuration `push` (`enabled`, `path`, `max_body_bytes`, `signature_window_seconds`, `min_push_seconds`).
+- Reference agent `Resources/public/agent/uptime-push-agent.sh` (POSIX sh, curl; secrets never on a command line) and
+  systemd units in the docs.
+
 ## [1.13.0] - 2026-10-27
 
 Host pages: settings screens chosen by the host, tag edit, Settings → Status page (visibility and the monitors shown), tenant status summary. See [UPGRADING](UPGRADING.md#to-1130).

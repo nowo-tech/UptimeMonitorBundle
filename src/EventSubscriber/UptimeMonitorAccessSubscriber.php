@@ -38,7 +38,7 @@ use function is_string;
 final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInterface
 {
     /** MonitorController methods that mutate state (CRUD / pause). */
-    private const MONITOR_MUTATIONS = ['new', 'edit', 'delete', 'togglePause'];
+    private const MONITOR_MUTATIONS = ['new', 'edit', 'delete', 'togglePause', 'pushToken', 'pushRevoke'];
 
     /** TenantController methods that mutate state (tenant creation). */
     private const TENANT_MUTATIONS = ['new'];

@@ -2,6 +2,7 @@ import { Chart } from 'chart.js/auto';
 import { UPTIME_CHART_COLORS } from './chart-theme';
 import { renderHistoryBar } from './history-bar';
 import { initMonitorFormModal } from './monitor-form-modal';
+import { renderPushCharts } from './push-health';
 
 type SeriesData = {
   labels: string[];
@@ -178,6 +179,8 @@ export function bootstrap(): void {
   if (latencySeries !== null) {
     renderResponseChart(latencySeries);
   }
+
+  renderPushCharts(root);
 
   const apiUrl = root.dataset.apiHistory ?? '';
   if (apiUrl !== '') {

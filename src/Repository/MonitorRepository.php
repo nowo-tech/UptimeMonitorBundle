@@ -114,4 +114,23 @@ class MonitorRepository extends ServiceEntityRepository
 
         return $monitors;
     }
+
+    /**
+     * The push monitor of an ingest URL key, with its tenant (null when no push monitor has that key).
+     */
+    public function findOneByPushKey(string $key): ?Monitor
+    {
+        /** @var Monitor|null $monitor */
+        $monitor = $this->createQueryBuilder('m')
+            ->addSelect('t')
+            ->innerJoin('m.tenant', 't')
+            ->andWhere('m.pushKey = :key')
+            ->andWhere('m.type = :type')
+            ->setParameter('key', $key)
+            ->setParameter('type', MonitorType::Push)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $monitor;
+    }
 }

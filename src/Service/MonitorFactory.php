@@ -10,9 +10,12 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Monitor\HttpHeaderParser;
 use Nowo\UptimeMonitorBundle\Monitor\StatusCodeMatcher;
+use Nowo\UptimeMonitorBundle\Push\PushCredentials;
+use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 
 use function is_array;
+use function is_int;
 use function is_string;
 use function sprintf;
 
@@ -49,6 +52,15 @@ final readonly class MonitorFactory
             ->setRetries($data->retries)
             ->setRetryIntervalSeconds($data->retryIntervalSeconds)
             ->setPaused($data->paused);
+
+        if ($data->type === MonitorType::Push) {
+            // A push monitor is judged once per interval: a breach within the retries is re-judged at the next one.
+            $monitor->setRetryIntervalSeconds($monitor->getIntervalSeconds());
+            PushCredentials::ensureKey($monitor);
+        } elseif ($monitor->getPushKey() !== null) {
+            // No longer a push monitor: its URL and token stop working.
+            $monitor->setPushKey(null)->setPushTokenHash(null);
+        }
 
         if ($data->type === MonitorType::Group) {
             $monitor->setParent(null)->setProject(null);
@@ -92,6 +104,7 @@ final readonly class MonitorFactory
             MonitorType::Ping => $this->mapPingForm($data, $monitor, $config),
             MonitorType::Dns  => $this->mapDnsForm($data, $monitor, $config),
             MonitorType::Ssl  => $this->mapSslForm($data, $monitor, $config),
+            MonitorType::Push => $this->mapPushForm($data, $config),
             default           => $this->mapHttpForm($data, $monitor, $config),
         };
     }
@@ -180,8 +193,48 @@ final readonly class MonitorFactory
                     'days_before_expiry' => $data->daysBeforeExpiry,
                 ],
             ],
-            default => $this->buildHttpTargetAndConfig($data),
+            MonitorType::Push => ['push', $this->buildPushConfig($data)],
+            default           => $this->buildHttpTargetAndConfig($data),
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPushConfig(MonitorFormData $data): array
+    {
+        $thresholds = [];
+        foreach (PushThresholds::DEFAULTS as $metric => $_) {
+            $thresholds[$metric] = [$data->pushThresholds[$metric . 'Warn'] ?? null, $data->pushThresholds[$metric . 'Critical'] ?? null];
+        }
+        $config = [
+            'push_signed'                    => $data->pushSigned,
+            'push_thresholds'                => $thresholds,
+            'resend_notification_after_down' => max(0, $data->resendNotificationAfterDown),
+        ];
+        if ($data->pushGraceSeconds !== null) {
+            $config['push_grace_seconds'] = $data->pushGraceSeconds;
+        }
+        if ($data->description !== '') {
+            $config['description'] = $data->description;
+        }
+
+        return $config;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function mapPushForm(MonitorFormData $data, array $config): MonitorFormData
+    {
+        $data->pushSigned       = ($config['push_signed'] ?? false) === true;
+        $data->pushGraceSeconds = isset($config['push_grace_seconds']) && is_int($config['push_grace_seconds']) ? $config['push_grace_seconds'] : null;
+        foreach (PushThresholds::fromConfig($config)->limits as $metric => [$warn, $critical]) {
+            $data->pushThresholds[$metric . 'Warn']     = $warn;
+            $data->pushThresholds[$metric . 'Critical'] = $critical;
+        }
+
+        return $data;
     }
 
     /**

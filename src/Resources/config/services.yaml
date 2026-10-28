@@ -17,6 +17,8 @@ services:
             - '../../Security/AllowAllUptimeMonitorAccessChecker.php'
             - '../../Limits/TenantLimitsInterface.php'
             - '../../Limits/ConfigurableTenantLimits.php'
+            - '../../Push/PushPayload.php'
+            - '../../Push/PushThresholds.php'
 
     Nowo\UptimeMonitorBundle\Notification\Channel\EmailNotificationChannel:
         tags: ['nowo.uptime_monitor.notification_channel']
@@ -73,6 +75,9 @@ services:
         tags: ['nowo.uptime_monitor.check_runner']
 
     Nowo\UptimeMonitorBundle\Check\GroupCheckRunner:
+        tags: ['nowo.uptime_monitor.check_runner']
+
+    Nowo\UptimeMonitorBundle\Check\PushCheckRunner:
         tags: ['nowo.uptime_monitor.check_runner']
 
     Nowo\UptimeMonitorBundle\Command\:

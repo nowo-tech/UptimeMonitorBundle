@@ -730,3 +730,125 @@
   color: var(--uptime-muted);
 }
 
+
+// Push monitors (since 1.14): credentials, server health gauges, disks and charts.
+.uptime-form-help {
+  margin: 0 0 0.5rem;
+  color: var(--uptime-muted, #6b7280);
+  font-size: 0.875rem;
+}
+
+.uptime-threshold-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0 1rem;
+}
+
+.uptime-push-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.25rem 1rem;
+  margin: 0 0 1rem;
+
+  dt {
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.uptime-push-config {
+  overflow-x: auto;
+  white-space: pre;
+  user-select: all;
+}
+
+.uptime-push-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.uptime-push-health-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.uptime-push-ranges {
+  display: flex;
+  gap: 0.25rem;
+
+  a {
+    padding: 0.125rem 0.5rem;
+    border: 1px solid var(--uptime-border, #d1d5db);
+    border-radius: 999px;
+    text-decoration: none;
+  }
+
+  a.is-active {
+    border-color: var(--uptime-up, #16a34a);
+    font-weight: 600;
+  }
+}
+
+.uptime-push-gauges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.uptime-push-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--uptime-border, #d1d5db);
+  border-left-width: 4px;
+  border-radius: 0.5rem;
+
+  meter {
+    width: 100%;
+  }
+}
+
+.uptime-push-gauge-label {
+  color: var(--uptime-muted, #6b7280);
+  font-size: 0.8125rem;
+}
+
+.uptime-push-gauge-value {
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.uptime-push-level-ok {
+  border-left-color: var(--uptime-up, #16a34a);
+}
+
+.uptime-push-level-warn {
+  border-left-color: var(--uptime-degraded, #d97706);
+}
+
+.uptime-push-level-critical {
+  border-left-color: var(--uptime-down, #dc2626);
+}
+
+tr.uptime-push-level-warn td:first-child {
+  box-shadow: inset 4px 0 0 var(--uptime-degraded, #d97706);
+}
+
+tr.uptime-push-level-critical td:first-child {
+  box-shadow: inset 4px 0 0 var(--uptime-down, #dc2626);
+}
+
+.uptime-push-disks meter {
+  width: 6rem;
+  vertical-align: middle;
+}

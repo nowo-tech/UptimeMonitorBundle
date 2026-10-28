@@ -100,6 +100,14 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- **Schema:** `uptime_monitor` gains `push_key` (unique, nullable), `push_token_hash`, `push_last_at` and `push_sample`
+  (nullable). Hosts on Doctrine migrations generate one (`doctrine:migrations:diff`); others run the bundle schema sync.
+- **Routes:** `routes.yaml` (and the `nowo_uptime_monitor` route type) imports the push ingest route
+  `POST /uptime-push/{key}`. It must be reachable anonymously (`PUBLIC_ACCESS`), and stateless if your firewall allows.
+  Set `push.enabled: false` to turn it off.
+- **Constructor additions** (optional, appended): `MonitorController` (`PushCredentials`, `PushMetricsSeries`).
+- **Assets:** run `assets:install` so that the agent (`/bundles/uptimemonitor/agent/uptime-push-agent.sh`) is served.
+
 ## To 1.13.0
 
 ```bash
