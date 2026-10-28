@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.15.0](#to-1150)
 - [To 1.14.3](#to-1143)
 - [To 1.14.2](#to-1142)
 - [To 1.14.1](#to-1141)
@@ -103,6 +104,11 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.15.0
+
+From **1.14.3**: no change needed. The tabs carry icons that show with NowoUiKitBundle **2.17** or later (older 2.x versions ignore
+them), and only when the host sets `data-tab-style="icon-text"` or `"icon"`.
 
 ## To 1.14.3
 

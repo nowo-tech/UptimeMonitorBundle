@@ -336,6 +336,7 @@ final class SettingsControllerScreensTest extends TestCase
         self::assertSame('/generated/nowo_uptime_settings_tags', $controller->index('main')->getTargetUrl());
         self::assertSame('rendered', $controller->history('main', new Request())->getContent());
         self::assertSame(['tags', 'history'], array_map(static fn (SettingsSection $section): string => $section->id, $this->renderedContext['page']->sections));
+        self::assertSame(['tabler:tags', 'tabler:history'], array_map(static fn (SettingsSection $section): ?string => $section->icon, $this->renderedContext['page']->sections));
 
         $this->expectException(NotFoundHttpException::class);
         $this->expectExceptionMessage('Settings screen "general" is not available.');

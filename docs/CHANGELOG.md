@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.0] - 2026-10-28](#1150---2026-10-28)
 - [[1.14.3] - 2026-10-28](#1143---2026-10-28)
 - [[1.14.2] - 2026-10-28](#1142---2026-10-28)
 - [[1.14.1] - 2026-10-28](#1141---2026-10-28)
@@ -60,6 +61,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.15.0] - 2026-10-28
+
+Tab icons (NowoUiKitBundle 2.17)
+
+### Added
+
+- **Tab icons**: the Uptime area tabs (Dashboard, Settings, Status page) and the settings section tabs carry an icon
+  (UiKit 2.17 `icon`, Tabler names), so they follow the host's tab style (`data-tab-style` on `<html>`: text, icon and
+  text, or icon only). Without that attribute the tabs look as before. Icons need NowoUiKitBundle **2.17** or later;
+  older 2.x versions ignore them.
 
 ## [1.14.3] - 2026-10-28
 

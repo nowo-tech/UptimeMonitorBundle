@@ -642,6 +642,8 @@ final class SettingsController extends AbstractUptimeController
                 null,
                 $current ? ($submitLabel ?? UptimePages::label('settings.save')) : null,
                 $this->pages->formThemes(),
+                [],
+                UptimeAreaNav::ICONS[$id] ?? null, // UiKit 2.17 icon (positional: older UiKit ignores it)
             );
         }
 

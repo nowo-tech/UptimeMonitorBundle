@@ -31,6 +31,7 @@ final class UptimeAreaNavTest extends TestCase
         self::assertSame('nav.dashboard', $nav->items[0]->label->key);
         self::assertSame('NowoUptimeMonitorBundle', $nav->items[0]->label->domain);
         self::assertSame(['data-testid' => 'uptime-nav-dashboard'], $nav->items[0]->attributes);
+        self::assertSame(['tabler:activity', 'tabler:settings', 'tabler:broadcast'], [$nav->items[0]->icon, $nav->items[1]->icon, $nav->items[2]->icon]);
     }
 
     public function testSettingsArea(): void
@@ -41,6 +42,8 @@ final class UptimeAreaNavTest extends TestCase
         self::assertCount(count(UptimeAreaNav::SETTINGS_SECTIONS), $nav->items);
         self::assertSame('/nowo_uptime_settings_general?tenantSlug=acme', $nav->items[0]->href);
         self::assertSame('/nowo_uptime_settings_about?tenantSlug=acme', $nav->items[8]->href);
+        self::assertSame('tabler:adjustments', $nav->items[0]->icon);
+        self::assertSame('tabler:info-circle', $nav->items[8]->icon);
     }
 
     public function testSettingsAreaShowsTheKeptScreens(): void
