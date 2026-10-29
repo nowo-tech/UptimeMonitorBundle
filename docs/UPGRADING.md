@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.16.1](#to-1161)
 - [To 1.16.0](#to-1160)
 - [To 1.15.1](#to-1151)
 - [To 1.15.0](#to-1150)
@@ -106,6 +107,27 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.16.1
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+No configuration change. **Upgrade before you run `nowo:uptime:sync-schema` again**: with Doctrine ORM 3, earlier
+versions sent `DROP TABLE` for every table that is not an `uptime_*` table (and `DROP SEQUENCE` on PostgreSQL) unless a
+Doctrine `schema_filter` hid the host's tables. From 1.16.1 the command only creates or alters the bundle tables.
+
+If you ran `nowo:uptime:sync-schema` on a database shared with your application and no `schema_filter` was set:
+
+1. Check that your own tables are still there, e.g. `php bin/console doctrine:schema:validate` (the database must be
+   "in sync" with your mapping) or `php bin/console dbal:run-sql "SHOW TABLES"` (MySQL) /
+   `"SELECT tablename FROM pg_tables WHERE schemaname = 'public'"` (PostgreSQL), and compare with your migrations
+   (`php bin/console doctrine:migrations:status`).
+2. If tables or sequences are missing, restore them from your latest backup (the data of a dropped table cannot be
+   rebuilt by a migration).
+3. To preview what the command would run, call `SchemaSyncService::getSyncSchemaSql()` (autowire the service in a test
+   or a one-off command); with 1.16.1 every statement only names bundle (`uptime_*`) objects.
 
 ## To 1.16.0
 
