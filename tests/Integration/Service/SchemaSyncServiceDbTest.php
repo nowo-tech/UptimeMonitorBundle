@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Throwable;
 
 use function array_filter;
 use function array_values;
@@ -81,6 +82,49 @@ final class SchemaSyncServiceDbTest extends TestCase
         self::assertSame(
             ['CREATE UNIQUE INDEX other_idx ON t (a)'],
             $service->filterCreateStatementsForExistingTables(['CREATE UNIQUE INDEX other_idx ON t (a)'], ['t']),
+        );
+    }
+
+    public function testSyncSchemaSqlNeverTouchesHostTables(): void
+    {
+        $em         = SqliteEntityManagerFactory::create();
+        $connection = $em->getConnection();
+        $service    = new SchemaSyncService($em);
+        $connection->executeStatement('DROP TABLE IF EXISTS host_customer');
+        $connection->executeStatement('CREATE TABLE host_customer (id INTEGER NOT NULL PRIMARY KEY, name VARCHAR(50))');
+        $connection->executeStatement('CREATE INDEX idx_host_customer_name ON host_customer (name)');
+
+        try {
+            foreach ([$service->getUpdateSchemaSql(), $service->getSyncSchemaSql()] as $statements) {
+                $sql = implode("\n", $statements);
+                self::assertStringNotContainsStringIgnoringCase('host_customer', $sql);
+                self::assertStringNotContainsStringIgnoringCase('DROP TABLE', $sql);
+                self::assertStringNotContainsStringIgnoringCase('DROP SEQUENCE', $sql);
+            }
+
+            // As nowo:uptime:sync-schema does: duplicate foreign keys (MySQL / PostgreSQL no-op ALTERs) are skipped.
+            foreach ($service->getSyncSchemaSql() as $sql) {
+                try {
+                    $connection->executeStatement($sql);
+                } catch (Throwable $e) {
+                    self::assertTrue($service->isDuplicateSchemaObjectException($e), $e->getMessage());
+                }
+            }
+
+            self::assertTrue($connection->createSchemaManager()->tablesExist(['host_customer']));
+        } finally {
+            $connection->executeStatement('DROP TABLE IF EXISTS host_customer');
+        }
+    }
+
+    public function testUpdateSchemaSqlRestoresAMissingIndexOfABundleTable(): void
+    {
+        $em = SqliteEntityManagerFactory::create();
+        $em->getConnection()->createSchemaManager()->dropIndex('uniq_uptime_tenant_slug', 'uptime_tenant');
+
+        self::assertStringContainsStringIgnoringCase(
+            'uniq_uptime_tenant_slug',
+            implode("\n", (new SchemaSyncService($em))->getUpdateSchemaSql()),
         );
     }
 

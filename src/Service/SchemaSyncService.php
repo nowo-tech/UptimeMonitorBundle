@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Service;
 
 use Doctrine\DBAL\Exception as DbalException;
+use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
@@ -41,13 +42,37 @@ final readonly class SchemaSyncService
     }
 
     /**
+     * Update SQL that compares only the bundle tables and sequences with the database.
+     *
+     * `SchemaTool::getUpdateSchemaSql()` (ORM 3, no save mode) diffs the whole database against the given classes and
+     * would emit DROP TABLE / DROP SEQUENCE for every host object, so the source schema holds only the bundle objects
+     * that already exist.
+     *
      * @return list<string> SQL statements to update schema (additive)
      */
     public function getUpdateSchemaSql(): array
     {
-        $tool = new SchemaTool($this->entityManager);
+        $connection    = $this->entityManager->getConnection();
+        $schemaManager = $connection->createSchemaManager();
+        $toSchema      = (new SchemaTool($this->entityManager))->getSchemaFromMetadata($this->getBundleMetadata());
 
-        return $tool->getUpdateSchemaSql($this->getBundleMetadata());
+        $existingTables = array_flip($this->listExistingTableNames());
+        $fromTables     = [];
+        foreach ($toSchema->getTables() as $table) {
+            if (isset($existingTables[strtolower($table->getName())])) {
+                $fromTables[] = $schemaManager->introspectTable($table->getName());
+            }
+        }
+
+        $fromSequences = array_values(array_filter(
+            $this->listExistingSequences(),
+            static fn (Sequence $sequence): bool => $toSchema->hasSequence($sequence->getName()),
+        ));
+
+        $fromSchema = new Schema($fromTables, $fromSequences, $schemaManager->createSchemaConfig());
+        $diff       = $schemaManager->createComparator()->compareSchemas($fromSchema, $toSchema);
+
+        return $connection->getDatabasePlatform()->getAlterSchemaSQL($diff);
     }
 
     /**
@@ -209,13 +234,19 @@ final readonly class SchemaSyncService
      */
     private function listExistingSequenceNames(): array
     {
-        $schemaManager = $this->entityManager->getConnection()->createSchemaManager();
+        return array_map(
+            static fn (Sequence $sequence): string => strtolower($sequence->getName()),
+            $this->listExistingSequences(),
+        );
+    }
 
+    /**
+     * @return list<Sequence> sequences of the database (none when the platform has no sequences)
+     */
+    private function listExistingSequences(): array
+    {
         try {
-            return array_map(
-                static fn (Sequence $sequence): string => strtolower($sequence->getName()),
-                $schemaManager->listSequences(),
-            );
+            return $this->entityManager->getConnection()->createSchemaManager()->listSequences();
         } catch (DbalException) {
             return [];
         }

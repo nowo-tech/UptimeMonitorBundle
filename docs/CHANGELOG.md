@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.16.1] - 2026-10-29](#1161---2026-10-29)
 - [[1.16.0] - 2026-10-28](#1160---2026-10-28)
 - [[1.15.1] - 2026-10-28](#1151---2026-10-28)
 - [[1.15.0] - 2026-10-28](#1150---2026-10-28)
@@ -63,6 +64,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.16.1] - 2026-10-29
+
+`nowo:uptime:sync-schema` no longer drops host tables. See [UPGRADING](UPGRADING.md#to-1161).
+
+### Security
+
+- **`nowo:uptime:sync-schema` could drop host tables.** `SchemaSyncService::getUpdateSchemaSql()` called Doctrine's
+  `SchemaTool::getUpdateSchemaSql()` with the bundle entities only. With Doctrine ORM 3 (no "save mode") that method
+  compares the whole database with those entities, so the update SQL held `DROP TABLE` for every table that is not a
+  bundle table (and `DROP SEQUENCE` for every sequence on PostgreSQL), and the command executed it — unless the host
+  had configured a Doctrine `schema_filter` that hides its own tables. Every release up to 1.16.0 is affected when run
+  on Doctrine ORM 3 (CWE-1188).
+
+### Fixed
+
+- `SchemaSyncService::getUpdateSchemaSql()` now builds the target schema from the bundle metadata
+  (`SchemaTool::getSchemaFromMetadata()`), the source schema from only the bundle tables and sequences that already
+  exist (`introspectTable()`), and returns the platform's `getAlterSchemaSQL()` of that diff: it can create, alter or
+  index bundle tables, never touch another table or sequence. Covered by
+  `SchemaSyncServiceDbTest::testSyncSchemaSqlNeverTouchesHostTables` on SQLite, MySQL and PostgreSQL.
 
 ## [1.16.0] - 2026-10-28
 
