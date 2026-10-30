@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.16.2](#to-1162)
 - [To 1.16.1](#to-1161)
 - [To 1.16.0](#to-1160)
 - [To 1.15.1](#to-1151)
@@ -107,6 +108,8 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.16.2
 
 No configuration change. If the bundle pages answered on your site without importing the bundle routes (Symfony
 >= 7.3 with the default `controllers: { resource: routing.controllers }` in `config/routes.yaml`), import them as

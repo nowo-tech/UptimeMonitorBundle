@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.16.2] - 2026-10-30](#1162---2026-10-30)
 - [[1.16.1] - 2026-10-29](#1161---2026-10-29)
 - [[1.16.0] - 2026-10-28](#1160---2026-10-28)
 - [[1.15.1] - 2026-10-28](#1151---2026-10-28)
@@ -64,6 +65,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.16.2] - 2026-10-30
+
+Bundle routes are opt-in again on Symfony >= 7.3 (REQ-SF-004 rule 7). See [UPGRADING](UPGRADING.md#to-1162).
 
 ### Security
 
