@@ -13,7 +13,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\Routing\Attribute\Route;
 
 use function is_string;
@@ -21,7 +20,6 @@ use function is_string;
 /**
  * JSON API for dashboard polling (monitor list + last check status).
  */
-#[AsController]
 final class StatusApiController extends AbstractController
 {
     /**
