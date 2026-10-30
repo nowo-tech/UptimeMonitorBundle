@@ -6,6 +6,7 @@ services:
     Nowo\UptimeMonitorBundle\:
         resource: '../../'
         exclude:
+            - '../../Controller/'
             - '../../DependencyInjection/'
             - '../../Doctrine/'
             - '../../Entity/'
@@ -84,7 +85,25 @@ services:
         resource: '../../Command/'
         tags: ['console.command']
 
+    # Controllers are not autoconfigured (REQ-SF-004 rule 7): on Symfony >= 7.3 autoconfiguration tags every #[Route]
+    # class with `routing.controller`, and the host's default `routing.controllers` resource would then load the bundle
+    # routes without the host importing them (bypassing dashboard.path / status_page.path / push.path, web_ui.enabled
+    # and the route loader). The tags autoconfiguration gave them are set explicitly instead.
+    Nowo\UptimeMonitorBundle\Controller\:
+        resource: '../../Controller/'
+        exclude:
+            - '../../Controller/PushController.php'
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
+
+    # Not an AbstractController: no service subscriber.
+    Nowo\UptimeMonitorBundle\Controller\PushController:
+        autoconfigure: false
+        tags: ['controller.service_arguments']
+
     Nowo\UptimeMonitorBundle\Controller\DashboardController:
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
         arguments:
             $mercureHub: '@?mercure.hub.default'
             $mercureAuthorization: '@?Symfony\Component\Mercure\Authorization'

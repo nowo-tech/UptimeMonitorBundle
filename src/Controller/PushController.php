@@ -16,7 +16,6 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -39,7 +38,6 @@ use function trim;
  * a paused monitor or a disabled tenant (known only once authenticated) 403; nothing is stored unless the push is
  * accepted (202).
  */
-#[AsController]
 final readonly class PushController
 {
     /**

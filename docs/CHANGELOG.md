@@ -65,6 +65,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Bundle routes registered without being imported (REQ-SF-004 rule 7).** On Symfony >= 7.3 every autoconfigured
+  `#[Route]` controller gets the `routing.controller` tag, so a host whose `config/routes.yaml` holds the default
+  `controllers: { resource: routing.controllers }` loaded every bundle route without importing the bundle routes — and
+  without their prefixes: the admin pages under `/tenants` and `/{tenantSlug}/…` instead of `dashboard.path` (outside
+  a firewall or `access_control` rule written for that path), the public status page as a catch-all `/{tenantSlug}`,
+  the push ingest under `/{key}`, and the admin routes even with `web_ui.enabled: false` (the route loader drops them,
+  the extra copies were not). The controllers are no longer autoconfigured (no `#[AsController]` either); their
+  `controller.service_arguments` / `container.service_subscriber` tags are explicit, and the routes exist only where
+  the host imports them. Regression test with a kernel that only loads `routing.controllers`.
+
 ## [1.16.1] - 2026-10-29
 
 `nowo:uptime:sync-schema` no longer drops host tables. See [UPGRADING](UPGRADING.md#to-1161).

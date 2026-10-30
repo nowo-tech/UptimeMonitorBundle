@@ -108,6 +108,11 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+No configuration change. If the bundle pages answered on your site without importing the bundle routes (Symfony
+>= 7.3 with the default `controllers: { resource: routing.controllers }` in `config/routes.yaml`), import them as
+documented — `resource: '@UptimeMonitorBundle/Resources/config/routes.yaml'`, or `type: nowo_uptime_monitor` — the
+unprefixed copies (`/tenants`, `/{tenantSlug}`, `/{key}`…) are gone.
+
 ## To 1.16.1
 
 ```bash

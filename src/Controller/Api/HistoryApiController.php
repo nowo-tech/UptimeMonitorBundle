@@ -13,13 +13,11 @@ use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * JSON API for per-monitor check history (detail view and polling).
  */
-#[AsController]
 final class HistoryApiController extends AbstractController
 {
     /**
