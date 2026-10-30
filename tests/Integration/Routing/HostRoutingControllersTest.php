@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\UptimeMonitorBundle\Tests\Support\HostRoutingKernel;
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Loader\AttributeServicesLoader;
@@ -19,8 +20,13 @@ use function str_starts_with;
 /**
  * REQ-SF-004 rule 7: the bundle routes are opt-in. A host whose routing only holds the Symfony default
  * `routing.controllers` resource must not get any bundle route; the documented import still serves the controllers.
+ *
+ * The full kernel boot triggers third-party deprecations on mixed CI cells (FrameworkBundle 7.4 calling
+ * RegisterListenersPass::setHotPathEvents() / setNoPreloadEvents(), deprecated in symfony/event-dispatcher 8.1), so
+ * the deprecation gate is relaxed for these two tests only; the bundle code they cover is gated by the other tests.
  */
 #[CoversNothing]
+#[IgnoreDeprecations]
 final class HostRoutingControllersTest extends TestCase
 {
     private ?HostRoutingKernel $kernel = null;
