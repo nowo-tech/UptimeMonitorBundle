@@ -36,8 +36,9 @@ final class MonitorFormData
     public int $retries = 5;
     #[Assert\Range(min: 1, max: 31_536_000)]
     public int $retryIntervalSeconds = 60;
+    /** Whole seconds (an integer field since 1.17: the decimal field rendered "48.0"). */
     #[Assert\Range(min: 1, max: 3600)]
-    public float $requestTimeoutSeconds = 48;
+    public int $requestTimeoutSeconds = 48;
     #[Assert\Range(min: 0, max: 10_000)]
     public int $resendNotificationAfterDown = 0;
     public bool $paused                     = false;

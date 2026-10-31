@@ -71,7 +71,7 @@ final class MonitorFactoryRoundTripTest extends TestCase
         $back = $factory->toFormData($monitor);
         self::assertSame('POST', $back->method);
         self::assertSame('200,201', $back->expectedStatusCodes);
-        self::assertSame(12.0, $back->requestTimeoutSeconds);
+        self::assertSame(12, $back->requestTimeoutSeconds);
         self::assertSame(2, $back->resendNotificationAfterDown);
         self::assertSame('Main API', $back->description);
         self::assertSame(3, $back->maxRedirects);
@@ -169,6 +169,28 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame(['secure.test', 8443, 30], [$sslBack->host, $sslBack->port, $sslBack->daysBeforeExpiry]);
     }
 
+    public function testFormDataKeepsRangesCompactAndTimeoutsWhole(): void
+    {
+        $factory                   = $this->factory();
+        $data                      = new MonitorFormData();
+        $data->name                = 'API';
+        $data->url                 = 'https://api.test';
+        $data->expectedStatusCodes = '200-299, 301';
+        $monitor                   = $factory->createFromFormData($this->tenant, $data);
+
+        self::assertCount(101, $monitor->getConfig()['expected_status_codes']);
+        self::assertSame(48, $monitor->getConfig()['request_timeout_seconds']);
+        self::assertSame('200-299,301', $factory->toFormData($monitor)->expectedStatusCodes);
+
+        // Decimal timeouts saved by older versions: rounded up, never below one second.
+        foreach ([[12.0, 12], [2.5, 3], [0.2, 1], ['30', 30]] as [$stored, $whole]) {
+            $monitor->setConfig(['request_timeout_seconds' => $stored, 'timeout' => 99]);
+            self::assertSame($whole, $factory->toFormData($monitor)->requestTimeoutSeconds);
+        }
+        $monitor->setConfig(['request_timeout_seconds' => 'n/a', 'timeout' => 9.5]);
+        self::assertSame(10, $factory->toFormData($monitor)->requestTimeoutSeconds);
+    }
+
     public function testFormDataFallsBackWhenConfigIsMissing(): void
     {
         $factory = $this->factory();
@@ -178,12 +200,12 @@ final class MonitorFactoryRoundTripTest extends TestCase
             $monitor->setConfig(['timeout' => 7, 'expected_status_codes' => 'x', 'headers' => 'x', 'tags' => 'x']);
             $data = $factory->toFormData($monitor);
 
-            self::assertSame(7.0, $data->requestTimeoutSeconds);
+            self::assertSame(7, $data->requestTimeoutSeconds);
             self::assertSame(0, $data->resendNotificationAfterDown);
         }
 
         $bare = $factory->toFormData(new Monitor($this->tenant, 'm', MonitorType::Http, 'https://t.test'));
-        self::assertSame(48.0, $bare->requestTimeoutSeconds);
+        self::assertSame(48, $bare->requestTimeoutSeconds);
         self::assertSame('https://t.test', $bare->url);
         self::assertSame('200', $bare->expectedStatusCodes);
         self::assertSame('', $bare->httpHeaders);

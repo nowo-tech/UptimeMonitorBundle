@@ -58,7 +58,19 @@ describe('push health charts', () => {
     renderPushCharts(mount(JSON.stringify(series), JSON.stringify(labels)));
 
     const load = chartMock.mock.calls[1]?.[1] as { options: { scales: { y: { beginAtZero?: boolean; max?: number } } } };
-    expect(load.options.scales.y).toEqual({ beginAtZero: true });
+    expect(load.options.scales.y).toMatchObject({ beginAtZero: true });
+    expect(load.options.scales.y.max).toBeUndefined();
+  });
+
+  it('colours the series from the page palette (custom properties) with the defaults as fallback', () => {
+    const root = mount(JSON.stringify(series), JSON.stringify(labels));
+    (root.querySelector('#uptime-push-charts') as HTMLElement).style.setProperty('--uptime-chart-series-1', '#123456');
+    renderPushCharts(root);
+
+    const usage = chartMock.mock.calls[0]?.[1] as { data: { datasets: { borderColor: string }[] } };
+    expect(usage.data.datasets[0]?.borderColor).toBe('#123456');
+    expect(usage.data.datasets[1]?.borderColor).toBe('#16a34a');
+    expect(dataset('x', [1], 2, []).borderColor).toBe('#d97706');
   });
 
   it('does nothing without the chart box or with invalid JSON', () => {

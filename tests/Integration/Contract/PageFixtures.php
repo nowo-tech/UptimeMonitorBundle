@@ -65,6 +65,8 @@ use function explode;
 use function glob;
 use function method_exists;
 
+use const JSON_THROW_ON_ERROR;
+
 /**
  * Page contexts the controllers build (view models + 1.x variables), with deterministic entities and forms, for
  * {@see PageContractTest}.
@@ -221,6 +223,34 @@ final class PageFixtures
             'log_pagination' => new Pagination(1, 1, 2, 2, 'nowo_uptime_monitor_show', routeParams: ['tenantSlug' => self::SLUG, 'id' => 7]),
             'page_sections'  => ['before' => [['template' => 'host/_section.html.twig', 'context' => ['note' => 'Shared with Ana']]], 'after' => []],
         ] + $context;
+    }
+
+    /**
+     * Push monitor page: server health view with gauges, a disk and the three charts.
+     *
+     * @return array<string, mixed>
+     */
+    public static function monitorShowPush(): array
+    {
+        $series = ['hours' => 24, 'labels' => ['10:00'], 'cpu' => [12.5], 'memory' => [40.0], 'swap' => [null], 'load' => [0.4], 'disks' => ['/' => [71.0]]];
+
+        return [
+            'push' => [
+                'url'       => 'https://uptime.test/push/abc',
+                'has_token' => true,
+                'signed'    => false,
+                'last_at'   => null,
+                'grace'     => 30,
+                'gauges'    => [
+                    'metrics'  => [['key' => 'cpu', 'value' => 12.5, 'level' => 'ok'], ['key' => 'load', 'value' => 0.4, 'level' => 'warn']],
+                    'uptime_s' => 172800,
+                    'disks'    => [['mount' => '/', 'used' => 71.0, 'inodes' => null, 'level' => 'critical']],
+                ],
+                'series'      => $series,
+                'series_json' => json_encode($series, JSON_THROW_ON_ERROR),
+                'ranges'      => [24, 168],
+            ],
+        ] + self::monitorShow();
     }
 
     /**

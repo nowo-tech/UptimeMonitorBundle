@@ -24,6 +24,10 @@ use function strpos;
 use function substr;
 use function substr_count;
 
+use const ENT_HTML5;
+use const ENT_QUOTES;
+use const JSON_THROW_ON_ERROR;
+
 /**
  * REQ-UI-003: every bundle page extends a UiKit scaffold (or is a declared unique page on the UiKit layout), fills
  * the canonical blocks, ships no chrome of its own (no <html>, CDN, inline handlers, confirm(), framework classes
@@ -193,8 +197,29 @@ final class PageContractTest extends PageContractTestCase
         self::assertMatchesRegularExpression('#<a [^>]*href="/main/monitors/7/edit"[^>]*data-monitor-form-open#', $show);
         self::assertStringContainsString('data-uptime-monitor-form-modal', $show);
 
+        // 1.17: the translated status badge sits in the details card header; no card wraps the page cards and the check
+        // log scrolls in a plain wrapper (not the table_wrap slot inside the log card).
+        self::assertMatchesRegularExpression('#<header class="[^"]*uptime-details-header">\s*<h2[^>]*>Details</h2>\s*<p class="uptime-details-status">#', $show);
+        self::assertMatchesRegularExpression('#<span class="uptime-status-badge uptime-status-badge--down nowo-ui-badge nowo-ui-badge--danger[^"]*" data-detail-status[^>]*>Down</span>#', $show);
+        self::assertSame(1, preg_match('#data-status-badges="([^"]+)"#', $show, $badges));
+        $badges = json_decode(html_entity_decode($badges[1], ENT_QUOTES | ENT_HTML5), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame(['up', 'down', 'degraded', 'unknown'], array_keys($badges));
+        self::assertSame('Up', $badges['up']['label']);
+        self::assertStringContainsString('nowo-ui-badge--warning', $badges['degraded']['class']);
+        self::assertStringNotContainsString('uptime-detail-header', $show);
+        self::assertStringContainsString('<div class="uptime-table-scroll">', $show);
+        self::assertStringNotContainsString('nowo-ui-table-wrap', $show);
+
+        $push = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShowPush()))->html;
+        self::assertStringContainsString('data-testid="uptime-push-health"', $push);
+        self::assertStringContainsString('data-testid="uptime-push-disks"', $push);
+        self::assertSame(3, substr_count($push, '<div class="uptime-chart-box">'));
+        self::assertStringNotContainsString('nowo-ui-table-wrap', $push);
+        self::assertStringNotContainsString('id="uptime-chart-response"', $push);
+
         $group = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShow(true)))->html;
         self::assertStringContainsString('Monitors in this group', $group);
+        self::assertMatchesRegularExpression('#nowo-ui-badge--neutral[^"]*" data-detail-status[^>]*>Unknown</span>#', $group);
         self::assertStringContainsString('Database', $group);
 
         $form = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/form.html.twig', PageFixtures::monitorForm()))->html;

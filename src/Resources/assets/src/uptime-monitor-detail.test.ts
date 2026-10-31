@@ -61,6 +61,30 @@ describe('monitor detail', () => {
     expect(() => applyHistoryPayload(bare, PAYLOAD)).not.toThrow();
   });
 
+  it('updates the translated status badge of the details header, outside the root', () => {
+    const root = mount();
+    root.querySelector('[data-detail-status]')?.remove();
+    const badges = {
+      up: { label: 'Activo', class: 'uptime-status-badge uptime-status-badge--up nowo-ui-badge--success' },
+      unknown: { label: 'Desconocido', class: 'uptime-status-badge uptime-status-badge--unknown nowo-ui-badge--neutral' },
+    };
+    const badge = document.createElement('span');
+    badge.dataset.detailStatus = '';
+    badge.dataset.statusBadges = JSON.stringify(badges);
+    document.body.prepend(badge);
+
+    applyHistoryPayload(root, { ...PAYLOAD, last_status: 'up' });
+    expect(badge.textContent).toBe('Activo');
+    expect(badge.className).toBe(badges.up.class);
+
+    applyHistoryPayload(root, { ...PAYLOAD, last_status: 'paused' });
+    expect(badge.textContent).toBe('Desconocido');
+    expect(badge.className).toBe(badges.unknown.class);
+
+    badge.remove();
+    expect(() => applyHistoryPayload(root, PAYLOAD)).not.toThrow();
+  });
+
   it('reveals the history, figures and log once the first check arrives', () => {
     const root = mount();
     root.insertAdjacentHTML('beforeend', '<p data-detail-unchecked>Not checked yet</p><div data-detail-pending hidden></div>');

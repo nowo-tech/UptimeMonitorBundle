@@ -28,7 +28,7 @@ Every view model passes `bundle: 'NowoUptimeMonitorBundle'` (theme exception
 | Tenants (`tenant_index`) | `tenant/index.html.twig` | `page/list` | `ListPage` (header `tenant.index.title`, action New tenant; columns name, slug; rows = `Tenant`; `EmptyState` `tenant.index.empty`; `data-testid="uptime-tenants"`) | `nowo_ui_list_row` (name → tenant dashboard, slug in the `code` slot) |
 | New tenant (`tenant_form`) | `tenant/form.html.twig` | `page/form` | `FormPage` (header `tenant.new.title`, back link to the tenants; `TenantFormType`; submit `tenant.form.create`; cancel = tenants; `formThemes` = `web_ui.form_themes`) | — (scaffold defaults: REQ-TWIG-003 child loop) |
 | Dashboard (`dashboard`) | `dashboard/index.html.twig` | `page/dashboard` | `DashboardPage` (header = tenant name, intro = slug when it differs; actions Settings, Status page, New monitor — the last one is a link to the form page that `uptime-dashboard.js` opens in the monitor dialog; `data-testid="uptime-dashboard"`) | `nowo_ui_dashboard_cards` (live Kuma layout: monitor search + tree, quick stats on the `kpis` / `kpi` slots, recent checks table on the `card` / `table` slots), `nowo_ui_modals` (monitor dialog), `nowo_ui_document_title` (`dashboard.title`) |
-| Monitor detail (`monitor_show`) | `monitor/show.html.twig` | `page/show` | `ShowPage` (header = monitor name, intro = target, back link to the dashboard, action Edit (monitor dialog / form page); section `uptime-monitor-details`: type, group or project, target, interval; `data-testid="uptime-monitor"`) | `nowo_ui_show_after` (status, check history bar, uptime / latency KPIs, charts, check log, group children — updated by `uptime-monitor-detail.js`), `nowo_ui_modals` (monitor dialog) |
+| Monitor detail (`monitor_show`) | `monitor/show.html.twig` | `page/show` | `ShowPage` (header = monitor name, intro = target, back link to the dashboard, action Edit (monitor dialog / form page); section `uptime-monitor-details`: type, group or project, target, interval; `data-testid="uptime-monitor"`) | `nowo_ui_show_sections` (the UiKit detail cards; the first card header carries the status badge — `uptime-status-badge uptime-status-badge--<status>` plus the UiKit `badge_*` slot of the status, `data-detail-status`, `data-status-badges` = translated label and classes of every status — since 1.17), `nowo_ui_show_after` (check history bar, uptime / latency KPIs, charts, check log, group children, push health — sibling cards, no card around them; updated by `uptime-monitor-detail.js`), `nowo_ui_modals` (monitor dialog) |
 | Monitor create / edit (`monitor_form`) | `monitor/form.html.twig` | `page/form` | `FormPage` (header `monitor.new` / `monitor.edit`, back link to the dashboard; `MonitorFormType`; submit `monitor.form.save`, cancel `monitor.form.cancel` = dashboard; `formAttributes.class` `uptime-monitor-form`; `formThemes` = `web_ui.form_themes`) | `nowo_ui_form_body` (fieldsets per monitor type — `data-monitor-fields`, toggled by `uptime-dashboard.js` — then the REQ-TWIG-003 child loop), `nowo_ui_form_aside` (group monitors hint) |
 | Settings → General (`settings_general`) | `settings/general.html.twig` | `page/settings` | `SettingsPage` (see [Settings pages](#settings-pages)); section form `SettingsGeneralFormType` | `nowo_ui_settings_section` (fields grouped in three fieldsets, the REQ-TWIG-003 child loop, submit row) |
 | Settings → Appearance (`settings_appearance`) | `settings/appearance.html.twig` | `page/settings` | `SettingsPage`; section form `SettingsAppearanceFormType` | `nowo_ui_settings_section` (interface language notice, then `parent()`) |
@@ -71,6 +71,26 @@ Bundle-specific wrappers inside the data blocks carry `uptime-app uptime-app--em
 `data-theme="light|dark"` when the tenant forces a theme in Settings → Appearance), so the bundle stylesheet
 (`uptime-dashboard.css`, `uptime-theme.css`, stacked in `nowo_ui_styles` after `{{ parent() }}`) maps its widget
 colours to the UiKit `--nowo-ui-*` tokens.
+
+### Flat sections and chart colours (1.17)
+
+- **No card in a card.** The monitor form fieldsets (`.uptime-form-section`) are flat inside the form card: the legend
+  is the section heading and a rule separates the visible sections. To get the 1.16 tinted cards back, add the class
+  `uptime-form-sections--cards` to an ancestor of the form (or to the `.uptime-app` wrapper of an overriding
+  template). On the monitor page `.uptime-detail` is no longer drawn as a card around the history, figures, charts and
+  check log; the check log and the push disk table scroll in a plain `.uptime-table-scroll` (not the `table_wrap`
+  slot, which a host may theme as a panel); the push health charts and gauges sit flat inside the health card.
+- **Chart colours.** `uptime-monitor-detail.js` reads these custom properties from the page root
+  (`#uptime-monitor-detail-root`, inside `.uptime-app`); the bundle stylesheet sets them on `.uptime-app` from the UiKit
+  tokens, the script falls back to the same colours when one is empty. Override them on `.uptime-app` or any ancestor:
+
+  | Property | Default | Used by |
+  | --- | --- | --- |
+  | `--uptime-chart-uptime` | `var(--nowo-ui-success-text, #16a34a)` | uptime chart (line; area at 25 %) |
+  | `--uptime-chart-latency` | `var(--nowo-ui-primary, #2563eb)` | response time and latency charts |
+  | `--uptime-chart-grid` | `var(--nowo-ui-border, #e2e8f0)` | grid lines |
+  | `--uptime-chart-text` | `var(--nowo-ui-muted, #64748b)` | tick and legend labels |
+  | `--uptime-chart-series-1` … `-6` | primary, success, warning, `#9333ea`, danger, info | push health series (CPU, memory, swap, load, disks) |
 
 ## Unique pages
 

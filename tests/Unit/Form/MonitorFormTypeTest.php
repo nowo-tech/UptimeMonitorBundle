@@ -187,6 +187,11 @@ final class MonitorFormTypeTest extends TypeTestCase
 
         self::assertFalse($form->get('requestTimeoutSeconds')->isValid());
         self::assertSame(30.0, $form->get('requestTimeoutSeconds')->getConfig()->getOption('attr')['max']);
+
+        // Whole seconds: the field renders "48", never "48.0" / "48,0".
+        $view = $factory->create(MonitorFormType::class, new MonitorFormData())->createView();
+        self::assertSame('48', $view['requestTimeoutSeconds']->vars['value']);
+        self::assertContains('integer', $view['requestTimeoutSeconds']->vars['block_prefixes']);
     }
 
     public function testModelConstraintsRejectOutOfRangeValues(): void

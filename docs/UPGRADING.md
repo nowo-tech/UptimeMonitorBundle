@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.17.0](#to-1170)
 - [To 1.16.2](#to-1162)
 - [To 1.16.1](#to-1161)
 - [To 1.16.0](#to-1160)
@@ -108,6 +109,35 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.17.0
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console assets:install
+```
+
+No configuration or schema change. Stored monitors keep working: a decimal request timeout saved by an older version
+(`12.0`, `2.5`) shows as whole seconds (rounded up) and is saved as an integer the next time the monitor is edited.
+
+Only hosts that override the monitor templates or restyle the bundle CSS need to look:
+
+- **`monitor/show.html.twig` overrides.** The status badge is rendered in `nowo_ui_show_sections` (header of the first
+  details card) and no longer in `nowo_ui_show_after` (`.uptime-detail-header` is gone). If you override
+  `nowo_ui_show_sections`, render your own element with `data-detail-status`; give it `data-status-badges`
+  (`{"up": {"label": "…", "class": "…"}, …}`) to get translated labels from the live update — without it the script
+  keeps the 1.x behaviour (`uptime-detail-status uptime-status-<status>` and the status name). The script finds the
+  badge inside `#uptime-monitor-detail-root` first, then anywhere in the page. The check log uses
+  `<div class="uptime-table-scroll">` instead of the `table_wrap` slot.
+- **`monitor/_push_health.html.twig` overrides.** The chart boxes no longer carry the `card` slot and the disk table no
+  longer the `table_wrap` slot.
+- **CSS.** `.uptime-form-section` is flat in the embedded pages (heading + divider): add `uptime-form-sections--cards`
+  on an ancestor to keep the 1.16 tinted cards, or drop your host rules that flattened it. `.uptime-detail` has no
+  border, padding or shadow. Chart colours: set the `--uptime-chart-*` custom properties
+  ([TEMPLATES](TEMPLATES.md#flat-sections-and-chart-colours-117)) instead of replacing the charts.
+- **Form extensions.** `requestTimeoutSeconds` is an `IntegerType` field (was `NumberType`, `scale: 1`) and
+  `MonitorFormData::$requestTimeoutSeconds` an `int`: a form type extension that rewrote `48.0` to `48` is no longer
+  needed.
 
 ## To 1.16.2
 

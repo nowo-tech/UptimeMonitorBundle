@@ -1,5 +1,5 @@
 import { Chart } from 'chart.js/auto';
-import { UPTIME_CHART_COLORS } from './chart-theme';
+import { axisColors, readChartPalette, type ChartPalette } from './chart-theme';
 import { renderHistoryBar } from './history-bar';
 import { initMonitorFormModal } from './monitor-form-modal';
 import { renderPushCharts } from './push-health';
@@ -36,7 +36,7 @@ export function parseJson<T>(raw: string | undefined): T | null {
   }
 }
 
-function renderResponseChart(series: LatencySeries): void {
+function renderResponseChart(series: LatencySeries, palette: ChartPalette): void {
   const canvas = document.getElementById('uptime-chart-response');
   if (!(canvas instanceof HTMLCanvasElement) || series.labels.length === 0) {
     return;
@@ -49,8 +49,8 @@ function renderResponseChart(series: LatencySeries): void {
       datasets: [{
         label: 'Response ms',
         data: series.latency_ms,
-        borderColor: UPTIME_CHART_COLORS.borderLatency,
-        backgroundColor: UPTIME_CHART_COLORS.latency,
+        borderColor: palette.latency,
+        backgroundColor: palette.latencyFill,
         fill: true,
         tension: 0.2,
         pointRadius: 2,
@@ -59,14 +59,14 @@ function renderResponseChart(series: LatencySeries): void {
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { maxTicksLimit: 12 } },
-        y: { beginAtZero: true },
+        x: { ...axisColors(palette), ticks: { maxTicksLimit: 12, color: palette.text } },
+        y: { ...axisColors(palette), beginAtZero: true },
       },
     },
   });
 }
 
-function renderAggregateCharts(series: SeriesData): void {
+function renderAggregateCharts(series: SeriesData, palette: ChartPalette): void {
   const uptimeCanvas = document.getElementById('uptime-chart-uptime');
   if (uptimeCanvas instanceof HTMLCanvasElement && series.labels.length > 0) {
     new Chart(uptimeCanvas, {
@@ -76,14 +76,14 @@ function renderAggregateCharts(series: SeriesData): void {
         datasets: [{
           label: 'Uptime %',
           data: series.uptime_percent,
-          borderColor: UPTIME_CHART_COLORS.borderUptime,
-          backgroundColor: UPTIME_CHART_COLORS.uptime,
+          borderColor: palette.uptime,
+          backgroundColor: palette.uptimeFill,
           fill: true,
           tension: 0.2,
         }],
       },
       options: {
-        scales: { y: { min: 0, max: 100 } },
+        scales: { x: axisColors(palette), y: { ...axisColors(palette), min: 0, max: 100 } },
         plugins: { legend: { display: false } },
       },
     });
@@ -98,25 +98,43 @@ function renderAggregateCharts(series: SeriesData): void {
         datasets: [{
           label: 'Latency ms',
           data: series.latency_avg_ms,
-          backgroundColor: UPTIME_CHART_COLORS.latency,
-          borderColor: UPTIME_CHART_COLORS.borderLatency,
+          backgroundColor: palette.latencyFill,
+          borderColor: palette.latency,
+          borderWidth: 1,
         }],
       },
       options: {
+        scales: { x: axisColors(palette), y: { ...axisColors(palette), beginAtZero: true } },
         plugins: { legend: { display: false } },
       },
     });
   }
 }
 
+/** Translated label and classes of each status badge (`data-status-badges`, rendered by the Twig template). */
+type StatusBadges = Record<string, { label: string; class: string }>;
+
+/**
+ * Updates the status badge: the translated label and classes the template rendered for the status (since 1.17 the badge
+ * sits in the details card header, outside the root); without `data-status-badges` (a host template of 1.16) the
+ * 1.x classes and the status name.
+ */
+function applyStatus(root: HTMLElement, status: string): void {
+  const statusEl =
+    root.querySelector<HTMLElement>('[data-detail-status]') ??
+    root.ownerDocument.querySelector<HTMLElement>('[data-detail-status]');
+  if (statusEl === null) {
+    return;
+  }
+  const badges = parseJson<StatusBadges>(statusEl.dataset.statusBadges);
+  const badge = badges?.[status] ?? badges?.unknown;
+  statusEl.className = badge?.class ?? `uptime-detail-status uptime-status-${status}`;
+  statusEl.textContent = badge === undefined ? status : badge.label;
+}
+
 /** Applies the history API payload to the detail page. Exported for tests. */
 export function applyHistoryPayload(root: HTMLElement, payload: HistoryPayload): void {
-  const status = payload.last_status ?? 'unknown';
-  const statusEl = root.querySelector<HTMLElement>('[data-detail-status]');
-  if (statusEl !== null) {
-    statusEl.className = `uptime-detail-status uptime-status-${status}`;
-    statusEl.textContent = status;
-  }
+  applyStatus(root, payload.last_status ?? 'unknown');
 
   const checkedEl = root.querySelector<HTMLElement>('[data-detail-checked]');
   if (checkedEl !== null && payload.last_checked_at !== null) {
@@ -170,17 +188,18 @@ export function bootstrap(): void {
     return;
   }
 
+  const palette = readChartPalette(root);
   const series = parseJson<SeriesData>(root.dataset.series);
   if (series !== null) {
-    renderAggregateCharts(series);
+    renderAggregateCharts(series, palette);
   }
 
   const latencySeries = parseJson<LatencySeries>(root.dataset.latencySeries);
   if (latencySeries !== null) {
-    renderResponseChart(latencySeries);
+    renderResponseChart(latencySeries, palette);
   }
 
-  renderPushCharts(root);
+  renderPushCharts(root, palette);
 
   const apiUrl = root.dataset.apiHistory ?? '';
   if (apiUrl !== '') {
