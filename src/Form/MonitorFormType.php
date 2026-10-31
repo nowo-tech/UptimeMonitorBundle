@@ -102,11 +102,10 @@ final class MonitorFormType extends AbstractUptimeFormType
             'required' => false,
             'attr'     => ['min' => 30],
         ]);
-        $this->addNumber($builder, 'requestTimeoutSeconds', [
+        // Whole seconds (1.17): the decimal field rendered "48.0" ("48,0" in comma-decimal locales).
+        $this->addInteger($builder, 'requestTimeoutSeconds', [
             'label'       => 'form.monitor.timeout',
             'required'    => false,
-            'html5'       => true,
-            'scale'       => 1,
             'attr'        => ['min' => 1, 'max' => $this->maxTimeoutSeconds, 'step' => 1],
             'constraints' => [new Range(min: 1, max: $this->maxTimeoutSeconds)],
         ]);

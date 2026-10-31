@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.17.0] - 2026-10-31](#1170---2026-10-31)
 - [[1.16.2] - 2026-10-30](#1162---2026-10-30)
 - [[1.16.1] - 2026-10-29](#1161---2026-10-29)
 - [[1.16.0] - 2026-10-28](#1160---2026-10-28)
@@ -65,6 +66,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.17.0] - 2026-10-31
+
+Monitor pages without cards inside cards, host-themed charts and badges, whole-second timeouts and compact status
+code ranges. See [UPGRADING](UPGRADING.md#to-1170).
+
+### Changed
+
+- **Monitor form: flat sections.** The fieldsets of the monitor form (`.uptime-form-section`, page and dialog) were
+  tinted cards inside the form card. They are flat now: the legend as the section heading and a rule between the
+  visible sections. Add `uptime-form-sections--cards` on an ancestor to keep the 1.16 cards
+  ([TEMPLATES](TEMPLATES.md#flat-sections-and-chart-colours-117)).
+- **Monitor page: no card in a card.** `.uptime-detail` is no longer drawn as a card wrapping the history, figures,
+  charts and check log (they are sibling cards); the check log table scrolls in a plain `.uptime-table-scroll` instead
+  of the `table_wrap` slot inside the log card. The status badge moved from the top of the page body to the header of
+  the details card (`nowo_ui_show_sections`), as a UiKit `badge_*` slot (success / danger / warning / neutral).
+- **Push health: flat inside its card.** The usage / load / disk charts are no longer cards inside the health card, the
+  disk table is no longer a `table_wrap` panel inside it, and the gauges keep only their level accent.
+- **Chart colours from CSS custom properties.** The monitor and push charts read `--uptime-chart-uptime`,
+  `--uptime-chart-latency`, `--uptime-chart-grid`, `--uptime-chart-text` and `--uptime-chart-series-1…6` (defaults
+  from the UiKit `--nowo-ui-*` tokens, so they follow light / dark mode); grid lines and tick labels are themed too.
+
+### Fixed
+
+- **Request timeout rendered `48.0`** (`48,0` in comma-decimal locales): the field is an integer of seconds
+  (`MonitorFormData::$requestTimeoutSeconds` is an `int`). Decimal timeouts saved by older versions still load, rounded
+  up to whole seconds (never below 1).
+- **Accepted status codes expanded on edit.** A monitor saved with `200-299` showed `200,201,…,299` in the edit form;
+  `StatusCodeMatcher::format()` writes runs of three or more codes back as ranges (`200-299,301`).
+- **Raw status in the monitor page.** The live update wrote the status name (`up`) into the badge; it now writes the
+  translated label (`data-status-badges`, rendered by Twig).
 
 ## [1.16.2] - 2026-10-30
 

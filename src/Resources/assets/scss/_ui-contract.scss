@@ -66,7 +66,9 @@
   }
 
   .uptime-group-children,
-  .uptime-detail-history-section {
+  .uptime-detail-history-section,
+  .uptime-push-credentials,
+  .uptime-push-health {
     padding: 1rem;
   }
 
@@ -197,11 +199,6 @@
 
   .uptime-form-section {
     min-width: 0;
-    margin: 0 0 1rem;
-    padding: 0.875rem 1rem 0.125rem;
-    border: 1px solid var(--nowo-ui-border, #e2e8f0);
-    border-radius: var(--nowo-ui-radius, 0.375rem);
-    background: var(--nowo-ui-surface, #fff);
   }
 
   .uptime-form-section > legend {
@@ -436,5 +433,140 @@
 
   .uptime-status-overall-unknown {
     color: var(--nowo-ui-muted, inherit);
+  }
+}
+
+/* —— 1.17: flat sections and panels inside the host's cards (no card in a card) —— */
+
+/* Chart palette (monitor page, push health): uptime-monitor-detail.js and push-health read these custom properties, so
+   the charts follow the host tokens in light and dark mode. Override them on `.uptime-app` (or any ancestor of the
+   page) to recolour the charts; the script falls back to the same defaults when a property is empty. */
+.uptime-app {
+  --uptime-chart-uptime: var(--nowo-ui-success-text, #16a34a);
+  --uptime-chart-latency: var(--nowo-ui-primary, #2563eb);
+  --uptime-chart-grid: var(--nowo-ui-border, #e2e8f0);
+  --uptime-chart-text: var(--nowo-ui-muted, #64748b);
+  --uptime-chart-series-1: var(--nowo-ui-primary, #2563eb);
+  --uptime-chart-series-2: var(--nowo-ui-success-text, #16a34a);
+  --uptime-chart-series-3: var(--nowo-ui-warning-text, #d97706);
+  --uptime-chart-series-4: #9333ea;
+  --uptime-chart-series-5: var(--nowo-ui-danger, #dc2626);
+  --uptime-chart-series-6: var(--nowo-ui-info-text, #0891b2);
+}
+
+/* Monitor form sections: flat inside the form card — the legend as the section heading and a rule between the visible
+   sections (the type select hides the others). Three classes, so these win over the 1.x theme rules
+   (uptime-theme-light / auto / host-theme) that tinted each fieldset as a card of its own. Hosts that want the 1.16
+   cards back add `uptime-form-sections--cards` on an ancestor of the form (or on the `.uptime-app` wrapper). */
+.uptime-app.uptime-app--embedded .uptime-form-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+
+.uptime-app.uptime-app--embedded .uptime-form-section > legend {
+  color: inherit;
+}
+
+.uptime-app.uptime-app--embedded .uptime-form-section:not([hidden]) ~ .uptime-form-section:not([hidden]) {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--nowo-ui-border, #e2e8f0);
+}
+
+:is(.uptime-form-sections--cards .uptime-app, .uptime-app.uptime-form-sections--cards).uptime-app--embedded {
+  .uptime-form-section,
+  .uptime-form-section:not([hidden]) ~ .uptime-form-section:not([hidden]) {
+    margin: 0 0 1rem;
+    padding: 0.875rem 1rem 0.125rem;
+    border: 1px solid var(--nowo-ui-border, #e2e8f0);
+    border-radius: var(--nowo-ui-radius, 0.375rem);
+    background: var(--nowo-ui-surface-muted, var(--nowo-ui-surface, #fff));
+  }
+}
+
+/* Monitor page: the detail wrapper is a plain stack of the page's cards (history, figures, charts, check log, push
+   health), not a card around them. */
+.uptime-app.uptime-app--embedded .uptime-detail {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* The details card header: section title and the status badge (uptime-monitor-detail.js keeps the badge current). */
+.uptime-details-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+/* UiKit badge slot only: the 1.x `.uptime-status-<status>` colours (dark-shell palette) are not on this badge. */
+.uptime-details-status {
+  margin: 0;
+}
+
+/* Tables inside a card (check log, push disks): a plain horizontal scroller, not the host's table panel. The position
+   keeps visually hidden text inside it from widening the page on phones. */
+.uptime-table-scroll {
+  position: relative;
+  overflow-x: auto;
+}
+
+.uptime-app--embedded .uptime-events .uptime-events-table {
+  margin: 0;
+}
+
+/* Push health: charts, gauges and the disk table sit flat inside the health card. */
+.uptime-app.uptime-app--embedded .uptime-push-health {
+  .uptime-push-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 1.25rem;
+    margin: 1.25rem 0 0;
+  }
+
+  .uptime-push-charts .uptime-chart-box {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .uptime-push-charts .uptime-chart-box > h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: inherit;
+  }
+
+  .uptime-push-gauge {
+    padding: 0.25rem 0 0.25rem 0.75rem;
+    border: 0;
+    border-left: 4px solid var(--nowo-ui-border, #e2e8f0);
+    border-radius: 0;
+  }
+
+  .uptime-push-gauge.uptime-push-level-ok {
+    border-left-color: var(--nowo-ui-success-text, #16a34a);
+  }
+
+  .uptime-push-gauge.uptime-push-level-warn {
+    border-left-color: var(--nowo-ui-warning-text, #d97706);
+  }
+
+  .uptime-push-gauge.uptime-push-level-critical {
+    border-left-color: var(--nowo-ui-danger, #dc2626);
   }
 }

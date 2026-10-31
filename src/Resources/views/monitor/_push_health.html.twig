@@ -3,6 +3,8 @@
   Server health view of a push monitor (since 1.14). Variables: push (MonitorController::pushView(): url, has_token,
   signed, last_at, grace, gauges, series, series_json, ranges), monitor, tenant_slug, _b (UiKit bundle
   key), and once, right after "Generate token", push_secret / push_signing_secret (never stored, never cached).
+  Since 1.17 the gauges, disk table and charts sit flat inside the health card (no card in the card) and the chart
+  colours come from the --uptime-chart-series-1…6 custom properties (push-health.ts).
 #}
 <section class="uptime-push-credentials {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-push-credentials">
     <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.push.credentials'|trans }}</h2>
@@ -60,7 +62,7 @@ UPTIME_PUSH_SECRET={{ push_signing_secret }}{% endif %}
         </div>
 
         {% if push.gauges.disks is not empty %}
-            <div class="{{ nowo_ui_class('table_wrap', _b) }}">
+            <div class="uptime-table-scroll">
                 <table class="uptime-push-disks {{ nowo_ui_class('table', _b) }}" data-testid="uptime-push-disks">
                     <thead class="{{ nowo_ui_class('table_head', _b) }}">
                         <tr>
@@ -85,15 +87,15 @@ UPTIME_PUSH_SECRET={{ push_signing_secret }}{% endif %}
 
     <div class="uptime-charts uptime-push-charts" id="uptime-push-charts" data-push-series="{{ push.series_json|e('html_attr') }}"
          data-push-labels="{{ {cpu: 'monitor.push.metric.cpu'|trans, memory: 'monitor.push.metric.memory'|trans, swap: 'monitor.push.metric.swap'|trans, load: 'monitor.push.metric.load'|trans}|json_encode|e('html_attr') }}">
-        <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
+        <div class="uptime-chart-box">
             <h3>{{ 'monitor.push.chart_usage'|trans }}</h3>
             <canvas id="uptime-push-chart-usage" height="140"></canvas>
         </div>
-        <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
+        <div class="uptime-chart-box">
             <h3>{{ 'monitor.push.chart_load'|trans }}</h3>
             <canvas id="uptime-push-chart-load" height="120"></canvas>
         </div>
-        <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
+        <div class="uptime-chart-box">
             <h3>{{ 'monitor.push.chart_disks'|trans }}</h3>
             <canvas id="uptime-push-chart-disks" height="120"></canvas>
         </div>

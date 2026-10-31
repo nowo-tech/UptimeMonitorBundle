@@ -85,9 +85,10 @@ final readonly class MonitorFactory
         $data->intervalSeconds       = $monitor->getIntervalSeconds();
         $data->retries               = $monitor->getRetries();
         $data->retryIntervalSeconds  = $monitor->getRetryIntervalSeconds();
-        $data->requestTimeoutSeconds = isset($config['request_timeout_seconds']) && is_numeric($config['request_timeout_seconds'])
-            ? (float) $config['request_timeout_seconds']
-            : (isset($config['timeout']) && is_numeric($config['timeout']) ? (float) $config['timeout'] : 48);
+        $data->requestTimeoutSeconds = $this->wholeSeconds(
+            is_numeric($config['request_timeout_seconds'] ?? null) ? $config['request_timeout_seconds'] : ($config['timeout'] ?? null),
+            48,
+        );
         $data->resendNotificationAfterDown = isset($config['resend_notification_after_down']) && is_numeric($config['resend_notification_after_down'])
             ? (int) $config['resend_notification_after_down']
             : 0;
@@ -316,7 +317,8 @@ final readonly class MonitorFactory
         $data->method = isset($config['method']) && is_string($config['method']) ? $config['method'] : 'GET';
         $codes        = $config['expected_status_codes'] ?? [200];
         if (is_array($codes)) {
-            $data->expectedStatusCodes = implode(',', array_map(strval(...), $codes));
+            // Stored expanded (200, 201, …, 299): shown compact again (200-299), so an edit does not spell out ranges.
+            $data->expectedStatusCodes = StatusCodeMatcher::format($codes);
         }
         $data->keyword      = isset($config['keyword']) && is_string($config['keyword']) ? $config['keyword'] : '';
         $data->maxRedirects = isset($config['max_redirects']) && is_numeric($config['max_redirects'])
@@ -398,5 +400,18 @@ final readonly class MonitorFactory
             : 14;
 
         return $data;
+    }
+
+    /**
+     * A stored timeout as whole seconds (at least 1): older monitors may hold a decimal (`12.0`, `0.5`), rounded up so
+     * an edit never shortens the timeout; a missing or non-numeric value gives the default.
+     */
+    private function wholeSeconds(mixed $value, int $default): int
+    {
+        if (!is_numeric($value)) {
+            return $default;
+        }
+
+        return max(1, (int) ceil((float) $value));
     }
 }

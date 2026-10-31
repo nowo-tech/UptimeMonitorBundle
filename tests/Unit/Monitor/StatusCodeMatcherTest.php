@@ -36,4 +36,13 @@ final class StatusCodeMatcherTest extends TestCase
         self::assertTrue(StatusCodeMatcher::matches(205, [204, 205]));
         self::assertFalse(StatusCodeMatcher::matches(500, [204, 205]));
     }
+
+    public function testFormatsRunsOfThreeOrMoreAsRanges(): void
+    {
+        self::assertSame('200-299', StatusCodeMatcher::format(StatusCodeMatcher::parse('200-299')));
+        self::assertSame('200-299,301,404', StatusCodeMatcher::format([404, ...StatusCodeMatcher::parse('200-299'), 301, 301]));
+        self::assertSame('200,201,204', StatusCodeMatcher::format([204, 201, 200]));
+        self::assertSame('200-202', StatusCodeMatcher::format(['200', 201, '202', 'x', 2.5, null]));
+        self::assertSame('', StatusCodeMatcher::format([]));
+    }
 }
