@@ -67,6 +67,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Documentation, Spec Kit and development lock only: no change in the bundle's behaviour, configuration or output.
+
+### Security
+
+- **Development lock**: `composer.lock` updated within the constraints (43 packages: Symfony 7.4.x → 7.4.22,
+  among them `symfony/mime` 7.4.19 → 7.4.22 for CVE-2026-45070; FormKit 2.17.0, UiKit 2.21.0, Doctrine ORM 3.7.6);
+  `composer audit` is clean. Hosts resolve their own versions: check
+  `composer audit` in your application lock too.
+- **SECURITY.md** lists the unauthenticated push ingest `POST <push.path>/{key}` (1.14) and the tenant summary page
+  (1.13) in *Scope*, with a threat-model entry for the ingest (credential theft, existence oracle, replay, floods,
+  firewall advice) and a release-checklist row (REQ-SEC-001).
+
+### Changed
+
+- **Spec Kit**: new [`specs/003-push-monitors`](../specs/003-push-monitors/spec.md) (FR-PUSH-001–007, FR-CFG-004,
+  FR-UI-007 summary); `specs/001-baseline/code-inventory.md` maps 211/211 files (the 6 push PHP files, `push-health.ts`,
+  the agent, three templates and the current Vite chunk) with recomputed category counts, re-dated 2026-11-01.
+  New `make check-spec-inventory`, run by `make release-check` (REQ-SPECKIT-001 / -003).
+- **CONFIGURATION.md**: *Form Kit profile* (the seeded `nowo_form_kit.profiles.uptime_monitor` and how a host
+  overrides it, REQ-TWIG-005 rule 11), *Push monitors* and the `push.*` keys in the reference tree.
+- **README** *Tests and coverage* figures taken from CI (REQ-TEST-007); the release checklist says so.
+
 ## [1.17.0] - 2026-10-31
 
 Monitor pages without cards inside cards, host-themed charts and badges, whole-second timeouts and compact status

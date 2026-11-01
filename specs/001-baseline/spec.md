@@ -77,7 +77,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 ### Check execution
 
 - **FR-CHECK-001**: `CheckRunnerInterface` contract for all monitor types.
-- **FR-CHECK-004**: Type-specific runners (HTTP, TCP, DNS, SSL, Ping, Group) with SSRF guard on URLs.
+- **FR-CHECK-004**: Type-specific runners (HTTP, TCP, DNS, SSL, Ping, Group) with SSRF guard on URLs; push monitors are judged by `PushCheckRunner` (FR-PUSH-005).
 - **FR-CHECK-002 / FR-CHECK-003**: Orchestrated execution and due-check scheduling (CLI, Messenger, Schedule).
 - **FR-CHECK-005**: Status transitions, incident lifecycle, retry policy via `MonitorRetryService`.
 - **FR-CHECK-006**: TCP / SSL probes open sockets through `Check\Network\SocketConnectorInterface` (stream socket with a deadline).
@@ -125,6 +125,12 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 - **FR-UI-010–012**: Vite TypeScript dashboard modules; built assets under `Resources/public/`.
 - **FR-I18N-003 / FR-I18N-004**: Translation helper and seven locale YAML files (`NowoUptimeMonitorBundle.<locale>.yaml`, constraint messages included — no `validators` catalogue).
 
+### Push monitors (since 1.14)
+
+- **FR-PUSH-001–007**, **FR-CFG-004**: unauthenticated ingest `POST <push.path>/{key}` (bearer token, optional HMAC
+  signature, body / schema / rate limits), push judgement and staleness, server health view and reference agent —
+  see [`003-push-monitors`](../003-push-monitors/spec.md), which also details FR-UI-007 (tenant status summary).
+
 ### Routing & tenants
 
 - **FR-ROUTE-001**: Route import `type: nowo_uptime_monitor` with the admin prefix (`web_ui.path_prefix`, may hold `{tenantSlug}`).
@@ -148,7 +154,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 
 ## Success Criteria
 
-- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (184/184 mapped, audited 2026-10-27).
+- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (211/211 mapped, audited 2026-11-01 on v1.17.0; enforced by `make check-spec-inventory` in `make release-check`).
 - **SC-002**: Configuration keys in `docs/CONFIGURATION.md` match `Configuration.php`.
 - **SC-003**: `composer qa` / `make release-check` pass in CI (PHPUnit, PHPStan, Vitest where applicable).
 - **SC-004**: No Packagist-visible behavior change without spec, inventory, and test updates.
@@ -160,7 +166,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 | Check | Command |
 | --- | --- |
 | Full QA | `make release-check` or `composer qa` |
-| Code inventory audit | `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' \| wc -l` |
+| Code inventory audit | `make check-spec-inventory` (or `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' \| wc -l`) |
 | TS tests | `pnpm test` or `make test-ts` (when assets present) |
 
 When changing behavior, update this spec, `code-inventory.md`, integrator docs, and tests.

@@ -1,4 +1,4 @@
-.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix rector rector-dry phpstan igor qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form twig-lint test-e2e demo-screenshots validate-phpdoc
+.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix rector rector-dry phpstan igor qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form check-spec-inventory twig-lint test-e2e demo-screenshots validate-phpdoc
 
 COMPOSE_FILE ?= docker-compose.yml
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -59,6 +59,7 @@ help:
 	@echo "  twig-lint             Twig-CS-Fixer lint"
 	@echo "  check-twig-extra      Twig extra filters/functions are required"
 	@echo "  check-no-raw-html-form Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)"
+	@echo "  check-spec-inventory Fail if specs/001-baseline/code-inventory.md does not map every src/ file (REQ-SPECKIT-001)"
 	@echo "  check-open-prs        Fail on unresolved open GitHub PRs (REQ-REL-003)"
 	@echo "  check-no-cursor-coauthor  Fail on Cursor co-author trailers (REQ-GIT-001)"
 	@echo "  strip-cursor-coauthor-from-history  Rewrite history without Cursor trailers"
@@ -185,7 +186,12 @@ check-no-raw-html-form:
 	@chmod +x .scripts/check-no-raw-html-form.sh
 	@./.scripts/check-no-raw-html-form.sh
 
-release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form composer-sync cs-fix cs-check rector-dry phpstan validate-phpdoc igor validate-translations test-coverage-100 release-check-demos test-e2e test-ts
+# REQ-SPECKIT-001: the Spec Kit inventory maps 100% of src/ (co-located *.test.ts and assets/dist excluded).
+check-spec-inventory:
+	@chmod +x .scripts/check-spec-inventory.sh
+	@INVENTORY_EXCLUDE='\.test\.ts$$|/assets/dist/' ./.scripts/check-spec-inventory.sh
+
+release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form check-spec-inventory composer-sync cs-fix cs-check rector-dry phpstan validate-phpdoc igor validate-translations test-coverage-100 release-check-demos test-e2e test-ts
 
 clean:
 	rm -rf vendor coverage coverage-ts .phpunit.cache coverage-php.txt coverage-ts.txt node_modules

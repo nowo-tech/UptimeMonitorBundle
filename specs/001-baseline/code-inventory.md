@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/uptime-monitor-bundle`  
-**Last audited**: 2026-10-27
+**Last audited**: 2026-11-01 (v1.17.0)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -252,7 +252,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/src/uptime-dashboard.ts` | Dashboard entrypoint | FR-UI-010 |
 | `Resources/assets/src/uptime-logger.ts` | Frontend logger | FR-UI-012 |
 | `Resources/assets/src/vite-env.d.ts` | Vite type shims | FR-BUILD-002 |
-| `Resources/public/assets/monitor-form-modal-BbppAcOg.js` | Built frontend asset (hashed Vite chunk) | FR-BUILD-001 |
+| `Resources/public/assets/monitor-form-modal-6AQgOjwt.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
 | `Resources/public/auto.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/history-bar.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-dashboard.css` | Built frontend asset | FR-BUILD-001 |
@@ -317,6 +317,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/monitor/_monitor_form_body.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/_monitor_form_fields.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/_monitor_form_modal.html.twig` | Monitor UI template | FR-VIEW-004 |
+| `Resources/views/monitor/_push_health.html.twig` | Server health view of a push monitor: credentials, gauges, disks, charts ([spec 003](../003-push-monitors/spec.md)) | FR-VIEW-004, FR-PUSH-006 |
 | `Resources/views/monitor/form.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/show.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/settings/about.html.twig` | Settings UI template | FR-VIEW-002 |
@@ -326,10 +327,27 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/settings/history.html.twig` | Settings UI template | FR-VIEW-002 |
 | `Resources/views/settings/notifications.html.twig` | Settings UI template | FR-VIEW-002 |
 | `Resources/views/settings/section.html.twig` | Settings UI template | FR-VIEW-002 |
+| `Resources/views/settings/status_page.html.twig` | Settings → Status page (visibility, monitors shown; since 1.13) | FR-VIEW-002, FR-UI-006 |
 | `Resources/views/settings/tags.html.twig` | Settings UI template | FR-VIEW-002 |
 | `Resources/views/status/index.html.twig` | Twig template | FR-VIEW-001 |
+| `Resources/views/summary/index.html.twig` | Tenant status summary page (since 1.13, [spec 003](../003-push-monitors/spec.md)) | FR-VIEW-001, FR-UI-007 |
 | `Resources/views/tenant/form.html.twig` | Twig template | FR-VIEW-001 |
 | `Resources/views/tenant/index.html.twig` | Twig template | FR-VIEW-001 |
+
+## Push monitors
+
+Since 1.14 — see [`003-push-monitors`](../003-push-monitors/spec.md).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Controller/PushController.php` | Unauthenticated ingest `POST <push.path>/{key}`: bearer token, optional signature, body cap, rate limit, uniform 401 | FR-PUSH-001, FR-PUSH-002, FR-PUSH-004 |
+| `Push/PushCredentials.php` | URL key (128 random bits), token issue / revoke / constant-time verify, derived HMAC signing secret | FR-PUSH-002, FR-PUSH-003 |
+| `Push/PushPayload.php` | Strict JSON schema of a push (known keys, ranges, at most 32 disks; errors never echo input) | FR-PUSH-004 |
+| `Push/PushThresholds.php` | Warning / critical limits per metric and the status of a sample | FR-PUSH-005 |
+| `Check/PushCheckRunner.php` | Judges the last push on each interval; no push within interval + grace is down | FR-PUSH-005, FR-CHECK-001 |
+| `Push/PushMetricsSeries.php` | Server health view: gauges of the last sample and chart series of the stored checks | FR-PUSH-006 |
+| `Resources/assets/src/push-health.ts` | Server health charts (Chart.js, host palette) | FR-PUSH-006, FR-UI-010 |
+| `Resources/public/agent/uptime-push-agent.sh` | Reference POSIX agent served with the bundle assets (reads `/proc` and `df`, config parsed never sourced) | FR-PUSH-007 |
 
 ## Coverage summary
 
@@ -351,14 +369,16 @@ This file proves that **every production source artifact** under `src/` is refer
 | Async messaging | 2 | 2 |
 | Scheduler | 1 | 1 |
 | Monitor helpers | 4 | 4 |
-| Events | 2 | 2 |
+| Events | 4 | 4 |
 | Routing & tenants | 4 | 4 |
-| UI page contract | 3 | 3 |
+| UI page contract | 9 | 9 |
+| Tenant limits | 3 | 3 |
 | Frontend TypeScript | 11 | 11 |
-| SCSS themes | 12 | 12 |
+| SCSS themes | 13 | 13 |
 | Symfony config | 2 | 2 |
 | Translations | 7 | 7 |
-| Twig views | 28 | 28 |
-| **Total production sources** | **187** | **187** |
+| Twig views | 32 | 32 |
+| Push monitors | 8 | 8 |
+| **Total production sources** | **211** | **211** |
 
-Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **187** (2026-10-27; co-located `*.test.ts` excluded).
+Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **211** (2026-11-01; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.
