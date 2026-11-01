@@ -204,7 +204,7 @@ find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l
 
 The **Total production sources** row in `code-inventory.md` must match this count.
 
-In **UptimeMonitorBundle**, the baseline inventory covers **185/185** files — see [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md).
+In **UptimeMonitorBundle**, the baseline inventory covers **211/211** files (`make check-spec-inventory`, part of `make release-check`, fails on a missing row, a stale row or a wrong total) — see [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md).
 
 ---
 

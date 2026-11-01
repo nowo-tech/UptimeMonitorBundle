@@ -31,6 +31,11 @@ This bundle provides:
 - Operator dashboard and CRUD for tenants/monitors (`web_ui.path_prefix`, default `/uptime/...`, plus any
   `web_ui.tenant_paths` copies of the tenant pages)
 - Public read-only status page (`/status/...`, per-tenant opt-in)
+- **Unauthenticated push ingest** `POST <push.path>/{key}` (default `/uptime-push/{key}`, since 1.14, on by default
+  where `routes.yaml` is imported; `push.enabled: false` answers 404): servers of push monitors send their health with
+  a per-monitor bearer token, optionally signed — see [PUSH-MONITORS.md](PUSH-MONITORS.md#security)
+- Tenant status summary inside the admin UI (`<web_ui.path_prefix>/{tenantSlug}/summary`, since 1.13; same access
+  checks as the dashboard)
 - JSON APIs under `/api/uptime/...` (a separate prefix: protect it in the host firewall too)
 - Backup export / import of monitor definitions (Settings → Backup)
 - Optional notifications (email, webhook, Slack)
@@ -68,6 +73,32 @@ This bundle provides:
   *Settings → General → Public status page* says so, or by `status_page.default_public` (default `true`, 1.x behaviour;
   set `false` for opt-in). Unknown, disabled and private tenants answer the same 404. Disable all of them with
   `status_page.enabled: false`.
+- **Push ingest (`POST <push.path>/{key}`, 1.14)**: public by design — no session, cookie or CSRF; the per-monitor
+  bearer token is the credential and the tenant is always the monitor's (never read from the URL, headers or body).
+  - *Credential theft / guessing*: the URL key is 128 random bits (no ids or slugs, no enumeration); the token is 256
+    random bits, shown once, stored as SHA-256 only and compared in constant time; it travels in `Authorization: Bearer`,
+    never in the URL. Rotate and revoke are CSRF-protected monitor mutations (`manage` access). A stolen token can
+    only feed its own monitor (false *up* / *down* or metrics), never read data or reach another tenant.
+  - *Existence oracle*: unknown key, missing / wrong / revoked token and bad signature give the same
+    `401 {"error":"unauthorized"}` at the same cost (dummy hash when no monitor matches); `403` (paused monitor,
+    disabled tenant) only after authentication.
+  - *Replay*: with *Require signed pushes* each push carries `X-Uptime-Timestamp` and
+    `X-Uptime-Signature = hex(HMAC-SHA256(secret, timestamp + "." + body))` within `push.signature_window_seconds`
+    (default 300 s). The secret is derived from `kernel.secret`, the key and the token hash and never stored, so a
+    database dump alone cannot sign. Without signing, a captured push can be replayed until the token is rotated
+    (TLS keeps it from being captured on the wire). Replays inside the window are bounded by the rate limit below.
+  - *Floods / DoS*: the body is read up to `push.max_body_bytes` (default 8 KiB; 413 whatever `Content-Length` says);
+    strict JSON schema (known keys, ranges, ≤ 32 disks; 422 never echoes the input); one accepted push per
+    `max(push.min_push_seconds, interval / 2)` per monitor (429 + `Retry-After`); nothing is stored for a refused push.
+    Unauthenticated requests are not rate-limited by the bundle (each costs one indexed lookup and one hash): limit
+    them at the reverse proxy (`limit_req` on the `push.path` prefix) and keep `push.enabled: false` when no push
+    monitor is used.
+  - *Firewall*: hosts with `access_control` on every URL must let `^/uptime-push/` (or their `push.path`) through as
+    `PUBLIC_ACCESS`; do not put it under the admin prefix's role rule. Answers are JSON with `Cache-Control: no-store`
+    and `X-Content-Type-Options: nosniff`.
+  - *Agent*: the reference agent runs unprivileged, reads only `/proc` and `df`, parses (never sources) its config,
+    keeps the token and secret off the command line and executes nothing the server answers; pushes carry no
+    hostnames, IPs, users or process names.
 - **Disabled tenants**: monitors of a disabled tenant (`TenantProvisioner::setEnabled(false)`) are not checked.
 - **ICMP ping**: requires the OS `ping` binary; hosts are validated and private/local targets are blocked under the
   same SSRF guard as HTTP when `block_private_urls` is enabled.
@@ -155,6 +186,7 @@ Before tagging a release, confirm:
 | **Permissions** | Document `security.access_roles`, `security.roles.<action>`, tenant-aware checkers and firewall `access_control` for the admin prefix, `web_ui.tenant_paths` and `/api/uptime`. Confirm `allow_unauthenticated: false` in production. |
 | **Outbound checks** | Document SSRF risk for HTTP monitors; `checks.block_private_urls` stays `true` by default; `checks.max_*` caps keep their defaults. |
 | **CSRF** | `CsrfProtectionPass` still fails closed; every admin mutation is a form with a CSRF token. |
+| **Push ingest** | `POST <push.path>/{key}` still answers one uniform 401 before authentication, stores only token hashes, caps the body / schema / rate (`push.*`), and stays documented as public in the firewall advice. |
 | **Backups** | Exports still redact secrets; import caps (2 MB / 1000 rows) and row validation unchanged. |
 | **No-secret logs** | [Logging policy](#logging-policy) still holds: no webhook URLs, credentials, recipients or payloads in log calls (`grep -rn 'logger' src/`). |
 | **Cryptography** | No custom cryptography; TLS verification stays on for SSL checks (only the per-monitor "ignore TLS errors" option disables it, for that HTTP check). |

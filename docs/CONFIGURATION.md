@@ -71,6 +71,12 @@ nowo_uptime_monitor:
         path: /status
         title: null
         show_latency: true
+    push:                      # since 1.14: push monitors (server health), see PUSH-MONITORS.md
+        enabled: true          # false = the ingest route answers 404
+        path: /uptime-push     # POST <path>/{key}: one public route for every tenant; keep it outside the dashboard path
+        max_body_bytes: 8192   # 512 – 65536 (413 above)
+        signature_window_seconds: 300   # 30 – 3600, accepted clock skew of a signed push
+        min_push_seconds: 10   # floor of the per-monitor rate limit (429 + Retry-After)
     notifications:
         enabled: false
         cooldown_seconds: 300
@@ -125,6 +131,62 @@ A host that shows the bundle pages inside its own navigation (tabs, its own sett
 `/status/{tenant}` is public for a tenant when its *Settings → General → Public status page* is **public**, or **default**
 and `status_page.default_public` is `true` (the 1.x behaviour, default). **private** — or a disabled or unknown tenant —
 answers the same 404. Set `default_public: false` to make status pages opt-in per tenant.
+
+### Push monitors
+
+`POST <push.path>/{key}` (route `nowo_uptime_push`, default `/uptime-push/{key}`) is the ingest of push monitors
+(since 1.14). It is **public**: no session or CSRF, the per-monitor bearer token (optionally plus an HMAC signature) is
+the credential, and every refusal before authentication is the same 401. It exists only where the host imports the
+bundle `routes.yaml`; `push.enabled: false` makes it answer 404. A host with a firewall on every URL lets it through
+anonymously and rate-limits it at the reverse proxy:
+
+```yaml
+# config/packages/security.yaml
+security:
+    access_control:
+        - { path: ^/uptime-push/, roles: PUBLIC_ACCESS }
+```
+
+Token, signature, payload, thresholds and the agent: [PUSH-MONITORS.md](PUSH-MONITORS.md). Threat model:
+[SECURITY.md](SECURITY.md#threat-model-and-mitigations).
+
+### Form Kit profile
+
+The admin forms (monitor, tenant, tag, settings, backup import, search, CSRF-only actions) are FormKit Types:
+`AbstractUptimeFormType` carries `#[FormKitConfig('uptime_monitor')]` + `FormOptionsTrait` (REQ-TWIG-005 rule 11).
+When NowoFormKitBundle is registered, the extension prepends `nowo_form_kit.profiles.uptime_monitor` **unless the host
+defines that profile**, and `nowo_form_kit.css_framework: bootstrap` unless the host sets `css_framework`:
+
+```yaml
+# seeded by the bundle (do not copy it unless you change it)
+nowo_form_kit:
+    profiles:
+        uptime_monitor:
+            alias: uptime_monitor
+            translation_domain: NowoUptimeMonitorBundle
+            convention_requires_translation: true   # convention label / placeholder / help keys only when translated
+            defaults:
+                attr: []       # no framework classes: the UiKit form theme (web_ui.form_themes) styles the fields
+                row_attr: []
+```
+
+To theme the forms, define the profile in the host (`config/packages/nowo_form_kit.yaml`); the host profile replaces
+the seeded one as a whole (the bundle then prepends nothing for it), so keep `translation_domain: NowoUptimeMonitorBundle`:
+
+```yaml
+nowo_form_kit:
+    profiles:
+        uptime_monitor:
+            alias: uptime_monitor
+            translation_domain: NowoUptimeMonitorBundle
+            defaults:
+                attr: { class: 'form-control' }
+                row_attr: { class: 'mb-3' }
+```
+
+Prefer `nowo_ui_kit.theme.classes` (`input`, `form_row`, …) for classes shared by every Nowo bundle. Without
+NowoFormKitBundle in the kernel nothing is prepended. Before 1.11 the seeded profile added Bootstrap classes: see
+[UPGRADING](UPGRADING.md#formkit-profile).
 
 ### Monitoring switch and deprecated keys
 

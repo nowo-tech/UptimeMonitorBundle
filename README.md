@@ -115,12 +115,12 @@ make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 
 ## Tests and coverage
 
-Measured on 2026-10-27 (same commands as CI):
+Figures of CI run [41183697424](https://github.com/nowo-tech/UptimeMonitorBundle/actions/runs/41183697424) on `f0b257c` (v1.17.0; the source is unchanged since). Refresh them from the CI run of the release SHA:
 
 | Language | Line coverage | Gate | Command |
 |----------|---------------|------|---------|
-| PHP | **100%** (4745/4745 lines, 573/573 methods) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
-| TypeScript | **99.08%** lines (Vitest v8) | 90% — `vitest.config.ts` thresholds (CI `frontend` job, `make test-ts`) | `make test-ts` |
+| PHP | **100%** (5447/5447 lines, 657/657 methods; 896 tests) | 100% — `composer test-coverage-100` fails below it (CI `coverage` job, `make release-check`) | `make test-coverage-100` |
+| TypeScript | **98.9%** lines (815/824), 93.6% branches (Vitest v8; 92 tests) | 90% — `vitest.config.ts` thresholds (CI `frontend` job, `make test-ts`) | `make test-ts` |
 | Python | N/A (no Python code) | — | — |
 
 - **PHP** — PHPUnit `tests/Unit` and `tests/Integration`. Repository, schema-sync, dashboard read-model, backup and

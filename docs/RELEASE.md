@@ -7,7 +7,9 @@ Current stable target: **v1.2.0**.
 1. **Ensure everything is ready**
    - [CHANGELOG.md](CHANGELOG.md) has the target version with date and full entry; `[Unreleased]` is at the top.
    - [UPGRADING.md](UPGRADING.md) has a section "Upgrading to X.Y.Z" with what's new and upgrade steps.
-   - `make release-check` passes.
+   - `make release-check` passes (includes `make check-spec-inventory`: every `src/` file in the Spec Kit inventory).
+   - The README *Tests and coverage* table shows the figures of the CI run of the release SHA (`Code Coverage` job:
+     PHP lines, methods; `Frontend (Vitest, coverage gate)` job: TS lines / branches), with that run linked (REQ-TEST-007).
 
 2. **Commit and push** any last changes to your default branch:
    ```bash
