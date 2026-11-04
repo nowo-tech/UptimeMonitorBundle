@@ -228,6 +228,14 @@
   overflow: hidden;
 }
 
+// iOS Safari: 100vh is the large viewport. The dvh rule sits in @supports because the CSS minifier drops a
+// `100vh` declaration followed by a `100dvh` one, which would lose the fallback.
+@supports (height: 100dvh) {
+  .uptime-kuma-layout {
+    min-height: calc(100dvh - 140px);
+  }
+}
+
 .uptime-sidebar {
   background: var(--uptime-sidebar-bg, #15171c);
   border-right: 1px solid var(--uptime-border, #3a3f4b);
