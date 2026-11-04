@@ -68,6 +68,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dashboard layout on iOS Safari** (found by symfony-beacon on iPhone): `.uptime-kuma-layout` keeps
+  `min-height: calc(100vh - 140px)` as the fallback and gets `calc(100dvh - 140px)` in an `@supports (height: 100dvh)`
+  rule (the CSS minifier drops a `100vh` declaration followed by a `100dvh` one), so the layout no longer scrolls under
+  the toolbars. The legacy `history-bar.css` gets the same `dvh` declaration after its `100vh` one.
+
 ## [1.17.1] - 2026-11-02
 
 Docs, Spec Kit and dev lock (push ingest in SECURITY, specs/003, full inventory); no runtime change. See [UPGRADING](https://github.com/nowo-tech/UptimeMonitorBundle/blob/v1.17.1/docs/UPGRADING.md#to-1171).
