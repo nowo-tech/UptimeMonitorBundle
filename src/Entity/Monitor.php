@@ -19,8 +19,15 @@ use function sprintf;
 #[ORM\Table(name: 'uptime_monitor')]
 #[ORM\Index(name: 'idx_uptime_monitor_tenant_next', columns: ['tenant_id', 'next_check_at'])]
 #[ORM\UniqueConstraint(name: 'uniq_uptime_monitor_push_key', columns: ['push_key'])]
+#[ORM\UniqueConstraint(name: 'uniq_uptime_monitor_origin_key', columns: ['tenant_id', 'origin_key'])]
 class Monitor
 {
+    /** Created in the UI, by a backup import, the demo seed or host code (every monitor before 1.18). */
+    public const ORIGIN_UI = 'ui';
+
+    /** Created by `nowo:uptime:apply-monitors` from a monitors file (since 1.18): the file owns it. */
+    public const ORIGIN_FILE = 'file';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
@@ -70,6 +77,14 @@ class Monitor
     /** @var array<string, mixed>|null last accepted push (validated metrics) */
     #[ORM\Column(name: 'push_sample', type: Types::JSON, nullable: true)]
     private ?array $pushSample = null;
+
+    /** Who owns the definition (since 1.18): {@see self::ORIGIN_UI} or {@see self::ORIGIN_FILE}. */
+    #[ORM\Column(name: 'origin', type: Types::STRING, length: 8, options: ['default' => self::ORIGIN_UI])]
+    private string $origin = self::ORIGIN_UI;
+
+    /** The entry key of a file-managed monitor (since 1.18); null for UI monitors. */
+    #[ORM\Column(name: 'origin_key', type: Types::STRING, length: 64, nullable: true)]
+    private ?string $originKey = null;
 
     /**
      * Creates a monitor of a tenant, due for its first check now.
@@ -449,6 +464,43 @@ class Monitor
         $this->pushLastAt = $at;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->pushSample = $sample;
+
+        return $this;
+    }
+
+    /**
+     * Who owns the definition: `ui` (the UI, imports, host code) or `file` (`nowo:uptime:apply-monitors`).
+     */
+    public function getOrigin(): string
+    {
+        return $this->origin;
+    }
+
+    /**
+     * The entry key of a file-managed monitor (null for UI monitors).
+     */
+    public function getOriginKey(): ?string
+    {
+        return $this->originKey;
+    }
+
+    /**
+     * Whether a monitors file owns this monitor: the UI then refuses edit, delete and token changes (pause stays).
+     */
+    public function isFileManaged(): bool
+    {
+        return $this->origin === self::ORIGIN_FILE;
+    }
+
+    /**
+     * Hands the monitor to a monitors file under its entry key (used by the apply-monitors command only).
+     */
+    public function markFileManaged(string $key): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->origin = self::ORIGIN_FILE;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->originKey = $key;
 
         return $this;
     }

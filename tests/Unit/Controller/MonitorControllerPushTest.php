@@ -6,6 +6,9 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\UiKitBundle\View\DetailItem;
+use Nowo\UiKitBundle\View\Label;
+use Nowo\UiKitBundle\View\ShowPage;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -24,9 +27,11 @@ use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_map;
 use function hash;
 
 #[CoversClass(MonitorController::class)]
@@ -183,5 +188,43 @@ final class MonitorControllerPushTest extends TestCase
 
         $this->expectException(NotFoundHttpException::class);
         $controller->pushToken('main', 7, $request);
+    }
+
+    public function testAFileManagedMonitorRefusesTokenEditAndDeleteButPauses(): void
+    {
+        $monitor = $this->pushMonitor()->markFileManaged('little-vps.resources');
+        $em      = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::once())->method('flush');
+        $controller = $this->controller($monitor, $em);
+        $request    = Request::create('/main/monitors/7/x', 'POST', ['_token' => 'valid']);
+        $this->bindController($controller, true, $request);
+
+        foreach (['pushToken', 'pushRevoke', 'edit', 'delete'] as $action) {
+            try {
+                $controller->{$action}('main', 7, $request);
+                self::fail($action . ' must be refused');
+            } catch (ConflictHttpException $conflict) {
+                self::assertSame(409, $conflict->getStatusCode(), $action);
+            }
+        }
+        self::assertNull($monitor->getPushTokenHash());
+
+        $controller->togglePause('main', 7, $request);
+        self::assertTrue($monitor->isPaused());
+    }
+
+    public function testTheShowPageOfAFileManagedMonitorSaysSoAndOffersNoEdit(): void
+    {
+        $monitor    = $this->pushMonitor()->markFileManaged('little-vps.resources');
+        $controller = $this->controller($monitor);
+        $this->bindController($controller);
+        $controller->show('main', 7);
+
+        /** @var ShowPage $page */
+        $page   = $this->renderedContext['page'];
+        $labels = array_map(static fn (DetailItem $item): string => $item->label instanceof Label ? $item->label->key : $item->label, $page->sections[0]->items);
+        self::assertContains('monitor.origin.label', $labels);
+        self::assertContains('monitor.origin.managed', $labels);
+        self::assertSame([], $page->header->actions);
     }
 }

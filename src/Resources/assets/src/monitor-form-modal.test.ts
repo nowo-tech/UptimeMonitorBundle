@@ -46,6 +46,49 @@ describe('monitor form dialog', () => {
     expect(document.querySelector<HTMLElement>('[data-monitor-fields="dns"]')?.hidden).toBe(false);
   });
 
+  it('shows only the rows of the selected type and requires its target fields (1.18)', () => {
+    document.body.innerHTML = `
+      <select data-monitor-type-select>
+        <option value="http">http</option><option value="push">push</option><option value="ping">ping</option>
+        <option value="tcp">tcp</option><option value="dns">dns</option><option value="group">group</option>
+      </select>
+      <fieldset data-monitor-fields="check"><div data-monitor-fields="check-retry"></div><div data-monitor-fields="check-timeout"></div></fieldset>
+      <details data-monitor-fields="http-advanced"></details><fieldset data-monitor-fields="http-options"></fieldset>
+      <fieldset data-monitor-fields="tcp"><input data-required-for="tcp ping ssl" name="host"><div data-monitor-fields="tcp-port"></div></fieldset>
+      <fieldset data-monitor-fields="push"></fieldset><fieldset data-monitor-fields="custom"></fieldset>
+      <input data-required-for="http https" name="url"><input data-required-for="dns" name="hostname">`;
+    const select = document.querySelector('select') as HTMLSelectElement;
+    const hidden = (key: string): boolean | undefined => document.querySelector<HTMLElement>(`[data-monitor-fields="${key}"]`)?.hidden;
+    const required = (name: string): boolean | undefined => document.querySelector<HTMLInputElement>(`[name="${name}"]`)?.required;
+    initMonitorFormTypeToggle(document);
+
+    select.value = 'push';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('check'), hidden('check-retry'), hidden('check-timeout'), hidden('push'), hidden('custom')]).toEqual([false, true, true, false, true]);
+    expect([required('url'), required('host'), required('hostname')]).toEqual([false, false, false]);
+
+    select.value = 'ping';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('tcp'), hidden('tcp-port'), hidden('check-timeout'), hidden('check-retry')]).toEqual([false, true, false, false]);
+    expect(required('host')).toBe(true);
+
+    select.value = 'tcp';
+    select.dispatchEvent(new Event('change'));
+    expect(hidden('tcp-port')).toBe(false);
+
+    select.value = 'http';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('http-advanced'), hidden('http-options'), hidden('tcp'), required('url'), required('host')]).toEqual([false, false, true, true, false]);
+
+    select.value = 'dns';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('check-timeout'), required('hostname')]).toEqual([true, true]);
+
+    select.value = 'group';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('check'), hidden('check-retry')]).toEqual([true, true]);
+  });
+
   it('opens the native dialog, loads the form fragment and takes the opener label as title', async () => {
     const dialog = mountDialog();
     const showModal = vi.fn(function (this: HTMLDialogElement) {

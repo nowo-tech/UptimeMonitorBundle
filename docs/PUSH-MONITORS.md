@@ -13,6 +13,7 @@ bundle every interval. The bundle judges the numbers against the monitor's thres
 - [Thresholds and status](#thresholds-and-status)
 - [Configuration](#configuration)
 - [The monitor page](#the-monitor-page)
+- [Monitors as code](#monitors-as-code)
 
 ## How it works
 
@@ -191,3 +192,65 @@ A push monitor's page shows a **Server health** view:
 - charts of usage (CPU, memory, swap), load per core and each disk over 1 h, 6 h, 24 h or 7 days (`?range=`).
 
 The charts read the stored checks, so they follow `retention.detail_days`.
+
+## Monitors as code
+
+Since **1.18.0**. `nowo:uptime:apply-monitors` creates and updates push monitors from a JSON file kept with your
+infrastructure code, with their tokens, without the UI.
+
+```bash
+php bin/console nowo:uptime:apply-monitors --file=monitors.json --dry-run
+php bin/console nowo:uptime:apply-monitors --file=monitors.json --token-file=- < tokens.json
+php bin/console nowo:uptime:apply-monitors --file=monitors.json --prune
+```
+
+The file (schema `src/Resources/schema/apply-monitors.v1.json`; placeholders only):
+
+```json
+{
+  "version": 1,
+  "tenants": {
+    "00000000-0000-4000-8000-000000000000": {
+      "monitors": [
+        {
+          "key": "web-01.resources",
+          "type": "push",
+          "name": "web-01 — resources",
+          "url_key": "0123456789abcdef0123456789abcdef",
+          "interval_seconds": 60,
+          "grace_seconds": 120,
+          "retries": 1,
+          "thresholds": {"disk": {"warn": 85, "critical": 95}, "swap": {"warn": null, "critical": null}}
+        }
+      ]
+    }
+  }
+}
+```
+
+- **Tenants** are keyed by a lowercase UUID (a tenant slug; a host that uses project UUIDs as slugs, like
+  symfony-beacon, puts the project UUID here). The tenant must exist: it is never created. `--tenant=<uuid>` applies
+  (and prunes) only that block.
+- **Entries** are matched by `key` (unique in the whole file). Optional fields: `project`, `description`,
+  `grace_seconds` (null = one interval), `retries`, `resend_notification_after_down`, `paused` (absent = left as it is,
+  so a mute set in the UI survives a redeploy) and `thresholds` (a metric left out keeps the default; `null` limits
+  are off). Any other field is refused. `url_key` is the ingest URL key: `<push.path>/<url_key>`.
+- **Not in the file:** notifications (the host routes alerts), IP filtering (do it at the reverse proxy on
+  `push.path`), tokens and signing secrets. File monitors are unsigned in this version.
+- **Tokens** come from `--token-file` as `{"<key>": "<token>"}` (or `null` to keep the stored one): a regular file of
+  mode 0600/0400 owned by you or root, or `-` for a non-interactive stdin read to EOF (a terminal is refused), at most
+  64 KiB. A token is 64–128 lowercase hex characters (`openssl rand -hex 32`) and must pass minimum-entropy checks;
+  only its SHA-256 is stored. The same token changes nothing; a different one **rotates** it (the old token stops at
+  once: apply first, then update the agent's config). Never put a token on the command line.
+- **All or nothing:** every error (JSON pointer + code, never a value) is reported, and nothing is applied when there
+  is one. The tenant rows are locked during the write; a database failure is rolled back.
+- **Output:** one JSON document on stdout (`created`, `updated` with the changed fields, `unchanged`, `pruned`,
+  `prune_candidates`, token states `set` / `rotated` / `unchanged` / `kept` / `absent`). Exit codes: 0 ok, 1 failure,
+  2 usage, 3 invalid file, 4 token input refused, 5 tenant not found, 6 conflict (URL key taken, tenant limits, type
+  change).
+- **Prune:** without `--prune`, file monitors the file no longer names are only listed. With it they are deleted with
+  their history. UI monitors are never touched.
+- **In the UI** a file monitor shows "Managed from file (key)"; edit, delete and the token actions are not offered
+  (409 if called), pause / resume stays. `MonitorsAppliedEvent` (after the commit, one per tenant) carries keys, ids
+  and changed field names for audit logs.
+

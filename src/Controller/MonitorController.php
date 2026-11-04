@@ -40,6 +40,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -122,7 +123,7 @@ final class MonitorController extends AbstractUptimeController
     #[Route('/{id}/push-token', name: 'push_token', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function pushToken(string $tenantSlug, int $id, Request $request): Response
     {
-        $monitor = $this->requirePushMonitor($tenantSlug, $id);
+        $monitor = $this->requireUiManaged($this->requirePushMonitor($tenantSlug, $id));
         if (!$this->isCsrfTokenValid('push_token' . $id, (string) $request->request->get('_token'))) {
             return $this->redirectToRoute('nowo_uptime_monitor_show', ['tenantSlug' => $tenantSlug, 'id' => $id]);
         }
@@ -148,7 +149,7 @@ final class MonitorController extends AbstractUptimeController
     #[Route('/{id}/push-revoke', name: 'push_revoke', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function pushRevoke(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
-        $monitor = $this->requirePushMonitor($tenantSlug, $id);
+        $monitor = $this->requireUiManaged($this->requirePushMonitor($tenantSlug, $id));
         if ($this->isCsrfTokenValid('push_revoke' . $id, (string) $request->request->get('_token'))) {
             $this->pushCredentials?->revoke($monitor);
             $this->entityManager->flush();
@@ -222,6 +223,21 @@ final class MonitorController extends AbstractUptimeController
         ];
     }
 
+    /**
+     * A monitor the UI may change (since 1.18): a file-managed one (`nowo:uptime:apply-monitors`) answers 409 to
+     * edit, delete and the token actions, since the next apply would revert them. Pause / resume stays allowed.
+     *
+     * @throws ConflictHttpException When a monitors file owns the monitor
+     */
+    private function requireUiManaged(Monitor $monitor): Monitor
+    {
+        if ($monitor->isFileManaged()) {
+            throw new ConflictHttpException($this->transMessage('flash.monitor.file_managed'));
+        }
+
+        return $monitor;
+    }
+
     private function requirePushMonitor(string $tenantSlug, int $id): Monitor
     {
         $monitor = $this->requireMonitor($tenantSlug, $id);
@@ -293,7 +309,7 @@ final class MonitorController extends AbstractUptimeController
     #[Route('/{id}/edit', name: 'edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function edit(string $tenantSlug, int $id, Request $request): Response
     {
-        $monitor = $this->requireMonitor($tenantSlug, $id);
+        $monitor = $this->requireUiManaged($this->requireMonitor($tenantSlug, $id));
         $data    = $this->monitorFactory->toFormData($monitor);
         $form    = $this->createForm(MonitorFormType::class, $data, [
             'group_choices'        => $this->buildGroupChoices($tenantSlug, $monitor),
@@ -397,7 +413,7 @@ final class MonitorController extends AbstractUptimeController
     #[Route('/{id}/delete', name: 'delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function delete(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
-        $monitor = $this->requireMonitor($tenantSlug, $id);
+        $monitor = $this->requireUiManaged($this->requireMonitor($tenantSlug, $id));
 
         if ($this->isCsrfTokenValid('delete' . $monitor->getId(), (string) $request->request->get('_token'))) {
             $this->entityManager->remove($monitor);
@@ -444,9 +460,11 @@ final class MonitorController extends AbstractUptimeController
     private function buildShowPage(string $tenantSlug, Monitor $monitor, UptimePageEvent $event): ShowPage
     {
         $parent  = $monitor->getParent();
-        $actions = $this->actions instanceof UptimeActions
-            ? $this->actions->monitor($tenantSlug, $monitor)
-            : [$this->editAction($tenantSlug, $monitor)];
+        $actions = match (true) {
+            $this->actions instanceof UptimeActions => $this->actions->monitor($tenantSlug, $monitor),
+            $monitor->isFileManaged()               => [],
+            default                                 => [$this->editAction($tenantSlug, $monitor)],
+        };
         $pushActions = $this->actions?->push($tenantSlug, $monitor) ?? [];
         $items       = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
         if ($parent instanceof Monitor || !in_array('project', $this->hiddenFields, true)) {
@@ -457,6 +475,10 @@ final class MonitorController extends AbstractUptimeController
             );
         }
         $items[] = new DetailItem(UptimePages::label('monitor.show.target'), SecretRedactor::maskUrl($monitor->getTarget()));
+        if ($monitor->isFileManaged()) {
+            $items[] = new DetailItem(UptimePages::label('monitor.origin.label'), UptimePages::label('monitor.origin.file_badge', ['%key%' => (string) $monitor->getOriginKey()]), badge: 'info');
+            $items[] = new DetailItem(UptimePages::label('monitor.origin.managed'), UptimePages::label('monitor.origin.file_explanation'));
+        }
         $items[] = new DetailItem(UptimePages::label('monitor.show.interval_label'), UptimePages::label('monitor.show.seconds', ['%seconds%' => $monitor->getIntervalSeconds()]));
 
         return new ShowPage(

@@ -14,6 +14,7 @@ use function is_string;
 use function parse_url;
 use function preg_match;
 use function strtolower;
+use function trim;
 
 use const PHP_URL_HOST;
 use const PHP_URL_SCHEME;
@@ -21,8 +22,11 @@ use const PHP_URL_SCHEME;
 /**
  * Form model for monitor CRUD (HTTP, TCP, DNS, SSL).
  *
- * The range constraints apply to the monitor form and to backup import rows alike (SEC-004 L7).
+ * The range constraints apply to the monitor form and to backup import rows alike (SEC-004 L7). Since 1.18 the target
+ * of each type is required ({@see self::validateTypeFields()}): an HTTP monitor without a URL, a TCP / ping / SSL
+ * monitor without a host or port, or a DNS monitor without a hostname is refused instead of saved.
  */
+#[Assert\Callback([self::class, 'validateTypeFields'])]
 final class MonitorFormData
 {
     public string $name    = '';
@@ -114,5 +118,28 @@ final class MonitorFormData
         $context->buildViolation('form.monitor.url_invalid')
             ->setTranslationDomain(UptimeTranslation::DOMAIN)
             ->addViolation();
+    }
+
+    /**
+     * The target fields of the chosen type are required (since 1.18): `url` for HTTP(S), `host` for TCP / ping / SSL,
+     * `port` (1–65535) for TCP / SSL and `hostname` for DNS. Each violation sits on its field.
+     */
+    public static function validateTypeFields(self $data, ExecutionContextInterface $context): void
+    {
+        $required = match ($data->type) {
+            MonitorType::Http, MonitorType::Https => ['url' => $data->url],
+            MonitorType::Tcp, MonitorType::Ssl    => ['host' => $data->host, 'port' => $data->port],
+            MonitorType::Ping                     => ['host' => $data->host],
+            MonitorType::Dns                      => ['hostname' => $data->hostname],
+            default                               => [],
+        };
+        foreach ($required as $field => $value) {
+            if ($value === 0 || (is_string($value) && trim($value) === '')) {
+                $context->buildViolation('form.monitor.' . $field . '_required')
+                    ->setTranslationDomain(UptimeTranslation::DOMAIN)
+                    ->atPath($field)
+                    ->addViolation();
+            }
+        }
     }
 }

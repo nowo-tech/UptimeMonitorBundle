@@ -69,6 +69,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Monitors as code (`nowo:uptime:apply-monitors`) and a clearer monitor form. Schema change: two columns on
+`uptime_monitor`. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **`nowo:uptime:apply-monitors --file=<json> [--token-file=<path>|-] [--tenant=<uuid>] [--dry-run] [--prune]`**:
+  creates, updates or leaves unchanged the push monitors of a monitors file (schema
+  `Resources/schema/apply-monitors.v1.json`), matched by a stable entry `key`. It is idempotent and all or nothing:
+  one transaction under the tenant row locks, and any refusal applies nothing. stdout is one JSON document
+  (`created` / `updated` / `unchanged` / `pruned` / `prune_candidates`, or `errors` as JSON pointer + code); the exit
+  codes are 0 ok, 1 failure (rolled back), 2 usage, 3 invalid file, 4 token input refused, 5 tenant not found,
+  6 conflict or tenant limit. Tenants are looked up by slug and never created. Only push monitors in this version.
+- **External push tokens**: only through `--token-file` (a regular, non-symlink file of mode 0600/0400 owned by the
+  process user or root, at most 64 KiB) or `--token-file=-` (a non-interactive stdin read to EOF; a terminal is
+  refused), as a JSON map `{"<entry key>": "<token>"}`. Tokens must be 64–128 lowercase hex characters
+  (`openssl rand -hex 32`) and pass minimum-entropy checks; each is reduced to its SHA-256 at once. A token whose hash
+  differs from the stored one rotates it; the same token changes nothing. There is no token option on the command
+  line, and no token, hash or token file path reaches the output, logs, events or exception messages.
+- **`--prune`** deletes the file-managed monitors of the listed tenants that the file no longer names (a tenant
+  listed with `"monitors": []` loses all of them); without it they are reported as `prune_candidates`. Monitors made
+  in the UI, by a backup import or by host code are never updated or pruned.
+- **`MonitorsAppliedEvent`** (one per tenant, after the commit): entry keys, ids, changed field names and token
+  states, for host audit logs.
+- **`uptime_monitor.origin`** (`ui` / `file`) and **`origin_key`**, with a unique index on `(tenant_id, origin_key)`;
+  `Monitor::getOrigin()`, `getOriginKey()`, `isFileManaged()`, `markFileManaged()`;
+  `PushCredentials::hashToken()`.
+- **File-managed monitors in the UI**: a "Managed from file (key)" detail and a short *File* badge on the dashboard
+  rows; edit, delete and the push token actions are not offered and answer **409** when called anyway; pause /
+  resume stays available.
+- **Monitor form**: a one-line intro per section; units as an `s` suffix next to the interval, retry interval,
+  timeout and grace inputs (no longer in the labels); help on name, interval, retry interval, timeout (it explains the
+  48 s default: Uptime Kuma's 80 % of a 60 s interval, capped by `checks.max_timeout_seconds`), URL, method, keyword,
+  max redirects and paused; placeholders for the text fields; switches (`role="switch"`) for paused, ignore TLS,
+  upside down, certificate expiry and signed pushes; required markers on the target fields.
+
+### Changed
+
+- **Monitor form layout**: *Paused* moved to General; keyword, max redirects, the TLS / upside-down / certificate
+  switches, body, headers, authentication, proxy and tags are folded in one *Advanced* `<details>` block, open when
+  one of them has an error or a non-default value. Push monitors no longer show the retry interval and timeout, ping no
+  longer shows the port, DNS no longer shows the timeout. A section whose fields are all in `form.hidden_fields` is not
+  rendered. New section keys `check-retry`, `check-timeout`, `tcp-port`; `http-options` is merged into
+  `http-advanced` (the dialog script still understands it).
+- **Backup export** rows carry `origin` and `origin_key` (informational); a backup import in `overwrite` mode skips
+  file-managed monitors (counted as `skipped`).
+
+### Fixed
+
+- **An HTTP monitor without a URL, a TCP / ping / SSL monitor without a host (or TCP / SSL without a port) and a DNS
+  monitor without a hostname were saved** and then failed every check. The form now refuses them on the field
+  (`form.monitor.url_required`, `host_required`, `port_required`, `hostname_required`), and the dialog marks those
+  fields `required` for the selected type.
+- **The timeout of TCP, SSL and ping monitors was never saved**: the checks read `config.timeout`, which only HTTP
+  monitors stored, so the field had no effect and the checks always used 10 s (TCP / SSL) or 5 s (ping). It is now
+  saved, and an edit of an older monitor shows the value the check really used.
+- **Backup import of TCP / ping / SSL / DNS monitors** now reads their host, port, hostname, record type, expected
+  value, days before expiry and timeout from the backup (they were left empty).
+
 ## [1.17.2] - 2026-11-04
 
 ### Fixed

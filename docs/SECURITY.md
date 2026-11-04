@@ -38,6 +38,8 @@ This bundle provides:
   checks as the dashboard)
 - JSON APIs under `/api/uptime/...` (a separate prefix: protect it in the host firewall too)
 - Backup export / import of monitor definitions (Settings → Backup)
+- Console command `nowo:uptime:apply-monitors` (1.18): applies push monitors from a file, with external push tokens
+  read from a 0600 file or a non-interactive stdin only — see [PUSH-MONITORS.md](PUSH-MONITORS.md#monitors-as-code)
 - Optional notifications (email, webhook, Slack)
 - Doctrine persistence for check results and aggregates
 
@@ -156,9 +158,12 @@ another) — never `dump()`, `var_dump()` or `error_log()` in `src/`. Context is
 | Detail purge started / done (`nowo:uptime:purge-detail`, Settings → History → Purge) | `info` | `tenant`, `days`, then `deleted` |
 | Backup export | `info` | `tenant`, `count` |
 | Backup import started / done | `info` | `tenant`, `mode`, `rows`, then `imported`, `skipped`, `overwritten`, `invalid` |
+| Monitors apply started / done (`nowo:uptime:apply-monitors`) | `info` | `tenants` (slugs), `dry_run`, `prune`, `file_sha256`, then `created`, `updated`, `unchanged`, `pruned`, `tokens_changed` (counts) |
+| Monitors apply refused | `warning` | `exit_code`, `error_codes` (codes only: no paths, no values) |
+| Monitors apply failed | `error` | `error`: exception **class** (the database exception is replaced, never chained) |
 | Clear / purge / import failed | `error` (`warning` for a rejected import file) | `tenant`, `error`: exception **class** |
 
-**Never logged:** webhook / Slack URLs (their path or query is the secret), HTTP basic-auth credentials and custom
+**Never logged:** push tokens, their SHA-256, the token file path or contents, signing secrets, webhook / Slack URLs (their path or query is the secret), HTTP basic-auth credentials and custom
 headers of monitors, proxy URLs, alert e-mail recipients, alert bodies, monitor targets, database DSNs, Mercure JWTs,
 session ids or request payloads. Check failures are *data*, not logs: the transport error of a failing target is
 stored on the check result (visible to dashboard roles only) and is not written to the log.

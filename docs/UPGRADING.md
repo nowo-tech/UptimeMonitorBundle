@@ -112,6 +112,47 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Target: **1.18.0** (minor).
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+php bin/console assets:install
+```
+
+- **Schema (every host, even without the new command):** `uptime_monitor` gains `origin` VARCHAR(8) NOT NULL DEFAULT
+  `'ui'` and `origin_key` VARCHAR(64) NULL, with the unique index `uniq_uptime_monitor_origin_key (tenant_id,
+  origin_key)`. Existing rows become `ui` through the default; there is no backfill. Hosts on Doctrine migrations run
+  `doctrine:migrations:diff` (it should produce only the DDL below); others run `nowo:uptime:sync-schema`.
+
+  ```sql
+  -- MySQL / MariaDB (PostgreSQL and SQLite: the same columns, one ALTER each)
+  ALTER TABLE uptime_monitor ADD origin VARCHAR(8) DEFAULT 'ui' NOT NULL, ADD origin_key VARCHAR(64) DEFAULT NULL;
+  CREATE UNIQUE INDEX uniq_uptime_monitor_origin_key ON uptime_monitor (tenant_id, origin_key);
+  ```
+
+  Table names take `doctrine.table_prefix` as usual. Rollback: drop the index, then the two columns.
+- **New command** `nowo:uptime:apply-monitors` (see [PUSH-MONITORS — Monitors as code](PUSH-MONITORS.md#monitors-as-code)).
+  It is registered automatically; nothing runs until you call it.
+- **Behaviour changes in the monitor form:**
+  - an HTTP monitor needs a URL, TCP / ping / SSL a host, TCP / SSL a port from 1 to 65535, DNS a hostname: a form
+    (or a backup import row validated by the form constraints) without one is refused. Existing monitors are only
+    affected when they are edited;
+  - the timeout of TCP, SSL and ping monitors is now saved and used. A new TCP / SSL / ping monitor gets the form's
+    48 s preset unless you change it (before, the check silently used 10 s / 5 s); editing an older one shows 10 s / 5 s;
+  - *Paused* is in General; the advanced HTTP fields are folded in *Advanced*; units moved from the labels to an
+    input suffix. The four labels `form.monitor.interval`, `retry_interval`, `timeout` and `push_grace` lost their
+    "(seconds)" text: a host that overrides them in its translations should drop the unit too.
+- **Template overrides:** `monitor/_monitor_form_fields.html.twig` changed structure (intros, the `<details>` block,
+  the `check-retry` / `check-timeout` / `tcp-port` rows, *Paused* in General). An override of 1.17 keeps working:
+  the dialog script still understands `http-options` and `tcp`. New CSS hooks: `.uptime-form-section__intro`,
+  `.uptime-form-advanced`, `.uptime-form-advanced__body`, `.uptime-input-group`, `.uptime-input-group__suffix`,
+  `.uptime-switch`, `.uptime-label-required`, `.uptime-file-badge`. `monitor/_push_health.html.twig`,
+  `dashboard/_sidebar_row.html.twig` and `dashboard/_table_view.html.twig` show the file-managed state.
+- **File-managed monitors** answer 409 to edit, delete and the push token routes; a host that links to those routes
+  for every monitor should hide the links when `monitor.fileManaged` is true (the bundle's own actions already do).
+- **New translation keys** (7 locales): `monitor.origin.*`, `flash.monitor.file_managed`, `form.monitor.*_help`,
+  `form.monitor.*_placeholder`, `form.monitor.*_required`, `monitor.form.section.*_intro`.
+
 ## To 1.17.2
 
 From **1.17.1**:

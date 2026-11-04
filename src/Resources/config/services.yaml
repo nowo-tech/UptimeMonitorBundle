@@ -20,6 +20,15 @@ services:
             - '../../Limits/ConfigurableTenantLimits.php'
             - '../../Push/PushPayload.php'
             - '../../Push/PushThresholds.php'
+            # apply-monitors (1.18): value objects and exceptions, not services
+            - '../../Apply/ApplyError.php'
+            - '../../Apply/ApplyFailedException.php'
+            - '../../Apply/ApplyRefusedException.php'
+            - '../../Apply/ApplyResult.php'
+            - '../../Apply/ExternalPushTokens.php'
+            - '../../Apply/MonitorFileSpec.php'
+            - '../../Apply/PushMonitorSpec.php'
+            - '../../Apply/PushTokenPolicy.php'
 
     Nowo\UptimeMonitorBundle\Notification\Channel\EmailNotificationChannel:
         tags: ['nowo.uptime_monitor.notification_channel']
@@ -80,6 +89,9 @@ services:
 
     Nowo\UptimeMonitorBundle\Check\PushCheckRunner:
         tags: ['nowo.uptime_monitor.check_runner']
+
+    # apply-monitors (1.18): the token intake's system calls.
+    Nowo\UptimeMonitorBundle\Apply\TokenSourceSystem: '@Nowo\UptimeMonitorBundle\Apply\NativeTokenSourceSystem'
 
     Nowo\UptimeMonitorBundle\Command\:
         resource: '../../Command/'

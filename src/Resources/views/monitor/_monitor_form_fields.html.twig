@@ -1,84 +1,127 @@
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
-{# Grouped layout (REQ-TWIG-003 rule 3): the fieldsets are toggled per monitor type (data-monitor-fields), so each
-   renders its children explicitly (each one only when the form has it: form.hidden_fields leaves some out); the
-   child loop at the end renders any remaining field. Root errors first (the tenant limit, an expired form). #}
+{# Grouped layout (REQ-TWIG-003 rule 3): the fieldsets and rows are toggled per monitor type (data-monitor-fields),
+   so each renders its children explicitly (each one only when the form has it: form.hidden_fields leaves some out,
+   and a section left without fields renders nothing); the child loop at the end renders any remaining field. Root
+   errors first (the tenant limit, an expired form).
+   1.18: a one-line intro per section, units as an input suffix (row_attr data-uptime-unit), switches for on/off
+   settings, Paused in General, the advanced HTTP fields folded in one <details> (open when one of them has an error
+   or a non-default value), retry interval and timeout only where they apply (check-retry, check-timeout), port only
+   for TCP / SSL (tcp-port). The section keys of 1.17 (http-options, tcp) are still understood by the dialog script. #}
+{% macro row(field) %}
+    {%- set _unit = field.vars.row_attr['data-uptime-unit'] ?? null -%}
+    {%- if _unit is null -%}
+        {{ form_row(field) }}
+    {%- else -%}
+        {%- set _unit_id = field.vars.id ~ '_unit' -%}
+        {%- set _described = field.vars.help ? _unit_id ~ ' ' ~ field.vars.id ~ '_help' : _unit_id -%}
+        <div class="{{ (nowo_ui_class('form_row') ~ ' uptime-unit-row')|trim }}" data-uptime-unit="{{ _unit }}">
+            {{ form_label(field) }}
+            <div class="uptime-input-group">
+                {{ form_widget(field, {attr: field.vars.attr|merge({'aria-describedby': _described})}) }}
+                <span class="uptime-input-group__suffix" id="{{ _unit_id }}">{{ _unit }}</span>
+            </div>
+            {{ form_errors(field) }}
+            {{ form_help(field) }}
+        </div>
+    {%- endif -%}
+{% endmacro %}
+{% import _self as uptime_form %}
 {{ form_errors(form) }}
 <fieldset class="uptime-form-section">
     <legend>{{ 'monitor.form.section.general'|trans }}</legend>
+    <p class="uptime-form-section__intro">{{ 'monitor.form.section.general_intro'|trans }}</p>
     {# Type and group first: the two short choices share a row of the form grid (1.16), then the full-width fields. #}
     {% if form.type is defined %}{{ form_row(form.type, {attr: {'data-monitor-type-select': '1'}}) }}{% endif %}
     {% if form.parentId is defined %}{{ form_row(form.parentId) }}{% endif %}
     {% if form.name is defined %}{{ form_row(form.name) }}{% endif %}
     {% if form.project is defined %}{{ form_row(form.project) }}{% endif %}
     {% if form.description is defined %}{{ form_row(form.description) }}{% endif %}
-</fieldset>
-
-<fieldset class="uptime-form-section" data-monitor-fields="check">
-    <legend>{{ 'monitor.form.section.heartbeat'|trans }}</legend>
-    {% if form.intervalSeconds is defined %}{{ form_row(form.intervalSeconds) }}{% endif %}
-    {% if form.retries is defined %}{{ form_row(form.retries) }}{% endif %}
-    {% if form.retryIntervalSeconds is defined %}{{ form_row(form.retryIntervalSeconds) }}{% endif %}
-    {% if form.requestTimeoutSeconds is defined %}{{ form_row(form.requestTimeoutSeconds) }}{% endif %}
-    {% if form.resendNotificationAfterDown is defined %}{{ form_row(form.resendNotificationAfterDown) }}{% endif %}
     {% if form.paused is defined %}{{ form_row(form.paused) }}{% endif %}
 </fieldset>
 
-<fieldset class="uptime-form-section" data-monitor-fields="http">
-    <legend>{{ 'monitor.form.section.http'|trans }}</legend>
-    {% if form.url is defined %}{{ form_row(form.url) }}{% endif %}
-    {% if form.method is defined %}{{ form_row(form.method) }}{% endif %}
-    {% if form.expectedStatusCodes is defined %}{{ form_row(form.expectedStatusCodes) }}{% endif %}
-    {% if form.maxRedirects is defined %}{{ form_row(form.maxRedirects) }}{% endif %}
-    {% if form.keyword is defined %}{{ form_row(form.keyword) }}{% endif %}
-</fieldset>
+{% if form.intervalSeconds is defined or form.retries is defined or form.retryIntervalSeconds is defined or form.requestTimeoutSeconds is defined or form.resendNotificationAfterDown is defined %}
+    <fieldset class="uptime-form-section" data-monitor-fields="check">
+        <legend>{{ 'monitor.form.section.heartbeat'|trans }}</legend>
+        <p class="uptime-form-section__intro">{{ 'monitor.form.section.heartbeat_intro'|trans }}</p>
+        {% if form.intervalSeconds is defined %}{{ uptime_form.row(form.intervalSeconds) }}{% endif %}
+        {% if form.retries is defined %}{{ form_row(form.retries) }}{% endif %}
+        {% if form.retryIntervalSeconds is defined %}<div class="uptime-form-group" data-monitor-fields="check-retry">{{ uptime_form.row(form.retryIntervalSeconds) }}</div>{% endif %}
+        {% if form.requestTimeoutSeconds is defined %}<div class="uptime-form-group" data-monitor-fields="check-timeout">{{ uptime_form.row(form.requestTimeoutSeconds) }}</div>{% endif %}
+        {% if form.resendNotificationAfterDown is defined %}{{ form_row(form.resendNotificationAfterDown) }}{% endif %}
+    </fieldset>
+{% endif %}
 
-<fieldset class="uptime-form-section" data-monitor-fields="http-advanced">
-    <legend>{{ 'monitor.form.section.advanced'|trans }}</legend>
-    {% if form.ignoreTls is defined %}{{ form_row(form.ignoreTls) }}{% endif %}
-    {% if form.upsideDown is defined %}{{ form_row(form.upsideDown) }}{% endif %}
-    {% if form.checkCertExpiry is defined %}{{ form_row(form.checkCertExpiry) }}{% endif %}
-    {% if form.proxy is defined %}{{ form_row(form.proxy) }}{% endif %}
-    {% if form.tags is defined %}{{ form_row(form.tags) }}{% endif %}
-</fieldset>
+{% if form.url is defined or form.method is defined or form.expectedStatusCodes is defined %}
+    <fieldset class="uptime-form-section" data-monitor-fields="http">
+        <legend>{{ 'monitor.form.section.http'|trans }}</legend>
+        <p class="uptime-form-section__intro">{{ 'monitor.form.section.http_intro'|trans }}</p>
+        {% if form.url is defined %}{{ form_row(form.url) }}{% endif %}
+        {% if form.method is defined %}{{ form_row(form.method) }}{% endif %}
+        {% if form.expectedStatusCodes is defined %}{{ form_row(form.expectedStatusCodes) }}{% endif %}
+    </fieldset>
+{% endif %}
 
-<fieldset class="uptime-form-section" data-monitor-fields="http-options">
-    <legend>{{ 'monitor.form.section.http_options'|trans }}</legend>
-    {% if form.bodyEncoding is defined %}{{ form_row(form.bodyEncoding) }}{% endif %}
-    {% if form.httpBody is defined %}{{ form_row(form.httpBody) }}{% endif %}
-    {% if form.httpHeaders is defined %}{{ form_row(form.httpHeaders) }}{% endif %}
-    {% if form.authMethod is defined %}{{ form_row(form.authMethod) }}{% endif %}
-    {% if form.authUsername is defined %}{{ form_row(form.authUsername) }}{% endif %}
-    {% if form.authPassword is defined %}{{ form_row(form.authPassword) }}{% endif %}
-</fieldset>
+{# Advanced HTTP settings, folded. Their defaults (MonitorFormData): an edited monitor that changed one opens it. #}
+{% set _advanced_defaults = {keyword: '', maxRedirects: '10', bodyEncoding: 'json', httpBody: '', httpHeaders: '', authMethod: 'none', authUsername: '', authPassword: '', proxy: '', tags: ''} %}
+{% set _advanced = [] %}
+{% set _advanced_open = false %}
+{% for _name in ['keyword', 'maxRedirects', 'ignoreTls', 'upsideDown', 'checkCertExpiry', 'bodyEncoding', 'httpBody', 'httpHeaders', 'authMethod', 'authUsername', 'authPassword', 'proxy', 'tags'] %}
+    {% if form[_name] is defined %}
+        {% set _field = form[_name] %}
+        {% set _advanced = _advanced|merge([_field]) %}
+        {% set _changed = _field.vars.checked is defined ? _field.vars.checked : (_field.vars.value ~ '') != (_advanced_defaults[_name] ?? '') %}
+        {% if _field.vars.errors|length > 0 or _changed %}{% set _advanced_open = true %}{% endif %}
+    {% endif %}
+{% endfor %}
+{% if _advanced is not empty %}
+    <details class="uptime-form-section uptime-form-advanced" data-monitor-fields="http-advanced"{% if _advanced_open %} open{% endif %}>
+        <summary class="uptime-form-advanced__summary">{{ 'monitor.form.section.advanced'|trans }}</summary>
+        <div class="uptime-form-advanced__body">
+            <p class="uptime-form-section__intro">{{ 'monitor.form.section.advanced_intro'|trans }}</p>
+            {% for _field in _advanced %}{{ form_row(_field) }}{% endfor %}
+        </div>
+    </details>
+{% endif %}
 
-<fieldset class="uptime-form-section" data-monitor-fields="tcp">
-    <legend>{{ 'monitor.form.section.tcp'|trans }}</legend>
-    {% if form.host is defined %}{{ form_row(form.host) }}{% endif %}
-    {% if form.port is defined %}{{ form_row(form.port) }}{% endif %}
-</fieldset>
+{% if form.host is defined or form.port is defined %}
+    <fieldset class="uptime-form-section" data-monitor-fields="tcp">
+        <legend>{{ 'monitor.form.section.tcp'|trans }}</legend>
+        <p class="uptime-form-section__intro">{{ 'monitor.form.section.tcp_intro'|trans }}</p>
+        {% if form.host is defined %}{{ form_row(form.host) }}{% endif %}
+        {% if form.port is defined %}<div class="uptime-form-group" data-monitor-fields="tcp-port">{{ form_row(form.port) }}</div>{% endif %}
+    </fieldset>
+{% endif %}
 
-<fieldset class="uptime-form-section" data-monitor-fields="dns">
-    <legend>{{ 'monitor.form.section.dns'|trans }}</legend>
-    {% if form.hostname is defined %}{{ form_row(form.hostname) }}{% endif %}
-    {% if form.recordType is defined %}{{ form_row(form.recordType) }}{% endif %}
-    {% if form.expectedDnsValue is defined %}{{ form_row(form.expectedDnsValue) }}{% endif %}
-</fieldset>
+{% if form.hostname is defined or form.recordType is defined or form.expectedDnsValue is defined %}
+    <fieldset class="uptime-form-section" data-monitor-fields="dns">
+        <legend>{{ 'monitor.form.section.dns'|trans }}</legend>
+        <p class="uptime-form-section__intro">{{ 'monitor.form.section.dns_intro'|trans }}</p>
+        {% if form.hostname is defined %}{{ form_row(form.hostname) }}{% endif %}
+        {% if form.recordType is defined %}{{ form_row(form.recordType) }}{% endif %}
+        {% if form.expectedDnsValue is defined %}{{ form_row(form.expectedDnsValue) }}{% endif %}
+    </fieldset>
+{% endif %}
 
-<fieldset class="uptime-form-section" data-monitor-fields="ssl">
-    <legend>{{ 'monitor.form.section.ssl'|trans }}</legend>
-    {% if form.daysBeforeExpiry is defined %}{{ form_row(form.daysBeforeExpiry) }}{% endif %}
-</fieldset>
+{% if form.daysBeforeExpiry is defined %}
+    <fieldset class="uptime-form-section" data-monitor-fields="ssl">
+        <legend>{{ 'monitor.form.section.ssl'|trans }}</legend>
+        <p class="uptime-form-section__intro">{{ 'monitor.form.section.ssl_intro'|trans }}</p>
+        {{ form_row(form.daysBeforeExpiry) }}
+    </fieldset>
+{% endif %}
 
-<fieldset class="uptime-form-section" data-monitor-fields="push">
-    <legend>{{ 'monitor.form.section.push'|trans }}</legend>
-    <p class="uptime-form-help">{{ 'monitor.form.push_help'|trans }}</p>
-    {% if form.pushGraceSeconds is defined %}{{ form_row(form.pushGraceSeconds) }}{% endif %}
-    {% if form.pushSigned is defined %}{{ form_row(form.pushSigned) }}{% endif %}
-</fieldset>
+{% if form.pushGraceSeconds is defined or form.pushSigned is defined %}
+    <fieldset class="uptime-form-section" data-monitor-fields="push">
+        <legend>{{ 'monitor.form.section.push'|trans }}</legend>
+        <p class="uptime-form-section__intro">{{ 'monitor.form.push_help'|trans }}</p>
+        {% if form.pushGraceSeconds is defined %}{{ uptime_form.row(form.pushGraceSeconds) }}{% endif %}
+        {% if form.pushSigned is defined %}{{ form_row(form.pushSigned) }}{% endif %}
+    </fieldset>
+{% endif %}
 
 <fieldset class="uptime-form-section uptime-form-section--thresholds" data-monitor-fields="push">
     <legend>{{ 'monitor.form.section.push_thresholds'|trans }}</legend>
-    <p class="uptime-form-help">{{ 'monitor.form.push_thresholds_help'|trans }}</p>
+    <p class="uptime-form-section__intro">{{ 'monitor.form.push_thresholds_help'|trans }}</p>
     {% for metric in ['disk', 'inodes', 'memory', 'cpu', 'swap', 'load'] %}
         {% set warn = attribute(form, 'push' ~ metric|capitalize ~ 'Warn') ?? null %}
         {% set critical = attribute(form, 'push' ~ metric|capitalize ~ 'Critical') ?? null %}

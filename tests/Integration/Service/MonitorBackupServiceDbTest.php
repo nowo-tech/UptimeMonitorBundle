@@ -133,6 +133,44 @@ final class MonitorBackupServiceDbTest extends TestCase
         );
     }
 
+    public function testTargetsAndTimeoutsOfEveryTypeSurviveAnImport(): void
+    {
+        $service = new MonitorBackupService($this->monitors, new MonitorFactory($this->monitors), $this->em, validator: Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator());
+        $result  = $service->import($this->tenant, ['monitors' => [
+            ['name' => 'DB', 'type' => 'tcp', 'target' => 'db.internal:5432', 'config' => ['host' => 'db.internal', 'port' => 5432]],
+            ['name' => 'Gateway', 'type' => 'ping', 'target' => 'gw.internal', 'config' => ['host' => 'gw.internal', 'timeout' => 3]],
+            ['name' => 'Name', 'type' => 'dns', 'target' => 'example.test', 'config' => ['hostname' => 'example.test', 'record_type' => 'MX', 'expected_value' => 'mx.example.test']],
+            ['name' => 'Cert', 'type' => 'ssl', 'target' => 'x', 'config' => ['days_before_expiry' => 7], 'form' => ['host' => 'cert.example.test', 'port' => 8443]],
+            ['name' => 'No host', 'type' => 'tcp', 'target' => ':1', 'config' => []],
+        ]]);
+
+        self::assertSame(['imported' => 4, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 1, 'over_quota' => 0], $result);
+        $db = $this->monitors->findOneBy(['name' => 'DB']);
+        self::assertSame(['db.internal', 5432, 10], [$db?->getConfig()['host'], $db?->getConfig()['port'], $db?->getConfig()['timeout']]);
+        self::assertSame(3, $this->monitors->findOneBy(['name' => 'Gateway'])?->getConfig()['timeout']);
+        self::assertSame(['example.test', 'MX', 'mx.example.test'], [
+            $this->monitors->findOneBy(['name' => 'Name'])?->getConfig()['hostname'],
+            $this->monitors->findOneBy(['name' => 'Name'])?->getConfig()['record_type'],
+            $this->monitors->findOneBy(['name' => 'Name'])?->getConfig()['expected_value'],
+        ]);
+        $cert = $this->monitors->findOneBy(['name' => 'Cert'])?->getConfig();
+        self::assertSame(['cert.example.test', 8443, 7, 10], [$cert['host'] ?? null, $cert['port'] ?? null, $cert['days_before_expiry'] ?? null, $cert['timeout'] ?? null]);
+    }
+
+    public function testAFileManagedMonitorIsNeverOverwrittenAndExportsItsOrigin(): void
+    {
+        $file = (new Monitor($this->tenant, 'web-01', MonitorType::Push, 'push'))->markFileManaged('web-01');
+        $this->em->persist($file);
+        $this->em->flush();
+
+        $result = $this->service->import($this->tenant, ['monitors' => [['name' => 'web-01', 'type' => 'https', 'target' => 'https://x.test']]], MonitorBackupService::IMPORT_OVERWRITE);
+
+        self::assertSame(['imported' => 0, 'skipped' => 1, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 0], $result);
+        self::assertSame(MonitorType::Push, $file->getType());
+        $row = $this->service->export($this->tenant)['monitors'][0];
+        self::assertSame(['file', 'web-01'], [$row['origin'], $row['origin_key']]);
+    }
+
     public function testAnImportedPushMonitorKeepsItsThresholdsAndGetsANewKeyWithoutToken(): void
     {
         $result = $this->service->import($this->tenant, ['monitors' => [[

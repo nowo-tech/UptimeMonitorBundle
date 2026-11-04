@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Push;
 
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use SensitiveParameter;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 use function abs;
@@ -61,9 +62,18 @@ final readonly class PushCredentials
     {
         self::ensureKey($monitor);
         $token = self::TOKEN_PREFIX . rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
-        $monitor->setPushTokenHash(hash('sha256', $token));
+        $monitor->setPushTokenHash(self::hashToken($token));
 
         return $token;
+    }
+
+    /**
+     * The stored form of a push token (SHA-256, hex): the one definition used by the UI, the ingest route and
+     * `nowo:uptime:apply-monitors`.
+     */
+    public static function hashToken(#[SensitiveParameter] string $token): string
+    {
+        return hash('sha256', $token);
     }
 
     /**
@@ -77,10 +87,10 @@ final readonly class PushCredentials
     /**
      * Whether the bearer token belongs to the monitor; constant time, and a missing monitor or token costs the same.
      */
-    public function verifyToken(?Monitor $monitor, string $token): bool
+    public function verifyToken(?Monitor $monitor, #[SensitiveParameter] string $token): bool
     {
         $stored = $monitor?->getPushTokenHash();
-        $match  = hash_equals($stored ?? self::NO_HASH, hash('sha256', $token));
+        $match  = hash_equals($stored ?? self::NO_HASH, self::hashToken($token));
 
         return $match && $stored !== null && $token !== '';
     }

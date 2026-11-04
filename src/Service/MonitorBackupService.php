@@ -23,9 +23,12 @@ use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Throwable;
 
+use function ceil;
 use function count;
+use function in_array;
 use function is_array;
 use function is_int;
+use function is_numeric;
 use function is_string;
 use function max;
 use function sprintf;
@@ -186,7 +189,8 @@ final readonly class MonitorBackupService
 
             $existing = $byName[$name] ?? null;
             if ($existing instanceof Monitor) {
-                if ($mode === self::IMPORT_OVERWRITE) {
+                // A file-managed monitor (1.18) belongs to its monitors file: never overwritten by an import.
+                if ($mode === self::IMPORT_OVERWRITE && !$existing->isFileManaged()) {
                     // A group (not counted) overwritten into a monitor takes one slot of the quota.
                     if ($countsAgainstQuota && $existing->isGroup() && !$this->takeSlot($remaining)) {
                         ++$overQuota;
@@ -259,7 +263,10 @@ final readonly class MonitorBackupService
             'retry_interval_seconds' => $monitor->getRetryIntervalSeconds(),
             'paused'                 => $monitor->isPaused(),
             'project'                => $monitor->getProject(),
-            'form'                   => [
+            // Informational (1.18): an import ignores them and always creates UI monitors.
+            'origin'     => $monitor->getOrigin(),
+            'origin_key' => $monitor->getOriginKey(),
+            'form'       => [
                 'url'                   => SecretRedactor::maskUrl($data->url),
                 'method'                => $data->method,
                 'expected_status_codes' => $data->expectedStatusCodes,
@@ -291,6 +298,20 @@ final readonly class MonitorBackupService
             if (isset($config['expected_status_codes']) && is_array($config['expected_status_codes'])) {
                 $data->expectedStatusCodes = implode(',', array_map(strval(...), $config['expected_status_codes']));
             }
+            // The targets of the other types (1.18: they are required, and were left empty by earlier imports).
+            $data->host             = is_string($config['host'] ?? null) ? $config['host'] : '';
+            $data->port             = is_int($config['port'] ?? null) ? $config['port'] : $data->port;
+            $data->hostname         = is_string($config['hostname'] ?? null) ? $config['hostname'] : '';
+            $data->recordType       = is_string($config['record_type'] ?? null) ? $config['record_type'] : $data->recordType;
+            $data->expectedDnsValue = is_string($config['expected_value'] ?? null) ? $config['expected_value'] : '';
+            $data->daysBeforeExpiry = is_int($config['days_before_expiry'] ?? null) ? $config['days_before_expiry'] : $data->daysBeforeExpiry;
+            $timeout                = $config['request_timeout_seconds'] ?? $config['timeout'] ?? null;
+            if (is_numeric($timeout)) {
+                $data->requestTimeoutSeconds = max(1, (int) ceil((float) $timeout));
+            } elseif (in_array($data->type, [MonitorType::Tcp, MonitorType::Ssl, MonitorType::Ping], true)) {
+                // What those checks used when nothing was stored (TCP / SSL 10 s, ping 5 s).
+                $data->requestTimeoutSeconds = $data->type === MonitorType::Ping ? 5 : 10;
+            }
             if ($data->type === MonitorType::Push) {
                 // A push monitor keeps its thresholds and options; it gets a new key, and a token must be generated.
                 $data->pushSigned       = ($config['push_signed'] ?? false) === true;
@@ -309,6 +330,12 @@ final readonly class MonitorBackupService
             }
             if (isset($form['expected_status_codes']) && is_string($form['expected_status_codes'])) {
                 $data->expectedStatusCodes = $form['expected_status_codes'];
+            }
+            if (isset($form['host']) && is_string($form['host']) && $form['host'] !== '') {
+                $data->host = $form['host'];
+            }
+            if (isset($form['port']) && is_int($form['port'])) {
+                $data->port = $form['port'];
             }
         }
 
