@@ -113,6 +113,27 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Planned as **1.19.0**. From **1.18.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle nowo-tech/ui-kit-bundle
+php bin/console assets:install
+```
+
+- **Requirement:** `nowo-tech/ui-kit-bundle` ^2.29 (dialog sizes, `footer_target`).
+- **Visual change — form sections are cards by default (owner decision).** The monitor form sections (General, Check,
+  HTTP, Advanced, TCP, DNS, SSL, Push, Push thresholds) are drawn as UiKit cards: the fieldset / `<details>` carries the
+  `card` slot class (`nowo-ui-card`, or your theme's mapping, e.g. Bootstrap `card`) and the legend / summary the
+  `card_title` slot. 1.17 and 1.18 drew them flat. To keep the flat look, add `uptime-form-sections--flat` to an
+  ancestor of the form or to the `.uptime-app` wrapper of an overriding template. `uptime-form-sections--cards` is no
+  longer needed (harmless if left in place).
+- **Monitor dialog:** the `wide` size and the actions (Cancel, Save) in the dialog footer instead of the bottom of the
+  scrolling body. Overrides of `monitor/_monitor_form_body.html.twig` that keep their own actions must keep
+  `data-nowo-ui-dialog-actions` on the actions row and `form="uptime-monitor-form"` on its buttons (and the form's
+  `id="uptime-monitor-form"`), or the buttons stay in the body. Host CSS that targeted the old sticky actions row or the
+  `.modal` rules of the bundle's host theme can be removed.
+- No schema, configuration or route change.
+
 ## To 1.18.0
 
 From **1.17.2**:
@@ -204,7 +225,7 @@ Only hosts that override the monitor templates or restyle the bundle CSS need to
 - **CSS.** `.uptime-form-section` is flat in the embedded pages (heading + divider): add `uptime-form-sections--cards`
   on an ancestor to keep the 1.16 tinted cards, or drop your host rules that flattened it. `.uptime-detail` has no
   border, padding or shadow. Chart colours: set the `--uptime-chart-*` custom properties
-  ([TEMPLATES](TEMPLATES.md#flat-sections-and-chart-colours-117)) instead of replacing the charts.
+  ([TEMPLATES](TEMPLATES.md#form-sections-flat-panels-and-chart-colours-117-119)) instead of replacing the charts.
 - **Form extensions.** `requestTimeoutSeconds` is an `IntegerType` field (was `NumberType`, `scale: 1`) and
   `MonitorFormData::$requestTimeoutSeconds` an `int`: a form type extension that rewrote `48.0` to `48` is no longer
   needed.

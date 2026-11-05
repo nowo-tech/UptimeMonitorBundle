@@ -3,13 +3,16 @@
   links (header actions, dashboard filter bar) open it: uptime-dashboard.js / uptime-monitor-detail.js load the form
   fragment (monitor/_monitor_form_modal.html.twig, header X-Uptime-Modal) into [data-monitor-form-body] and post it
   back. Without JavaScript the openers are plain links to the monitor form page. Optional: bundle.
+  1.19 (UiKit 2.29 dialog sizes): the wide size (a two-column form), the body is the only scroller and the fragment's
+  Cancel / Save move into the footer (footer_target, bound to the form with form="…"), outside the scrolling body.
 #}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
 {% set _b = bundle|default('NowoUptimeMonitorBundle') %}
 {% embed nowo_ui_partial('dialog', bundle) with {
     id: 'uptime-monitor-form-modal',
     title: 'monitor.edit'|trans,
-    size: 'xl',
+    size: 'wide',
+    footer_target: true,
     bundle: _b,
     attr: {'data-uptime-monitor-form-modal': true},
     title_attr: {'data-monitor-form-title': true},
