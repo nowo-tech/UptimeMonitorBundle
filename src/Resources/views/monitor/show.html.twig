@@ -6,6 +6,8 @@
   log_events + log_pagination (the check log page, web_ui.per_page), and the 1.x variables tenant_slug, monitor,
   latest, detail, chart_series_json, latency_series_json, api_history_url, api_aggregates_url; push (server health
   view of a push monitor, null otherwise — _push_health.html.twig).
+  Since 1.18 the first card header also renders the block monitor_origin_badge ("Managed from file (<key>)" for a
+  monitor of nowo:uptime:apply-monitors; empty otherwise).
   Data blocks filled: nowo_ui_show_sections (the UiKit detail cards; since 1.17 the first one carries the status badge
   in its header — UiKit badge classes per status and data-status-badges, the translated label and classes of every
   status, so uptime-monitor-detail.js never prints a raw status), nowo_ui_show_after (host sections, check history
@@ -49,6 +51,15 @@
                             <span class="{{ (_badges[_status] ?? _badges.unknown).class }}" data-detail-status data-testid="uptime-monitor-status"
                                   data-status-badges="{{ _badges|json_encode|e('html_attr') }}">{{ (_badges[_status] ?? _badges.unknown).label }}</span>
                         </p>
+                        {# 1.18: a monitor applied from a monitors file (nowo:uptime:apply-monitors) says so in the header.
+                           Hosts that override this page reuse the block (view fields monitor.fileManaged, monitor.originKey). #}
+                        {% block monitor_origin_badge %}
+                            {% if monitor.fileManaged|default(false) %}
+                                <p class="uptime-details-origin">
+                                    <span class="{{ nowo_ui_class('badge_neutral', _b) }} uptime-file-badge" data-testid="uptime-monitor-origin-badge">{{ 'monitor.origin.file_badge'|trans({'%key%': monitor.originKey}) }}</span>
+                                </p>
+                            {% endif %}
+                        {% endblock %}
                     {% endif %}
                 </header>
             {% endif %}

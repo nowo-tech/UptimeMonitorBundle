@@ -309,7 +309,14 @@ final class MonitorController extends AbstractUptimeController
     #[Route('/{id}/edit', name: 'edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function edit(string $tenantSlug, int $id, Request $request): Response
     {
-        $monitor = $this->requireUiManaged($this->requireMonitor($tenantSlug, $id));
+        $monitor = $this->requireMonitor($tenantSlug, $id);
+        if ($monitor->isFileManaged() && $this->isModalRequest($request)) {
+            // A stale page offered Edit on a file-managed monitor: the dialog shows this text (still a 409).
+            return new Response($this->transMessage('flash.monitor.file_managed'), Response::HTTP_CONFLICT, [
+                'Content-Type' => 'text/plain; charset=UTF-8',
+            ]);
+        }
+        $monitor = $this->requireUiManaged($monitor);
         $data    = $this->monitorFactory->toFormData($monitor);
         $form    = $this->createForm(MonitorFormType::class, $data, [
             'group_choices'        => $this->buildGroupChoices($tenantSlug, $monitor),

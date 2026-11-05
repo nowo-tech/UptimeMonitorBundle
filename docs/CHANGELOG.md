@@ -95,14 +95,21 @@ Monitors as code (`nowo:uptime:apply-monitors`) and a clearer monitor form. Sche
 - **`uptime_monitor.origin`** (`ui` / `file`) and **`origin_key`**, with a unique index on `(tenant_id, origin_key)`;
   `Monitor::getOrigin()`, `getOriginKey()`, `isFileManaged()`, `markFileManaged()`;
   `PushCredentials::hashToken()`.
-- **File-managed monitors in the UI**: a "Managed from file (key)" detail and a short *File* badge on the dashboard
-  rows; edit, delete and the push token actions are not offered and answer **409** when called anyway; pause /
-  resume stays available.
+- **File-managed monitors in the UI**: a "Managed from file (key)" badge in the monitor page header (new Twig block
+  `monitor_origin_badge`), a "Managed from file (key)" detail and a short *File* badge on the dashboard rows; edit,
+  delete and the push token actions are not offered and answer **409** when called anyway (the monitor dialog shows
+  the server's message); pause / resume stays available.
+- **Errors of every class in one run**: an invalid monitors file and a refused token input are reported together, as
+  are a missing tenant and the conflicts of the tenants that exist; the exit code is the lowest class. An unknown
+  option (such as `--token`) or an argument is a usage error (exit 2) in the same JSON shape.
 - **Monitor form**: a one-line intro per section; units as an `s` suffix next to the interval, retry interval,
   timeout and grace inputs (no longer in the labels); help on name, interval, retry interval, timeout (it explains the
   48 s default: Uptime Kuma's 80 % of a 60 s interval, capped by `checks.max_timeout_seconds`), URL, method, keyword,
   max redirects and paused; placeholders for the text fields; switches (`role="switch"`) for paused, ignore TLS,
-  upside down, certificate expiry and signed pushes; required markers on the target fields.
+  upside down, certificate expiry and signed pushes; required markers on the target fields (hidden from screen
+  readers: the inputs carry `required`). The server renders the selected type's sections with `hidden`, so the form
+  reads right before (or without) the dialog script, and a field the browser refuses inside the folded *Advanced*
+  block opens it.
 
 ### Changed
 

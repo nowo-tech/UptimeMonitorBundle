@@ -70,6 +70,32 @@ php bin/console nowo:uptime:run-due-checks
 
 See [CONFIGURATION.md](CONFIGURATION.md).
 
+### Reference DDL of the 1.18 columns
+
+1.18 adds two columns and one unique index to `uptime_monitor` (table name without `doctrine.table_prefix`). Hosts on
+Doctrine migrations should get exactly this from `doctrine:migrations:diff`; `nowo:uptime:sync-schema` applies it
+otherwise. Existing rows take the default `ui`; there is no backfill.
+
+```sql
+-- MySQL / MariaDB
+ALTER TABLE uptime_monitor
+  ADD origin VARCHAR(8) DEFAULT 'ui' NOT NULL,
+  ADD origin_key VARCHAR(64) DEFAULT NULL;
+CREATE UNIQUE INDEX uniq_uptime_monitor_origin_key ON uptime_monitor (tenant_id, origin_key);
+
+-- PostgreSQL
+ALTER TABLE uptime_monitor ADD origin VARCHAR(8) DEFAULT 'ui' NOT NULL;
+ALTER TABLE uptime_monitor ADD origin_key VARCHAR(64) DEFAULT NULL;
+CREATE UNIQUE INDEX uniq_uptime_monitor_origin_key ON uptime_monitor (tenant_id, origin_key);
+
+-- SQLite
+ALTER TABLE uptime_monitor ADD COLUMN origin VARCHAR(8) DEFAULT 'ui' NOT NULL;
+ALTER TABLE uptime_monitor ADD COLUMN origin_key VARCHAR(64) DEFAULT NULL;
+CREATE UNIQUE INDEX uniq_uptime_monitor_origin_key ON uptime_monitor (tenant_id, origin_key);
+```
+
+Rollback: drop the index, then the two columns (1.17.x does not map them).
+
 ## Twig Extra Bundle (REQ-TWIG-004)
 
 This package ships Twig templates. Host applications **must** install and enable Twig Extra:

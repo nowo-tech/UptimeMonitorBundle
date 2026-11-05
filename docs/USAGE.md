@@ -87,8 +87,14 @@ HTTP/HTTPS monitors support Uptime Kuma–compatible options (retries, `200-299`
 | `nowo:uptime:rollup` | Build hourly/daily aggregates from detail rows |
 | `nowo:uptime:purge-detail` | Purge old `CheckResult` rows per retention (keyset batches of `retention.purge_batch_size`) |
 | `nowo:uptime:clear-data` | Delete all checks, aggregates, and incidents (keeps tenants/monitors; `--tenant`, `-n`) |
+| `nowo:uptime:apply-monitors` | (1.18) Create, update or prune push monitors from a monitors file: `--file=<json>`, `--token-file=<path>` or `--token-file=-` (stdin), `--tenant=<uuid>`, `--dry-run`, `--prune`. stdout is one JSON document; exit codes 0–6. See [PUSH-MONITORS.md → Monitors as code](PUSH-MONITORS.md#monitors-as-code) |
 
 Production: enable Symfony Scheduler and consume `scheduler_default` (see [SCHEDULING.md](SCHEDULING.md)).
+
+`apply-monitors` never takes a token on the command line. In a deploy step, pipe the token map on stdin from a
+non-interactive process (Ansible `command` with `stdin:` and `no_log: true`, `docker compose exec -T`); a terminal
+stdin is refused. Run it with `--dry-run` first and check exit 0. Monitors it creates are file-managed: the UI shows a
+"Managed from file (key)" badge and refuses edit, delete and token changes (409), while pause / resume stays.
 
 ## Notifications
 

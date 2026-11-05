@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Apply;
 
 use JsonException;
 use Nowo\UptimeMonitorBundle\Push\PushThresholds;
+use SensitiveParameter;
 use stdClass;
 
 use function array_key_exists;
@@ -69,11 +70,13 @@ final readonly class MonitorFileParser
     }
 
     /**
-     * Validates the JSON text of a monitors file.
+     * Validates the JSON text of a monitors file. The text is a sensitive parameter: it is not a secret by design, but
+     * an operator may paste a token into it by mistake, and the refusal's trace (flattened by hosts that ship
+     * exceptions, e.g. through Messenger) must not carry it.
      *
      * @throws ApplyRefusedException exit 3 with every error found
      */
-    public function parse(string $json): MonitorFileSpec
+    public function parse(#[SensitiveParameter] string $json): MonitorFileSpec
     {
         try {
             $root = json_decode($json, false, 16, JSON_THROW_ON_ERROR);

@@ -183,6 +183,67 @@ describe('monitor form dialog', () => {
     expect(dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
   });
 
+  it('applies the rules of every type and opens the Advanced block on an invalid field (1.18)', () => {
+    document.body.innerHTML = `
+      <select data-monitor-type-select>
+        <option value="https">https</option><option value="ssl">ssl</option><option value="http">http</option>
+      </select>
+      <fieldset data-monitor-fields="check"><div data-monitor-fields="check-timeout"></div></fieldset>
+      <fieldset data-monitor-fields="http"></fieldset>
+      <details data-monitor-fields="http-advanced"><input name="maxRedirects" type="number" max="20" value="99"></details>
+      <fieldset data-monitor-fields="tcp"><input data-required-for="tcp ping ssl" name="host"><div data-monitor-fields="tcp-port"><input data-required-for="tcp ssl" name="port"></div></fieldset>
+      <fieldset data-monitor-fields="ssl"></fieldset><fieldset data-monitor-fields="dns"></fieldset>`;
+    const select = document.querySelector('select') as HTMLSelectElement;
+    const hidden = (key: string): boolean | undefined => document.querySelector<HTMLElement>(`[data-monitor-fields="${key}"]`)?.hidden;
+    const required = (name: string): boolean | undefined => document.querySelector<HTMLInputElement>(`[name="${name}"]`)?.required;
+    initMonitorFormTypeToggle(document);
+
+    expect([hidden('http'), hidden('http-advanced'), hidden('tcp'), hidden('ssl'), hidden('check-timeout')]).toEqual([false, false, true, true, false]);
+
+    select.value = 'ssl';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('tcp'), hidden('tcp-port'), hidden('ssl'), hidden('http'), hidden('dns')]).toEqual([false, false, false, true, true]);
+    expect([required('host'), required('port')]).toEqual([true, true]);
+
+    const details = document.querySelector('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    document.querySelector<HTMLInputElement>('[name="maxRedirects"]')?.dispatchEvent(new Event('invalid', { cancelable: true }));
+    expect(details.open).toBe(true);
+    document.querySelector<HTMLInputElement>('[name="maxRedirects"]')?.dispatchEvent(new Event('invalid', { cancelable: true }));
+    expect(details.open).toBe(true);
+  });
+
+  it('shows the server text when a file-managed monitor is refused with 409 (1.18)', async () => {
+    const dialog = mountDialog();
+    dialog.showModal = vi.fn();
+    document.body.insertAdjacentHTML('afterbegin', '<main id="nowo-ui-content"></main>');
+    const managed = 'This monitor is managed from a file: change the file instead.';
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(managed, { status: 409, headers: { 'Content-Type': 'text/plain' } }))
+      .mockResolvedValueOnce(new Response('', { status: 409 }))
+      .mockResolvedValueOnce(new Response(FORM_HTML, { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response(managed, { status: 409, headers: { 'Content-Type': 'text/plain' } }))
+      .mockResolvedValueOnce(new Response('', { status: 409 })));
+
+    initMonitorFormModal(document);
+    const opener = document.querySelector<HTMLElement>('[data-monitor-form-open]') as HTMLElement;
+    opener.click();
+    await flush();
+    expect(dialog.querySelector('[data-monitor-form-body] .nowo-ui-flash--error')?.textContent).toBe(managed);
+
+    opener.click();
+    await flush();
+    expect(dialog.querySelector('[data-monitor-form-body] .nowo-ui-flash--error')?.textContent).toBe('Could not load monitor form.');
+
+    opener.click();
+    await flush();
+    dialog.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    await vi.waitFor(() => expect(document.querySelector('#nowo-ui-content .nowo-ui-flash--error')?.textContent).toBe(managed));
+    dialog.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    await vi.waitFor(() => expect(document.querySelectorAll('#nowo-ui-content .nowo-ui-flash--error')).toHaveLength(2));
+    expect(document.querySelectorAll('#nowo-ui-content .nowo-ui-flash--error')[0]?.textContent).toBe('Could not save monitor.');
+  });
+
   it('shows an error when the form cannot be loaded and ignores openers without URL', async () => {
     const dialog = mountDialog();
     dialog.showModal = vi.fn(function (this: HTMLDialogElement) { this.setAttribute('open', ''); });

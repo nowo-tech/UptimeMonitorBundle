@@ -150,6 +150,13 @@ php bin/console assets:install
   `dashboard/_sidebar_row.html.twig` and `dashboard/_table_view.html.twig` show the file-managed state.
 - **File-managed monitors** answer 409 to edit, delete and the push token routes; a host that links to those routes
   for every monitor should hide the links when `monitor.fileManaged` is true (the bundle's own actions already do).
+  The edit route answers a dialog request (`X-Uptime-Modal: 1`) with a plain-text 409 that the bundle's dialog shows.
+- **Monitor page overrides:** `monitor/show.html.twig` renders a new block `monitor_origin_badge` in the first card
+  header ("Managed from file (key)", empty for UI monitors). A host that overrides the page (Beacon:
+  `uptime/monitor_show.html.twig`) can render the same block, or use the view fields `monitor.fileManaged` and
+  `monitor.originKey`.
+- **Form markup:** the sections and rows of the types other than the selected one now carry `hidden` in the server
+  HTML (the dialog script still toggles them); a host stylesheet that forced them visible should rely on `[hidden]`.
 - **New translation keys** (7 locales): `monitor.origin.*`, `flash.monitor.file_managed`, `form.monitor.*_help`,
   `form.monitor.*_placeholder`, `form.monitor.*_required`, `monitor.form.section.*_intro`.
 

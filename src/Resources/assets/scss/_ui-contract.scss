@@ -510,7 +510,8 @@
 }
 
 /* UiKit badge slot only: the 1.x `.uptime-status-<status>` colours (dark-shell palette) are not on this badge. */
-.uptime-details-status {
+.uptime-details-status,
+.uptime-details-origin {
   margin: 0;
 }
 
@@ -609,8 +610,11 @@
     white-space: nowrap;
   }
 
+  /* The marker is decorative: the input carries `required`. The second declaration gives it empty alternative text so
+     screen readers do not announce "star"; browsers without that syntax keep the first one. */
   .uptime-label-required::after {
     content: ' *';
+    content: ' *' / '';
     color: var(--nowo-ui-danger, #dc2626);
   }
 

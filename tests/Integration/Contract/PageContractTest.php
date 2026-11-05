@@ -9,18 +9,22 @@ use Nowo\UiKitBundle\Test\PageContractTestCase;
 use Nowo\UiKitBundle\Test\PageFixture;
 use Nowo\UiKitBundle\Test\RenderedPage;
 use Nowo\UiKitBundle\View\ListPage;
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
+use Symfony\Component\Form\FormError;
 use Twig\Environment;
 use Twig\TwigFunction;
 
 use function array_map;
 use function dirname;
 use function is_string;
+use function preg_match;
 use function str_starts_with;
 use function strpos;
 use function substr;
@@ -233,7 +237,7 @@ final class PageContractTest extends PageContractTestCase
 
         // 1.18 form UX: intros, unit suffixes, switches, required markers, the folded Advanced block, split rows.
         self::assertStringContainsString('class="uptime-form-section__intro"', $form);
-        self::assertMatchesRegularExpression('#<span class="uptime-input-group__suffix" id="monitor_form_intervalSeconds_unit">s</span>#', $form);
+        self::assertMatchesRegularExpression('#<span class="uptime-input-group__suffix" id="monitor_form_intervalSeconds_unit" aria-hidden="true">s</span>#', $form);
         self::assertMatchesRegularExpression('#aria-describedby="monitor_form_intervalSeconds_unit monitor_form_intervalSeconds_help"#', $form);
         self::assertMatchesRegularExpression('#<input type="checkbox"[^>]*role="switch"[^>]*name="monitor_form\[paused\]"|name="monitor_form\[paused\]"[^>]*role="switch"#', $form);
         self::assertStringContainsString('uptime-label-required', $form);
@@ -260,6 +264,66 @@ final class PageContractTest extends PageContractTestCase
         $table = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboardTable(false, true)))->html;
         self::assertStringContainsString('data-testid="uptime-monitor-file-badge"', $table);
         self::assertStringContainsString('Managed from file (little-vps.resources)', $table);
+    }
+
+    public function testTheShowPageHeaderCarriesTheOriginBadgeEscaped(): void
+    {
+        $fixture = PageFixtures::monitorShowPush();
+        $plain   = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', $fixture))->html;
+        self::assertStringNotContainsString('uptime-monitor-origin-badge', $plain, 'a UI monitor has no badge');
+
+        $monitor = $fixture['monitor'];
+        self::assertInstanceOf(Monitor::class, $monitor);
+        $monitor->markFileManaged('<script>alert(1)</script>');
+        $html = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', $fixture))->html;
+        self::assertMatchesRegularExpression('#<header [^>]*uptime-details-header[^>]*>.*data-testid="uptime-monitor-origin-badge">Managed from file \(&lt;script&gt;alert\(1\)&lt;/script&gt;\)</span>#s', $html);
+        self::assertStringNotContainsString('<script>alert(1)', $html);
+        self::assertStringContainsString('data-testid="uptime-push-file-managed"', $html);
+    }
+
+    public function testTheFormRendersTheSelectedTypeAndNoEmptySection(): void
+    {
+        $render = function (MonitorType $type, array $hidden = [], ?string $errorOn = null): string {
+            /** @var list<string> $hidden */
+            $data       = new MonitorFormData();
+            $data->type = $type;
+            $form       = PageFixtures::forms($hidden)->create(MonitorFormType::class, $data);
+            if ($errorOn !== null) {
+                $form->get($errorOn)->addError(new FormError('Invalid.'));
+            }
+
+            return $this->createTwig()->render(self::VIEWS . 'monitor/_monitor_form_modal.html.twig', ['form' => $form->createView()] + PageFixtures::monitorFormFragment());
+        };
+        $state = static function (string $html, string $key): string {
+            self::assertMatchesRegularExpression('#data-monitor-fields="' . $key . '"( hidden)?[ >]#', $html, $key);
+            preg_match('#data-monitor-fields="' . $key . '"( hidden)?[ >]#', $html, $match);
+
+            return ($match[1] ?? '') === ' hidden' ? 'hidden' : 'shown';
+        };
+
+        $push = $render(MonitorType::Push);
+        self::assertSame(
+            ['shown', 'hidden', 'hidden', 'hidden', 'hidden', 'shown'],
+            [$state($push, 'check'), $state($push, 'check-retry'), $state($push, 'check-timeout'), $state($push, 'http'), $state($push, 'tcp'), $state($push, 'push')],
+        );
+        $ping = $render(MonitorType::Ping);
+        self::assertSame(['shown', 'hidden', 'shown', 'hidden'], [$state($ping, 'tcp'), $state($ping, 'tcp-port'), $state($ping, 'check-timeout'), $state($ping, 'push')]);
+        $group = $render(MonitorType::Group);
+        self::assertSame(['hidden', 'hidden', 'hidden'], [$state($group, 'check'), $state($group, 'http-advanced'), $state($group, 'dns')]);
+        self::assertStringContainsString('name="monitor_form[paused]"', $group, 'a group can be paused from the form');
+
+        // A field with an error opens the folded Advanced block.
+        self::assertMatchesRegularExpression('#data-monitor-fields="http-advanced" open>#', $render(MonitorType::Https, [], 'maxRedirects'));
+
+        // A host hiding every threshold gets no empty thresholds section (no orphan legend).
+        $thresholds = [];
+        foreach (['Disk', 'Inodes', 'Memory', 'Cpu', 'Swap', 'Load'] as $metric) {
+            $thresholds[] = 'push' . $metric . 'Warn';
+            $thresholds[] = 'push' . $metric . 'Critical';
+        }
+        self::assertStringContainsString('uptime-form-section--thresholds', $push);
+        self::assertStringNotContainsString('uptime-form-section--thresholds', $render(MonitorType::Push, $thresholds));
+        self::assertStringContainsString('uptime-form-section--thresholds', $render(MonitorType::Push, ['pushDiskWarn']));
     }
 
     public function testMonitorDialogFragmentIsAFormWithTheUiKitSlots(): void

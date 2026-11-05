@@ -6,7 +6,8 @@
    1.18: a one-line intro per section, units as an input suffix (row_attr data-uptime-unit), switches for on/off
    settings, Paused in General, the advanced HTTP fields folded in one <details> (open when one of them has an error
    or a non-default value), retry interval and timeout only where they apply (check-retry, check-timeout), port only
-   for TCP / SSL (tcp-port). The section keys of 1.17 (http-options, tcp) are still understood by the dialog script. #}
+   for TCP / SSL (tcp-port). The section keys of 1.17 (http-options, tcp) are still understood by the dialog script.
+   The sections of the other types carry `hidden` in the initial HTML (the selected type, or HTTPS for a new monitor). #}
 {% macro row(field) %}
     {%- set _unit = field.vars.row_attr['data-uptime-unit'] ?? null -%}
     {%- if _unit is null -%}
@@ -18,14 +19,34 @@
             {{ form_label(field) }}
             <div class="uptime-input-group">
                 {{ form_widget(field, {attr: field.vars.attr|merge({'aria-describedby': _described})}) }}
-                <span class="uptime-input-group__suffix" id="{{ _unit_id }}">{{ _unit }}</span>
+                <span class="uptime-input-group__suffix" id="{{ _unit_id }}" aria-hidden="true">{{ _unit }}</span>
             </div>
             {{ form_errors(field) }}
             {{ form_help(field) }}
         </div>
     {%- endif -%}
 {% endmacro %}
+{#- The sections and rows each type shows (the same rules as initMonitorFormTypeToggle() in monitor-form-modal.ts):
+    the server renders the selected type's state, so nothing flashes before the script runs and the form reads right
+    without it. -#}
+{% macro hidden(key, type) %}
+    {%- set _rules = {
+        check: ['http', 'https', 'tcp', 'ping', 'dns', 'ssl', 'push'],
+        'check-retry': ['http', 'https', 'tcp', 'ping', 'dns', 'ssl'],
+        'check-timeout': ['http', 'https', 'tcp', 'ssl', 'ping'],
+        http: ['http', 'https'],
+        'http-advanced': ['http', 'https'],
+        tcp: ['tcp', 'ping', 'ssl'],
+        'tcp-port': ['tcp', 'ssl'],
+        dns: ['dns'],
+        ssl: ['ssl'],
+        push: ['push'],
+    } -%}
+    {%- if type is not null and type not in (_rules[key] ?? []) %} hidden{% endif -%}
+{% endmacro %}
 {% import _self as uptime_form %}
+{% set _type = form.type is defined ? (form.type.vars.value ~ '') : null %}
+{% if _type == '' %}{% set _type = null %}{% endif %}
 {{ form_errors(form) }}
 <fieldset class="uptime-form-section">
     <legend>{{ 'monitor.form.section.general'|trans }}</legend>
@@ -40,19 +61,19 @@
 </fieldset>
 
 {% if form.intervalSeconds is defined or form.retries is defined or form.retryIntervalSeconds is defined or form.requestTimeoutSeconds is defined or form.resendNotificationAfterDown is defined %}
-    <fieldset class="uptime-form-section" data-monitor-fields="check">
+    <fieldset class="uptime-form-section" data-monitor-fields="check"{{ uptime_form.hidden('check', _type) }}>
         <legend>{{ 'monitor.form.section.heartbeat'|trans }}</legend>
         <p class="uptime-form-section__intro">{{ 'monitor.form.section.heartbeat_intro'|trans }}</p>
         {% if form.intervalSeconds is defined %}{{ uptime_form.row(form.intervalSeconds) }}{% endif %}
         {% if form.retries is defined %}{{ form_row(form.retries) }}{% endif %}
-        {% if form.retryIntervalSeconds is defined %}<div class="uptime-form-group" data-monitor-fields="check-retry">{{ uptime_form.row(form.retryIntervalSeconds) }}</div>{% endif %}
-        {% if form.requestTimeoutSeconds is defined %}<div class="uptime-form-group" data-monitor-fields="check-timeout">{{ uptime_form.row(form.requestTimeoutSeconds) }}</div>{% endif %}
+        {% if form.retryIntervalSeconds is defined %}<div class="uptime-form-group" data-monitor-fields="check-retry"{{ uptime_form.hidden('check-retry', _type) }}>{{ uptime_form.row(form.retryIntervalSeconds) }}</div>{% endif %}
+        {% if form.requestTimeoutSeconds is defined %}<div class="uptime-form-group" data-monitor-fields="check-timeout"{{ uptime_form.hidden('check-timeout', _type) }}>{{ uptime_form.row(form.requestTimeoutSeconds) }}</div>{% endif %}
         {% if form.resendNotificationAfterDown is defined %}{{ form_row(form.resendNotificationAfterDown) }}{% endif %}
     </fieldset>
 {% endif %}
 
 {% if form.url is defined or form.method is defined or form.expectedStatusCodes is defined %}
-    <fieldset class="uptime-form-section" data-monitor-fields="http">
+    <fieldset class="uptime-form-section" data-monitor-fields="http"{{ uptime_form.hidden('http', _type) }}>
         <legend>{{ 'monitor.form.section.http'|trans }}</legend>
         <p class="uptime-form-section__intro">{{ 'monitor.form.section.http_intro'|trans }}</p>
         {% if form.url is defined %}{{ form_row(form.url) }}{% endif %}
@@ -74,7 +95,7 @@
     {% endif %}
 {% endfor %}
 {% if _advanced is not empty %}
-    <details class="uptime-form-section uptime-form-advanced" data-monitor-fields="http-advanced"{% if _advanced_open %} open{% endif %}>
+    <details class="uptime-form-section uptime-form-advanced" data-monitor-fields="http-advanced"{{ uptime_form.hidden('http-advanced', _type) }}{% if _advanced_open %} open{% endif %}>
         <summary class="uptime-form-advanced__summary">{{ 'monitor.form.section.advanced'|trans }}</summary>
         <div class="uptime-form-advanced__body">
             <p class="uptime-form-section__intro">{{ 'monitor.form.section.advanced_intro'|trans }}</p>
@@ -84,16 +105,16 @@
 {% endif %}
 
 {% if form.host is defined or form.port is defined %}
-    <fieldset class="uptime-form-section" data-monitor-fields="tcp">
+    <fieldset class="uptime-form-section" data-monitor-fields="tcp"{{ uptime_form.hidden('tcp', _type) }}>
         <legend>{{ 'monitor.form.section.tcp'|trans }}</legend>
         <p class="uptime-form-section__intro">{{ 'monitor.form.section.tcp_intro'|trans }}</p>
         {% if form.host is defined %}{{ form_row(form.host) }}{% endif %}
-        {% if form.port is defined %}<div class="uptime-form-group" data-monitor-fields="tcp-port">{{ form_row(form.port) }}</div>{% endif %}
+        {% if form.port is defined %}<div class="uptime-form-group" data-monitor-fields="tcp-port"{{ uptime_form.hidden('tcp-port', _type) }}>{{ form_row(form.port) }}</div>{% endif %}
     </fieldset>
 {% endif %}
 
 {% if form.hostname is defined or form.recordType is defined or form.expectedDnsValue is defined %}
-    <fieldset class="uptime-form-section" data-monitor-fields="dns">
+    <fieldset class="uptime-form-section" data-monitor-fields="dns"{{ uptime_form.hidden('dns', _type) }}>
         <legend>{{ 'monitor.form.section.dns'|trans }}</legend>
         <p class="uptime-form-section__intro">{{ 'monitor.form.section.dns_intro'|trans }}</p>
         {% if form.hostname is defined %}{{ form_row(form.hostname) }}{% endif %}
@@ -103,7 +124,7 @@
 {% endif %}
 
 {% if form.daysBeforeExpiry is defined %}
-    <fieldset class="uptime-form-section" data-monitor-fields="ssl">
+    <fieldset class="uptime-form-section" data-monitor-fields="ssl"{{ uptime_form.hidden('ssl', _type) }}>
         <legend>{{ 'monitor.form.section.ssl'|trans }}</legend>
         <p class="uptime-form-section__intro">{{ 'monitor.form.section.ssl_intro'|trans }}</p>
         {{ form_row(form.daysBeforeExpiry) }}
@@ -111,7 +132,7 @@
 {% endif %}
 
 {% if form.pushGraceSeconds is defined or form.pushSigned is defined %}
-    <fieldset class="uptime-form-section" data-monitor-fields="push">
+    <fieldset class="uptime-form-section" data-monitor-fields="push"{{ uptime_form.hidden('push', _type) }}>
         <legend>{{ 'monitor.form.section.push'|trans }}</legend>
         <p class="uptime-form-section__intro">{{ 'monitor.form.push_help'|trans }}</p>
         {% if form.pushGraceSeconds is defined %}{{ uptime_form.row(form.pushGraceSeconds) }}{% endif %}
@@ -119,18 +140,24 @@
     </fieldset>
 {% endif %}
 
-<fieldset class="uptime-form-section uptime-form-section--thresholds" data-monitor-fields="push">
-    <legend>{{ 'monitor.form.section.push_thresholds'|trans }}</legend>
-    <p class="uptime-form-section__intro">{{ 'monitor.form.push_thresholds_help'|trans }}</p>
-    {% for metric in ['disk', 'inodes', 'memory', 'cpu', 'swap', 'load'] %}
-        {% set warn = attribute(form, 'push' ~ metric|capitalize ~ 'Warn') ?? null %}
-        {% set critical = attribute(form, 'push' ~ metric|capitalize ~ 'Critical') ?? null %}
-        <div class="uptime-threshold-row">
-            {% if warn %}{{ form_row(warn) }}{% endif %}
-            {% if critical %}{{ form_row(critical) }}{% endif %}
-        </div>
-    {% endfor %}
-</fieldset>
+{# The thresholds section renders only when form.hidden_fields left at least one threshold (C7: no empty legend). #}
+{% set _thresholds = [] %}
+{% for metric in ['disk', 'inodes', 'memory', 'cpu', 'swap', 'load'] %}
+    {% set _pair = [attribute(form, 'push' ~ metric|capitalize ~ 'Warn') ?? null, attribute(form, 'push' ~ metric|capitalize ~ 'Critical') ?? null] %}
+    {% if _pair[0] or _pair[1] %}{% set _thresholds = _thresholds|merge([_pair]) %}{% endif %}
+{% endfor %}
+{% if _thresholds is not empty %}
+    <fieldset class="uptime-form-section uptime-form-section--thresholds" data-monitor-fields="push"{{ uptime_form.hidden('push', _type) }}>
+        <legend>{{ 'monitor.form.section.push_thresholds'|trans }}</legend>
+        <p class="uptime-form-section__intro">{{ 'monitor.form.push_thresholds_help'|trans }}</p>
+        {% for _pair in _thresholds %}
+            <div class="uptime-threshold-row">
+                {% if _pair[0] %}{{ form_row(_pair[0]) }}{% endif %}
+                {% if _pair[1] %}{{ form_row(_pair[1]) }}{% endif %}
+            </div>
+        {% endfor %}
+    </fieldset>
+{% endif %}
 
 {% for child in form %}
     {% if not child.rendered %}

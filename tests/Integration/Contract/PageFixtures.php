@@ -564,12 +564,15 @@ final class PageFixtures
         return $formType;
     }
 
-    public static function forms(): FormFactoryInterface
+    /**
+     * @param list<string> $hiddenMonitorFields `form.hidden_fields` of the monitor form
+     */
+    public static function forms(array $hiddenMonitorFields = []): FormFactoryInterface
     {
         return Forms::createFormFactoryBuilder()
             ->addExtension(new CsrfExtension(new FixedCsrfTokenManager()))
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(self::withMerger(new MonitorFormType()))
+            ->addType(self::withMerger(new MonitorFormType($hiddenMonitorFields)))
             ->addType(self::withMerger(new TenantFormType()))
             ->addType(self::withMerger(new TagFormType()))
             ->addType(self::withMerger(new SettingsGeneralFormType()))

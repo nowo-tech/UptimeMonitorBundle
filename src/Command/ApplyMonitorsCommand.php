@@ -16,6 +16,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Exception\ExceptionInterface as ConsoleExceptionInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\StreamableInputInterface;
@@ -105,13 +106,8 @@ HELP
 
         try {
             [$file, $tokenFile, $tenant] = $this->options($input);
-            $full                        = $this->parser->parseFile($file);
-            if ($tenant !== null && !$full->hasTenant($tenant)) {
-                throw new ApplyRefusedException([new ApplyError('--tenant', 'tenant_not_in_file', ApplyError::EXIT_USAGE)]);
-            }
-            $spec   = $tenant !== null ? $full->onlyTenant($tenant) : $full;
-            $stream = $input instanceof StreamableInputInterface ? $input->getStream() : null;
-            $tokens = $tokenFile !== null ? $this->tokenReader->read($tokenFile, $full, $stream ?? STDIN) : new ExternalPushTokens();
+            [$full, $tokens]             = $this->readInputs($input, $file, $tokenFile, $tenant);
+            $spec                        = $tenant !== null ? $full->onlyTenant($tenant) : $full;
 
             $this->logger->info('Uptime monitors apply started: {entries} entries', $this->context($spec, $dryRun, $prune) + ['entries' => $spec->count()]);
             $result = $this->applier->apply($spec, $tokens, $dryRun, $prune);
@@ -145,6 +141,58 @@ HELP
         ));
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Runs the command; an option Symfony cannot bind (an unknown option such as `--token`, an argument) is a usage
+     * error (exit 2) reported as the same JSON document, and its message (which may quote the input) is not printed.
+     */
+    public function run(InputInterface $input, OutputInterface $output): int
+    {
+        try {
+            return parent::run($input, $output);
+        } catch (ConsoleExceptionInterface) {
+            $this->logger->warning('Uptime monitors apply refused (exit {exit_code})', ['bundle' => 'NowoUptimeMonitorBundle', 'exit_code' => ApplyError::EXIT_USAGE, 'error_codes' => ['invalid_usage']]);
+
+            return $this->fail($output, null, false, [new ApplyError('', 'invalid_usage', ApplyError::EXIT_USAGE)], ApplyError::EXIT_USAGE);
+        }
+    }
+
+    /**
+     * Reads the monitors file and the token input. Both are read even when the other is refused, so that one run
+     * reports every file and token error (the exit code is the lowest class, §4.7).
+     *
+     * @throws ApplyRefusedException exit 2–4
+     *
+     * @return array{0: MonitorFileSpec, 1: ExternalPushTokens}
+     */
+    private function readInputs(InputInterface $input, string $file, ?string $tokenFile, ?string $tenant): array
+    {
+        $errors = [];
+        $full   = null;
+        try {
+            $full = $this->parser->parseFile($file);
+            if ($tenant !== null && !$full->hasTenant($tenant)) {
+                $errors[] = new ApplyError('--tenant', 'tenant_not_in_file', ApplyError::EXIT_USAGE);
+            }
+        } catch (ApplyRefusedException $refused) {
+            $errors = $refused->getErrors();
+        }
+
+        $tokens = new ExternalPushTokens();
+        if ($tokenFile !== null) {
+            $stream = $input instanceof StreamableInputInterface ? $input->getStream() : null;
+            try {
+                $tokens = $this->tokenReader->read($tokenFile, $full, $stream ?? STDIN);
+            } catch (ApplyRefusedException $refused) {
+                $errors = [...$errors, ...$refused->getErrors()];
+            }
+        }
+        if ($errors !== [] || !$full instanceof MonitorFileSpec) {
+            throw new ApplyRefusedException($errors);
+        }
+
+        return [$full, $tokens];
     }
 
     /**

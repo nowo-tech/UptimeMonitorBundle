@@ -44,6 +44,8 @@ Captured from the Symfony 8 demo (seeded monitors + 24 h of history) by Playwrig
 - ✅ CRUD for monitors and tenants (Twig UI)
 - ✅ Symfony 8 demo (FrankenPHP) — see [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md)
 - ✅ Mercure real-time dashboard sync (`dashboard.sync: mercure`)
+- ✅ Monitors as code: `nowo:uptime:apply-monitors` applies push monitors from a JSON file (schema shipped), with push
+  tokens from a 0600 file or stdin only — see [docs/PUSH-MONITORS.md](docs/PUSH-MONITORS.md#monitors-as-code)
 
 ## Quick start
 

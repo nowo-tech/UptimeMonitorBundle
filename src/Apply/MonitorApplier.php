@@ -58,14 +58,30 @@ final readonly class MonitorApplier
     /**
      * Applies (or, with `$dryRun`, plans) the file.
      *
+     * Every refusal of the run is collected before it is reported: a missing tenant (exit 5) is listed together with
+     * the conflicts of the tenants that exist (exit 6). Any other failure, from the first tenant lookup to the commit,
+     * is replaced by {@see ApplyFailedException}: a database message may quote the bound parameters (the token hash).
+     *
      * @throws ApplyRefusedException exit 4–6, nothing written
-     * @throws ApplyFailedException the write failed and was rolled back
+     * @throws ApplyFailedException the run failed and was rolled back
      */
     public function apply(MonitorFileSpec $spec, ExternalPushTokens $tokens, bool $dryRun, bool $prune): ApplyResult
     {
-        $tenants = $this->resolveTenants($spec);
-        if ($dryRun) {
-            return $this->result($this->plan($spec, $tenants, $tokens, $prune), $tenants, true, $prune);
+        try {
+            [$tenants, $missing] = $this->resolveTenants($spec);
+            if ($dryRun || $missing !== []) {
+                // No lock and no write: a dry run, or a run already refused (its conflicts are still reported).
+                [$plan, $errors] = $this->plan($spec, $tenants, $tokens, $prune);
+                if ($missing !== [] || $errors !== []) {
+                    throw new ApplyRefusedException([...$missing, ...$errors]);
+                }
+
+                return $this->result($plan, $tenants, true, $prune);
+            }
+        } catch (ApplyRefusedException $refused) {
+            throw $refused;
+        } catch (Throwable $failure) {
+            throw ApplyFailedException::from($failure);
         }
 
         // A plain transaction, not wrapInTransaction(): a refusal must leave the entity manager open (nothing was
@@ -76,7 +92,11 @@ final readonly class MonitorApplier
             foreach ($tenants as $tenant) {
                 $this->entityManager->lock($tenant, LockMode::PESSIMISTIC_WRITE);
             }
-            $plan = $this->plan($spec, $tenants, $tokens, $prune);
+            // Planned again under the locks: a concurrent UI create may have taken a URL key or a quota slot.
+            [$plan, $errors] = $this->plan($spec, $tenants, $tokens, $prune);
+            if ($errors !== []) {
+                throw new ApplyRefusedException($errors);
+            }
             $this->write($plan, $prune);
             $this->entityManager->flush();
             $connection->commit();
@@ -98,9 +118,10 @@ final readonly class MonitorApplier
     }
 
     /**
-     * @throws ApplyRefusedException exit 5 when a tenant does not exist (it is never created)
+     * The tenants of the file that exist, and a `tenant_not_found` error (exit 5) for each one that does not (it is
+     * never created).
      *
-     * @return array<string, Tenant> slug => tenant, in slug order
+     * @return array{0: array<string, Tenant>, 1: list<ApplyError>} slug => tenant in slug order, and the errors
      */
     private function resolveTenants(MonitorFileSpec $spec): array
     {
@@ -114,20 +135,15 @@ final readonly class MonitorApplier
                 $errors[] = new ApplyError('/tenants/' . $slug, 'tenant_not_found', ApplyError::EXIT_TENANT);
             }
         }
-        if ($errors !== []) {
-            throw new ApplyRefusedException($errors);
-        }
         ksort($tenants);
 
-        return $tenants;
+        return [$tenants, $errors];
     }
 
     /**
      * @param array<string, Tenant> $tenants
      *
-     * @throws ApplyRefusedException on any conflict
-     *
-     * @return array{entries: list<array<string, mixed>>, prunes: list<array{tenant: string, key: string, id: int|null, monitor: Monitor}>}
+     * @return array{0: array{entries: list<array<string, mixed>>, prunes: list<array{tenant: string, key: string, id: int|null, monitor: Monitor}>}, 1: list<ApplyError>}
      */
     private function plan(MonitorFileSpec $spec, array $tenants, ExternalPushTokens $tokens, bool $prune): array
     {
@@ -157,11 +173,8 @@ final readonly class MonitorApplier
                 $errors[] = new ApplyError('/tenants/' . $slug, 'over_quota', ApplyError::EXIT_CONFLICT);
             }
         }
-        if ($errors !== []) {
-            throw new ApplyRefusedException($errors);
-        }
 
-        return ['entries' => $entries, 'prunes' => $prunes];
+        return [['entries' => $entries, 'prunes' => $prunes], $errors];
     }
 
     /**

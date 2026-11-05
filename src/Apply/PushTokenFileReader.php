@@ -51,12 +51,14 @@ final readonly class PushTokenFileReader
     /**
      * Reads, checks and hashes the tokens of `$source` (a path, or `-` for `$stdin`).
      *
-     * @param MonitorFileSpec $spec The whole monitors file: every token must name one of its entries
+     * @param MonitorFileSpec|null $spec The whole monitors file: every token must name one of its entries. Null when the
+     *                                   file itself was refused: the tokens are still checked (format, entropy,
+     *                                   duplicates) so that one run reports every error, but not against entry keys
      * @param resource $stdin The stream read for `-`
      *
      * @throws ApplyRefusedException exit 4
      */
-    public function read(string $source, MonitorFileSpec $spec, mixed $stdin): ExternalPushTokens
+    public function read(string $source, ?MonitorFileSpec $spec, mixed $stdin): ExternalPushTokens
     {
         $content = $source === self::STDIN ? $this->readStdin($stdin) : $this->readFile($source);
         if (trim($content) === '') {
@@ -88,10 +90,10 @@ final readonly class PushTokenFileReader
      *
      * @throws ApplyRefusedException exit 4
      */
-    private function hashAll(#[SensitiveParameter] array $tokens, MonitorFileSpec $spec): ExternalPushTokens
+    private function hashAll(#[SensitiveParameter] array $tokens, ?MonitorFileSpec $spec): ExternalPushTokens
     {
         $urlKeys = [];
-        foreach ($spec->entries() as $entry) {
+        foreach ($spec?->entries() ?? [] as $entry) {
             $urlKeys[$entry->key] = $entry->urlKey;
         }
 
@@ -101,7 +103,7 @@ final readonly class PushTokenFileReader
         foreach ($tokens as $key => $token) {
             $key  = (string) $key;
             $path = 'token-file:/' . (preg_match(MonitorFileParser::KEY_PATTERN, $key) === 1 ? $key : '?');
-            if (!isset($urlKeys[$key])) {
+            if ($spec instanceof MonitorFileSpec && !isset($urlKeys[$key])) {
                 $errors[] = new ApplyError($path, 'token_for_unknown_key', ApplyError::EXIT_TOKEN);
                 continue;
             }
@@ -111,7 +113,7 @@ final readonly class PushTokenFileReader
             }
             $plain = is_string($token) ? $token : '';
             $code  = is_string($token) ? PushTokenPolicy::violation($plain) : 'token_invalid_format';
-            if ($code === null && str_contains($plain, $urlKeys[$key])) {
+            if ($code === null && isset($urlKeys[$key]) && str_contains($plain, $urlKeys[$key])) {
                 $code = 'token_contains_url_key';
             }
             $hash = PushCredentials::hashToken($plain);

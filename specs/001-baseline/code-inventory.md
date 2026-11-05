@@ -253,7 +253,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/src/uptime-dashboard.ts` | Dashboard entrypoint | FR-UI-010 |
 | `Resources/assets/src/uptime-logger.ts` | Frontend logger | FR-UI-012 |
 | `Resources/assets/src/vite-env.d.ts` | Vite type shims | FR-BUILD-002 |
-| `Resources/public/assets/monitor-form-modal-CSoF4RBr.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
+| `Resources/public/assets/monitor-form-modal-w2QuamRw.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
 | `Resources/public/auto.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/history-bar.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-dashboard.css` | Built frontend asset | FR-BUILD-001 |

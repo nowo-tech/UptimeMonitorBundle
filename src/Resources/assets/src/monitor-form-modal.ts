@@ -63,6 +63,18 @@ export function initMonitorFormTypeToggle(scope: ParentNode): void {
 
   typeSelect.addEventListener('change', toggle);
   toggle();
+
+  // A field the browser refuses inside the folded Advanced block opens it, so the error is never hidden (1.18).
+  scope.addEventListener(
+    'invalid',
+    (event) => {
+      const details = (event.target as Element | null)?.closest?.('details');
+      if (details instanceof HTMLDetailsElement && !details.open) {
+        details.open = true;
+      }
+    },
+    true,
+  );
 }
 
 /** Native <dialog> of the monitor form (UiKit `dialog` partial); null when the page has none. */
@@ -148,6 +160,12 @@ async function loadModalForm(
     credentials: 'same-origin',
   });
 
+  if (response.status === 409) {
+    // A file-managed monitor (1.18): the server explains that its monitors file owns it.
+    setBodyMessage(bodyEl, (await response.text()).trim() || 'Could not load monitor form.', true);
+    return;
+  }
+
   if (!response.ok) {
     setBodyMessage(bodyEl, 'Could not load monitor form.', true);
     return;
@@ -219,6 +237,11 @@ async function submitModalForm(
         await refreshDashboardLayout(dashboardRoot);
       }
 
+      return;
+    }
+
+    if (response.status === 409) {
+      showInlineFlash((await response.text()).trim() || 'Could not save monitor.', 'error');
       return;
     }
 

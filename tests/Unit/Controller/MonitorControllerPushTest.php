@@ -213,6 +213,19 @@ final class MonitorControllerPushTest extends TestCase
         self::assertTrue($monitor->isPaused());
     }
 
+    public function testTheEditDialogOfAFileManagedMonitorGetsA409ItCanShow(): void
+    {
+        $monitor    = $this->pushMonitor()->markFileManaged('little-vps.resources');
+        $controller = $this->controller($monitor);
+        $request    = Request::create('/main/monitors/7/edit', server: ['HTTP_X_UPTIME_MODAL' => '1']);
+        $this->bindController($controller, true, $request);
+
+        $response = $controller->edit('main', 7, $request);
+
+        self::assertSame(409, $response->getStatusCode());
+        self::assertStringStartsWith('text/plain', (string) $response->headers->get('Content-Type'));
+    }
+
     public function testTheShowPageOfAFileManagedMonitorSaysSoAndOffersNoEdit(): void
     {
         $monitor    = $this->pushMonitor()->markFileManaged('little-vps.resources');

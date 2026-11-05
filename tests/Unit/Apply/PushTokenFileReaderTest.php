@@ -134,6 +134,20 @@ final class PushTokenFileReaderTest extends TestCase
         self::assertSame(hash('sha256', $token), $tokens->hashFor('second'));
     }
 
+    public function testWithoutAValidFileTheTokensAreStillCheckedButNotAgainstEntryKeys(): void
+    {
+        $token  = bin2hex(random_bytes(32));
+        $tokens = (new PushTokenFileReader())->read('-', null, $this->stream(json_encode(['any-key' => $token], JSON_THROW_ON_ERROR)));
+        self::assertSame(hash('sha256', $token), $tokens->hashFor('any-key'));
+
+        try {
+            (new PushTokenFileReader())->read('-', null, $this->stream(json_encode(['any-key' => str_repeat('ab', 16)], JSON_THROW_ON_ERROR)));
+            self::fail('A short token is refused without the file too.');
+        } catch (ApplyRefusedException $refused) {
+            self::assertSame([['token-file:/any-key', 'token_too_short']], array_map(static fn (ApplyError $error): array => [$error->path, $error->code], $refused->getErrors()));
+        }
+    }
+
     public function testTheFileMustBeAPrivateRegularFile(): void
     {
         $reader = new PushTokenFileReader();
