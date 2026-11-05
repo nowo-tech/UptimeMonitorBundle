@@ -70,6 +70,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Planned as 1.19.0: UiKit 2.29 dialog sizes for the monitor dialog, actions in the dialog footer and the monitor form
+sections drawn as UiKit cards. **Visual change** (owner decision): see [UPGRADING](UPGRADING.md#unreleased).
+
+### Changed
+
+- **Requires `nowo-tech/ui-kit-bundle` ^2.29.**
+- **Monitor dialog** (`monitor/_monitor_edit_modal.html.twig`): the UiKit `wide` dialog size (was `xl`, which UiKit
+  2.29 maps to the same size) and `footer_target: true`. The dialog body is the only scroller; header and footer stay.
+- **Monitor form actions in the dialog footer.** The actions row of the form fragment
+  (`monitor/_monitor_form_body.html.twig`) carries `data-nowo-ui-dialog-actions`; `monitor-form-modal.ts` moves it into
+  the dialog footer (`data-nowo-ui-dialog-footer`), outside the scrolling body. The form has `id="uptime-monitor-form"`
+  and the buttons `form="uptime-monitor-form"`, so they still submit it. Order: Cancel, then Save (the one primary
+  action last). The 409 (stale edit) handling is unchanged. On the stand-alone form page the actions stay in the form.
+- **Monitor form sections are UiKit cards by default (visual change).** Each `<fieldset class="uptime-form-section">`
+  and the Advanced `<details>` carry the UiKit `card` slot, their `<legend>` / `<summary>` the `card_title` slot, and
+  the bundle stylesheet draws them as cards. This inverts the flat default of 1.17 / 1.18. Opt-out: the class
+  `uptime-form-sections--flat` on an ancestor of the form (or on the `.uptime-app` wrapper) restores the flat sections
+  (heading + divider). The old opt-in `uptime-form-sections--cards` is now the default and has no effect.
+
+### Removed
+
+- The bundle's own monitor dialog flex / scroll / sticky-actions CSS (UiKit 2.29 lays out the dialog) and the dead
+  Bootstrap `.modal` rules of `_host-theme.scss`.
+
 ## [1.18.0] - 2026-11-05
 
 Monitors as code (`nowo:uptime:apply-monitors`) and a clearer monitor form. Schema change: two columns on
@@ -186,7 +210,7 @@ code ranges. See [UPGRADING](UPGRADING.md#to-1170).
 - **Monitor form: flat sections.** The fieldsets of the monitor form (`.uptime-form-section`, page and dialog) were
   tinted cards inside the form card. They are flat now: the legend as the section heading and a rule between the
   visible sections. Add `uptime-form-sections--cards` on an ancestor to keep the 1.16 cards
-  ([TEMPLATES](TEMPLATES.md#flat-sections-and-chart-colours-117)).
+  ([TEMPLATES](TEMPLATES.md#form-sections-flat-panels-and-chart-colours-117-119)).
 - **Monitor page: no card in a card.** `.uptime-detail` is no longer drawn as a card wrapping the history, figures,
   charts and check log (they are sibling cards); the check log table scrolls in a plain `.uptime-table-scroll` instead
   of the `table_wrap` slot inside the log card. The status badge moved from the top of the page body to the header of

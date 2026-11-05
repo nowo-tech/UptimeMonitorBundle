@@ -72,11 +72,12 @@ Bundle-specific wrappers inside the data blocks carry `uptime-app uptime-app--em
 (`uptime-dashboard.css`, `uptime-theme.css`, stacked in `nowo_ui_styles` after `{{ parent() }}`) maps its widget
 colours to the UiKit `--nowo-ui-*` tokens.
 
-### Flat sections and chart colours (1.17)
+### Form sections, flat panels and chart colours (1.17, 1.19)
 
-- **No card in a card.** The monitor form fieldsets (`.uptime-form-section`) are flat inside the form card: the legend
-  is the section heading and a rule separates the visible sections. To get the 1.16 tinted cards back, add the class
-  `uptime-form-sections--cards` to an ancestor of the form (or to the `.uptime-app` wrapper of an overriding
+- **Form sections (1.19: cards by default).** The monitor form fieldsets (`.uptime-form-section`) and the Advanced
+  `<details>` carry the UiKit `card` slot and their legend / summary the `card_title` slot, so they are drawn as UiKit
+  cards (1.17 and 1.18 drew them flat: heading + divider). To keep the flat sections, add the class
+  `uptime-form-sections--flat` to an ancestor of the form (or to the `.uptime-app` wrapper of an overriding
   template). On the monitor page `.uptime-detail` is no longer drawn as a card around the history, figures, charts and
   check log; the check log and the push disk table scroll in a plain `.uptime-table-scroll` (not the `table_wrap`
   slot, which a host may theme as a panel); the push health charts and gauges sit flat inside the health card.

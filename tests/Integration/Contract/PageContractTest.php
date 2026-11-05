@@ -178,6 +178,9 @@ final class PageContractTest extends PageContractTestCase
         self::assertMatchesRegularExpression('#<a [^>]*href="/main/monitors/new"[^>]*data-monitor-form-open#', $html);
         self::assertMatchesRegularExpression('#<dialog id="uptime-monitor-form-modal"[^>]*data-uptime-monitor-form-modal#', $html);
         self::assertSame(1, substr_count($html, 'data-uptime-monitor-form-modal'));
+        // 1.19 (UiKit 2.29): the wide dialog size and an empty footer target the dialog script fills with the actions.
+        self::assertMatchesRegularExpression('#<dialog id="uptime-monitor-form-modal"[^>]*class="[^"]*nowo-ui-dialog--wide#', $html);
+        self::assertMatchesRegularExpression('#<dialog id="uptime-monitor-form-modal".*?<footer [^>]*data-nowo-ui-dialog-footer hidden[^>]*></footer>#s', $html);
         self::assertStringNotContainsString('data-bs-', $html);
     }
 
@@ -242,7 +245,12 @@ final class PageContractTest extends PageContractTestCase
         self::assertMatchesRegularExpression('#aria-describedby="monitor_form_intervalSeconds_unit monitor_form_intervalSeconds_help"#', $form);
         self::assertMatchesRegularExpression('#<input type="checkbox"[^>]*role="switch"[^>]*name="monitor_form\[paused\]"|name="monitor_form\[paused\]"[^>]*role="switch"#', $form);
         self::assertStringContainsString('uptime-label-required', $form);
-        self::assertMatchesRegularExpression('#<details class="uptime-form-section uptime-form-advanced" data-monitor-fields="http-advanced">#', $form, 'folded while every advanced field has its default');
+        self::assertMatchesRegularExpression('#<details class="uptime-form-section uptime-form-advanced nowo-ui-card[^"]*" data-monitor-fields="http-advanced">#', $form, 'folded while every advanced field has its default');
+        // 1.19: every section is a UiKit card (card slot on the fieldset / <details>, card_title on its legend / summary).
+        self::assertMatchesRegularExpression('#<fieldset class="uptime-form-section nowo-ui-card[^"]*">\s*<legend class="nowo-ui-card__title[^"]*">General</legend>#', $form);
+        self::assertMatchesRegularExpression('#<summary class="uptime-form-advanced__summary nowo-ui-card__title[^"]*">#', $form);
+        self::assertSame(substr_count($form, '<fieldset class="uptime-form-section'), preg_match_all('#<fieldset class="uptime-form-section[^"]* nowo-ui-card[^"]*"[^>]*>\s*<legend class="nowo-ui-card__title[^"]*">#', $form));
+        self::assertStringNotContainsString('<legend>', $form);
         self::assertStringContainsString('data-monitor-fields="check-timeout"', $form);
         self::assertStringContainsString('data-monitor-fields="tcp-port"', $form);
         self::assertStringContainsString('data-required-for="http https"', $form);
@@ -255,6 +263,9 @@ final class PageContractTest extends PageContractTestCase
         $view          = PageFixtures::forms()->create(MonitorFormType::class, $data)->createView();
         $fragment      = $this->createTwig()->render(self::VIEWS . 'monitor/_monitor_form_modal.html.twig', ['form' => $view] + PageFixtures::monitorFormFragment());
         self::assertStringContainsString('data-monitor-fields="http-advanced" open', $fragment, 'a non-default advanced value opens the block');
+        // 1.19: the actions row moves into the dialog footer; its buttons stay bound to the form (Cancel, Save last).
+        self::assertStringContainsString('<form name="monitor_form" method="post" id="uptime-monitor-form"', $fragment);
+        self::assertMatchesRegularExpression('#data-nowo-ui-dialog-actions[^>]*>\s*<button type="button"[^>]*data-nowo-ui-dialog-close>[^<]*</button>\s*<button type="submit" form="uptime-monitor-form"#', $fragment);
     }
 
     public function testAFileManagedMonitorIsMarkedOnItsPageAndInTheDashboard(): void
