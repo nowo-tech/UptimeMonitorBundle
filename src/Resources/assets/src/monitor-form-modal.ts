@@ -77,6 +77,42 @@ export function initMonitorFormTypeToggle(scope: ParentNode): void {
   );
 }
 
+/** Base id of the dialog form (template `id: 'uptime-monitor-form'`). */
+const FORM_ID = 'uptime-monitor-form';
+
+/**
+ * Open count of each dialog body (1.19.1, audit FM-I2): a request started for an older opening (load or save) is
+ * ignored when it completes, so a late response never re-mounts or closes the form of a newer opening.
+ */
+const generations = new WeakMap<HTMLElement, number>();
+
+function nextGeneration(bodyEl: HTMLElement): number {
+  const generation = (generations.get(bodyEl) ?? 0) + 1;
+  generations.set(bodyEl, generation);
+
+  return generation;
+}
+
+function isCurrent(bodyEl: HTMLElement, generation: number | undefined): boolean {
+  return generations.get(bodyEl) === generation;
+}
+
+type FormControl = HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+/** A form id no other element of the document uses (the form keeps its own when it is unique). */
+function uniqueFormId(form: HTMLFormElement): string {
+  const doc = form.ownerDocument;
+  if (form.id !== '' && doc.getElementById(form.id) === form) {
+    return form.id;
+  }
+  let id = FORM_ID;
+  for (let n = 2; doc.getElementById(id) !== null && doc.getElementById(id) !== form; n += 1) {
+    id = `${FORM_ID}-${n}`;
+  }
+
+  return id;
+}
+
 /** Native <dialog> of the monitor form (UiKit `dialog` partial); null when the page has none. */
 function asDialog(element: HTMLElement): HTMLDialogElement | null {
   return typeof (element as HTMLDialogElement).showModal === 'function' ? (element as HTMLDialogElement) : null;
@@ -161,7 +197,9 @@ function clearFooter(bodyEl: HTMLElement): void {
 /**
  * Moves the fragment's actions row ([data-nowo-ui-dialog-actions], else .uptime-form-actions) into the dialog footer
  * (1.19, UiKit 2.29 anatomy): the footer stays visible while only the body scrolls. Each moved control is bound to
- * the form with form="<id>" (an id is given to a form without one), so Save still submits it from the footer.
+ * the form with form="<id>" (an id is given to a form without one), so Save still submits it from the footer. Since
+ * 1.19.1 a control whose form="" does not resolve to this form (a host override with another form id, or an id
+ * used twice in the page) is rebound, and the form gets a unique id when its own is taken (audit FM-I1).
  */
 function mountFooterActions(bodyEl: HTMLElement, form: HTMLFormElement): void {
   const footer = dialogFooter(bodyEl);
@@ -171,17 +209,16 @@ function mountFooterActions(bodyEl: HTMLElement, form: HTMLFormElement): void {
     return;
   }
 
-  if (form.id === '') {
-    form.id = 'uptime-monitor-form';
-  }
-  actions.querySelectorAll<HTMLElement>('button, input, select, textarea').forEach((control) => {
-    if (!control.hasAttribute('form')) {
-      control.setAttribute('form', form.id);
-    }
-  });
+  form.id = uniqueFormId(form);
+  const controls = Array.from(actions.querySelectorAll<FormControl>('button, input, select, textarea'));
   footer.replaceChildren(...Array.from(actions.childNodes));
   actions.remove();
   footer.hidden = false;
+  controls.forEach((control) => {
+    if (control.form !== form) {
+      control.setAttribute('form', form.id);
+    }
+  });
 }
 
 /** The submit buttons of the form: inside it, or bound to it from the dialog footer (form="<id>"). */
@@ -219,6 +256,7 @@ async function loadModalForm(
   url: string,
   returnTarget: FormReturnTarget,
   loadingText: string,
+  generation: number,
 ): Promise<void> {
   setBodyMessage(bodyEl, loadingText);
 
@@ -231,9 +269,14 @@ async function loadModalForm(
     credentials: 'same-origin',
   });
 
+  const text = response.status === 409 || response.ok ? await response.text() : '';
+  if (!isCurrent(bodyEl, generation)) {
+    return;
+  }
+
   if (response.status === 409) {
     // A file-managed monitor (1.18): the server explains that its monitors file owns it.
-    setBodyMessage(bodyEl, (await response.text()).trim() || 'Could not load monitor form.', true);
+    setBodyMessage(bodyEl, text.trim() || 'Could not load monitor form.', true);
     return;
   }
 
@@ -242,7 +285,7 @@ async function loadModalForm(
     return;
   }
 
-  mountFormFragment(bodyEl, await response.text(), returnTarget);
+  mountFormFragment(bodyEl, text, returnTarget);
 }
 
 function bindModalFormSubmit(
@@ -265,6 +308,7 @@ async function submitModalForm(
   submitButtons.forEach((button) => {
     button.disabled = true;
   });
+  const generation = generations.get(bodyEl);
 
   try {
     const response = await fetch(form.action, {
@@ -279,6 +323,10 @@ async function submitModalForm(
     });
 
     const contentType = response.headers.get('Content-Type') ?? '';
+    if (!isCurrent(bodyEl, generation)) {
+      // The dialog was opened again while this POST was in flight: its response belongs to a form that is gone.
+      return;
+    }
 
     if (response.ok && contentType.includes('application/json')) {
       const payload = (await response.json()) as FormSuccessPayload;
@@ -311,7 +359,10 @@ async function submitModalForm(
     }
 
     if (response.status === 422 || contentType.includes('text/html')) {
-      mountFormFragment(bodyEl, await response.text(), returnTarget);
+      const html = await response.text();
+      if (isCurrent(bodyEl, generation)) {
+        mountFormFragment(bodyEl, html, returnTarget);
+      }
       return;
     }
 
@@ -341,10 +392,11 @@ async function openFormModal(
     titleEl.textContent = config.title;
   }
 
+  const generation = nextGeneration(bodyEl);
   if (!dialog.open) {
     dialog.showModal();
   }
-  await loadModalForm(bodyEl, config.url, config.returnTarget, loadingText);
+  await loadModalForm(bodyEl, config.url, config.returnTarget, loadingText, generation);
 }
 
 /** @deprecated Use initMonitorFormModal */

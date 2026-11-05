@@ -71,6 +71,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Planned **1.19.1** (patch): follow-ups of the REQ-SEC-004 audits of 1.18 (appendix FI) and 1.19 (appendix FM).
+
+### Fixed
+
+- **Monitor dialog footer binding (FM-I1):** a moved footer control whose `form` attribute does not resolve to the
+  dialog form (a host override of `_monitor_form_body` with another form id that copied `form="uptime-monitor-form"`,
+  or that id used twice in the page) is rebound to the form; the form gets a unique id when its own is taken.
+- **Late responses of an earlier dialog opening (FM-I2):** each opening of the monitor dialog has a generation; a form
+  load or a save POST started for an older opening is ignored when it completes, so it can no longer re-mount its
+  form, close the dialog or flash over a newer opening.
+- **apply-monitors (FI-I6):** a unique-index violation on the flush (a concurrent write in a tenant that is not
+  locked) is rolled back and refused as `concurrent_conflict` with **exit 6** (retry the run) instead of
+  `apply_failed` (exit 1).
+- **apply-monitors (FI-I9):** the token file is opened non-blocking, so a FIFO swapped in after the `lstat()` check
+  no longer hangs the command; the inode check refuses it.
+- **Demo reset (FI-I8):** `DemoSeedService::freshSeed()` keeps monitors owned by a monitors file (`origin = 'file'`).
+
+### Changed
+
+- **apply-monitors errors (FI-I2):** an invalid tenant key and an unknown key that does not look like a field name
+  (letters, digits, `_`, `$`, at most 32 characters) are reported as `?` in the error pointer, so a token pasted as a
+  key is never printed.
+- **Schema and parser aligned (FI-I5):** the schema accepts `null` (= absent) for `project`, `description`,
+  `retries`, `resend_notification_after_down`, `paused` and `thresholds`, as the parser does, and states the
+  threshold maxima (100 for percentages, 10 000 for `load`); the parser refuses a `$schema` longer than 512
+  characters (`too_long`), as the schema does.
+- **Token reader (FI-I10):** without a valid monitors file, `PushTokenFileReader::read(…, null, …)` still checks the
+  tokens but returns an empty `ExternalPushTokens`, so an inverted map never keeps a token as a key.
+
+### Documentation
+
+- PUSH-MONITORS / SECURITY: never put a token on the command line (Symfony may log the command line at debug level
+  on a non-zero exit, FI-I3); the cross-tenant existence oracle of `url_key_taken` / `token_reused` is accepted by
+  design (FI-I4); `ExternalPushTokens` must not be exported (FI-I7). TEMPLATES: footer binding of the dialog form.
+
 ## [1.19.0] - 2026-11-05
 
 Minor release: UiKit 2.29 dialog sizes for the monitor dialog, actions in the dialog footer and the monitor form

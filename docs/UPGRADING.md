@@ -114,6 +114,19 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Planned **1.19.1**. No schema, configuration or template change.
+
+- `nowo:uptime:apply-monitors` exits **6** (`concurrent_conflict`) instead of 1 (`apply_failed`) when a concurrent
+  write takes a unique value between the plan and the flush. Nothing is written; run it again. Scripts that treat 1
+  as "retry" should treat 6 the same way.
+- Error pointers print `?` instead of an invalid tenant key or an unknown key that does not look like a field name.
+- A monitors file may now use `null` for `project`, `description`, `retries`, `resend_notification_after_down`,
+  `paused` and `thresholds` in schema validation too (the command already accepted it). A `$schema` value longer
+  than 512 characters is refused by the command (`/$schema` `too_long`), as the schema already did.
+- `PushTokenFileReader::read()` with a `null` spec returns an empty `ExternalPushTokens` (it only reports errors).
+- Host overrides of `_monitor_form_body` may keep any form id: the dialog rebinds the footer buttons to the form.
+- `DemoSeedService::freshSeed()` keeps file-managed monitors.
+
 ## To 1.19.0
 
 From **1.18.0**:

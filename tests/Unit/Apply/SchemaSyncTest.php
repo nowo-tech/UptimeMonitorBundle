@@ -24,7 +24,7 @@ use const JSON_THROW_ON_ERROR;
 /**
  * The shipped `apply-monitors.v1.json` (what DEVOPS lints the file with) and {@see MonitorFileParser} (what the command
  * enforces) agree: the contract's example passes both, every fixture the schema refuses is refused by the parser, and
- * the constants match. The parser is stricter on purpose (unique keys, percentages, warn ≤ critical), which a schema
+ * the constants match. The parser is stricter on purpose (unique keys, warn ≤ critical), which a schema
  * cannot express: those fixtures pass the schema and fail the parser.
  */
 #[CoversClass(MonitorFileParser::class)]
@@ -135,6 +135,9 @@ JSON;
         yield 'unknown metric' => [self::with(['thresholds' => ['gpu' => ['warn' => 1, 'critical' => 2]]] + $entry)];
         yield 'limit without critical' => [self::with(['thresholds' => ['disk' => ['warn' => 1]]] + $entry)];
         yield 'negative limit' => [self::with(['thresholds' => ['load' => ['warn' => -1, 'critical' => 2]]] + $entry)];
+        yield 'long $schema' => ['{"$schema": "' . str_repeat('s', 513) . '", "version": 1, "tenants": {"' . MonitorFileParserTest::TENANT . '": {"monitors": []}}}'];
+        yield 'percent over 100' => [self::with(['thresholds' => ['disk' => ['warn' => 90, 'critical' => 101]]] + $entry)];
+        yield 'load over 10000' => [self::with(['thresholds' => ['load' => ['warn' => 1, 'critical' => 10_001]]] + $entry)];
         yield 'missing url key' => ['{"version": 1, "tenants": {"' . MonitorFileParserTest::TENANT . '": {"monitors": [{"key": "a", "type": "push", "name": "a", "interval_seconds": 60}]}}}'];
     }
 
@@ -157,13 +160,20 @@ JSON;
         $twice = MonitorFileParserTest::file([$entry, ['url_key' => 'fedcba9876543210fedcba9876543210'] + $entry]);
         $cases = [
             'duplicate key'       => $twice,
-            'percent over 100'    => self::with(['thresholds' => ['disk' => ['warn' => 90, 'critical' => 101]]] + $entry),
             'warn above critical' => self::with(['thresholds' => ['memory' => ['warn' => 95, 'critical' => 90]]] + $entry),
         ];
         foreach ($cases as $name => $json) {
             self::assertTrue($this->schemaAccepts($json), $name);
             self::assertFalse($this->parserAccepts($json), $name);
         }
+    }
+
+    public function testNullOptionalFieldsPassBoth(): void
+    {
+        $json = self::with(['project' => null, 'description' => null, 'grace_seconds' => null, 'retries' => null, 'resend_notification_after_down' => null, 'paused' => null, 'thresholds' => null] + MonitorFileParserTest::entry());
+
+        self::assertTrue($this->schemaAccepts($json));
+        self::assertTrue($this->parserAccepts($json));
     }
 
     public function testTheLimitsAndPatternsAreTheSame(): void
@@ -183,5 +193,8 @@ JSON;
         self::assertSame($known, $metrics);
         self::assertSame(['key', 'type', 'name', 'url_key', 'interval_seconds'], $monitor->required);
         self::assertSame('push', $monitor->properties->type->const);
+        self::assertSame(MonitorFileParser::MAX_SCHEMA_LENGTH, $schema->properties->{'$schema'}->maxLength);
+        self::assertSame(100, $schema->{'$defs'}->percentLimit->properties->warn->maximum);
+        self::assertSame(10_000, $schema->{'$defs'}->limit->properties->critical->maximum);
     }
 }

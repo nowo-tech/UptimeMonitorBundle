@@ -55,7 +55,7 @@ final readonly class PushTokenFileReader
      * @param MonitorFileSpec|null $spec The whole monitors file: every token must name one of its entries. Null when the
      *                                   file itself was refused: the tokens are still checked (format, entropy,
      *                                   duplicates) so that one run reports every error, but not against entry keys
-     *                                   (and every error path is then `token-file:/?`)
+     *                                   (and every error path is then `token-file:/?`); the result is then empty
      * @param resource $stdin The stream read for `-`
      *
      * @throws ApplyRefusedException exit 4
@@ -135,7 +135,9 @@ final readonly class PushTokenFileReader
             throw new ApplyRefusedException($errors);
         }
 
-        return new ExternalPushTokens($hashes);
+        // Without a monitors file the keys were never checked against entry keys: an inverted map would keep a token
+        // as a key. Nothing uses the result then (the file errors refuse the run), so nothing is kept (audit FI-I10).
+        return new ExternalPushTokens($spec instanceof MonitorFileSpec ? $hashes : []);
     }
 
     /**

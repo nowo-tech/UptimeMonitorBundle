@@ -62,7 +62,16 @@ This bundle provides:
   hash). Tests walk every failure path's exception chain, trace and `FlattenException` (how hosts ship exceptions).
   The run is validated first, then applied in one transaction under per-tenant row locks (slug order) with the
   conflicts and the tenant quota re-checked under the lock; any error rolls back. Monitors with `origin = 'ui'` are
-  never selected for update or prune; cross-tenant `url_key` conflicts are refused without naming the tenant. In the
+  never selected for update or prune; cross-tenant `url_key` conflicts are refused without naming the tenant (the
+  codes `url_key_taken` / `token_reused` still tell a shell-level operator that some tenant uses that URL key or
+  token: accepted by design). A unique violation on the flush (a concurrent write in a tenant outside the run's locks)
+  is rolled back and refused with exit 6 `concurrent_conflict` (1.19.1). Error pointers print `?` for an invalid
+  tenant key or an unknown key that is not field-name shaped (a token pasted as a key is not echoed). The token file
+  is opened non-blocking (`O_NONBLOCK`), so a FIFO swapped in after `lstat()` cannot hang the command before the
+  inode check refuses it. Without a valid monitors file the token reader keeps nothing. `ExternalPushTokens` hides
+  the hashes from `var_dump` / `print_r` and refuses serialization; `var_export()`, `(array)` casts and reflection
+  still show them, so do not export or log the object. Never pass a token on the command line: Symfony's console
+  error listener logs the command line at debug level on a non-zero exit. In the
   UI, file-managed monitors refuse edit, delete and token actions with 409 (pause stays). A `MonitorsAppliedEvent`
   listener that throws after the commit does not report "nothing applied": the run exits 0 with an
   `event_listener_failed` entry in `warnings` (the listener's class is logged), and the later tenants still get their

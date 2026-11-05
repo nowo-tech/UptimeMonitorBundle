@@ -388,4 +388,87 @@ describe('monitor form dialog', () => {
     expect(withFooter.querySelector<HTMLElement>('[data-nowo-ui-dialog-footer]')?.hidden).toBe(true);
     expect(withFooter.querySelector('form button[type="submit"]')).not.toBeNull();
   });
+  it('rebinds footer controls whose form="" does not resolve to the dialog form (1.19.1, FM-I1)', async () => {
+    const dialog = mountDialog();
+    dialog.showModal = vi.fn();
+    // A host override with its own form id that copied the 1.19 Save (form="uptime-monitor-form").
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(FORM_WITH_ACTIONS.replace(' data-monitor-form="1"', ' id="host-form" data-monitor-form="1"'), { headers: { 'Content-Type': 'text/html' } })));
+    initMonitorFormModal(document);
+    document.querySelector<HTMLElement>('[data-monitor-form-open]')?.click();
+    await flush();
+
+    const form = dialog.querySelector('form') as HTMLFormElement;
+    const save = dialog.querySelector<HTMLButtonElement>('[data-nowo-ui-dialog-footer] button[type="submit"]') as HTMLButtonElement;
+    expect(form.id).toBe('host-form');
+    expect(save.getAttribute('form')).toBe('host-form');
+    expect(save.form).toBe(form);
+
+    // The page already uses the default id elsewhere: the form gets a unique one and the controls follow it.
+    const other = mountDialog();
+    other.showModal = vi.fn();
+    document.body.insertAdjacentHTML('afterbegin', '<div id="uptime-monitor-form"></div><div id="uptime-monitor-form-2"></div>');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(FORM_WITH_ACTIONS, { headers: { 'Content-Type': 'text/html' } })));
+    initMonitorFormModal(document);
+    document.querySelector<HTMLElement>('[data-monitor-form-open]')?.click();
+    await flush();
+
+    const unique = other.querySelector('form') as HTMLFormElement;
+    expect(unique.id).toBe('uptime-monitor-form-3');
+    other.querySelectorAll<HTMLButtonElement>('[data-nowo-ui-dialog-footer] button').forEach((button) => {
+      expect(button.form).toBe(unique);
+    });
+  });
+
+  it('ignores late responses of an earlier opening of the dialog (1.19.1, FM-I2)', async () => {
+    const dialog = mountDialog();
+    dialog.showModal = vi.fn(function (this: HTMLDialogElement) { this.setAttribute('open', ''); });
+    dialog.close = vi.fn(function (this: HTMLDialogElement) { this.removeAttribute('open'); });
+    document.body.insertAdjacentHTML('afterbegin', '<main id="nowo-ui-content"></main>');
+    let releaseLoad: (response: Response) => void = () => undefined;
+    let releasePost: (response: Response) => void = () => undefined;
+    let releaseSuccess: (response: Response) => void = () => undefined;
+    const fetchMock = vi.fn()
+      // Opening 1: its load is slow and answers after opening 2's.
+      .mockReturnValueOnce(new Promise<Response>((resolve) => { releaseLoad = resolve; }))
+      .mockResolvedValueOnce(new Response(FORM_WITH_ACTIONS.replace('name="url"', 'name="url" value="second"'), { headers: { 'Content-Type': 'text/html' } }))
+      // A POST of opening 2, still in flight when opening 3 starts.
+      .mockReturnValueOnce(new Promise<Response>((resolve) => { releasePost = resolve; }))
+      .mockResolvedValueOnce(new Response(FORM_WITH_ACTIONS.replace('name="url"', 'name="url" value="third"'), { headers: { 'Content-Type': 'text/html' } }))
+      // A POST of opening 3, answered with success after opening 4.
+      .mockReturnValueOnce(new Promise<Response>((resolve) => { releaseSuccess = resolve; }))
+      .mockResolvedValueOnce(new Response(FORM_WITH_ACTIONS.replace('name="url"', 'name="url" value="fourth"'), { headers: { 'Content-Type': 'text/html' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    initMonitorFormModal(document);
+    const opener = document.querySelector<HTMLElement>('[data-monitor-form-open]') as HTMLElement;
+    const url = (): string | undefined => dialog.querySelector<HTMLInputElement>('input[name="url"]')?.value;
+
+    opener.click();
+    opener.click();
+    await flush();
+    expect(url()).toBe('second');
+    releaseLoad(new Response('<form data-monitor-form="1" action="/x"><input name="url" value="first"></form>', { headers: { 'Content-Type': 'text/html' } }));
+    await flush();
+    expect(url()).toBe('second');
+
+    // A 422 of the earlier opening never replaces the form of the newer one.
+    (dialog.querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit', { cancelable: true }));
+    opener.click();
+    await flush();
+    expect(url()).toBe('third');
+    releasePost(new Response('<form data-monitor-form="1" action="/x"><input name="url" value="stale"></form>', { status: 422, headers: { 'Content-Type': 'text/html' } }));
+    await flush();
+    expect(url()).toBe('third');
+
+    // Nor does its success close the dialog or flash.
+    (dialog.querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit', { cancelable: true }));
+    opener.click();
+    await flush();
+    expect(url()).toBe('fourth');
+    releaseSuccess(new Response(JSON.stringify({ ok: true, message: 'Saved' }), { headers: { 'Content-Type': 'application/json' } }));
+    await flush();
+    expect(dialog.close).not.toHaveBeenCalled();
+    expect(document.querySelector('#nowo-ui-content .nowo-ui-flash')).toBeNull();
+    expect(url()).toBe('fourth');
+  });
 });

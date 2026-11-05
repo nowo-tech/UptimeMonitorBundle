@@ -25,9 +25,7 @@ use function is_string;
 use function json_decode;
 use function mb_strlen;
 use function preg_match;
-use function str_replace;
 use function strlen;
-use function substr;
 use function trim;
 
 use const JSON_THROW_ON_ERROR;
@@ -39,16 +37,22 @@ use const JSON_THROW_ON_ERROR;
  */
 final readonly class MonitorFileParser
 {
-    public const MAX_BYTES        = 1_048_576;
-    public const MAX_TENANTS      = 50;
-    public const MAX_MONITORS     = 200;
-    public const TENANT_PATTERN   = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/';
-    public const KEY_PATTERN      = '/^[a-z0-9][a-z0-9._-]{0,63}$/';
-    public const URL_KEY_PATTERN  = '/^[a-f0-9]{32}$/';
-    private const ROOT_KEYS       = ['$schema', 'version', 'tenants'];
-    private const MONITOR_KEYS    = ['key', 'type', 'name', 'project', 'description', 'url_key', 'interval_seconds', 'grace_seconds', 'retries', 'resend_notification_after_down', 'paused', 'thresholds'];
-    private const REQUIRED_KEYS   = ['key', 'type', 'name', 'url_key', 'interval_seconds'];
-    private const PERCENT_METRICS = ['disk', 'inodes', 'memory', 'cpu', 'swap'];
+    public const MAX_BYTES       = 1_048_576;
+    public const MAX_TENANTS     = 50;
+    public const MAX_MONITORS    = 200;
+    public const TENANT_PATTERN  = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/';
+    public const KEY_PATTERN     = '/^[a-z0-9][a-z0-9._-]{0,63}$/';
+    public const URL_KEY_PATTERN = '/^[a-f0-9]{32}$/';
+    /** Longest `$schema` value (the schema's `maxLength`). */
+    public const MAX_SCHEMA_LENGTH = 512;
+    /** Pointer segment printed instead of a key that is not echoed. */
+    public const REDACTED = '?';
+    /** Unknown keys echoed in an error pointer: field-name shaped, at most 32 characters (the longest field has 30). */
+    private const ECHOED_KEY_PATTERN = '/^[A-Za-z_$][A-Za-z0-9_$]{0,31}$/D';
+    private const ROOT_KEYS          = ['$schema', 'version', 'tenants'];
+    private const MONITOR_KEYS       = ['key', 'type', 'name', 'project', 'description', 'url_key', 'interval_seconds', 'grace_seconds', 'retries', 'resend_notification_after_down', 'paused', 'thresholds'];
+    private const REQUIRED_KEYS      = ['key', 'type', 'name', 'url_key', 'interval_seconds'];
+    private const PERCENT_METRICS    = ['disk', 'inodes', 'memory', 'cpu', 'swap'];
 
     /**
      * Reads the file (a regular file of at most {@see self::MAX_BYTES}) and validates it.
@@ -109,6 +113,8 @@ final readonly class MonitorFileParser
         $this->unknownKeys($fields, self::ROOT_KEYS, '', $errors);
         if (array_key_exists('$schema', $fields) && !is_string($fields['$schema'])) {
             $errors[] = $this->error('/$schema', 'invalid_type');
+        } elseif (is_string($fields['$schema'] ?? null) && mb_strlen($fields['$schema']) > self::MAX_SCHEMA_LENGTH) {
+            $errors[] = $this->error('/$schema', 'too_long');
         }
         if (!array_key_exists('version', $fields)) {
             $errors[] = $this->error('/version', 'missing_key');
@@ -134,11 +140,12 @@ final readonly class MonitorFileParser
         $urlKeys = [];
         foreach ($list as $slug => $tenant) {
             $slug = (string) $slug;
-            $path = '/tenants/' . $this->pointer($slug);
             if (preg_match(self::TENANT_PATTERN, $slug) !== 1) {
-                $errors[] = $this->error($path, 'invalid_tenant');
+                // Never echo a key that is not a tenant id: a token pasted as a key would be printed (audit FI-I2).
+                $errors[] = $this->error('/tenants/' . self::REDACTED, 'invalid_tenant');
                 continue;
             }
+            $path           = '/tenants/' . $slug;
             $tenants[$slug] = $this->tenant($slug, $tenant, $path, $keys, $urlKeys, $errors);
         }
 
@@ -375,17 +382,19 @@ final readonly class MonitorFileParser
     {
         foreach ($fields as $key => $_) {
             if (!in_array((string) $key, $allowed, true)) {
-                $errors[] = $this->error($path . '/' . $this->pointer((string) $key), 'unknown_key');
+                $errors[] = $this->error($path . '/' . $this->unknownKeySegment((string) $key), 'unknown_key');
             }
         }
     }
 
     /**
-     * A JSON pointer segment (RFC 6901 escaping), cut at 64 characters.
+     * The pointer segment of an unknown key: the key itself only when it looks like a field name (letters, digits,
+     * `_`, `$`, at most 32 characters), else {@see self::REDACTED}, so a token pasted as
+     * a key is never printed (audit FI-I2).
      */
-    private function pointer(string $segment): string
+    private function unknownKeySegment(string $key): string
     {
-        return str_replace(['~', '/'], ['~0', '~1'], substr($segment, 0, 64));
+        return preg_match(self::ECHOED_KEY_PATTERN, $key) === 1 ? $key : self::REDACTED;
     }
 
     private function error(string $path, string $code): ApplyError

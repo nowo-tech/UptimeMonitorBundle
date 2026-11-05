@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Apply;
 
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -31,8 +32,10 @@ use function max;
  * for update, never adopted and never pruned.
  *
  * All or nothing: the tenants are resolved first, then one transaction locks every tenant row (slug order), plans
- * against the locked state, refuses on any conflict, writes and flushes. A database failure is rolled back and
- * replaced by {@see ApplyFailedException}, which keeps only the failure's class. A {@see MonitorsAppliedEvent}
+ * against the locked state, refuses on any conflict, writes and flushes. A unique violation on the flush (a concurrent
+ * write in a tenant that is not locked) is rolled back and refused as `concurrent_conflict` (exit 6, since 1.19.1).
+ * Any other database failure is rolled back and replaced by {@see ApplyFailedException}, which keeps only the
+ * failure's class. A {@see MonitorsAppliedEvent}
  * listener that throws after the commit becomes a result warning, not a failure.
  */
 final readonly class MonitorApplier
@@ -42,6 +45,8 @@ final readonly class MonitorApplier
     private const TOKEN_UNCHANGED = 'unchanged';
     private const TOKEN_KEPT      = 'kept';
     private const TOKEN_ABSENT    = 'absent';
+    /** Since 1.19.1: a unique index refused the flush (a concurrent write); rolled back, exit 6, retry the run. */
+    public const CONCURRENT_CONFLICT = 'concurrent_conflict';
     /** A {@see MonitorsAppliedEvent} listener threw after the commit (the run stays applied, exit 0). */
     public const WARNING_LISTENER_FAILED = 'event_listener_failed';
 
@@ -106,6 +111,12 @@ final readonly class MonitorApplier
         } catch (Throwable $failure) {
             if ($connection->isTransactionActive()) {
                 $connection->rollBack();
+            }
+
+            if ($failure instanceof UniqueConstraintViolationException) {
+                // A concurrent write outside the locked tenants (another tenant's UI create) took a unique value
+                // between the plan and the flush: a conflict to retry (exit 6), not a failure (audit FI-I6).
+                throw new ApplyRefusedException([new ApplyError('', self::CONCURRENT_CONFLICT, ApplyError::EXIT_CONFLICT)]);
             }
 
             throw $failure instanceof ApplyRefusedException ? $failure : ApplyFailedException::from($failure);

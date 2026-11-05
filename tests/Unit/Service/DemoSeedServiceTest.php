@@ -44,12 +44,14 @@ final class DemoSeedServiceTest extends TestCase
         $tenantRepository->method('findOneBySlug')->willReturn($tenant);
 
         $child             = new Monitor($tenant, 'Old', MonitorType::Https, 'https://example.test');
+        $fromFile          = (new Monitor($tenant, 'Agent', MonitorType::Push, ''))->markFileManaged('vps-1.resources');
         $monitorRepository = $this->createMock(MonitorRepository::class);
-        $monitorRepository->method('findByTenantSlug')->willReturn([$child]);
+        $monitorRepository->method('findByTenantSlug')->willReturn([$child, $fromFile]);
         $monitorRepository->method('findOneBy')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->expects(self::atLeastOnce())->method('remove');
+        // A file-managed monitor survives the demo reset (audit FI-I8).
+        $entityManager->expects(self::once())->method('remove')->with($child);
         $entityManager->expects(self::atLeastOnce())->method('persist');
         $entityManager->expects(self::atLeastOnce())->method('flush');
 

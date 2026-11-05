@@ -13,6 +13,7 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\Decorator\EntityManagerDecorator;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\UptimeMonitorBundle\Apply\ApplyError;
 use Nowo\UptimeMonitorBundle\Apply\ApplyFailedException;
 use Nowo\UptimeMonitorBundle\Apply\ApplyRefusedException;
 use Nowo\UptimeMonitorBundle\Apply\ApplyResult;
@@ -445,7 +446,8 @@ final class ApplyMonitorsDbTest extends TestCase
             self::assertSame(RuntimeException::class, $failed->getCauseClass());
         }
 
-        // A real constraint violation on flush (a row inserted behind the plan's back) is wrapped the same way.
+        // A real unique violation on flush (a row inserted behind the plan's back, e.g. by another tenant that is not
+        // locked) is a conflict to retry since 1.19.1 (audit FI-I6): exit 6, rolled back, nothing of the cause kept.
         try {
             $this->isolatedApplier('racing')->apply(
                 (new MonitorFileParser())->parse(MonitorFileParserTest::file([MonitorFileParserTest::entry(['key' => 'y', 'url_key' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab'])])),
@@ -454,11 +456,10 @@ final class ApplyMonitorsDbTest extends TestCase
                 false,
             );
             self::fail('The violation must surface.');
-        } catch (ApplyFailedException $failed) {
-            $leaks($failed->getMessage() . $failed);
-            self::assertNull($failed->getPrevious());
         } catch (ApplyRefusedException $refused) {
-            self::fail('Unexpected refusal: ' . $refused->getMessage());
+            $leaks($refused->getMessage() . $refused);
+            self::assertNull($refused->getPrevious());
+            self::assertSame([['', MonitorApplier::CONCURRENT_CONFLICT, ApplyError::EXIT_CONFLICT]], array_map(static fn (ApplyError $error): array => [$error->path, $error->code, $error->exitCode], $refused->getErrors()));
         }
     }
 
@@ -830,8 +831,11 @@ final class ApplyMonitorsDbTest extends TestCase
             public function flush(): void
             {
                 // Another writer takes the URL key between the plan and the flush.
+                // Bound with types: PostgreSQL refuses an integer for the boolean column.
                 $this->wrapped->getConnection()->executeStatement(
-                    "INSERT INTO uptime_monitor (tenant_id, name, type, target, config, interval_seconds, paused, created_at, push_key, origin) VALUES (1, 'race', 'push', 'push', '{}', 60, 0, '2026-01-01 00:00:00', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab', 'ui')",
+                    "INSERT INTO uptime_monitor (tenant_id, name, type, target, config, interval_seconds, paused, created_at, push_key, origin) VALUES (1, 'race', 'push', 'push', '{}', 60, ?, '2026-01-01 00:00:00', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab', 'ui')",
+                    [false],
+                    [ParameterType::BOOLEAN],
                 );
                 parent::flush();
             }
