@@ -12,7 +12,8 @@ use function array_keys;
 /**
  * The push tokens handed to `nowo:uptime:apply-monitors` (since 1.18), already reduced to their SHA-256: the
  * plaintext never leaves {@see PushTokenFileReader}. A null hash means "keep the stored token". Dumps show the entry
- * keys only, and the object refuses to be serialized.
+ * keys only, and the object refuses to be serialized. `var_export()`, `(array)` casts and reflection still show the
+ * hashes (SHA-256 of 256-bit random tokens, not usable as credentials): do not export or log the object.
  */
 final readonly class ExternalPushTokens
 {

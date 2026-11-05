@@ -126,7 +126,7 @@ colours to the UiKit `--nowo-ui-*` tokens.
 | `dashboard/_events_body.html.twig` | Recent checks `<tbody>` |
 | `dashboard/_layout_fragment.html.twig` | XHR fragment (tree + stats + events) for live layout refresh; not a page |
 | `dashboard/_table_view.html.twig` | Table dashboard (`web_ui.dashboard.view: table`, 1.12): counts, UiKit responsive table with row actions in a `menu`, latest checks with the `pagination` partial, `empty` with New monitor. Variables: `monitor_rows`, `monitor_row_actions`, `monitor_targets`, `dashboard_empty`, `dashboard_header`, `events_page`, `events_pagination` |
-| `monitor/_monitor_edit_modal.html.twig` | Monitor dialog: the UiKit `dialog` partial (native `<dialog>`, header / body; `data-uptime-monitor-form-modal`) |
+| `monitor/_monitor_edit_modal.html.twig` | Monitor dialog: the UiKit `dialog` partial (native `<dialog>`, header / body / footer target; `data-uptime-monitor-form-modal`). The script moves the form's actions row (`data-nowo-ui-dialog-actions`) into the footer and binds each moved control to the form with `form="<form id>"`; since 1.19.1 a control whose `form` does not resolve to the dialog form is rebound, and a form whose id is already used in the page gets a unique one, so overrides may use any form id |
 | `monitor/_monitor_form_modal.html.twig`, `_monitor_form_body.html.twig` | Monitor form fragment loaded into the dialog (`X-Uptime-Modal`); not a page |
 | `monitor/_monitor_form_fields.html.twig` | Monitor fieldsets per type + REQ-TWIG-003 child loop (form page and dialog) |
 

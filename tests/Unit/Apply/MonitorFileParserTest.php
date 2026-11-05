@@ -141,12 +141,26 @@ final class MonitorFileParserTest extends TestCase
             $many[sprintf('00000000-0000-4000-8000-%012d', $i)] = ['monitors' => []];
         }
         self::assertSame([['/tenants', 'too_many']], $this->errorsOf(self::json(['version' => 1, 'tenants' => $many])));
+        self::assertSame([['/$schema', 'too_long']], $this->errorsOf(self::json(['$schema' => str_repeat('s', 513), 'version' => 1, 'tenants' => [self::TENANT => ['monitors' => []]]])));
+    }
+
+    public function testUnknownKeysThatDoNotLookLikeFieldNamesAreNotEchoed(): void
+    {
+        $m     = '/tenants/' . self::TENANT . '/monitors/0';
+        $token = 'upt_0123456789abcdef0123456789abcdef0123';
+        $entry = [$token => 1, 'a/b' => 1, str_repeat('k', 33) => 1, 'retry_count' => 1] + self::entry();
+
+        self::assertSame(
+            [[$m . '/?', 'unknown_key'], [$m . '/?', 'unknown_key'], [$m . '/?', 'unknown_key'], [$m . '/retry_count', 'unknown_key']],
+            $this->errorsOf(self::file([$entry])),
+        );
+        self::assertSame([['/tenants/?', 'invalid_tenant']], $this->errorsOf(self::json(['version' => 1, 'tenants' => [$token => ['monitors' => []]]])));
     }
 
     public function testTenantsAreUuidKeyedObjectsWithAMonitorsList(): void
     {
         self::assertSame(
-            [['/tenants/Main~1x~0y', 'invalid_tenant'], ['/tenants/' . self::OTHER, 'invalid_type']],
+            [['/tenants/?', 'invalid_tenant'], ['/tenants/' . self::OTHER, 'invalid_type']],
             $this->errorsOf(self::json(['version' => 1, 'tenants' => ['Main/x~y' => ['monitors' => []], self::OTHER => 'x']])),
         );
         $t = '/tenants/' . self::TENANT;

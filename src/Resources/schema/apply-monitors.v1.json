@@ -69,11 +69,17 @@
           "maxLength": 255
         },
         "project": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "maxLength": 128
         },
         "description": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "maxLength": 2000
         },
         "url_key": {
@@ -94,36 +100,48 @@
           "maximum": 86400
         },
         "retries": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 100
         },
         "resend_notification_after_down": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 10000
         },
         "paused": {
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "thresholds": {
-          "type": "object",
+          "type": [
+            "object",
+            "null"
+          ],
           "additionalProperties": false,
           "properties": {
             "disk": {
-              "$ref": "#/$defs/limit"
+              "$ref": "#/$defs/percentLimit"
             },
             "inodes": {
-              "$ref": "#/$defs/limit"
+              "$ref": "#/$defs/percentLimit"
             },
             "memory": {
-              "$ref": "#/$defs/limit"
+              "$ref": "#/$defs/percentLimit"
             },
             "cpu": {
-              "$ref": "#/$defs/limit"
+              "$ref": "#/$defs/percentLimit"
             },
             "swap": {
-              "$ref": "#/$defs/limit"
+              "$ref": "#/$defs/percentLimit"
             },
             "load": {
               "$ref": "#/$defs/limit"
@@ -145,17 +163,45 @@
             "number",
             "null"
           ],
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 10000
         },
         "critical": {
           "type": [
             "number",
             "null"
           ],
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 10000
+        }
+      }
+    },
+    "percentLimit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warn",
+        "critical"
+      ],
+      "properties": {
+        "warn": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "critical": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
         }
       }
     }
   },
-  "description": "Monitors file of nowo:uptime:apply-monitors (UptimeMonitorBundle 1.18+). Entry keys are unique across the whole file; url_key values too. Tokens never go in this file."
+  "description": "Monitors file of nowo:uptime:apply-monitors (UptimeMonitorBundle 1.18+). Entry keys are unique across the whole file; url_key values too. Tokens never go in this file. null in an optional field means absent (the default)."
 }

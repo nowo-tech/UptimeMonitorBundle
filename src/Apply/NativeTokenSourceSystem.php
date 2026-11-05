@@ -25,11 +25,13 @@ final readonly class NativeTokenSourceSystem implements TokenSourceSystem
     }
 
     /**
-     * Opens the path read-only, warnings silenced (false on failure).
+     * Opens the path read-only and non-blocking (`n`: `O_NONBLOCK`), warnings silenced (false on failure). Non-blocking
+     * so that a FIFO swapped in after `lstat()` cannot hang the open until a writer appears: the open returns and the
+     * `fstat()` inode check refuses it (audit FI-I9). Regular files ignore the flag.
      */
     public function open(string $path): mixed
     {
-        return @fopen($path, 'r');
+        return @fopen($path, 'rn');
     }
 
     /**

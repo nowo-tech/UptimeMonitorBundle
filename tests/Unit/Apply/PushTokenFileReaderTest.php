@@ -19,8 +19,10 @@ use PHPUnit\Framework\TestCase;
 use function array_map;
 use function bin2hex;
 use function chmod;
+use function fclose;
 use function file_put_contents;
 use function fopen;
+use function function_exists;
 use function fwrite;
 use function hash;
 use function is_dir;
@@ -29,6 +31,7 @@ use function is_link;
 use function is_resource;
 use function json_encode;
 use function mkdir;
+use function posix_mkfifo;
 use function print_r;
 use function random_bytes;
 use function rewind;
@@ -138,7 +141,15 @@ final class PushTokenFileReaderTest extends TestCase
     {
         $token  = bin2hex(random_bytes(32));
         $tokens = (new PushTokenFileReader())->read('-', null, $this->stream(json_encode(['any-key' => $token], JSON_THROW_ON_ERROR)));
-        self::assertSame(hash('sha256', $token), $tokens->hashFor('any-key'));
+        // Since 1.19.1 (audit FI-I10): nothing is kept without the file, so no key (possibly a token) is held.
+        self::assertSame([], $tokens->keys());
+        self::assertNull($tokens->hashFor('any-key'));
+
+        // An inverted map whose value is null passes the checks and is not kept either.
+        $inverted = bin2hex(random_bytes(32));
+        $kept     = (new PushTokenFileReader())->read('-', null, $this->stream(json_encode([$inverted => null], JSON_THROW_ON_ERROR)));
+        self::assertSame([], $kept->keys());
+        self::assertStringNotContainsString($inverted, print_r($kept, true));
 
         try {
             (new PushTokenFileReader())->read('-', null, $this->stream(json_encode(['any-key' => str_repeat('ab', 16)], JSON_THROW_ON_ERROR)));
@@ -201,6 +212,21 @@ final class PushTokenFileReaderTest extends TestCase
         self::assertFalse($system->lstat($this->dir . '/missing'));
         self::assertFalse($system->open($this->dir . '/missing'));
         self::assertIsInt($system->effectiveUid());
+    }
+
+    public function testTheNativeOpenDoesNotBlockOnAFifo(): void
+    {
+        if (!function_exists('posix_mkfifo')) {
+            self::markTestSkipped('ext-posix is required to create a FIFO.');
+        }
+        $fifo = $this->dir . '/swapped.json';
+        self::assertTrue(posix_mkfifo($fifo, 0o600));
+
+        // A FIFO swapped in after lstat(): the open returns at once (no writer) instead of hanging (audit FI-I9).
+        $handle = (new NativeTokenSourceSystem())->open($fifo);
+        self::assertTrue(is_resource($handle));
+        fclose($handle);
+        unlink($fifo);
     }
 
     public function testTheContentIsBoundedAndWellFormed(): void

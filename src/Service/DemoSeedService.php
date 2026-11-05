@@ -13,6 +13,8 @@ use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 
+use function array_filter;
+use function array_values;
 use function count;
 
 /**
@@ -39,7 +41,8 @@ final readonly class DemoSeedService
     }
 
     /**
-     * Removes all monitors for the tenant and seeds a minimal demo tree.
+     * Removes the tenant's monitors and seeds a minimal demo tree. Since 1.19.1 monitors owned by a monitors file
+     * (`origin = 'file'`, `nowo:uptime:apply-monitors`) are kept: the file, not the demo reset, owns them (audit FI-I8).
      *
      * @return array{tenant: Tenant, monitors_created: int, monitors_removed: int}
      */
@@ -125,7 +128,10 @@ final readonly class DemoSeedService
 
     private function removeAllMonitors(string $tenantSlug): int
     {
-        $monitors = $this->monitorRepository->findByTenantSlug($tenantSlug);
+        $monitors = array_values(array_filter(
+            $this->monitorRepository->findByTenantSlug($tenantSlug),
+            static fn (Monitor $monitor): bool => !$monitor->isFileManaged(),
+        ));
         if ($monitors === []) {
             return 0;
         }
