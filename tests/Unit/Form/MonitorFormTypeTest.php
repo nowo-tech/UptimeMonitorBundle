@@ -199,6 +199,57 @@ final class MonitorFormTypeTest extends TypeTestCase
         self::assertCount(0, $validator->validate($data));
     }
 
+    public function testSslSpkiPinsMustBeWellFormedAndAtMostTwenty(): void
+    {
+        $validator  = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
+        $data       = new MonitorFormData();
+        $data->type = MonitorType::Ssl;
+        $data->host = 'secure.example';
+        $pin        = 'sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=';
+
+        $data->expectedSpkiPins = $pin . "\n# backup\nsha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        self::assertCount(0, $validator->validate($data));
+
+        $data->expectedSpkiPins = '["' . $pin . '"]';
+        self::assertCount(0, $validator->validate($data), 'a pasted pins.json list');
+
+        $data->expectedSpkiPins = $pin . "\nsha1/abc";
+        $violations             = $validator->validate($data);
+        self::assertCount(1, $violations);
+        $violation = $violations->get(0);
+        self::assertSame('expectedSpkiPins', $violation->getPropertyPath());
+        self::assertSame('form.monitor.ssl_spki_pins_invalid', $violation->getMessageTemplate());
+        self::assertSame('sha1/abc', $violation->getParameters()['{{ pins }}']);
+
+        $many = [];
+        for ($i = 0; $i < 21; ++$i) {
+            $many[] = 'sha256/' . base64_encode(hash('sha256', (string) $i, true));
+        }
+        $data->expectedSpkiPins = implode("\n", $many);
+        $violations             = $validator->validate($data);
+        self::assertCount(1, $violations);
+        self::assertSame('form.monitor.ssl_spki_pins_too_many', $violations->get(0)->getMessageTemplate());
+
+        // GA-L1: text over the limit only gets the Length violation, it is never parsed.
+        $data->expectedSpkiPins = str_repeat($pin . "\n", 100);
+        $violations             = $validator->validate($data);
+        self::assertCount(1, $violations);
+        self::assertSame('expectedSpkiPins', $violations->get(0)->getPropertyPath());
+        self::assertStringContainsString('too long', (string) $violations->get(0)->getMessage());
+
+        $data->expectedSpkiPins = $pin . "\nsha1/abc";
+        $data->type             = MonitorType::Tcp;
+        self::assertCount(0, $validator->validate($data), 'other types ignore the field');
+    }
+
+    public function testTheSslPinsFieldIsATextarea(): void
+    {
+        $view = $this->factory->create(MonitorFormType::class, new MonitorFormData())->createView();
+
+        self::assertContains('textarea', $view['expectedSpkiPins']->vars['block_prefixes']);
+        self::assertSame('form.monitor.ssl_spki_pins_help', $view['expectedSpkiPins']->vars['help']);
+    }
+
     public function testTheTypeOptionsAreTheTypeNames(): void
     {
         $view = $this->factory->create(MonitorFormType::class, new MonitorFormData())->createView();

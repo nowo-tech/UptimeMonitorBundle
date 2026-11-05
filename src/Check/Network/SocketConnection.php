@@ -14,12 +14,15 @@ final readonly class SocketConnection
      * @param int $errorCode errno reported by the stream layer on failure (0 when unknown)
      * @param string $errorMessage Error reported by the stream layer on failure ('' when unknown)
      * @param mixed $peerCertificate Peer certificate captured with ssl.capture_peer_cert (OpenSSLCertificate), or null
+     * @param list<mixed> $peerCertificateChain Chain captured with ssl.capture_peer_cert_chain (leaf first, as served;
+     *                                          OpenSSLCertificate items), empty when not asked for (since 1.20)
      */
     public function __construct(
         public bool $connected,
         public int $errorCode = 0,
         public string $errorMessage = '',
         public mixed $peerCertificate = null,
+        public array $peerCertificateChain = [],
     ) {
     }
 }

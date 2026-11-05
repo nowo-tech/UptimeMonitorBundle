@@ -12,7 +12,8 @@ interface SocketConnectorInterface
 {
     /**
      * Connects to $remote (for example "tcp://203.0.113.10:443" or "ssl://203.0.113.10:443"), captures the peer
-     * certificate when the context asks for it and closes the socket.
+     * certificate (`capture_peer_cert`) and chain (`capture_peer_cert_chain`) when the context asks for them and closes
+     * the socket.
      *
      * @param array<string, array<string, mixed>> $contextOptions Stream context options (for example ['ssl' => [...]])
      */

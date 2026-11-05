@@ -13,6 +13,7 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
+use Nowo\UptimeMonitorBundle\Monitor\SpkiPins;
 use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
@@ -305,6 +306,9 @@ final readonly class MonitorBackupService
             $data->recordType       = is_string($config['record_type'] ?? null) ? $config['record_type'] : $data->recordType;
             $data->expectedDnsValue = is_string($config['expected_value'] ?? null) ? $config['expected_value'] : '';
             $data->daysBeforeExpiry = is_int($config['days_before_expiry'] ?? null) ? $config['days_before_expiry'] : $data->daysBeforeExpiry;
+            // SPKI pins (1.20): a non-list value or a malformed entry becomes "?" and more than MAX_PINS entries stay
+            // too many, so the validator refuses the row instead of importing it unpinned (GA-L1, GA-L2).
+            $data->expectedSpkiPins = SpkiPins::toFormText($config['expected_spki_pins'] ?? null);
             $timeout                = $config['request_timeout_seconds'] ?? $config['timeout'] ?? null;
             if (is_numeric($timeout)) {
                 $data->requestTimeoutSeconds = max(1, (int) ceil((float) $timeout));

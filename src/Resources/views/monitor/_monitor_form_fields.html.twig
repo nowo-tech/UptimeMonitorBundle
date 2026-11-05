@@ -128,11 +128,12 @@
     </fieldset>
 {% endif %}
 
-{% if form.daysBeforeExpiry is defined %}
+{% if form.daysBeforeExpiry is defined or form.expectedSpkiPins is defined %}
     <fieldset class="uptime-form-section{{ _card }}" data-monitor-fields="ssl"{{ uptime_form.hidden('ssl', _type) }}>
         <legend class="{{ _card_title }}">{{ 'monitor.form.section.ssl'|trans }}</legend>
         <p class="uptime-form-section__intro">{{ 'monitor.form.section.ssl_intro'|trans }}</p>
-        {{ form_row(form.daysBeforeExpiry) }}
+        {% if form.daysBeforeExpiry is defined %}{{ form_row(form.daysBeforeExpiry) }}{% endif %}
+        {% if form.expectedSpkiPins is defined %}{{ form_row(form.expectedSpkiPins) }}{% endif %}
     </fieldset>
 {% endif %}
 

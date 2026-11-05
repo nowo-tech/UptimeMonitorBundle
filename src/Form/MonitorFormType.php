@@ -271,6 +271,18 @@ final class MonitorFormType extends AbstractUptimeFormType
             'label'    => 'form.monitor.ssl_days',
             'required' => false,
         ]);
+        $this->addTextarea($builder, 'expectedSpkiPins', [
+            'label'    => 'form.monitor.ssl_spki_pins',
+            'required' => false,
+            'help'     => 'form.monitor.ssl_spki_pins_help',
+            'attr'     => [
+                'rows'         => 3,
+                'maxlength'    => 4096,
+                'spellcheck'   => 'false',
+                'autocomplete' => 'off',
+                'placeholder'  => 'sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+            ],
+        ]);
         $this->addInteger($builder, 'pushGraceSeconds', [
             'label'    => 'form.monitor.push_grace',
             'required' => false,

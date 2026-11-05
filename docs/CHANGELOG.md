@@ -72,6 +72,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **SSL monitors: SPKI pinning** (`expected_spki_pins`): an optional list of 1–20 `sha256/<base64>`
+  SubjectPublicKeyInfo hashes (HPKP / `pins.json` format). When set, the check captures the served chain
+  (`capture_peer_cert_chain`) and is *down* with `Served chain contains none of the expected SPKI pins` when no
+  certificate of the issuer path linked to the leaf by signature (leaf, the intermediates that signed it, root if sent)
+  matches; certificates appended without signing that path are ignored. The path's pins are kept in the result
+  metadata (`served_spki_pins`). A stored value that is not a list of valid pins fails closed. The monitor form has an
+  **Expected SPKI pins** textarea in the SSL card (one pin per line, `#` comments, or a pasted JSON list /
+  `{"pins": [...]}`); a list with a malformed pin or more than 20 pins is refused as a whole, and backup import applies
+  the same rules. Without pins the check behaves as before (expiry / validity only). Security review: appendix GA
+  (GA-M1 linked path, GA-L1 bounded parsing, GA-L2 fail closed on non-list values, GA-I1 canonical base64).
+
 ## [1.19.1] - 2026-11-05
 
 Patch release. See [UPGRADING](UPGRADING.md#to-1191).

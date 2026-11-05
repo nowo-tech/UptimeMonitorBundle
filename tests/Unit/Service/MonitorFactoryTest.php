@@ -121,6 +121,17 @@ final class MonitorFactoryTest extends TestCase
         $sslMonitor = $factory->createFromFormData($tenant, $ssl);
         self::assertSame('example.com:443', $sslMonitor->getTarget());
         self::assertSame(7, $sslMonitor->getConfig()['days_before_expiry']);
+        self::assertArrayNotHasKey('expected_spki_pins', $sslMonitor->getConfig(), 'no pins, no key');
+
+        $pin                   = 'sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=';
+        $ssl->expectedSpkiPins = '  ' . $pin . "  # primary\n\n" . $pin . "\n";
+        $factory->applyFormData($sslMonitor, $ssl);
+        self::assertSame([$pin], $sslMonitor->getConfig()['expected_spki_pins']);
+        self::assertSame($pin, $factory->toFormData($sslMonitor)->expectedSpkiPins);
+
+        $ssl->expectedSpkiPins = '';
+        $factory->applyFormData($sslMonitor, $ssl);
+        self::assertArrayNotHasKey('expected_spki_pins', $sslMonitor->getConfig(), 'clearing the field removes the pins');
     }
 
     public function testToFormDataMapsAllMonitorTypes(): void

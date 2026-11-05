@@ -9,11 +9,13 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Monitor\HttpHeaderParser;
+use Nowo\UptimeMonitorBundle\Monitor\SpkiPins;
 use Nowo\UptimeMonitorBundle\Monitor\StatusCodeMatcher;
 use Nowo\UptimeMonitorBundle\Push\PushCredentials;
 use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 
+use function implode;
 use function is_array;
 use function is_int;
 use function is_string;
@@ -197,11 +199,24 @@ final readonly class MonitorFactory
                     'host'               => $data->host,
                     'port'               => $data->port,
                     'days_before_expiry' => $data->daysBeforeExpiry,
-                ] + $this->timeoutConfig($data),
+                ] + $this->timeoutConfig($data) + $this->spkiPinsConfig($data),
             ],
             MonitorType::Push => ['push', $this->buildPushConfig($data)],
             default           => $this->buildHttpTargetAndConfig($data),
         };
+    }
+
+    /**
+     * The expected SPKI pins of an SSL monitor (since 1.20): `expected_spki_pins` only when the form lists some, so a
+     * monitor without pins keeps the config of earlier versions. The form already refused malformed or too many pins.
+     *
+     * @return array{expected_spki_pins?: list<string>}
+     */
+    private function spkiPinsConfig(MonitorFormData $data): array
+    {
+        $pins = SpkiPins::parse($data->expectedSpkiPins);
+
+        return $pins === [] ? [] : ['expected_spki_pins' => $pins];
     }
 
     /**
@@ -416,6 +431,7 @@ final readonly class MonitorFactory
         $data->daysBeforeExpiry = isset($config['days_before_expiry']) && is_numeric($config['days_before_expiry'])
             ? (int) $config['days_before_expiry']
             : 14;
+        $data->expectedSpkiPins = SpkiPins::toFormText($config['expected_spki_pins'] ?? null);
 
         return $data;
     }
