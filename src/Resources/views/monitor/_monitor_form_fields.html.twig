@@ -3,16 +3,17 @@
    so each renders its children explicitly (each one only when the form has it: form.hidden_fields leaves some out,
    and a section left without fields renders nothing); the child loop at the end renders any remaining field. Root
    errors first (the tenant limit, an expired form).
-   1.18: a one-line intro per section, units as an input suffix (row_attr data-uptime-unit), switches for on/off
-   settings, Paused in General, the advanced HTTP fields folded in one <details> (open when one of them has an error
-   or a non-default value), retry interval and timeout only where they apply (check-retry, check-timeout), port only
+   1.18: a one-line intro per section, units as an input suffix (row_attr data-uptime-unit holds a translation key,
+   form.monitor.unit.seconds), switches for on/off settings, Paused in General, the advanced HTTP fields folded in one
+   <details> (open when one of them has an error or a non-default value), retry interval and timeout only where they apply (check-retry, check-timeout), port only
    for TCP / SSL (tcp-port). The section keys of 1.17 (http-options, tcp) are still understood by the dialog script.
    The sections of the other types carry `hidden` in the initial HTML (the selected type, or HTTPS for a new monitor). #}
 {% macro row(field) %}
-    {%- set _unit = field.vars.row_attr['data-uptime-unit'] ?? null -%}
-    {%- if _unit is null -%}
+    {%- set _unit_key = field.vars.row_attr['data-uptime-unit'] ?? null -%}
+    {%- if _unit_key is null -%}
         {{ form_row(field) }}
     {%- else -%}
+        {%- set _unit = _unit_key|trans({}, 'NowoUptimeMonitorBundle') -%}
         {%- set _unit_id = field.vars.id ~ '_unit' -%}
         {%- set _described = field.vars.help ? _unit_id ~ ' ' ~ field.vars.id ~ '_help' : _unit_id -%}
         <div class="{{ (nowo_ui_class('form_row') ~ ' uptime-unit-row')|trim }}" data-uptime-unit="{{ _unit }}">

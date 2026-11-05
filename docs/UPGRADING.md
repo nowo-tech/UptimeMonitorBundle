@@ -141,7 +141,8 @@ php bin/console assets:install
     48 s preset unless you change it (before, the check silently used 10 s / 5 s); editing an older one shows 10 s / 5 s;
   - *Paused* is in General; the advanced HTTP fields are folded in *Advanced*; units moved from the labels to an
     input suffix. The four labels `form.monitor.interval`, `retry_interval`, `timeout` and `push_grace` lost their
-    "(seconds)" text: a host that overrides them in its translations should drop the unit too.
+    "(seconds)" text: a host that overrides them in its translations should drop the unit too. The suffix itself is
+    the new key `form.monitor.unit.seconds` (`s`); override it to localise the unit.
 - **Template overrides:** `monitor/_monitor_form_fields.html.twig` changed structure (intros, the `<details>` block,
   the `check-retry` / `check-timeout` / `tcp-port` rows, *Paused* in General). An override of 1.17 keeps working:
   the dialog script still understands `http-options` and `tcp`. New CSS hooks: `.uptime-form-section__intro`,

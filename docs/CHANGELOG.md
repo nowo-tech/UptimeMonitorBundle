@@ -102,8 +102,9 @@ Monitors as code (`nowo:uptime:apply-monitors`) and a clearer monitor form. Sche
 - **Errors of every class in one run**: an invalid monitors file and a refused token input are reported together, as
   are a missing tenant and the conflicts of the tenants that exist; the exit code is the lowest class. An unknown
   option (such as `--token`) or an argument is a usage error (exit 2) in the same JSON shape.
-- **Monitor form**: a one-line intro per section; units as an `s` suffix next to the interval, retry interval,
-  timeout and grace inputs (no longer in the labels); help on name, interval, retry interval, timeout (it explains the
+- **Monitor form**: a one-line intro per section; units as a translated suffix (`form.monitor.unit.seconds`,
+  `s` in the 7 shipped locales, hidden from screen readers) next to the interval, retry interval, timeout and grace
+  inputs (no longer in the labels); help on name, interval, retry interval, timeout (it explains the
   48 s default: Uptime Kuma's 80 % of a 60 s interval, capped by `checks.max_timeout_seconds`), URL, method, keyword,
   max redirects and paused; placeholders for the text fields; switches (`role="switch"`) for paused, ignore TLS,
   upside down, certificate expiry and signed pushes; required markers on the target fields (hidden from screen

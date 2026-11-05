@@ -238,6 +238,7 @@ final class PageContractTest extends PageContractTestCase
         // 1.18 form UX: intros, unit suffixes, switches, required markers, the folded Advanced block, split rows.
         self::assertStringContainsString('class="uptime-form-section__intro"', $form);
         self::assertMatchesRegularExpression('#<span class="uptime-input-group__suffix" id="monitor_form_intervalSeconds_unit" aria-hidden="true">s</span>#', $form);
+        self::assertStringNotContainsString('form.monitor.unit.seconds', $form, 'the unit suffix is translated');
         self::assertMatchesRegularExpression('#aria-describedby="monitor_form_intervalSeconds_unit monitor_form_intervalSeconds_help"#', $form);
         self::assertMatchesRegularExpression('#<input type="checkbox"[^>]*role="switch"[^>]*name="monitor_form\[paused\]"|name="monitor_form\[paused\]"[^>]*role="switch"#', $form);
         self::assertStringContainsString('uptime-label-required', $form);

@@ -30,8 +30,11 @@ use function ucfirst;
 #[FormKitConfig('uptime_monitor')]
 final class MonitorFormType extends AbstractUptimeFormType
 {
-    /** Seconds fields (1.18): the unit is a suffix next to the input (`_monitor_form_fields.html.twig`), not label text. */
-    private const SECONDS = ['data-uptime-unit' => 's'];
+    /**
+     * Seconds fields (1.18): the unit is a suffix next to the input (`_monitor_form_fields.html.twig`), not label text.
+     * The value is a translation key of the bundle domain, translated by the template.
+     */
+    private const SECONDS = ['data-uptime-unit' => 'form.monitor.unit.seconds'];
 
     /** On/off settings (1.18): a checkbox drawn as a switch (`role="switch"`, same submitted value). */
     private const SWITCH = ['role' => 'switch', 'class' => 'uptime-switch'];
