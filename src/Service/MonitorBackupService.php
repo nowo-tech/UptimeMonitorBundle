@@ -13,6 +13,7 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
+use Nowo\UptimeMonitorBundle\Monitor\SpkiPins;
 use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
@@ -305,7 +306,11 @@ final readonly class MonitorBackupService
             $data->recordType       = is_string($config['record_type'] ?? null) ? $config['record_type'] : $data->recordType;
             $data->expectedDnsValue = is_string($config['expected_value'] ?? null) ? $config['expected_value'] : '';
             $data->daysBeforeExpiry = is_int($config['days_before_expiry'] ?? null) ? $config['days_before_expiry'] : $data->daysBeforeExpiry;
-            $timeout                = $config['request_timeout_seconds'] ?? $config['timeout'] ?? null;
+            // SPKI pins (1.20): a malformed entry becomes "?" in the form text, so the validator refuses the row.
+            if (isset($config['expected_spki_pins']) && is_array($config['expected_spki_pins'])) {
+                $data->expectedSpkiPins = implode("\n", array_map(static fn (mixed $pin): string => is_string($pin) && SpkiPins::isValid($pin) ? $pin : '?', $config['expected_spki_pins']));
+            }
+            $timeout = $config['request_timeout_seconds'] ?? $config['timeout'] ?? null;
             if (is_numeric($timeout)) {
                 $data->requestTimeoutSeconds = max(1, (int) ceil((float) $timeout));
             } elseif (in_array($data->type, [MonitorType::Tcp, MonitorType::Ssl, MonitorType::Ping], true)) {

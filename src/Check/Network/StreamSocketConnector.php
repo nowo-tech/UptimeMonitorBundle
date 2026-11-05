@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Check\Network;
 
+use function array_values;
 use function fclose;
+use function is_array;
 use function stream_context_create;
 use function stream_context_get_params;
 use function stream_socket_client;
@@ -17,7 +19,7 @@ use const STREAM_CLIENT_CONNECT;
 final readonly class StreamSocketConnector implements SocketConnectorInterface
 {
     /**
-     * Opens the connection with stream_socket_client(), captures the peer certificate the context asks for and closes it.
+     * Opens the connection with stream_socket_client(), captures the peer certificate (and chain) the context asks for and closes it.
      *
      * @param array<string, array<string, mixed>> $contextOptions Stream context options (for example ['ssl' => [...]])
      */
@@ -41,6 +43,12 @@ final readonly class StreamSocketConnector implements SocketConnectorInterface
         $params = stream_context_get_params($client);
         fclose($client);
 
-        return new SocketConnection(true, peerCertificate: $params['options']['ssl']['peer_certificate'] ?? null);
+        $chain = $params['options']['ssl']['peer_certificate_chain'] ?? [];
+
+        return new SocketConnection(
+            true,
+            peerCertificate: $params['options']['ssl']['peer_certificate'] ?? null,
+            peerCertificateChain: is_array($chain) ? array_values($chain) : [],
+        );
     }
 }

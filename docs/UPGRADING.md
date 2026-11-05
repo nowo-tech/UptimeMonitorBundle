@@ -115,6 +115,17 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+No schema change (the pins live in the monitor `config` JSON) and no configuration change.
+
+- SSL monitors accept `expected_spki_pins` (list of `sha256/<base64>`, max 20). Monitors without it behave as before.
+  Get the pin of a live certificate with
+  `openssl s_client -connect host:443 -servername host </dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64`
+  and prefix it with `sha256/`. Pin a backup key or an intermediate too, so a key rotation does not take the monitor down.
+- `SocketConnection` has a new optional `peerCertificateChain` argument (default `[]`); a host
+  `SocketConnectorInterface` implementation that does not fill it makes pinned checks compare the leaf only.
+- Hosts overriding `monitor/_monitor_form_fields.html.twig` should render `form.expectedSpkiPins` in the SSL section
+  (otherwise Symfony renders it at the end of the form); it can be left out with `form.hidden_fields: [expectedSpkiPins]`.
+
 ## To 1.19.1
 
 From **1.19.0**:

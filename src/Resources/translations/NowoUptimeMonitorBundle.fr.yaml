@@ -162,6 +162,10 @@ form.monitor.hostname: 'Nom d''hôte (DNS)'
 form.monitor.dns_type: 'Type d''enregistrement DNS'
 form.monitor.dns_expected: 'Valeur DNS attendue (optionnel)'
 form.monitor.ssl_days: 'Jours d''alerte avant expiration SSL'
+form.monitor.ssl_spki_pins: 'Empreintes SPKI attendues'
+form.monitor.ssl_spki_pins_help: 'Facultatif. Une empreinte SPKI sha256/<base64> par ligne (format HPKP), ou collez une liste pins.json. Si renseigné, la vérification échoue quand aucun certificat de la chaîne servie (feuille, intermédiaires, racine si envoyée) ne correspond. Jusqu''à 20 empreintes.'
+form.monitor.ssl_spki_pins_invalid: 'Ces empreintes SPKI ne sont pas valides (attendu : sha256/ suivi de 44 caractères base64) : {{ pins }}'
+form.monitor.ssl_spki_pins_too_many: 'Au maximum {{ max }} empreintes SPKI.'
 form.monitor.paused: 'En pause'
 
 # Form — settings

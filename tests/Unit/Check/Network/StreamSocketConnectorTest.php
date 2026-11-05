@@ -76,7 +76,7 @@ final class StreamSocketConnectorTest extends TestCase
         self::assertGreaterThan(0, $port, 'TLS test server did not start');
 
         $connection = (new StreamSocketConnector())->connect(sprintf('ssl://127.0.0.1:%d', $port), 5.0, [
-            'ssl' => ['capture_peer_cert' => true, 'verify_peer' => false, 'verify_peer_name' => false],
+            'ssl' => ['capture_peer_cert' => true, 'capture_peer_cert_chain' => true, 'verify_peer' => false, 'verify_peer_name' => false],
         ]);
         fclose($pipes[1]);
         fclose($pipes[2]);
@@ -87,6 +87,9 @@ final class StreamSocketConnectorTest extends TestCase
         self::assertTrue($connection->connected);
         self::assertInstanceOf(OpenSSLCertificate::class, $connection->peerCertificate);
         self::assertSame('localhost', openssl_x509_parse($connection->peerCertificate)['subject']['CN'] ?? null);
+        self::assertCount(1, $connection->peerCertificateChain, 'the self-signed certificate is the whole chain');
+        self::assertInstanceOf(OpenSSLCertificate::class, $connection->peerCertificateChain[0]);
+        self::assertSame('localhost', openssl_x509_parse($connection->peerCertificateChain[0])['subject']['CN'] ?? null);
     }
 
     /**

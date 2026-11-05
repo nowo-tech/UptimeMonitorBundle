@@ -162,6 +162,10 @@ form.monitor.hostname: 'Nome host (DNS)'
 form.monitor.dns_type: 'Tipo record DNS'
 form.monitor.dns_expected: 'Valore DNS atteso (opzionale)'
 form.monitor.ssl_days: 'Giorni di avviso prima della scadenza SSL'
+form.monitor.ssl_spki_pins: 'Pin SPKI attesi'
+form.monitor.ssl_spki_pins_help: 'Facoltativo. Un hash SPKI sha256/<base64> per riga (formato HPKP), oppure incolla un elenco pins.json. Se impostato, il controllo fallisce quando nessun certificato della catena servita (foglia, intermedi, radice se inviata) corrisponde. Fino a 20 pin.'
+form.monitor.ssl_spki_pins_invalid: 'Questi pin SPKI non sono validi (atteso sha256/ seguito da 44 caratteri base64): {{ pins }}'
+form.monitor.ssl_spki_pins_too_many: 'Al massimo {{ max }} pin SPKI.'
 form.monitor.paused: 'In pausa'
 
 # Form — settings

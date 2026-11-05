@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/uptime-monitor-bundle`  
-**Last audited**: 2026-11-01 (v1.17.0)
+**Last audited**: 2026-11-05 (Unreleased, SSL SPKI pins)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -41,7 +41,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Check/GroupCheckRunner.php` | Group check runner | FR-CHECK-004 |
 | `Check/HttpCheckRunner.php` | Http check runner | FR-CHECK-004 |
 | `Check/PingCheckRunner.php` | Ping check runner | FR-CHECK-004 |
-| `Check/SslCheckRunner.php` | Ssl check runner | FR-CHECK-004 |
+| `Check/SslCheckRunner.php` | Ssl check runner (expiry, optional SPKI pinning) | FR-CHECK-004, FR-SSL-PIN-002 |
 | `Check/TcpCheckRunner.php` | Tcp check runner | FR-CHECK-004 |
 | `Service/CheckExecutorService.php` | Check execution orchestrator | FR-CHECK-002 |
 | `Service/DueChecksRunner.php` | Due checks runner | FR-CHECK-003 |
@@ -201,6 +201,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | --- | --- |
 | `Monitor/HttpHeaderParser.php` | Monitor settings helper | FR-MON-005 |
 | `Monitor/MonitorSettings.php` | Monitor settings helper | FR-MON-005 |
+| `Monitor/SpkiPins.php` | SSL monitor SPKI pins (parse, validate, hash a certificate) | FR-CHECK-004, FR-SSL-PIN-001 |
 | `Monitor/StatusCodeMatcher.php` | Monitor settings helper | FR-MON-005 |
 | `Monitor/TenantSettings.php` | Monitor settings helper | FR-MON-005 |
 
@@ -253,7 +254,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/src/uptime-dashboard.ts` | Dashboard entrypoint | FR-UI-010 |
 | `Resources/assets/src/uptime-logger.ts` | Frontend logger | FR-UI-012 |
 | `Resources/assets/src/vite-env.d.ts` | Vite type shims | FR-BUILD-002 |
-| `Resources/public/assets/monitor-form-modal-w2QuamRw.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
+| `Resources/public/assets/monitor-form-modal-D2vQZVQS.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
 | `Resources/public/auto.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/history-bar.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-dashboard.css` | Built frontend asset | FR-BUILD-001 |
@@ -391,7 +392,7 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Persistence integration | 2 | 2 |
 | Async messaging | 2 | 2 |
 | Scheduler | 1 | 1 |
-| Monitor helpers | 4 | 4 |
+| Monitor helpers | 5 | 5 |
 | Events | 5 | 5 |
 | Routing & tenants | 4 | 4 |
 | UI page contract | 9 | 9 |
@@ -403,6 +404,6 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Twig views | 32 | 32 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **227** | **227** |
+| **Total production sources** | **228** | **228** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.

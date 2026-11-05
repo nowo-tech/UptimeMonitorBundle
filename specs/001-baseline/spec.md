@@ -77,7 +77,7 @@ As an operator, I manage appearance, history, reverse-proxy, tags, and JSON back
 ### Check execution
 
 - **FR-CHECK-001**: `CheckRunnerInterface` contract for all monitor types.
-- **FR-CHECK-004**: Type-specific runners (HTTP, TCP, DNS, SSL, Ping, Group) with SSRF guard on URLs; push monitors are judged by `PushCheckRunner` (FR-PUSH-005).
+- **FR-CHECK-004**: Type-specific runners (HTTP, TCP, DNS, SSL — with optional SPKI pinning, [`004-ssl-spki-pins`](../004-ssl-spki-pins/spec.md) —, Ping, Group) with SSRF guard on URLs; push monitors are judged by `PushCheckRunner` (FR-PUSH-005).
 - **FR-CHECK-002 / FR-CHECK-003**: Orchestrated execution and due-check scheduling (CLI, Messenger, Schedule).
 - **FR-CHECK-005**: Status transitions, incident lifecycle, retry policy via `MonitorRetryService`.
 - **FR-CHECK-006**: TCP / SSL probes open sockets through `Check\Network\SocketConnectorInterface` (stream socket with a deadline).

@@ -162,6 +162,10 @@ form.monitor.hostname: 'Hostnaam (DNS)'
 form.monitor.dns_type: 'DNS-recordtype'
 form.monitor.dns_expected: 'Verwachte DNS-waarde (optioneel)'
 form.monitor.ssl_days: 'SSL-waarschuwingsdagen vóór verval'
+form.monitor.ssl_spki_pins: 'Verwachte SPKI-pins'
+form.monitor.ssl_spki_pins_help: 'Optioneel. Eén SPKI-hash sha256/<base64> per regel (HPKP-formaat), of plak een pins.json-lijst. Indien ingevuld faalt de controle als geen enkel certificaat van de geleverde keten (leaf, intermediates, root indien meegestuurd) overeenkomt. Maximaal 20 pins.'
+form.monitor.ssl_spki_pins_invalid: 'Deze SPKI-pins zijn ongeldig (verwacht: sha256/ gevolgd door 44 base64-tekens): {{ pins }}'
+form.monitor.ssl_spki_pins_too_many: 'Maximaal {{ max }} SPKI-pins.'
 form.monitor.paused: 'Gepauzeerd'
 
 # Form — settings

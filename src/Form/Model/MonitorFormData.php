@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Form\Model;
 
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Monitor\SpkiPins;
 use Nowo\UptimeMonitorBundle\Translation\UptimeTranslation;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
+use function count;
+use function implode;
 use function in_array;
 use function is_string;
+use function mb_strimwidth;
 use function parse_url;
 use function preg_match;
 use function strtolower;
@@ -27,6 +31,7 @@ use const PHP_URL_SCHEME;
  * monitor without a host or port, or a DNS monitor without a hostname is refused instead of saved.
  */
 #[Assert\Callback([self::class, 'validateTypeFields'])]
+#[Assert\Callback([self::class, 'validateSpkiPins'])]
 final class MonitorFormData
 {
     public string $name    = '';
@@ -82,6 +87,9 @@ final class MonitorFormData
     // SSL
     #[Assert\Range(min: 0, max: 3650)]
     public int $daysBeforeExpiry = 14;
+    /** Expected SPKI pins (since 1.20): one `sha256/<base64>` per line, or a pasted pins.json list; empty = no pinning. */
+    #[Assert\Length(max: 4096)]
+    public string $expectedSpkiPins = '';
 
     // Push (since 1.14): grace beyond the interval, signed pushes and the warning / critical limits (null = off).
     #[Assert\Range(min: 0, max: 86400)]
@@ -140,6 +148,35 @@ final class MonitorFormData
                     ->atPath($field)
                     ->addViolation();
             }
+        }
+    }
+
+    /**
+     * SSL monitors (since 1.20): every expected SPKI pin must be a `sha256/<base64>` hash
+     * (`form.monitor.ssl_spki_pins_invalid`) and there are at most {@see SpkiPins::MAX_PINS}
+     * (`form.monitor.ssl_spki_pins_too_many`); other monitor types ignore the field.
+     */
+    public static function validateSpkiPins(self $data, ExecutionContextInterface $context): void
+    {
+        if ($data->type !== MonitorType::Ssl) {
+            return;
+        }
+
+        $pins    = SpkiPins::parse($data->expectedSpkiPins);
+        $invalid = SpkiPins::invalid($pins);
+        if ($invalid !== []) {
+            $context->buildViolation('form.monitor.ssl_spki_pins_invalid')
+                ->setParameter('{{ pins }}', mb_strimwidth(implode(', ', $invalid), 0, 200, '…'))
+                ->setTranslationDomain(UptimeTranslation::DOMAIN)
+                ->atPath('expectedSpkiPins')
+                ->addViolation();
+        }
+        if (count($pins) > SpkiPins::MAX_PINS) {
+            $context->buildViolation('form.monitor.ssl_spki_pins_too_many')
+                ->setParameter('{{ max }}', (string) SpkiPins::MAX_PINS)
+                ->setTranslationDomain(UptimeTranslation::DOMAIN)
+                ->atPath('expectedSpkiPins')
+                ->addViolation();
         }
     }
 }

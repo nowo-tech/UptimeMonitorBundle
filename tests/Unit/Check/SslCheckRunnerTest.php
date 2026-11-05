@@ -11,11 +11,15 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Monitor\SpkiPins;
 use Nowo\UptimeMonitorBundle\Tests\Support\FakeSocketConnector;
 use Nowo\UptimeMonitorBundle\Tests\Support\OfflineDns;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestCertificateChain;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
+
+use function gmdate;
 
 #[CoversClass(SslCheckRunner::class)]
 final class SslCheckRunnerTest extends TestCase
@@ -139,5 +143,82 @@ final class SslCheckRunnerTest extends TestCase
 
         self::assertSame(15.0, $connector->calls[0]['timeout']);
         self::assertSame(1.0, $connector->calls[1]['timeout']);
+    }
+
+    public function testWithoutPinsTheChainIsNotRequested(): void
+    {
+        $runner = $this->runner(new SocketConnection(true, peerCertificate: FakeSocketConnector::fixtureCertificate()), connector: $connector);
+
+        $result = $runner->run($this->monitor(['expected_spki_pins' => []]));
+
+        self::assertSame(CheckStatus::Up, $result->status);
+        self::assertArrayNotHasKey('capture_peer_cert_chain', $connector->calls[0]['options']['ssl']);
+        self::assertArrayNotHasKey('spki_pin_matched', $result->metadata ?? []);
+    }
+
+    public function testAPinOfAnyCertificateOfTheServedChainMatches(): void
+    {
+        $chain = TestCertificateChain::generate();
+        foreach ([$chain->leaf, $chain->intermediate, $chain->root] as $pinned) {
+            $runner = $this->runner(
+                new SocketConnection(true, peerCertificate: $chain->leaf, peerCertificateChain: $chain->served()),
+                gmdate('Y-m-d H:i:s'),
+                $connector,
+            );
+
+            $result = $runner->run($this->monitor(['expected_spki_pins' => ['sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=', (string) SpkiPins::fromCertificate($pinned)]]));
+
+            self::assertSame(CheckStatus::Up, $result->status, (string) $result->message);
+            self::assertTrue($result->metadata['spki_pin_matched'] ?? null);
+            self::assertTrue($connector->calls[0]['options']['ssl']['capture_peer_cert_chain']);
+        }
+    }
+
+    public function testNoMatchingPinIsDownWithTheServedPins(): void
+    {
+        $chain  = TestCertificateChain::generate();
+        $other  = TestCertificateChain::generate();
+        $runner = $this->runner(
+            new SocketConnection(true, peerCertificate: $chain->leaf, peerCertificateChain: [$chain->leaf, $chain->intermediate]),
+            gmdate('Y-m-d H:i:s'),
+        );
+
+        $result = $runner->run($this->monitor(['expected_spki_pins' => [(string) SpkiPins::fromCertificate($other->leaf), (string) SpkiPins::fromCertificate($chain->root)]]));
+
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertSame('Served chain contains none of the expected SPKI pins', $result->message);
+        self::assertSame(
+            [SpkiPins::fromCertificate($chain->leaf), SpkiPins::fromCertificate($chain->intermediate)],
+            $result->metadata['served_spki_pins'] ?? null,
+            'the root was not sent, so its pin cannot match',
+        );
+        self::assertArrayHasKey('days_left', $result->metadata ?? []);
+    }
+
+    public function testWithoutACapturedChainTheLeafIsCompared(): void
+    {
+        $fixturePin = (string) SpkiPins::fromCertificate(FakeSocketConnector::fixtureCertificate());
+
+        $match = $this->runner(new SocketConnection(true, peerCertificate: FakeSocketConnector::fixtureCertificate()))
+            ->run($this->monitor(['expected_spki_pins' => [$fixturePin]]));
+        self::assertSame(CheckStatus::Up, $match->status);
+
+        $miss = $this->runner(new SocketConnection(true, peerCertificate: FakeSocketConnector::fixtureCertificate(), peerCertificateChain: ['garbage']))
+            ->run($this->monitor(['expected_spki_pins' => ['sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=']]));
+        self::assertSame(CheckStatus::Down, $miss->status);
+        self::assertSame([$fixturePin], $miss->metadata['served_spki_pins'] ?? null);
+    }
+
+    public function testMalformedStoredPinsFailClosedAndValidOnesAreKept(): void
+    {
+        $runner = $this->runner(new SocketConnection(true, peerCertificate: FakeSocketConnector::fixtureCertificate()), connector: $connector);
+
+        $result = $runner->run($this->monitor(['expected_spki_pins' => ['not-a-pin']]));
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertSame('No valid SPKI pin in expected_spki_pins (expected sha256/<base64>)', $result->message);
+        self::assertSame([], $connector->calls, 'nothing is contacted');
+
+        $fixturePin = (string) SpkiPins::fromCertificate(FakeSocketConnector::fixtureCertificate());
+        self::assertSame(CheckStatus::Up, $runner->run($this->monitor(['expected_spki_pins' => ['not-a-pin', $fixturePin]]))->status);
     }
 }
