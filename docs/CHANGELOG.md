@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.19.0] - 2026-11-05](#1190---2026-11-05)
 - [[1.18.0] - 2026-11-05](#1180---2026-11-05)
 - [[1.17.2] - 2026-11-04](#1172---2026-11-04)
 - [[1.17.1] - 2026-11-02](#1171---2026-11-02)
@@ -70,8 +71,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-Planned as 1.19.0: UiKit 2.29 dialog sizes for the monitor dialog, actions in the dialog footer and the monitor form
-sections drawn as UiKit cards. **Visual change** (owner decision): see [UPGRADING](UPGRADING.md#unreleased).
+## [1.19.0] - 2026-11-05
+
+Minor release: UiKit 2.29 dialog sizes for the monitor dialog, actions in the dialog footer and the monitor form
+sections drawn as UiKit cards. **Visual change** (owner decision): see [UPGRADING](UPGRADING.md#to-1190).
 
 ### Changed
 
@@ -1209,7 +1212,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.18.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.19.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
