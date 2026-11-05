@@ -38,12 +38,36 @@ This bundle provides:
   checks as the dashboard)
 - JSON APIs under `/api/uptime/...` (a separate prefix: protect it in the host firewall too)
 - Backup export / import of monitor definitions (Settings → Backup)
+- Console command `nowo:uptime:apply-monitors` (1.18): applies push monitors from a file, with external push tokens
+  read from a 0600 file or a non-interactive stdin only — see [PUSH-MONITORS.md](PUSH-MONITORS.md#monitors-as-code)
 - Optional notifications (email, webhook, Slack)
 - Doctrine persistence for check results and aggregates
 
 ## Threat model and mitigations
 
 - **SSRF / outbound requests**: HTTP/HTTPS, TCP, SSL and ping monitors use `MonitorUrlSsrfGuard` when `checks.block_private_urls` is `true` (default). Blocked ranges are `IpUtils::PRIVATE_SUBNETS` (loopback, RFC1918, link-local, `0.0.0.0/8`, `100.64.0.0/10`, `fc00::/7`, IPv4-mapped IPv6, …) plus multicast/broadcast; every A/AAAA record is checked. HTTP checks run through `NoPrivateNetworkHttpClient`, so redirects and the connected IP are re-validated (DNS rebinding), and a private per-monitor `proxy` is rejected. TCP/SSL/ping connect to the validated, pinned IP. DNS monitors (system resolver, no connection) validate the hostname (private IP literals, `localhost`, metadata hosts) before the lookup and report an answer with any private/local A/AAAA address or blocked CNAME/MX target as blocked, without exposing the resolved records. Restrict who can create monitors; default UI roles require **`ROLE_ADMIN`**. Regression coverage: `tests/Unit/Security/MonitorUrlSsrfGuardTest.php`, `HttpCheckRunnerTest`, `PingCheckRunnerTest`, `DnsCheckRunnerTest`.
+- **Monitors as code (`nowo:uptime:apply-monitors`, 1.18)**: external push tokens enter only through
+  `--token-file` (a regular file, not a symlink, `lstat`/`fstat` inode match, mode `& 077 == 0`, owned by the
+  process user or root when ext-posix is present, at most 64 KiB) or a non-interactive stdin (`-`, read to EOF under
+  the same cap; a terminal is refused before any read). There is no token option or argument (`/proc/<pid>/cmdline`
+  and the option list are tested). Tokens are 64–128 lowercase hex with entropy heuristics and a denylist; only
+  `sha256(token)` is stored, the same token twice (in the file or against any stored hash) is refused, and a token
+  never contains its `url_key`. The plaintext is overwritten with `sodium_memzero()` when ext-sodium is present, but
+  that is **best effort only**: PHP strings are shared copy-on-write (the decoded JSON keeps its own copy), so other
+  copies may stay in memory until the process ends. Error paths name a token's entry key only when it is an entry of
+  the monitors file, otherwise `token-file:/?` (an inverted map `{"<token>": "<key>"}` never echoes the token). The
+  monitors file is read with a hard cap (1 MiB + 1 byte), not trusted by its reported size. Every method that receives a token or the raw file text marks it
+  `#[\SensitiveParameter]`; refusals carry JSON pointers and codes only; database exceptions are replaced by
+  `ApplyFailedException('apply_failed: <class>')` with no previous exception (a DBAL message can quote the bound
+  hash). Tests walk every failure path's exception chain, trace and `FlattenException` (how hosts ship exceptions).
+  The run is validated first, then applied in one transaction under per-tenant row locks (slug order) with the
+  conflicts and the tenant quota re-checked under the lock; any error rolls back. Monitors with `origin = 'ui'` are
+  never selected for update or prune; cross-tenant `url_key` conflicts are refused without naming the tenant. In the
+  UI, file-managed monitors refuse edit, delete and token actions with 409 (pause stays). A `MonitorsAppliedEvent`
+  listener that throws after the commit does not report "nothing applied": the run exits 0 with an
+  `event_listener_failed` entry in `warnings` (the listener's class is logged), and the later tenants still get their
+  event. Replay and floods on the
+  ingest route stay the host's job (HTTPS, Traefik IP allow-list and rate limit); signed file pushes are future work.
 - **SSRF hardening details**: the per-monitor proxy is resolved once, validated and pinned to that IP; the HTTPS
   certificate-expiry probe reads the certificate chain of the validated HTTP connection (no second lookup).
 - **Shared scan / DoS (M1)**: every check is capped by `checks.max_timeout_seconds` (60 s), `checks.max_redirects` (20)
@@ -156,9 +180,12 @@ another) — never `dump()`, `var_dump()` or `error_log()` in `src/`. Context is
 | Detail purge started / done (`nowo:uptime:purge-detail`, Settings → History → Purge) | `info` | `tenant`, `days`, then `deleted` |
 | Backup export | `info` | `tenant`, `count` |
 | Backup import started / done | `info` | `tenant`, `mode`, `rows`, then `imported`, `skipped`, `overwritten`, `invalid` |
+| Monitors apply started / done (`nowo:uptime:apply-monitors`) | `info` | `tenants` (slugs), `dry_run`, `prune`, `file_sha256`, then `created`, `updated`, `unchanged`, `pruned`, `tokens_changed` (counts) |
+| Monitors apply refused | `warning` | `exit_code`, `error_codes` (codes only: no paths, no values) |
+| Monitors apply failed | `error` | `error`: exception **class** (the database exception is replaced, never chained) |
 | Clear / purge / import failed | `error` (`warning` for a rejected import file) | `tenant`, `error`: exception **class** |
 
-**Never logged:** webhook / Slack URLs (their path or query is the secret), HTTP basic-auth credentials and custom
+**Never logged:** push tokens, their SHA-256, the token file path or contents, signing secrets, webhook / Slack URLs (their path or query is the secret), HTTP basic-auth credentials and custom
 headers of monitors, proxy URLs, alert e-mail recipients, alert bodies, monitor targets, database DSNs, Mercure JWTs,
 session ids or request payloads. Check failures are *data*, not logs: the transport error of a failing target is
 stored on the check result (visible to dashboard roles only) and is not written to the log.

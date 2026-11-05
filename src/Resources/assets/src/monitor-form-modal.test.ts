@@ -46,6 +46,49 @@ describe('monitor form dialog', () => {
     expect(document.querySelector<HTMLElement>('[data-monitor-fields="dns"]')?.hidden).toBe(false);
   });
 
+  it('shows only the rows of the selected type and requires its target fields (1.18)', () => {
+    document.body.innerHTML = `
+      <select data-monitor-type-select>
+        <option value="http">http</option><option value="push">push</option><option value="ping">ping</option>
+        <option value="tcp">tcp</option><option value="dns">dns</option><option value="group">group</option>
+      </select>
+      <fieldset data-monitor-fields="check"><div data-monitor-fields="check-retry"></div><div data-monitor-fields="check-timeout"></div></fieldset>
+      <details data-monitor-fields="http-advanced"></details><fieldset data-monitor-fields="http-options"></fieldset>
+      <fieldset data-monitor-fields="tcp"><input data-required-for="tcp ping ssl" name="host"><div data-monitor-fields="tcp-port"></div></fieldset>
+      <fieldset data-monitor-fields="push"></fieldset><fieldset data-monitor-fields="custom"></fieldset>
+      <input data-required-for="http https" name="url"><input data-required-for="dns" name="hostname">`;
+    const select = document.querySelector('select') as HTMLSelectElement;
+    const hidden = (key: string): boolean | undefined => document.querySelector<HTMLElement>(`[data-monitor-fields="${key}"]`)?.hidden;
+    const required = (name: string): boolean | undefined => document.querySelector<HTMLInputElement>(`[name="${name}"]`)?.required;
+    initMonitorFormTypeToggle(document);
+
+    select.value = 'push';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('check'), hidden('check-retry'), hidden('check-timeout'), hidden('push'), hidden('custom')]).toEqual([false, true, true, false, true]);
+    expect([required('url'), required('host'), required('hostname')]).toEqual([false, false, false]);
+
+    select.value = 'ping';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('tcp'), hidden('tcp-port'), hidden('check-timeout'), hidden('check-retry')]).toEqual([false, true, false, false]);
+    expect(required('host')).toBe(true);
+
+    select.value = 'tcp';
+    select.dispatchEvent(new Event('change'));
+    expect(hidden('tcp-port')).toBe(false);
+
+    select.value = 'http';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('http-advanced'), hidden('http-options'), hidden('tcp'), required('url'), required('host')]).toEqual([false, false, true, true, false]);
+
+    select.value = 'dns';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('check-timeout'), required('hostname')]).toEqual([true, true]);
+
+    select.value = 'group';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('check'), hidden('check-retry')]).toEqual([true, true]);
+  });
+
   it('opens the native dialog, loads the form fragment and takes the opener label as title', async () => {
     const dialog = mountDialog();
     const showModal = vi.fn(function (this: HTMLDialogElement) {
@@ -138,6 +181,67 @@ describe('monitor form dialog', () => {
     dialog.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
     await vi.waitFor(() => expect(document.querySelectorAll('.nowo-ui-flash--error')).toHaveLength(2));
     expect(dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+  });
+
+  it('applies the rules of every type and opens the Advanced block on an invalid field (1.18)', () => {
+    document.body.innerHTML = `
+      <select data-monitor-type-select>
+        <option value="https">https</option><option value="ssl">ssl</option><option value="http">http</option>
+      </select>
+      <fieldset data-monitor-fields="check"><div data-monitor-fields="check-timeout"></div></fieldset>
+      <fieldset data-monitor-fields="http"></fieldset>
+      <details data-monitor-fields="http-advanced"><input name="maxRedirects" type="number" max="20" value="99"></details>
+      <fieldset data-monitor-fields="tcp"><input data-required-for="tcp ping ssl" name="host"><div data-monitor-fields="tcp-port"><input data-required-for="tcp ssl" name="port"></div></fieldset>
+      <fieldset data-monitor-fields="ssl"></fieldset><fieldset data-monitor-fields="dns"></fieldset>`;
+    const select = document.querySelector('select') as HTMLSelectElement;
+    const hidden = (key: string): boolean | undefined => document.querySelector<HTMLElement>(`[data-monitor-fields="${key}"]`)?.hidden;
+    const required = (name: string): boolean | undefined => document.querySelector<HTMLInputElement>(`[name="${name}"]`)?.required;
+    initMonitorFormTypeToggle(document);
+
+    expect([hidden('http'), hidden('http-advanced'), hidden('tcp'), hidden('ssl'), hidden('check-timeout')]).toEqual([false, false, true, true, false]);
+
+    select.value = 'ssl';
+    select.dispatchEvent(new Event('change'));
+    expect([hidden('tcp'), hidden('tcp-port'), hidden('ssl'), hidden('http'), hidden('dns')]).toEqual([false, false, false, true, true]);
+    expect([required('host'), required('port')]).toEqual([true, true]);
+
+    const details = document.querySelector('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    document.querySelector<HTMLInputElement>('[name="maxRedirects"]')?.dispatchEvent(new Event('invalid', { cancelable: true }));
+    expect(details.open).toBe(true);
+    document.querySelector<HTMLInputElement>('[name="maxRedirects"]')?.dispatchEvent(new Event('invalid', { cancelable: true }));
+    expect(details.open).toBe(true);
+  });
+
+  it('shows the server text when a file-managed monitor is refused with 409 (1.18)', async () => {
+    const dialog = mountDialog();
+    dialog.showModal = vi.fn();
+    document.body.insertAdjacentHTML('afterbegin', '<main id="nowo-ui-content"></main>');
+    const managed = 'This monitor is managed from a file: change the file instead.';
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(managed, { status: 409, headers: { 'Content-Type': 'text/plain' } }))
+      .mockResolvedValueOnce(new Response('', { status: 409 }))
+      .mockResolvedValueOnce(new Response(FORM_HTML, { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response(managed, { status: 409, headers: { 'Content-Type': 'text/plain' } }))
+      .mockResolvedValueOnce(new Response('', { status: 409 })));
+
+    initMonitorFormModal(document);
+    const opener = document.querySelector<HTMLElement>('[data-monitor-form-open]') as HTMLElement;
+    opener.click();
+    await flush();
+    expect(dialog.querySelector('[data-monitor-form-body] .nowo-ui-flash--error')?.textContent).toBe(managed);
+
+    opener.click();
+    await flush();
+    expect(dialog.querySelector('[data-monitor-form-body] .nowo-ui-flash--error')?.textContent).toBe('Could not load monitor form.');
+
+    opener.click();
+    await flush();
+    dialog.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    await vi.waitFor(() => expect(document.querySelector('#nowo-ui-content .nowo-ui-flash--error')?.textContent).toBe(managed));
+    dialog.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    await vi.waitFor(() => expect(document.querySelectorAll('#nowo-ui-content .nowo-ui-flash--error')).toHaveLength(2));
+    expect(document.querySelectorAll('#nowo-ui-content .nowo-ui-flash--error')[0]?.textContent).toBe('Could not save monitor.');
   });
 
   it('shows an error when the form cannot be loaded and ignores openers without URL', async () => {

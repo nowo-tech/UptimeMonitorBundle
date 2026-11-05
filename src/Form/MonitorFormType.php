@@ -31,6 +31,18 @@ use function ucfirst;
 final class MonitorFormType extends AbstractUptimeFormType
 {
     /**
+     * Seconds fields (1.18): the unit is a suffix next to the input (`_monitor_form_fields.html.twig`), not label text.
+     * The value is a translation key of the bundle domain, translated by the template.
+     */
+    private const SECONDS = ['data-uptime-unit' => 'form.monitor.unit.seconds'];
+
+    /** On/off settings (1.18): a checkbox drawn as a switch (`role="switch"`, same submitted value). */
+    private const SWITCH = ['role' => 'switch', 'class' => 'uptime-switch'];
+
+    /** Fields required for their type (1.18): the label carries the required marker. */
+    private const REQUIRED_LABEL = ['class' => 'uptime-label-required'];
+
+    /**
      * @param list<string> $hiddenFields fields left out of the form (`form.hidden_fields`); the monitor keeps their values
      * @param float $maxTimeoutSeconds `checks.max_timeout_seconds`: upper bound of the timeout field
      */
@@ -70,6 +82,9 @@ final class MonitorFormType extends AbstractUptimeFormType
         // Every list, status page and alert names the monitor: a name is required.
         $this->addText($builder, 'name', [
             'label'       => 'form.monitor.name',
+            'label_attr'  => self::REQUIRED_LABEL,
+            'help'        => 'form.monitor.name_help',
+            'attr'        => ['placeholder' => 'form.monitor.name_placeholder'],
             'constraints' => [new Callback(self::validateName(...))],
         ]);
         $this->addChoice($builder, 'parentId', [
@@ -87,9 +102,12 @@ final class MonitorFormType extends AbstractUptimeFormType
         /** @var int $minInterval */
         $minInterval = $options['min_interval_seconds'];
         $this->addInteger($builder, 'intervalSeconds', [
-            'label'       => 'form.monitor.interval',
-            'attr'        => ['min' => $minInterval],
-            'constraints' => [new Callback(static fn (mixed $value, ExecutionContextInterface $context) => self::validateInterval($value, $context, $minInterval))],
+            'label'                       => 'form.monitor.interval',
+            'help'                        => 'form.monitor.interval_help',
+            'help_translation_parameters' => ['%min%' => $minInterval],
+            'row_attr'                    => self::SECONDS,
+            'attr'                        => ['min' => $minInterval],
+            'constraints'                 => [new Callback(static fn (mixed $value, ExecutionContextInterface $context) => self::validateInterval($value, $context, $minInterval))],
         ]);
         $this->addInteger($builder, 'retries', [
             'label'    => 'form.monitor.retries',
@@ -100,14 +118,19 @@ final class MonitorFormType extends AbstractUptimeFormType
         $this->addInteger($builder, 'retryIntervalSeconds', [
             'label'    => 'form.monitor.retry_interval',
             'required' => false,
+            'help'     => 'form.monitor.retry_interval_help',
+            'row_attr' => self::SECONDS,
             'attr'     => ['min' => 30],
         ]);
         // Whole seconds (1.17): the decimal field rendered "48.0" ("48,0" in comma-decimal locales).
         $this->addInteger($builder, 'requestTimeoutSeconds', [
-            'label'       => 'form.monitor.timeout',
-            'required'    => false,
-            'attr'        => ['min' => 1, 'max' => $this->maxTimeoutSeconds, 'step' => 1],
-            'constraints' => [new Range(min: 1, max: $this->maxTimeoutSeconds)],
+            'label'                       => 'form.monitor.timeout',
+            'required'                    => false,
+            'help'                        => 'form.monitor.timeout_help',
+            'help_translation_parameters' => ['%max%' => (int) $this->maxTimeoutSeconds],
+            'row_attr'                    => self::SECONDS,
+            'attr'                        => ['min' => 1, 'max' => $this->maxTimeoutSeconds, 'step' => 1],
+            'constraints'                 => [new Range(min: 1, max: $this->maxTimeoutSeconds)],
         ]);
         $this->addInteger($builder, 'resendNotificationAfterDown', [
             'label'    => 'form.monitor.resend_down',
@@ -120,37 +143,53 @@ final class MonitorFormType extends AbstractUptimeFormType
             'required' => false,
             'attr'     => ['rows' => 2],
         ]);
-        $this->addUrl($builder, 'url', ['label' => 'form.monitor.url', 'required' => false]);
+        // Required for HTTP(S) only: the dialog script sets `required` with the type, the server checks it
+        // (MonitorFormData::validateTypeFields()).
+        $this->addUrl($builder, 'url', [
+            'label'      => 'form.monitor.url',
+            'required'   => false,
+            'label_attr' => self::REQUIRED_LABEL,
+            'help'       => 'form.monitor.url_help',
+            'attr'       => ['placeholder' => 'form.monitor.url_placeholder', 'data-required-for' => 'http https'],
+        ]);
         $this->addChoice($builder, 'method', [
             'label'    => 'form.monitor.method',
             'choices'  => ['GET' => 'GET', 'HEAD' => 'HEAD', 'POST' => 'POST'],
             'required' => false,
+            'help'     => 'form.monitor.method_help',
         ]);
         $this->addText($builder, 'expectedStatusCodes', [
             'label'    => 'form.monitor.status_codes',
             'required' => false,
             'help'     => 'form.monitor.status_codes_help',
+            'attr'     => ['placeholder' => 'form.monitor.status_codes_placeholder'],
         ]);
         $this->addInteger($builder, 'maxRedirects', [
             'label'    => 'form.monitor.max_redirects',
             'required' => false,
+            'help'     => 'form.monitor.max_redirects_help',
             'attr'     => ['min' => 0, 'max' => 20],
         ]);
         $this->addCheckbox($builder, 'ignoreTls', [
             'label'    => 'form.monitor.ignore_tls',
             'required' => false,
+            'attr'     => self::SWITCH,
         ]);
         $this->addCheckbox($builder, 'upsideDown', [
             'label'    => 'form.monitor.upside_down',
             'required' => false,
+            'attr'     => self::SWITCH,
         ]);
         $this->addCheckbox($builder, 'checkCertExpiry', [
             'label'    => 'form.monitor.cert_expiry',
             'required' => false,
+            'attr'     => self::SWITCH,
         ]);
         $this->addText($builder, 'keyword', [
             'label'    => 'form.monitor.keyword',
             'required' => false,
+            'help'     => 'form.monitor.keyword_help',
+            'attr'     => ['placeholder' => 'form.monitor.keyword_placeholder'],
         ]);
         $this->addChoice($builder, 'bodyEncoding', [
             'label'    => 'form.monitor.body_encoding',
@@ -175,6 +214,7 @@ final class MonitorFormType extends AbstractUptimeFormType
             'label'    => 'form.monitor.proxy',
             'required' => false,
             'help'     => 'form.monitor.proxy_help',
+            'attr'     => ['placeholder' => 'form.monitor.proxy_placeholder'],
         ]);
         $this->addChoice($builder, 'authMethod', [
             'label'    => 'form.monitor.auth',
@@ -197,10 +237,26 @@ final class MonitorFormType extends AbstractUptimeFormType
             'label'    => 'form.monitor.tags',
             'required' => false,
             'help'     => 'form.monitor.tags_help',
+            'attr'     => ['placeholder' => 'form.monitor.tags_placeholder'],
         ]);
-        $this->addText($builder, 'host', ['label' => 'form.monitor.host', 'required' => false]);
-        $this->addInteger($builder, 'port', ['label' => 'form.monitor.port', 'required' => false]);
-        $this->addText($builder, 'hostname', ['label' => 'form.monitor.hostname', 'required' => false]);
+        $this->addText($builder, 'host', [
+            'label'      => 'form.monitor.host',
+            'required'   => false,
+            'label_attr' => self::REQUIRED_LABEL,
+            'attr'       => ['placeholder' => 'form.monitor.host_placeholder', 'data-required-for' => 'tcp ping ssl'],
+        ]);
+        $this->addInteger($builder, 'port', [
+            'label'      => 'form.monitor.port',
+            'required'   => false,
+            'label_attr' => self::REQUIRED_LABEL,
+            'attr'       => ['min' => 1, 'max' => 65535, 'data-required-for' => 'tcp ssl'],
+        ]);
+        $this->addText($builder, 'hostname', [
+            'label'      => 'form.monitor.hostname',
+            'required'   => false,
+            'label_attr' => self::REQUIRED_LABEL,
+            'attr'       => ['placeholder' => 'form.monitor.hostname_placeholder', 'data-required-for' => 'dns'],
+        ]);
         $this->addChoice($builder, 'recordType', [
             'label'    => 'form.monitor.dns_type',
             'required' => false,
@@ -209,6 +265,7 @@ final class MonitorFormType extends AbstractUptimeFormType
         $this->addText($builder, 'expectedDnsValue', [
             'label'    => 'form.monitor.dns_expected',
             'required' => false,
+            'attr'     => ['placeholder' => 'form.monitor.dns_expected_placeholder'],
         ]);
         $this->addInteger($builder, 'daysBeforeExpiry', [
             'label'    => 'form.monitor.ssl_days',
@@ -217,12 +274,14 @@ final class MonitorFormType extends AbstractUptimeFormType
         $this->addInteger($builder, 'pushGraceSeconds', [
             'label'    => 'form.monitor.push_grace',
             'required' => false,
+            'row_attr' => self::SECONDS,
             'attr'     => ['min' => 0],
             'help'     => 'form.monitor.push_grace_help',
         ]);
         $this->addCheckbox($builder, 'pushSigned', [
             'label'    => 'form.monitor.push_signed',
             'required' => false,
+            'attr'     => self::SWITCH,
             'help'     => 'form.monitor.push_signed_help',
         ]);
         foreach (PushThresholds::DEFAULTS as $metric => $_) {
@@ -241,6 +300,8 @@ final class MonitorFormType extends AbstractUptimeFormType
         $this->addCheckbox($builder, 'paused', [
             'label'    => 'form.monitor.paused',
             'required' => false,
+            'help'     => 'form.monitor.paused_help',
+            'attr'     => self::SWITCH,
         ]);
         foreach ($this->hiddenFields as $field) {
             $builder->remove($field);

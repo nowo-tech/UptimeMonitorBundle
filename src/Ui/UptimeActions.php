@@ -161,13 +161,17 @@ final readonly class UptimeActions
             return $actions;
         }
 
-        $editUrl   = $this->urls->generate('nowo_uptime_monitor_edit', $params);
-        $actions[] = new Action('edit', UptimePages::label($row ? 'monitor.edit_short' : 'monitor.edit'), $editUrl, attributes: [
-            'data-monitor-form-open'   => true,
-            'data-monitor-form-url'    => $editUrl,
-            'data-monitor-form-return' => $row ? 'dashboard' : 'show',
-            'data-testid'              => 'uptime-monitor-edit',
-        ]);
+        // A file-managed monitor (1.18): edit and delete belong to its monitors file; pause stays (ops can mute it).
+        $fileManaged = $monitor->isFileManaged();
+        if (!$fileManaged) {
+            $editUrl   = $this->urls->generate('nowo_uptime_monitor_edit', $params);
+            $actions[] = new Action('edit', UptimePages::label($row ? 'monitor.edit_short' : 'monitor.edit'), $editUrl, attributes: [
+                'data-monitor-form-open'   => true,
+                'data-monitor-form-url'    => $editUrl,
+                'data-monitor-form-return' => $row ? 'dashboard' : 'show',
+                'data-testid'              => 'uptime-monitor-edit',
+            ]);
+        }
         $actions[] = new Action(
             $monitor->isPaused() ? 'restore' : 'custom',
             UptimePages::label($monitor->isPaused() ? 'monitor.resume' : 'monitor.pause'),
@@ -177,6 +181,9 @@ final readonly class UptimeActions
             csrfToken: $this->token('toggle' . $id),
             attributes: ['data-testid' => 'uptime-monitor-pause'],
         );
+        if ($fileManaged) {
+            return $actions;
+        }
         $actions[] = Action::delete(
             $this->urls->generate('nowo_uptime_monitor_delete', $params),
             $this->token('delete' . $id),
@@ -200,7 +207,8 @@ final readonly class UptimeActions
      */
     public function push(string $tenantSlug, Monitor $monitor): array
     {
-        if ($monitor->getType() !== MonitorType::Push || !$this->canManageMonitors($tenantSlug)) {
+        // A file-managed monitor (1.18) gets its token from the monitors file's token input only.
+        if ($monitor->getType() !== MonitorType::Push || $monitor->isFileManaged() || !$this->canManageMonitors($tenantSlug)) {
             return [];
         }
         $id      = (int) $monitor->getId();

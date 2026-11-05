@@ -57,6 +57,28 @@ final class MonitorFactoryTest extends TestCase
         self::assertSame(5432, $monitor->getConfig()['port']);
     }
 
+    public function testTcpSslAndPingSaveTheirTimeoutAndReadTheRunnerDefaultBack(): void
+    {
+        $factory = $this->monitorFactory();
+        $tenant  = new Tenant('main', 'Main');
+        foreach ([[MonitorType::Tcp, 10], [MonitorType::Ssl, 10], [MonitorType::Ping, 5], [MonitorType::Https, 48]] as [$type, $default]) {
+            $data                        = new MonitorFormData();
+            $data->name                  = 'Target';
+            $data->type                  = $type;
+            $data->host                  = 'db.internal';
+            $data->url                   = 'https://example.test';
+            $data->requestTimeoutSeconds = 7;
+
+            $monitor = $factory->createFromFormData($tenant, $data);
+            self::assertSame(7, $monitor->getConfig()['timeout'], $type->value);
+            self::assertSame(7, $factory->toFormData($monitor)->requestTimeoutSeconds, $type->value);
+
+            // A monitor saved before 1.18 has no timeout: the form shows what the runner uses.
+            $monitor->setConfig(['host' => 'db.internal', 'url' => 'https://example.test']);
+            self::assertSame($default, $factory->toFormData($monitor)->requestTimeoutSeconds, $type->value);
+        }
+    }
+
     public function testCreatePingMonitor(): void
     {
         $factory    = $this->monitorFactory();

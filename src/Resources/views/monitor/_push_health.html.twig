@@ -29,7 +29,11 @@ UPTIME_PUSH_SECRET={{ push_signing_secret }}{% endif %}
         </div>
     {% endif %}
 
-    {# Generate / rotate / revoke: page header actions (UptimeActions::push()), POST + CSRF through UiKit. #}
+    {# Generate / rotate / revoke: page header actions (UptimeActions::push()), POST + CSRF through UiKit. A
+       file-managed monitor (1.18) gets its token from the monitors file only: the actions are not offered. #}
+    {% if monitor.fileManaged|default(false) %}
+        <p class="{{ nowo_ui_class('muted', _b) }}" data-testid="uptime-push-file-managed">{{ 'monitor.origin.file_explanation'|trans }}</p>
+    {% endif %}
 </section>
 
 <section class="uptime-push-health {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-push-health">

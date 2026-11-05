@@ -87,7 +87,12 @@ final readonly class MonitorFactory
         $data->retryIntervalSeconds  = $monitor->getRetryIntervalSeconds();
         $data->requestTimeoutSeconds = $this->wholeSeconds(
             is_numeric($config['request_timeout_seconds'] ?? null) ? $config['request_timeout_seconds'] : ($config['timeout'] ?? null),
-            48,
+            // The default each runner applies when nothing is stored (TCP / SSL 10 s, ping 5 s); 48 s for HTTP.
+            match ($monitor->getType()) {
+                MonitorType::Tcp, MonitorType::Ssl => 10,
+                MonitorType::Ping                  => 5,
+                default                            => 48,
+            },
         );
         $data->resendNotificationAfterDown = isset($config['resend_notification_after_down']) && is_numeric($config['resend_notification_after_down'])
             ? (int) $config['resend_notification_after_down']
@@ -172,11 +177,11 @@ final readonly class MonitorFactory
             ],
             MonitorType::Ping => [
                 $data->host,
-                ['host' => $data->host],
+                ['host' => $data->host] + $this->timeoutConfig($data),
             ],
             MonitorType::Tcp => [
                 sprintf('%s:%d', $data->host, $data->port),
-                ['host' => $data->host, 'port' => $data->port],
+                ['host' => $data->host, 'port' => $data->port] + $this->timeoutConfig($data),
             ],
             MonitorType::Dns => [
                 $data->hostname,
@@ -192,11 +197,24 @@ final readonly class MonitorFactory
                     'host'               => $data->host,
                     'port'               => $data->port,
                     'days_before_expiry' => $data->daysBeforeExpiry,
-                ],
+                ] + $this->timeoutConfig($data),
             ],
             MonitorType::Push => ['push', $this->buildPushConfig($data)],
             default           => $this->buildHttpTargetAndConfig($data),
         };
+    }
+
+    /**
+     * The timeout of a TCP, SSL or ping check (since 1.18; the runners read `timeout`, which only HTTP monitors saved
+     * before): whole seconds, at least 1.
+     *
+     * @return array{timeout: int, request_timeout_seconds: int}
+     */
+    private function timeoutConfig(MonitorFormData $data): array
+    {
+        $seconds = max(1, $data->requestTimeoutSeconds);
+
+        return ['timeout' => $seconds, 'request_timeout_seconds' => $seconds];
     }
 
     /**

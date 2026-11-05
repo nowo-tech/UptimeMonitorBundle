@@ -17,42 +17,64 @@ type FormOpenConfig = {
   title: string;
 };
 
+/**
+ * Section and row keys (`data-monitor-fields`) => the monitor types that show them. Since 1.18 the retry interval and
+ * the timeout are rows of their own (push has neither; DNS and groups have no timeout) and the port leaves ping. The
+ * 1.17 keys `http-options` and `tcp` keep their meaning for host templates that still use them.
+ */
+const FIELD_RULES: Record<string, (type: string) => boolean> = {
+  check: (type) => type !== 'group',
+  'check-retry': (type) => type !== 'group' && type !== 'push',
+  'check-timeout': (type) => ['http', 'https', 'tcp', 'ssl', 'ping'].includes(type),
+  http: (type) => type === 'http' || type === 'https',
+  'http-advanced': (type) => type === 'http' || type === 'https',
+  'http-options': (type) => type === 'http' || type === 'https',
+  tcp: (type) => ['tcp', 'ping', 'ssl'].includes(type),
+  'tcp-port': (type) => type === 'tcp' || type === 'ssl',
+  dns: (type) => type === 'dns',
+  ssl: (type) => type === 'ssl',
+  push: (type) => type === 'push',
+};
+
+/**
+ * Shows the sections and rows of the selected monitor type, and makes the target fields of that type required
+ * (`data-required-for="http https"`): a hidden field never blocks the browser, the server checks the same rule.
+ */
 export function initMonitorFormTypeToggle(scope: ParentNode): void {
   const typeSelect = scope.querySelector<HTMLSelectElement>('[data-monitor-type-select]');
   if (typeSelect === null) {
     return;
   }
 
-  const group = 'group';
-  const httpTypes = ['http', 'https'];
-  const tcpTypes = ['tcp', 'ping', 'ssl'];
-  const dns = 'dns';
   const sections = scope.querySelectorAll<HTMLElement>('[data-monitor-fields]');
+  const requiredFields = scope.querySelectorAll<HTMLInputElement>('[data-required-for]');
 
   const toggle = (): void => {
     const value = typeSelect.value;
     sections.forEach((element) => {
-      const key = element.getAttribute('data-monitor-fields');
-      let show = false;
-      if (key === 'check') {
-        show = value !== group;
-      } else if (key === 'http' || key === 'http-advanced' || key === 'http-options') {
-        show = httpTypes.includes(value);
-      } else if (key === 'tcp') {
-        show = tcpTypes.includes(value);
-      } else if (key === 'dns') {
-        show = value === dns;
-      } else if (key === 'ssl') {
-        show = value === 'ssl';
-      } else if (key === 'push') {
-        show = value === 'push';
-      }
-      element.hidden = !show;
+      const rule = FIELD_RULES[element.getAttribute('data-monitor-fields') ?? ''];
+      // An unknown key stays hidden, as in 1.17.
+      element.hidden = rule === undefined || !rule(value);
+    });
+    requiredFields.forEach((field) => {
+      field.required = (field.getAttribute('data-required-for') ?? '').split(' ').includes(value);
     });
   };
 
   typeSelect.addEventListener('change', toggle);
   toggle();
+
+  // A field the browser refuses inside the folded Advanced block opens it, so the error is never hidden (1.18).
+  scope.addEventListener(
+    'invalid',
+    (event) => {
+      const details = (event.target as Element | null)?.closest?.('details');
+      if (details instanceof HTMLDetailsElement && !details.open) {
+        details.open = true;
+      }
+    },
+    true,
+  );
 }
 
 /** Native <dialog> of the monitor form (UiKit `dialog` partial); null when the page has none. */
@@ -138,6 +160,12 @@ async function loadModalForm(
     credentials: 'same-origin',
   });
 
+  if (response.status === 409) {
+    // A file-managed monitor (1.18): the server explains that its monitors file owns it.
+    setBodyMessage(bodyEl, (await response.text()).trim() || 'Could not load monitor form.', true);
+    return;
+  }
+
   if (!response.ok) {
     setBodyMessage(bodyEl, 'Could not load monitor form.', true);
     return;
@@ -209,6 +237,11 @@ async function submitModalForm(
         await refreshDashboardLayout(dashboardRoot);
       }
 
+      return;
+    }
+
+    if (response.status === 409) {
+      showInlineFlash((await response.text()).trim() || 'Could not save monitor.', 'error');
       return;
     }
 

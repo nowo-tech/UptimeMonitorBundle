@@ -183,10 +183,13 @@ final class PageFixtures
      *
      * @return array<string, mixed>
      */
-    public static function dashboardTable(bool $empty = false): array
+    public static function dashboardTable(bool $empty = false, bool $fileManaged = false): array
     {
         $context = self::dashboard($empty);
         $rows    = $empty ? [] : $context['groups'][0]['children'];
+        if ($fileManaged) {
+            $rows[0]['monitor']->markFileManaged('little-vps.resources');
+        }
 
         return [
             'dashboard_view'      => 'table',
@@ -230,8 +233,12 @@ final class PageFixtures
      *
      * @return array<string, mixed>
      */
-    public static function monitorShowPush(): array
+    public static function monitorShowPush(bool $fileManaged = false): array
     {
+        $show = self::monitorShow();
+        if ($fileManaged) {
+            $show['monitor']->markFileManaged('little-vps.resources');
+        }
         $series = ['hours' => 24, 'labels' => ['10:00'], 'cpu' => [12.5], 'memory' => [40.0], 'swap' => [null], 'load' => [0.4], 'disks' => ['/' => [71.0]]];
 
         return [
@@ -250,7 +257,7 @@ final class PageFixtures
                 'series_json' => json_encode($series, JSON_THROW_ON_ERROR),
                 'ranges'      => [24, 168],
             ],
-        ] + self::monitorShow();
+        ] + $show;
     }
 
     /**
@@ -557,12 +564,15 @@ final class PageFixtures
         return $formType;
     }
 
-    private static function forms(): FormFactoryInterface
+    /**
+     * @param list<string> $hiddenMonitorFields `form.hidden_fields` of the monitor form
+     */
+    public static function forms(array $hiddenMonitorFields = []): FormFactoryInterface
     {
         return Forms::createFormFactoryBuilder()
             ->addExtension(new CsrfExtension(new FixedCsrfTokenManager()))
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(self::withMerger(new MonitorFormType()))
+            ->addType(self::withMerger(new MonitorFormType($hiddenMonitorFields)))
             ->addType(self::withMerger(new TenantFormType()))
             ->addType(self::withMerger(new TagFormType()))
             ->addType(self::withMerger(new SettingsGeneralFormType()))

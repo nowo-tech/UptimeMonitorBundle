@@ -52,6 +52,7 @@
                                     <td data-column="monitor">
                                         <a class="uptime-dashboard-row-name" href="{{ path('nowo_uptime_monitor_show', {tenantSlug: tenant_slug, id: monitor.id}) }}" data-testid="uptime-monitor-link">{{ monitor.name }}</a>
                                         <span class="{{ nowo_ui_class('badge', _b) }}">{{ ('form.monitor.type.' ~ monitor.type.value)|trans }}</span>
+                                        {% if monitor.fileManaged|default(false) %}<span class="{{ nowo_ui_class('badge_info', _b) }} uptime-file-badge" title="{{ 'monitor.origin.file_badge'|trans({'%key%': monitor.originKey}) }}" data-testid="uptime-monitor-file-badge">{{ 'monitor.origin.file_badge_short'|trans }}</span>{% endif %}
                                         {% if not monitor.group %}
                                             <span class="uptime-dashboard-row-target {{ nowo_ui_class('muted', _b) }}">{{ monitor_targets[monitor.id]|default('') }}</span>
                                         {% endif %}

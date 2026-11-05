@@ -208,6 +208,19 @@ final class UptimeActionsTest extends TestCase
         self::assertSame([], $managers->push('main', $this->monitor()), 'not a push monitor');
     }
 
+    public function testAFileManagedMonitorKeepsOnlyPause(): void
+    {
+        $managers = $this->actions($this->tenantChecker(true, false));
+        $monitor  = $this->monitor()->markFileManaged('little-vps.resources');
+
+        self::assertSame(['uptime-monitor-pause'], $this->testIds($managers->monitor('main', $monitor)));
+        self::assertSame(['view', 'uptime-monitor-pause'], $this->testIds($managers->monitor('main', $monitor, true)));
+
+        $push = (new Monitor(new Tenant('main', 'Main'), 'web', MonitorType::Push, 'push'))->markFileManaged('web');
+        $this->setEntityId($push, 9);
+        self::assertSame([], $managers->push('main', $push), 'the token comes from the file');
+    }
+
     public function testMonitorActionsForReaders(): void
     {
         $actions = $this->actions($this->tenantChecker(false, false), withCsrf: false);

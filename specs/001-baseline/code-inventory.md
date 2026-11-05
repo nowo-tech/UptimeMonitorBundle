@@ -209,6 +209,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Event/MonitorRecoveredEvent.php` | Dispatched when an incident resolves | FR-EVENT-001 |
+| `Event/MonitorsAppliedEvent.php` | Dispatched per tenant after `nowo:uptime:apply-monitors` commits (keys, ids, changed fields; no secrets) | FR-APPLY-005 |
 | `Event/MonitorWentDownEvent.php` | Dispatched when an incident opens | FR-EVENT-001 |
 | `Event/StatusPageMonitorsEvent.php` | The monitors a public status page shows (host filter) | FR-EVENT-002 |
 | `Event/UptimePageEvent.php` | Host header actions and sections of the dashboard and monitor pages | FR-EVENT-002 |
@@ -252,7 +253,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/src/uptime-dashboard.ts` | Dashboard entrypoint | FR-UI-010 |
 | `Resources/assets/src/uptime-logger.ts` | Frontend logger | FR-UI-012 |
 | `Resources/assets/src/vite-env.d.ts` | Vite type shims | FR-BUILD-002 |
-| `Resources/public/assets/monitor-form-modal-6AQgOjwt.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
+| `Resources/public/assets/monitor-form-modal-w2QuamRw.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
 | `Resources/public/auto.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/history-bar.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-dashboard.css` | Built frontend asset | FR-BUILD-001 |
@@ -349,6 +350,28 @@ Since 1.14 — see [`003-push-monitors`](../003-push-monitors/spec.md).
 | `Resources/assets/src/push-health.ts` | Server health charts (Chart.js, host palette) | FR-PUSH-006, FR-UI-010 |
 | `Resources/public/agent/uptime-push-agent.sh` | Reference POSIX agent served with the bundle assets (reads `/proc` and `df`, config parsed never sourced) | FR-PUSH-007 |
 
+## Monitors as code
+
+Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../../docs/PUSH-MONITORS.md#monitors-as-code)).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Command/ApplyMonitorsCommand.php` | Options, stdout JSON, exit codes; no token option | FR-APPLY-001 |
+| `Apply/MonitorFileParser.php` | Monitors file schema v1: strict keys, ranges, unique keys and URL keys; errors as JSON pointer + code | FR-APPLY-002 |
+| `Apply/MonitorFileSpec.php` | Validated file: entries per tenant slug, file SHA-256 | FR-APPLY-002 |
+| `Apply/PushMonitorSpec.php` | One validated push entry with its defaults | FR-APPLY-002 |
+| `Apply/PushTokenFileReader.php` | Token intake: 0600 regular file or non-interactive stdin, 64 KiB cap, hashed at once | FR-APPLY-003 |
+| `Apply/PushTokenPolicy.php` | Token format (64–128 lowercase hex) and minimum-entropy rules | FR-APPLY-003 |
+| `Apply/ExternalPushTokens.php` | Token hashes per entry key; dumps show keys only, not serializable | FR-APPLY-003 |
+| `Apply/TokenSourceSystem.php` | System calls behind the token intake (test seam) | FR-APPLY-003 |
+| `Apply/NativeTokenSourceSystem.php` | Native lstat / open / fstat / isatty / euid | FR-APPLY-003 |
+| `Apply/MonitorApplier.php` | Plan + write under tenant locks in one transaction; create / update / unchanged / prune; UI monitors untouched | FR-APPLY-004 |
+| `Apply/ApplyResult.php` | Output lists (no field can hold a secret) | FR-APPLY-001 |
+| `Apply/ApplyError.php` | One refusal: path, code, exit class | FR-APPLY-001 |
+| `Apply/ApplyRefusedException.php` | Refusal carrying codes only, no previous | FR-APPLY-006 |
+| `Apply/ApplyFailedException.php` | Write failure replacing the database exception (class only, no previous) | FR-APPLY-006 |
+| `Resources/schema/apply-monitors.v1.json` | JSON Schema of the monitors file, shipped for CI linting | FR-APPLY-002 |
+
 ## Coverage summary
 
 | Category | Files | Mapped |
@@ -369,7 +392,7 @@ Since 1.14 — see [`003-push-monitors`](../003-push-monitors/spec.md).
 | Async messaging | 2 | 2 |
 | Scheduler | 1 | 1 |
 | Monitor helpers | 4 | 4 |
-| Events | 4 | 4 |
+| Events | 5 | 5 |
 | Routing & tenants | 4 | 4 |
 | UI page contract | 9 | 9 |
 | Tenant limits | 3 | 3 |
@@ -379,6 +402,7 @@ Since 1.14 — see [`003-push-monitors`](../003-push-monitors/spec.md).
 | Translations | 7 | 7 |
 | Twig views | 32 | 32 |
 | Push monitors | 8 | 8 |
-| **Total production sources** | **211** | **211** |
+| Monitors as code | 15 | 15 |
+| **Total production sources** | **227** | **227** |
 
-Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **211** (2026-11-01; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.
+Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.

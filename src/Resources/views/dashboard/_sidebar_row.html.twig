@@ -11,6 +11,7 @@
     </span>
     <span class="uptime-sidebar-label">
         <a href="{{ path('nowo_uptime_monitor_show', {tenantSlug: tenant_slug, id: monitor.id}) }}" class="uptime-sidebar-name" data-sidebar-name>{{ monitor.name }}</a>
+        {% if monitor.fileManaged|default(false) %}<span class="uptime-file-badge" title="{{ 'monitor.origin.file_badge'|trans({'%key%': monitor.originKey}, 'NowoUptimeMonitorBundle') }}" aria-label="{{ 'monitor.origin.file_badge'|trans({'%key%': monitor.originKey}, 'NowoUptimeMonitorBundle') }}" data-testid="uptime-monitor-file-badge">{{ 'monitor.origin.file_badge_short'|trans({}, 'NowoUptimeMonitorBundle') }}</span>{% endif %}
     </span>
     <span class="uptime-sidebar-history" data-history-container>
         {{ include('@NowoUptimeMonitorBundle/_history_bar.html.twig', {

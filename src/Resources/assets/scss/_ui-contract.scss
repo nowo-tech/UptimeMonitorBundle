@@ -510,7 +510,8 @@
 }
 
 /* UiKit badge slot only: the 1.x `.uptime-status-<status>` colours (dark-shell palette) are not on this badge. */
-.uptime-details-status {
+.uptime-details-status,
+.uptime-details-origin {
   margin: 0;
 }
 
@@ -569,4 +570,167 @@
   .uptime-push-gauge.uptime-push-level-critical {
     border-left-color: var(--nowo-ui-danger, #dc2626);
   }
+}
+
+/* Monitor form (1.18): section intros, unit suffixes, switches, required markers and the folded Advanced HTTP block.
+   Plain CSS on the bundle's own classes, so every UI framework (Tabler, Bootstrap, Tailwind, custom) gets them. */
+.uptime-app--embedded.uptime-monitor-form-fields {
+  .uptime-form-section__intro {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    color: var(--nowo-ui-muted, #64748b);
+  }
+
+  .uptime-form-group[hidden] {
+    display: none;
+  }
+
+  .uptime-input-group {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .uptime-input-group > :is(input, select) {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .uptime-input-group__suffix {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    border: 1px solid var(--nowo-ui-border, #e2e8f0);
+    border-left: 0;
+    border-radius: 0 var(--nowo-ui-radius, 0.375rem) var(--nowo-ui-radius, 0.375rem) 0;
+    background: var(--nowo-ui-surface-muted, #f1f5f9);
+    color: var(--nowo-ui-muted, #64748b);
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+
+  /* The marker is decorative: the input carries `required`. The second declaration gives it empty alternative text so
+     screen readers do not announce "star"; browsers without that syntax keep the first one. */
+  .uptime-label-required::after {
+    content: ' *';
+    content: ' *' / '';
+    color: var(--nowo-ui-danger, #dc2626);
+  }
+
+  input[type='checkbox'].uptime-switch {
+    appearance: none;
+    position: relative;
+    flex: none;
+    width: 2.25rem;
+    height: 1.25rem;
+    margin: 0 0.5rem 0 0;
+    border: 1px solid var(--nowo-ui-border, #cbd5e1);
+    border-radius: 999px;
+    background: var(--nowo-ui-surface-muted, #e2e8f0);
+    vertical-align: middle;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  input[type='checkbox'].uptime-switch::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background: var(--nowo-ui-surface, #fff);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 30%);
+    transform: translateY(-50%);
+    transition: transform 0.15s ease;
+  }
+
+  input[type='checkbox'].uptime-switch:checked {
+    border-color: var(--nowo-ui-primary, #2563eb);
+    background: var(--nowo-ui-primary, #2563eb);
+  }
+
+  input[type='checkbox'].uptime-switch:checked::before {
+    transform: translate(1rem, -50%);
+  }
+
+  input[type='checkbox'].uptime-switch:focus-visible {
+    outline: 2px solid var(--nowo-ui-primary, #2563eb);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    input[type='checkbox'].uptime-switch,
+    input[type='checkbox'].uptime-switch::before {
+      transition: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    input[type='checkbox'].uptime-switch {
+      appearance: auto;
+    }
+
+    input[type='checkbox'].uptime-switch::before {
+      content: none;
+    }
+  }
+
+  details.uptime-form-advanced:not([hidden]) {
+    display: block;
+  }
+
+  .uptime-form-advanced__summary {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .uptime-form-advanced__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 1.25rem;
+    align-items: start;
+    margin-top: 0.75rem;
+  }
+
+  .uptime-form-advanced__body > div {
+    margin-bottom: 1rem;
+  }
+
+  .uptime-form-advanced__body > p {
+    grid-column: 1 / -1;
+  }
+
+  @container uptime-monitor-form (min-width: 36rem) {
+    .uptime-form-advanced__body {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .uptime-form-advanced__body > :has(:is(textarea, [name$='[keyword]'], [name$='[proxy]'], [name$='[tags]'])) {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.uptime-app.uptime-app--embedded details.uptime-form-section:not([hidden]) ~ .uptime-form-section:not([hidden]),
+.uptime-app.uptime-app--embedded .uptime-form-section:not([hidden]) ~ details.uptime-form-section:not([hidden]) {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--nowo-ui-border, #e2e8f0);
+}
+
+/* File-managed monitors (1.18): the compact "File" badge of the dashboard sidebar and table rows. */
+.uptime-file-badge {
+  display: inline-block;
+  margin-left: 0.375rem;
+  padding: 0 0.375rem;
+  border: 1px solid var(--nowo-ui-border, #cbd5e1);
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  line-height: 1.25rem;
+  color: var(--nowo-ui-muted, #64748b);
+  vertical-align: middle;
 }

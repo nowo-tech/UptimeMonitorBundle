@@ -41,7 +41,7 @@ Create or edit monitors at:
 |------------|------------|---------|-------------|
 | `url` | URL | `https://example.com/app.js` | Request target |
 | `method` | Method | `GET` | `GET`, `HEAD`, `POST` |
-| `request_timeout_seconds` | Request timeout | `48` | HttpClient timeout (seconds) |
+| `request_timeout_seconds` | Request timeout | `48` | HttpClient timeout (seconds). Since 1.18 TCP, SSL and ping monitors save it too (as `timeout`, which their checks read; before, the field had no effect and they used 10 s / 10 s / 5 s). DNS has no timeout. Capped by `checks.max_timeout_seconds` |
 | `resend_notification_after_down` | Resend if down | `0` | `0` = alert only on transition; `N` = repeat alert every N consecutive down checks |
 | `description` | Description | — | Optional notes (stored in config) |
 

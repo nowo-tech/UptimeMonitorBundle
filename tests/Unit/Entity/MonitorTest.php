@@ -80,4 +80,13 @@ final class MonitorTest extends TestCase
         self::assertSame($at, $monitor->getPushLastAt());
         self::assertSame(['cpu_pct' => 1.0], $monitor->getPushSample());
     }
+
+    public function testOriginIsUiUntilAFileTakesTheMonitor(): void
+    {
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'web-01', MonitorType::Push, 'push');
+        self::assertSame([Monitor::ORIGIN_UI, null, false], [$monitor->getOrigin(), $monitor->getOriginKey(), $monitor->isFileManaged()]);
+
+        self::assertSame($monitor, $monitor->markFileManaged('web-01.resources'));
+        self::assertSame([Monitor::ORIGIN_FILE, 'web-01.resources', true], [$monitor->getOrigin(), $monitor->getOriginKey(), $monitor->isFileManaged()]);
+    }
 }

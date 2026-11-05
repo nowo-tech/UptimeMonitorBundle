@@ -162,7 +162,41 @@ final class MonitorFormTypeTest extends TypeTestCase
 
         $data->type = MonitorType::Tcp;
         $data->url  = 'leftover';
+        $data->host = 'db.example.test';
         self::assertCount(0, $validator->validate($data), 'other types ignore the URL field');
+    }
+
+    public function testTheTargetOfEachTypeIsRequired(): void
+    {
+        $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
+        $cases     = [
+            [MonitorType::Https, ['url']],
+            [MonitorType::Http, ['url']],
+            [MonitorType::Tcp, ['host', 'port']],
+            [MonitorType::Ssl, ['host', 'port']],
+            [MonitorType::Ping, ['host']],
+            [MonitorType::Dns, ['hostname']],
+            [MonitorType::Push, []],
+            [MonitorType::Group, []],
+        ];
+        foreach ($cases as [$type, $paths]) {
+            $data       = new MonitorFormData();
+            $data->type = $type;
+            $data->host = '  ';
+            $data->port = 0;
+            $violations = $validator->validate($data);
+            $found      = [];
+            foreach ($violations as $violation) {
+                $found[] = $violation->getPropertyPath();
+                self::assertSame('form.monitor.' . $violation->getPropertyPath() . '_required', $violation->getMessageTemplate());
+            }
+            self::assertSame($paths, $found, $type->value);
+        }
+
+        $data           = new MonitorFormData();
+        $data->type     = MonitorType::Dns;
+        $data->hostname = 'example.test';
+        self::assertCount(0, $validator->validate($data));
     }
 
     public function testTheTypeOptionsAreTheTypeNames(): void
@@ -198,6 +232,7 @@ final class MonitorFormTypeTest extends TypeTestCase
     {
         $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
         $data      = new MonitorFormData();
+        $data->url = 'https://example.test';
         self::assertCount(0, $validator->validate($data));
 
         $data->retries      = -1;
