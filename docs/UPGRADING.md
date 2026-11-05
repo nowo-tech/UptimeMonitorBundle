@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.19.1](#to-1191)
 - [To 1.19.0](#to-1190)
 - [To 1.18.0](#to-1180)
 - [To 1.17.2](#to-1172)
@@ -114,7 +115,15 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
-Planned **1.19.1**. No schema, configuration or template change.
+## To 1.19.1
+
+From **1.19.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+No schema, configuration or template change.
 
 - `nowo:uptime:apply-monitors` exits **6** (`concurrent_conflict`) instead of 1 (`apply_failed`) when a concurrent
   write takes a unique value between the plan and the flush. Nothing is written; run it again. Scripts that treat 1
