@@ -136,11 +136,82 @@ function syncDashboardEditButton(dashboardRoot: HTMLElement): void {
   button.dataset.monitorFormReturn = 'dashboard';
 }
 
+/** The dialog footer the UiKit `dialog` partial renders with `footer_target` (UiKit 2.29); null without one. */
+function dialogFooter(bodyEl: HTMLElement): HTMLElement | null {
+  const modalEl = bodyEl.closest<HTMLElement>('[data-uptime-monitor-form-modal]');
+  if (modalEl === null) {
+    return null;
+  }
+
+  return (
+    Array.from(modalEl.children).find(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.hasAttribute('data-nowo-ui-dialog-footer'),
+    ) ?? null
+  );
+}
+
+function clearFooter(bodyEl: HTMLElement): void {
+  const footer = dialogFooter(bodyEl);
+  if (footer !== null) {
+    footer.replaceChildren();
+    footer.hidden = true;
+  }
+}
+
+/**
+ * Moves the fragment's actions row ([data-nowo-ui-dialog-actions], else .uptime-form-actions) into the dialog footer
+ * (1.19, UiKit 2.29 anatomy): the footer stays visible while only the body scrolls. Each moved control is bound to
+ * the form with form="<id>" (an id is given to a form without one), so Save still submits it from the footer.
+ */
+function mountFooterActions(bodyEl: HTMLElement, form: HTMLFormElement): void {
+  const footer = dialogFooter(bodyEl);
+  const actions =
+    bodyEl.querySelector<HTMLElement>('[data-nowo-ui-dialog-actions]') ?? bodyEl.querySelector<HTMLElement>('.uptime-form-actions');
+  if (footer === null || actions === null) {
+    return;
+  }
+
+  if (form.id === '') {
+    form.id = 'uptime-monitor-form';
+  }
+  actions.querySelectorAll<HTMLElement>('button, input, select, textarea').forEach((control) => {
+    if (!control.hasAttribute('form')) {
+      control.setAttribute('form', form.id);
+    }
+  });
+  footer.replaceChildren(...Array.from(actions.childNodes));
+  actions.remove();
+  footer.hidden = false;
+}
+
+/** The submit buttons of the form: inside it, or bound to it from the dialog footer (form="<id>"). */
+function submitButtonsOf(form: HTMLFormElement): HTMLButtonElement[] {
+  const scope = form.closest<HTMLElement>('[data-uptime-monitor-form-modal]') ?? form;
+
+  return Array.from(scope.querySelectorAll<HTMLButtonElement>('button[type="submit"]')).filter(
+    (button) => form.contains(button) || (form.id !== '' && button.getAttribute('form') === form.id),
+  );
+}
+
 function setBodyMessage(bodyEl: HTMLElement, message: string, error = false): void {
+  clearFooter(bodyEl);
   const paragraph = document.createElement('p');
   paragraph.className = error ? 'nowo-ui-flash nowo-ui-flash--error' : 'nowo-ui-muted';
   paragraph.textContent = message;
   bodyEl.replaceChildren(paragraph);
+}
+
+/** Injects a form fragment into the dialog body, wires the type toggle, the footer actions and the submit. */
+function mountFormFragment(bodyEl: HTMLElement, html: string, returnTarget: FormReturnTarget): void {
+  clearFooter(bodyEl);
+  bodyEl.innerHTML = html;
+  initMonitorFormTypeToggle(bodyEl);
+
+  const form = bodyEl.querySelector<HTMLFormElement>('[data-monitor-form]');
+  if (form !== null) {
+    mountFooterActions(bodyEl, form);
+    bindModalFormSubmit(form, bodyEl, returnTarget);
+  }
 }
 
 async function loadModalForm(
@@ -171,13 +242,7 @@ async function loadModalForm(
     return;
   }
 
-  bodyEl.innerHTML = await response.text();
-  initMonitorFormTypeToggle(bodyEl);
-
-  const form = bodyEl.querySelector<HTMLFormElement>('[data-monitor-form]');
-  if (form !== null) {
-    bindModalFormSubmit(form, bodyEl, returnTarget);
-  }
+  mountFormFragment(bodyEl, await response.text(), returnTarget);
 }
 
 function bindModalFormSubmit(
@@ -196,7 +261,7 @@ async function submitModalForm(
   bodyEl: HTMLElement,
   returnTarget: FormReturnTarget,
 ): Promise<void> {
-  const submitButtons = form.querySelectorAll<HTMLButtonElement>('button[type="submit"]');
+  const submitButtons = submitButtonsOf(form);
   submitButtons.forEach((button) => {
     button.disabled = true;
   });
@@ -246,12 +311,7 @@ async function submitModalForm(
     }
 
     if (response.status === 422 || contentType.includes('text/html')) {
-      bodyEl.innerHTML = await response.text();
-      initMonitorFormTypeToggle(bodyEl);
-      const nextForm = bodyEl.querySelector<HTMLFormElement>('[data-monitor-form]');
-      if (nextForm !== null) {
-        bindModalFormSubmit(nextForm, bodyEl, returnTarget);
-      }
+      mountFormFragment(bodyEl, await response.text(), returnTarget);
       return;
     }
 

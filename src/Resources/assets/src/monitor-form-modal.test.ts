@@ -9,6 +9,17 @@ const FORM_HTML = `
   <button type="submit">Save</button>
 </form>`;
 
+/** The 1.19 fragment: an actions row the dialog moves into its footer (Cancel, then the primary Save). */
+const FORM_WITH_ACTIONS = `
+<form data-monitor-form="1" action="/main/monitors/new" method="post">
+  <select data-monitor-type-select><option value="http" selected>http</option></select>
+  <fieldset data-monitor-fields="http"><input name="url"></fieldset>
+  <div class="uptime-form-actions" data-nowo-ui-dialog-actions>
+    <button type="button" data-nowo-ui-dialog-close>Cancel</button>
+    <button type="submit" form="uptime-monitor-form">Save</button>
+  </div>
+</form>`;
+
 /** A fresh <body>: initMonitorFormModal binds its opener listener on document.body. */
 function freshBody(): void {
   document.documentElement.replaceChild(document.createElement('body'), document.body);
@@ -21,6 +32,7 @@ function mountDialog(): HTMLDialogElement {
     <dialog id="uptime-monitor-form-modal" data-uptime-monitor-form-modal>
       <header><h2 data-monitor-form-title>Edit monitor</h2><button type="button" data-nowo-ui-dialog-close>×</button></header>
       <div data-monitor-form-body><p>Loading form…</p></div>
+      <footer class="nowo-ui-dialog__footer" data-nowo-ui-dialog-footer hidden></footer>
     </dialog>`;
 
   return document.querySelector('dialog') as HTMLDialogElement;
@@ -304,5 +316,76 @@ describe('monitor form dialog', () => {
     document.body.click();
     dialog.click();
     expect(dialog.showModal).not.toHaveBeenCalled();
+  });
+  it('moves the actions into the dialog footer, bound to the form, and disables Save while posting (1.19)', async () => {
+    const dialog = mountDialog();
+    dialog.showModal = vi.fn(function (this: HTMLDialogElement) { this.setAttribute('open', ''); });
+    dialog.close = vi.fn(function (this: HTMLDialogElement) { this.removeAttribute('open'); });
+    document.body.insertAdjacentHTML('afterbegin', '<main id="nowo-ui-content"></main>');
+    let release: (response: Response) => void = () => undefined;
+    const pending = new Promise<Response>((resolve) => { release = resolve; });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(FORM_WITH_ACTIONS.replace(' data-monitor-form="1"', ' id="uptime-monitor-form" data-monitor-form="1"'), { headers: { 'Content-Type': 'text/html' } }))
+      .mockReturnValueOnce(pending)
+      .mockResolvedValueOnce(new Response(FORM_WITH_ACTIONS, { status: 422, headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('Managed from a file.', { status: 409, headers: { 'Content-Type': 'text/plain' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    initMonitorFormModal(document);
+    const opener = document.querySelector<HTMLElement>('[data-monitor-form-open]') as HTMLElement;
+    opener.click();
+    await flush();
+
+    const footer = dialog.querySelector<HTMLElement>('[data-nowo-ui-dialog-footer]') as HTMLElement;
+    const form = dialog.querySelector('form') as HTMLFormElement;
+    expect(footer.hidden).toBe(false);
+    expect(Array.from(footer.querySelectorAll('button')).map((button) => button.textContent)).toEqual(['Cancel', 'Save']);
+    expect(Array.from(footer.querySelectorAll('button')).map((button) => button.getAttribute('form'))).toEqual(['uptime-monitor-form', 'uptime-monitor-form']);
+    expect(form.querySelector('[data-nowo-ui-dialog-actions]')).toBeNull();
+
+    // A 409 on save (the monitor became file-managed meanwhile) keeps the dialog and flashes the server text.
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    const save = footer.querySelector<HTMLButtonElement>('button[type="submit"]') as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    release(new Response('Managed from a file.', { status: 409, headers: { 'Content-Type': 'text/plain' } }));
+    await vi.waitFor(() => expect(save.disabled).toBe(false));
+    expect(document.querySelector('#nowo-ui-content .nowo-ui-flash--error')?.textContent).toBe('Managed from a file.');
+    expect(dialog.close).not.toHaveBeenCalled();
+
+    // 422: the re-rendered fragment (a form without id) gets an id and its actions move into the footer again.
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    await vi.waitFor(() => expect(dialog.querySelector('form')).not.toBe(form));
+    const next = dialog.querySelector('form') as HTMLFormElement;
+    expect(next.id).toBe('uptime-monitor-form');
+    expect(footer.querySelectorAll('button')).toHaveLength(2);
+
+    // Reopened on a monitor the server refuses: the message shows and the footer is emptied and hidden.
+    opener.click();
+    await flush();
+    expect(footer.hidden).toBe(true);
+    expect(footer.childNodes).toHaveLength(0);
+    expect(dialog.querySelector('[data-monitor-form-body] .nowo-ui-flash--error')?.textContent).toBe('Managed from a file.');
+  });
+
+  it('leaves the actions in the form when the dialog has no footer target or the fragment no actions row', async () => {
+    const dialog = mountDialog();
+    dialog.querySelector('[data-nowo-ui-dialog-footer]')?.remove();
+    dialog.showModal = vi.fn();
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(FORM_WITH_ACTIONS, { headers: { 'Content-Type': 'text/html' } })));
+
+    initMonitorFormModal(document);
+    document.querySelector<HTMLElement>('[data-monitor-form-open]')?.click();
+    await flush();
+    expect(dialog.querySelector('form [data-nowo-ui-dialog-actions]')).not.toBeNull();
+
+    const withFooter = mountDialog();
+    withFooter.showModal = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(FORM_HTML, { headers: { 'Content-Type': 'text/html' } })));
+    initMonitorFormModal(document);
+    document.querySelector<HTMLElement>('[data-monitor-form-open]')?.click();
+    await flush();
+    expect(withFooter.querySelector<HTMLElement>('[data-nowo-ui-dialog-footer]')?.hidden).toBe(true);
+    expect(withFooter.querySelector('form button[type="submit"]')).not.toBeNull();
   });
 });
