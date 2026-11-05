@@ -306,11 +306,10 @@ final readonly class MonitorBackupService
             $data->recordType       = is_string($config['record_type'] ?? null) ? $config['record_type'] : $data->recordType;
             $data->expectedDnsValue = is_string($config['expected_value'] ?? null) ? $config['expected_value'] : '';
             $data->daysBeforeExpiry = is_int($config['days_before_expiry'] ?? null) ? $config['days_before_expiry'] : $data->daysBeforeExpiry;
-            // SPKI pins (1.20): a malformed entry becomes "?" in the form text, so the validator refuses the row.
-            if (isset($config['expected_spki_pins']) && is_array($config['expected_spki_pins'])) {
-                $data->expectedSpkiPins = implode("\n", array_map(static fn (mixed $pin): string => is_string($pin) && SpkiPins::isValid($pin) ? $pin : '?', $config['expected_spki_pins']));
-            }
-            $timeout = $config['request_timeout_seconds'] ?? $config['timeout'] ?? null;
+            // SPKI pins (1.20): a non-list value or a malformed entry becomes "?" and more than MAX_PINS entries stay
+            // too many, so the validator refuses the row instead of importing it unpinned (GA-L1, GA-L2).
+            $data->expectedSpkiPins = SpkiPins::toFormText($config['expected_spki_pins'] ?? null);
+            $timeout                = $config['request_timeout_seconds'] ?? $config['timeout'] ?? null;
             if (is_numeric($timeout)) {
                 $data->requestTimeoutSeconds = max(1, (int) ceil((float) $timeout));
             } elseif (in_array($data->type, [MonitorType::Tcp, MonitorType::Ssl, MonitorType::Ping], true)) {

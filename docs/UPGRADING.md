@@ -117,7 +117,9 @@ composer update nowo-tech/uptime-monitor-bundle
 
 No schema change (the pins live in the monitor `config` JSON) and no configuration change.
 
-- SSL monitors accept `expected_spki_pins` (list of `sha256/<base64>`, max 20). Monitors without it behave as before.
+- SSL monitors accept `expected_spki_pins` (list of 1–20 `sha256/<base64>`). Monitors without it behave as before.
+  Pins match the issuer path linked to the leaf by signature (an appended, unrelated certificate never counts); a
+  stored value that is not a list of valid pins makes the check down.
   Get the pin of a live certificate with
   `openssl s_client -connect host:443 -servername host </dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64`
   and prefix it with `sha256/`. Pin a backup key or an intermediate too, so a key rotation does not take the monitor down.

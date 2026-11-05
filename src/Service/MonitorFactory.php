@@ -431,7 +431,7 @@ final readonly class MonitorFactory
         $data->daysBeforeExpiry = isset($config['days_before_expiry']) && is_numeric($config['days_before_expiry'])
             ? (int) $config['days_before_expiry']
             : 14;
-        $data->expectedSpkiPins = implode("\n", SpkiPins::fromConfig($config));
+        $data->expectedSpkiPins = SpkiPins::toFormText($config['expected_spki_pins'] ?? null);
 
         return $data;
     }

@@ -15,8 +15,6 @@ use Symfony\Component\Form\Forms;
 use Symfony\Component\Form\Test\TypeTestCase;
 use Symfony\Component\Validator\Validation;
 
-use function sprintf;
-
 #[CoversClass(MonitorFormType::class)]
 #[CoversClass(MonitorFormData::class)]
 final class MonitorFormTypeTest extends TypeTestCase
@@ -225,14 +223,22 @@ final class MonitorFormTypeTest extends TypeTestCase
 
         $many = [];
         for ($i = 0; $i < 21; ++$i) {
-            $many[] = sprintf('sha256/%s%02d=', str_repeat('A', 41), $i);
+            $many[] = 'sha256/' . base64_encode(hash('sha256', (string) $i, true));
         }
         $data->expectedSpkiPins = implode("\n", $many);
         $violations             = $validator->validate($data);
         self::assertCount(1, $violations);
         self::assertSame('form.monitor.ssl_spki_pins_too_many', $violations->get(0)->getMessageTemplate());
 
-        $data->type = MonitorType::Tcp;
+        // GA-L1: text over the limit only gets the Length violation, it is never parsed.
+        $data->expectedSpkiPins = str_repeat($pin . "\n", 100);
+        $violations             = $validator->validate($data);
+        self::assertCount(1, $violations);
+        self::assertSame('expectedSpkiPins', $violations->get(0)->getPropertyPath());
+        self::assertStringContainsString('too long', (string) $violations->get(0)->getMessage());
+
+        $data->expectedSpkiPins = $pin . "\nsha1/abc";
+        $data->type             = MonitorType::Tcp;
         self::assertCount(0, $validator->validate($data), 'other types ignore the field');
     }
 

@@ -17,6 +17,7 @@ use function is_string;
 use function mb_strimwidth;
 use function parse_url;
 use function preg_match;
+use function strlen;
 use function strtolower;
 use function trim;
 
@@ -88,7 +89,7 @@ final class MonitorFormData
     #[Assert\Range(min: 0, max: 3650)]
     public int $daysBeforeExpiry = 14;
     /** Expected SPKI pins (since 1.20): one `sha256/<base64>` per line, or a pasted pins.json list; empty = no pinning. */
-    #[Assert\Length(max: 4096)]
+    #[Assert\Length(max: SpkiPins::MAX_TEXT_LENGTH)]
     public string $expectedSpkiPins = '';
 
     // Push (since 1.14): grace beyond the interval, signed pushes and the warning / critical limits (null = off).
@@ -152,13 +153,15 @@ final class MonitorFormData
     }
 
     /**
-     * SSL monitors (since 1.20): every expected SPKI pin must be a `sha256/<base64>` hash
-     * (`form.monitor.ssl_spki_pins_invalid`) and there are at most {@see SpkiPins::MAX_PINS}
-     * (`form.monitor.ssl_spki_pins_too_many`); other monitor types ignore the field.
+     * SSL monitors (since 1.20): every expected SPKI pin must be a `sha256/<base64>` hash — a list with any malformed
+     * entry is refused as a whole, never saved partially (`form.monitor.ssl_spki_pins_invalid`) — and there are at
+     * most {@see SpkiPins::MAX_PINS} (`form.monitor.ssl_spki_pins_too_many`, never truncated); other monitor types
+     * ignore the field.
      */
     public static function validateSpkiPins(self $data, ExecutionContextInterface $context): void
     {
-        if ($data->type !== MonitorType::Ssl) {
+        // Longer text is refused by the Length constraint; it is not parsed at all (bounded work, GA-L1).
+        if ($data->type !== MonitorType::Ssl || strlen($data->expectedSpkiPins) > SpkiPins::MAX_TEXT_LENGTH) {
             return;
         }
 

@@ -88,6 +88,14 @@ This bundle provides:
   outbound call has an explicit deadline and checks run only in CLI/worker processes — see
   [CONFIGURATION.md → Check limits](CONFIGURATION.md#check-limits-sec-004) and
   [Timeouts](CONFIGURATION.md#timeouts-frankenphp-safe-req-runtime-001). Detail rows are purged in keyset batches.
+- **SSL SPKI pins (1.20)**: pins are compared with the issuer path linked to the verified leaf by signature
+  (`openssl_x509_verify()`, at most 10 certificates), never with every certificate the server sends, so an appended
+  public intermediate cannot satisfy a pin. Pins are public key hashes (not secrets, not redacted in exports). A pin
+  must be canonical base64 of 32 bytes. A trust-store root that the server does not send is never seen, so it cannot be
+  pinned. On a mismatch the path's pins are stored in the check metadata (`served_spki_pins`): public data that no
+  page displays today; keep it to authenticated views if SSL metadata is ever shown (status pages are public). Invalid
+  stored pins fail closed; form and import input is capped (4 096 bytes, 21 entries parsed). See
+  [CHECK-TYPES.md](CHECK-TYPES.md).
 - **Stored data**: check results may contain response snippets and DNS/SSL metadata; monitor configs hold the secrets
   monitor managers enter (basic-auth password, custom headers such as `Authorization`, proxy and URL credentials).
   Protect database access and database backups.

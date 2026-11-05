@@ -209,16 +209,58 @@ final class SslCheckRunnerTest extends TestCase
         self::assertSame([$fixturePin], $miss->metadata['served_spki_pins'] ?? null);
     }
 
-    public function testMalformedStoredPinsFailClosedAndValidOnesAreKept(): void
+    public function testInvalidStoredPinsFailClosedWithoutConnecting(): void
     {
-        $runner = $this->runner(new SocketConnection(true, peerCertificate: FakeSocketConnector::fixtureCertificate()), connector: $connector);
+        $fixturePin = (string) SpkiPins::fromCertificate(FakeSocketConnector::fixtureCertificate());
+        $runner     = $this->runner(new SocketConnection(true, peerCertificate: FakeSocketConnector::fixtureCertificate()), connector: $connector);
 
-        $result = $runner->run($this->monitor(['expected_spki_pins' => ['not-a-pin']]));
-        self::assertSame(CheckStatus::Down, $result->status);
-        self::assertSame('No valid SPKI pin in expected_spki_pins (expected sha256/<base64>)', $result->message);
+        // GA-L2 / GA-I4: a non-list value, a malformed entry next to a valid one, or a non-string all fail closed.
+        foreach ([['not-a-pin'], [$fixturePin, 'not-a-pin'], $fixturePin, 7, [$fixturePin, 7]] as $stored) {
+            $result = $runner->run($this->monitor(['expected_spki_pins' => $stored]));
+            self::assertSame(CheckStatus::Down, $result->status);
+            self::assertSame('Invalid expected_spki_pins (expected a list of 1 to 20 sha256/<base64> pins)', $result->message);
+        }
         self::assertSame([], $connector->calls, 'nothing is contacted');
 
-        $fixturePin = (string) SpkiPins::fromCertificate(FakeSocketConnector::fixtureCertificate());
-        self::assertSame(CheckStatus::Up, $runner->run($this->monitor(['expected_spki_pins' => ['not-a-pin', $fixturePin]]))->status);
+        self::assertSame(CheckStatus::Up, $runner->run($this->monitor(['expected_spki_pins' => null]))->status, 'null means no pins');
+    }
+
+    public function testAnAppendedCertificateThatDidNotSignTheLeafNeverMatches(): void
+    {
+        // GA-M1: a leaf from an unrelated CA with the pinned (public) intermediate appended must stay down.
+        $pinned = TestCertificateChain::generate();
+        $rogue  = TestCertificateChain::generate();
+        $runner = $this->runner(
+            new SocketConnection(true, peerCertificate: $rogue->leaf, peerCertificateChain: [$rogue->leaf, $rogue->intermediate, $pinned->intermediate, $pinned->root]),
+            gmdate('Y-m-d H:i:s'),
+        );
+
+        $result = $runner->run($this->monitor(['expected_spki_pins' => [(string) SpkiPins::fromCertificate($pinned->intermediate), (string) SpkiPins::fromCertificate($pinned->root)]]));
+
+        self::assertSame(CheckStatus::Down, $result->status);
+        self::assertSame('Served chain contains none of the expected SPKI pins', $result->message);
+        self::assertSame(
+            [SpkiPins::fromCertificate($rogue->leaf), SpkiPins::fromCertificate($rogue->intermediate)],
+            $result->metadata['served_spki_pins'] ?? null,
+            'only the path linked to the leaf is hashed',
+        );
+
+        $unlinked = $this->runner(
+            new SocketConnection(true, peerCertificate: $rogue->leaf, peerCertificateChain: [$rogue->leaf, $pinned->intermediate]),
+            gmdate('Y-m-d H:i:s'),
+        )->run($this->monitor(['expected_spki_pins' => [(string) SpkiPins::fromCertificate($pinned->intermediate)]]));
+        self::assertSame(CheckStatus::Down, $unlinked->status);
+        self::assertSame([SpkiPins::fromCertificate($rogue->leaf)], $unlinked->metadata['served_spki_pins'] ?? null);
+    }
+
+    public function testTheIssuerPathIsFoundWhateverTheServedOrder(): void
+    {
+        $chain  = TestCertificateChain::generate();
+        $result = $this->runner(
+            new SocketConnection(true, peerCertificate: $chain->leaf, peerCertificateChain: [$chain->root, 'garbage', $chain->leaf, $chain->intermediate]),
+            gmdate('Y-m-d H:i:s'),
+        )->run($this->monitor(['expected_spki_pins' => [(string) SpkiPins::fromCertificate($chain->root)]]));
+
+        self::assertSame(CheckStatus::Up, $result->status, (string) $result->message);
     }
 }

@@ -18,10 +18,12 @@ use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 
 use function array_intersect;
-use function array_unique;
-use function array_values;
+use function array_keys;
+use function array_map;
 use function is_array;
 use function is_string;
+use function openssl_x509_fingerprint;
+use function openssl_x509_verify;
 use function sprintf;
 use function str_contains;
 use function trim;
@@ -34,6 +36,9 @@ use function trim;
  */
 final readonly class SslCheckRunner implements CheckRunnerInterface
 {
+    /** Most certificates followed on the issuer path from the leaf (bounds the work on a long or crafted chain). */
+    private const MAX_PIN_PATH = 10;
+
     /**
      * Creates the SSL runner; the defaults block private targets and use the system clock and real sockets.
      *
@@ -63,7 +68,8 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
     /**
      * Opens a verified TLS connection and checks the peer certificate expiry: down when expired or unreachable,
      * degraded within `days_before_expiry`, up otherwise. With `expected_spki_pins` the check is also down when no
-     * certificate of the served chain (leaf, intermediates, root if sent) has one of those SPKI hashes.
+     * certificate of the issuer path linked to the leaf (leaf, the intermediates that signed it, the root if sent)
+     * has one of those SPKI hashes, and when the stored pins are invalid (fail closed, nothing is contacted).
      */
     public function run(Monitor $monitor): CheckResultDto
     {
@@ -76,10 +82,14 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
         $timeout = $this->limits->clampTimeout(isset($config['timeout']) && is_numeric($config['timeout']) ? (float) $config['timeout'] : 10.0);
         $pins    = SpkiPins::fromConfig($config);
 
-        $storedPins = $config['expected_spki_pins'] ?? null;
-        if ($pins === [] && is_array($storedPins) && $storedPins !== []) {
-            // Fail closed: a monitor meant to be pinned is never checked unpinned because its pins are malformed.
-            return new CheckResultDto(CheckStatus::Down, 0, null, 'No valid SPKI pin in expected_spki_pins (expected sha256/<base64>)');
+        if ($pins === null) {
+            // Fail closed: a monitor meant to be pinned is never checked unpinned because its pins are invalid.
+            return new CheckResultDto(
+                CheckStatus::Down,
+                0,
+                null,
+                sprintf('Invalid expected_spki_pins (expected a list of 1 to %d sha256/<base64> pins)', SpkiPins::MAX_PINS),
+            );
         }
 
         $connectHost = $host;
@@ -142,7 +152,7 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
         ];
 
         if ($pins !== []) {
-            $served = $this->servedPins($connection->peerCertificateChain, $cert);
+            $served = $this->linkedPins($cert, $connection->peerCertificateChain);
             if (array_intersect($served, $pins) === []) {
                 return new CheckResultDto(
                     CheckStatus::Down,
@@ -179,23 +189,41 @@ final readonly class SslCheckRunner implements CheckRunnerInterface
     }
 
     /**
-     * The SPKI pins of the leaf and of every certificate of the served chain (the chain holds the leaf too; a pin is
-     * listed once).
+     * The SPKI pins of the issuer path linked to the leaf: starting at the leaf (the verified peer certificate), the
+     * next certificate is a not yet used one of the served chain whose key verifies the current certificate's
+     * signature (`openssl_x509_verify() === 1`), until none does or {@see self::MAX_PIN_PATH} certificates are on the
+     * path. Served certificates that do not sign that path (extra certificates a server may append) are ignored, so
+     * a pinned intermediate cannot be satisfied by merely sending it.
      *
      * @param list<mixed> $chain
      *
      * @return list<string>
      */
-    private function servedPins(array $chain, mixed $leaf): array
+    private function linkedPins(OpenSSLCertificate|string $leaf, array $chain): array
     {
-        $served = [];
-        foreach ([$leaf, ...$chain] as $certificate) {
-            $pin = SpkiPins::fromCertificate($certificate);
-            if ($pin !== null) {
-                $served[] = $pin;
+        $current = $leaf;
+        $used    = [(string) openssl_x509_fingerprint($leaf, 'sha256') => true];
+        $pins    = [];
+        for ($length = 1; $length <= self::MAX_PIN_PATH; ++$length) {
+            $pins[(string) SpkiPins::fromCertificate($current)] = true;
+            $next                                               = null;
+            foreach ($chain as $candidate) {
+                if (!$candidate instanceof OpenSSLCertificate || isset($used[(string) openssl_x509_fingerprint($candidate, 'sha256')])) {
+                    continue;
+                }
+                if (@openssl_x509_verify($current, $candidate) === 1) {
+                    $next = $candidate;
+                    break;
+                }
             }
+            if (!$next instanceof OpenSSLCertificate) {
+                break;
+            }
+            $used[(string) openssl_x509_fingerprint($next, 'sha256')] = true;
+            $current                                                  = $next;
         }
+        unset($pins['']);
 
-        return array_values(array_unique($served));
+        return array_map(strval(...), array_keys($pins));
     }
 }

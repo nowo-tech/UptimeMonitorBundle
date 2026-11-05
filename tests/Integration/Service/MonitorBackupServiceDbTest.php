@@ -144,9 +144,12 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'No host', 'type' => 'tcp', 'target' => ':1', 'config' => []],
             ['name' => 'Pinned', 'type' => 'ssl', 'target' => 'p:443', 'config' => ['host' => 'p.example.test', 'port' => 443, 'expected_spki_pins' => ['sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=']]],
             ['name' => 'Bad pins', 'type' => 'ssl', 'target' => 'b:443', 'config' => ['host' => 'b.example.test', 'port' => 443, 'expected_spki_pins' => ['sha256/short=', 7]]],
+            ['name' => 'String pin', 'type' => 'ssl', 'target' => 's:443', 'config' => ['host' => 's.example.test', 'port' => 443, 'expected_spki_pins' => 'sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=']],
+            ['name' => 'Too many pins', 'type' => 'ssl', 'target' => 't:443', 'config' => ['host' => 't.example.test', 'port' => 443, 'expected_spki_pins' => array_map(static fn (int $i): string => 'sha256/' . base64_encode(hash('sha256', (string) $i, true)), range(1, 500))]],
         ]]);
 
-        self::assertSame(['imported' => 5, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 2, 'over_quota' => 0], $result);
+        self::assertSame(['imported' => 5, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 4, 'over_quota' => 0], $result);
+        self::assertNull($this->monitors->findOneBy(['name' => 'String pin']), 'a non-list pin value is never imported unpinned');
         self::assertSame(['sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg='], $this->monitors->findOneBy(['name' => 'Pinned'])?->getConfig()['expected_spki_pins'] ?? null);
         $db = $this->monitors->findOneBy(['name' => 'DB']);
         self::assertSame(['db.internal', 5432, 10], [$db?->getConfig()['host'], $db?->getConfig()['port'], $db?->getConfig()['timeout']]);

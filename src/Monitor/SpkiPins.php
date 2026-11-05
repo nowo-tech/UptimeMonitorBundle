@@ -6,12 +6,15 @@ namespace Nowo\UptimeMonitorBundle\Monitor;
 
 use OpenSSLCertificate;
 
+use function array_is_list;
 use function array_key_exists;
+use function array_keys;
+use function array_map;
 use function base64_decode;
 use function base64_encode;
 use function count;
 use function hash;
-use function in_array;
+use function implode;
 use function is_array;
 use function is_string;
 use function json_decode;
@@ -21,6 +24,8 @@ use function preg_match;
 use function preg_replace;
 use function preg_split;
 use function str_starts_with;
+use function strlen;
+use function substr;
 use function trim;
 
 /**
@@ -32,21 +37,31 @@ final class SpkiPins
     /** Most pins an SSL monitor keeps. */
     public const MAX_PINS = 20;
 
+    /** Longest form text (bytes) that is parsed; the form refuses longer input before parsing it. */
+    public const MAX_TEXT_LENGTH = 4096;
+
     /** A SHA-256 digest (32 bytes) in standard base64 with its padding, prefixed `sha256/`. */
     public const PATTERN = '#^sha256/[A-Za-z0-9+/]{43}=$#D';
 
     /**
-     * Whether the value is one well-formed `sha256/<base64>` pin.
+     * Whether the value is one well-formed `sha256/<base64>` pin: the pattern, and canonical base64 of exactly
+     * 32 bytes (a non-canonical last character could never equal a computed pin).
      */
     public static function isValid(string $pin): bool
     {
-        return preg_match(self::PATTERN, $pin) === 1;
+        if (preg_match(self::PATTERN, $pin) !== 1) {
+            return false;
+        }
+        $digest = base64_decode(substr($pin, 7), true);
+
+        return $digest !== false && strlen($digest) === 32 && base64_encode($digest) === substr($pin, 7);
     }
 
     /**
      * Splits the form text into candidate pins: one per line (blank lines and `#` comments ignored), or a pasted
-     * `pins.json` style list — a JSON array of strings or an object with a `pins` array. Duplicates are dropped;
-     * the entries are not validated (see {@see self::invalid()}).
+     * `pins.json` style list — a JSON array of strings or an object with a `pins` array. Duplicates are dropped and
+     * parsing stops after {@see self::MAX_PINS} + 1 distinct entries (enough to report "too many"); the entries are
+     * not validated (see {@see self::invalid()}).
      *
      * @return list<string>
      */
@@ -80,14 +95,15 @@ final class SpkiPins
             }
         }
 
-        $pins = [];
+        $seen = [];
         foreach ($entries as $entry) {
-            if (!in_array($entry, $pins, true)) {
-                $pins[] = $entry;
+            $seen[$entry] = true;
+            if (count($seen) > self::MAX_PINS) {
+                break;
             }
         }
 
-        return $pins;
+        return array_map(strval(...), array_keys($seen));
     }
 
     /**
@@ -110,28 +126,59 @@ final class SpkiPins
     }
 
     /**
-     * The well-formed pins stored in a monitor config (`expected_spki_pins`), at most {@see self::MAX_PINS}; anything
-     * else (a hand-edited or older config) is ignored.
+     * The pins stored in a monitor config (`expected_spki_pins`): `[]` when the key is missing, `null` or an empty
+     * list (no pinning), the de-duplicated list when it holds 1 to {@see self::MAX_PINS} well-formed pins, and
+     * `null` for anything else — a non-list, a malformed entry or too many pins — which the check treats as an
+     * invalid config (fail closed, never unpinned).
      *
      * @param array<string, mixed> $config
      *
-     * @return list<string>
+     * @return list<string>|null
      */
-    public static function fromConfig(array $config): array
+    public static function fromConfig(array $config): ?array
     {
         $stored = $config['expected_spki_pins'] ?? null;
-        if (!is_array($stored)) {
+        if ($stored === null || $stored === []) {
             return [];
+        }
+        if (!is_array($stored) || !array_is_list($stored) || count($stored) > self::MAX_PINS) {
+            return null;
         }
 
         $pins = [];
         foreach ($stored as $pin) {
-            if (is_string($pin) && self::isValid($pin) && !in_array($pin, $pins, true) && count($pins) < self::MAX_PINS) {
-                $pins[] = $pin;
+            if (!is_string($pin) || !self::isValid($pin)) {
+                return null;
             }
+            $pins[$pin] = true;
         }
 
-        return $pins;
+        return array_keys($pins);
+    }
+
+    /**
+     * The form text of a stored `expected_spki_pins` value (monitor edit, backup import): one pin per line, with
+     * `?` for a malformed entry or a non-list value so the form validation refuses it instead of dropping it. At most
+     * {@see self::MAX_PINS} + 1 entries are kept, enough for the "too many" error.
+     */
+    public static function toFormText(mixed $stored): string
+    {
+        if ($stored === null) {
+            return '';
+        }
+        if (!is_array($stored)) {
+            return '?';
+        }
+
+        $lines = [];
+        foreach ($stored as $pin) {
+            if (count($lines) > self::MAX_PINS) {
+                break;
+            }
+            $lines[] = is_string($pin) && self::isValid($pin) ? $pin : '?';
+        }
+
+        return implode("\n", $lines);
     }
 
     /**

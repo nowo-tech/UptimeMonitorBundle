@@ -11,10 +11,14 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 use function array_fill;
+use function array_slice;
 use function array_unique;
+use function base64_encode;
+use function explode;
 use function file_get_contents;
+use function hash;
+use function implode;
 use function json_encode;
-use function sprintf;
 use function str_repeat;
 
 #[CoversClass(SpkiPins::class)]
@@ -36,6 +40,22 @@ final class SpkiPinsTest extends TestCase
         self::assertFalse(SpkiPins::isValid('sha256/T7PGSHVlfsuWyerRQibZteTUEkNEH2IdCgsc71-VDOc='), 'standard base64 only');
         self::assertFalse(SpkiPins::isValid(self::PIN_A . "\n"));
         self::assertFalse(SpkiPins::isValid('sha256/' . str_repeat('A', 44) . '='));
+        self::assertFalse(SpkiPins::isValid('sha256/' . str_repeat('A', 42) . 'B='), 'non-canonical last character (GA-I1)');
+        self::assertTrue(SpkiPins::isValid($this->pin(7)));
+    }
+
+    public function testParsingStopsAfterOneMoreThanTheMaximum(): void
+    {
+        $lines = [];
+        for ($i = 0; $i < 5000; ++$i) {
+            $lines[] = $this->pin($i % 30);
+        }
+
+        $pins = SpkiPins::parse(implode("\n", $lines));
+
+        self::assertCount(SpkiPins::MAX_PINS + 1, $pins);
+        self::assertSame($this->pin(0), $pins[0]);
+        self::assertSame(['123'], SpkiPins::parse('123'), 'numeric entries stay strings');
     }
 
     public function testParsesOnePinPerLineWithCommentsAndDuplicates(): void
@@ -60,18 +80,35 @@ final class SpkiPinsTest extends TestCase
         self::assertSame([], SpkiPins::invalid([self::PIN_A, self::PIN_B]));
     }
 
-    public function testFromConfigKeepsOnlyWellFormedPinsUpToTheMaximum(): void
+    public function testFromConfigReturnsThePinsOrNullForAnInvalidValue(): void
     {
         self::assertSame([], SpkiPins::fromConfig([]));
-        self::assertSame([], SpkiPins::fromConfig(['expected_spki_pins' => self::PIN_A]));
-        self::assertSame([self::PIN_A, self::PIN_B], SpkiPins::fromConfig(['expected_spki_pins' => [self::PIN_A, 'bad', 7, self::PIN_B, self::PIN_A]]));
+        self::assertSame([], SpkiPins::fromConfig(['expected_spki_pins' => null]));
+        self::assertSame([], SpkiPins::fromConfig(['expected_spki_pins' => []]));
+        self::assertSame([self::PIN_A, self::PIN_B], SpkiPins::fromConfig(['expected_spki_pins' => [self::PIN_A, self::PIN_B, self::PIN_A]]));
+
+        // Fail closed (GA-L2, GA-I4): a non-list, a malformed entry or too many pins is an invalid config.
+        self::assertNull(SpkiPins::fromConfig(['expected_spki_pins' => self::PIN_A]));
+        self::assertNull(SpkiPins::fromConfig(['expected_spki_pins' => 7]));
+        self::assertNull(SpkiPins::fromConfig(['expected_spki_pins' => ['a' => self::PIN_A]]));
+        self::assertNull(SpkiPins::fromConfig(['expected_spki_pins' => [self::PIN_A, 'bad']]));
+        self::assertNull(SpkiPins::fromConfig(['expected_spki_pins' => [self::PIN_A, 7]]));
 
         $many = [];
-        for ($i = 0; $i < 25; ++$i) {
-            $many[] = sprintf('sha256/%s%02d=', str_repeat('A', 41), $i);
+        for ($i = 0; $i <= SpkiPins::MAX_PINS; ++$i) {
+            $many[] = $this->pin($i);
         }
-        self::assertCount(SpkiPins::MAX_PINS, SpkiPins::fromConfig(['expected_spki_pins' => $many]));
-        self::assertCount(1, SpkiPins::fromConfig(['expected_spki_pins' => array_fill(0, 30, self::PIN_A)]));
+        self::assertNull(SpkiPins::fromConfig(['expected_spki_pins' => $many]));
+        self::assertCount(SpkiPins::MAX_PINS, SpkiPins::fromConfig(['expected_spki_pins' => array_slice($many, 0, SpkiPins::MAX_PINS)]) ?? []);
+    }
+
+    public function testToFormTextKeepsInvalidValuesVisibleForTheValidator(): void
+    {
+        self::assertSame('', SpkiPins::toFormText(null));
+        self::assertSame('?', SpkiPins::toFormText(self::PIN_A));
+        self::assertSame('', SpkiPins::toFormText([]));
+        self::assertSame(self::PIN_A . "\n?\n?", SpkiPins::toFormText([self::PIN_A, 'bad', 7]));
+        self::assertCount(SpkiPins::MAX_PINS + 1, explode("\n", SpkiPins::toFormText(array_fill(0, 1000, self::PIN_A))));
     }
 
     public function testComputesTheSpkiPinOfACertificate(): void
@@ -85,6 +122,11 @@ final class SpkiPinsTest extends TestCase
             self::assertTrue(SpkiPins::isValid((string) $pin));
         }
         self::assertCount(3, array_unique($pins), 'each certificate of the chain has its own key');
+    }
+
+    private function pin(int $i): string
+    {
+        return 'sha256/' . base64_encode(hash('sha256', (string) $i, true));
     }
 
     public function testUnreadableCertificatesHaveNoPin(): void
