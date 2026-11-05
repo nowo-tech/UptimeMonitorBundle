@@ -11,10 +11,8 @@ use stdClass;
 
 use function array_key_exists;
 use function array_keys;
-use function clearstatcache;
 use function count;
 use function file_get_contents;
-use function filesize;
 use function get_object_vars;
 use function hash;
 use function in_array;
@@ -28,6 +26,7 @@ use function json_decode;
 use function mb_strlen;
 use function preg_match;
 use function str_replace;
+use function strlen;
 use function substr;
 use function trim;
 
@@ -61,12 +60,13 @@ final readonly class MonitorFileParser
         if (!is_file($path)) {
             throw $this->refuse([new ApplyError('', 'file_not_found', ApplyError::EXIT_FILE)]);
         }
-        clearstatcache(true, $path);
-        if (filesize($path) > self::MAX_BYTES) {
+        // A hard read cap (one byte past the limit), not filesize(): the file may grow, or be a pseudo-file of size 0.
+        $json = (string) @file_get_contents($path, false, null, 0, self::MAX_BYTES + 1);
+        if (strlen($json) > self::MAX_BYTES) {
             throw $this->refuse([new ApplyError('', 'file_too_large', ApplyError::EXIT_FILE)]);
         }
 
-        return $this->parse((string) @file_get_contents($path));
+        return $this->parse($json);
     }
 
     /**

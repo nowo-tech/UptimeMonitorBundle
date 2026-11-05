@@ -25,6 +25,11 @@ final readonly class ApplyResult
      * @param list<array{tenant: string, key: string, id: int|null, token: string}> $unchanged
      * @param list<array{tenant: string, key: string, id: int|null}> $pruned
      * @param list<array{tenant: string, key: string, id: int|null}> $pruneCandidates file monitors missing from the file, kept (no `--prune`)
+     * @param list<array{tenant: string, code: string, error: string}> $warnings problems after the commit (the changes
+     *                                                                           stay applied): `event_listener_failed`
+     *                                                                           when a {@see MonitorsAppliedEvent}
+     *                                                                           listener threw (`error` is its class,
+     *                                                                           logged, not printed)
      */
     public function __construct(
         public bool $dryRun,
@@ -34,7 +39,19 @@ final readonly class ApplyResult
         public array $unchanged,
         public array $pruned,
         public array $pruneCandidates,
+        public array $warnings = [],
     ) {
+    }
+
+    /**
+     * A copy with one more post-commit warning.
+     */
+    public function withWarning(string $tenant, string $code, string $error): self
+    {
+        return new self($this->dryRun, $this->tenants, $this->created, $this->updated, $this->unchanged, $this->pruned, $this->pruneCandidates, [
+            ...$this->warnings,
+            ['tenant' => $tenant, 'code' => $code, 'error' => $error],
+        ]);
     }
 
     /**
@@ -87,6 +104,7 @@ final readonly class ApplyResult
             'unchanged'        => $this->unchanged,
             'pruned'           => $this->pruned,
             'prune_candidates' => $this->pruneCandidates,
+            'warnings'         => array_map(static fn (array $warning): array => ['tenant' => $warning['tenant'], 'code' => $warning['code']], $this->warnings),
             'errors'           => [],
         ] + ($this->dryRun ? ['quota_checked_unlocked' => true] : []);
     }

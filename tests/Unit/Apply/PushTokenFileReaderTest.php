@@ -144,7 +144,7 @@ final class PushTokenFileReaderTest extends TestCase
             (new PushTokenFileReader())->read('-', null, $this->stream(json_encode(['any-key' => str_repeat('ab', 16)], JSON_THROW_ON_ERROR)));
             self::fail('A short token is refused without the file too.');
         } catch (ApplyRefusedException $refused) {
-            self::assertSame([['token-file:/any-key', 'token_too_short']], array_map(static fn (ApplyError $error): array => [$error->path, $error->code], $refused->getErrors()));
+            self::assertSame([['token-file:/?', 'token_too_short']], array_map(static fn (ApplyError $error): array => [$error->path, $error->code], $refused->getErrors()));
         }
     }
 
@@ -235,13 +235,31 @@ final class PushTokenFileReaderTest extends TestCase
             self::fail('accepted');
         };
 
-        self::assertSame(['token-file:/typo token_for_unknown_key', 'token-file:/? token_for_unknown_key'], $read(['typo' => null, 'Bad Key' => null]));
+        self::assertSame(['token-file:/? token_for_unknown_key', 'token-file:/? token_for_unknown_key'], $read(['typo' => null, 'Bad Key' => null]));
         self::assertSame(['token-file:/second token_invalid_format'], $read(['second' => 42]));
         self::assertSame(['token-file:/second token_too_short'], $read(['second' => str_repeat('a', 32)]));
         self::assertSame(['token-file:/second token_low_entropy'], $read(['second' => str_repeat('a', 64)]));
         self::assertSame(['token-file:/second token_duplicate'], $read(['little-vps-1.resources' => $token, 'second' => $token]));
         $withKey = 'fedcba9876543210fedcba9876543210' . bin2hex(random_bytes(16));
         self::assertSame(['token-file:/second token_contains_url_key'], $read(['second' => $withKey]));
+    }
+
+    public function testAnInvertedMapNeverEchoesTheTokenAsAPath(): void
+    {
+        // {"<token>": "<key>"}: the token is a valid entry-key shape, so only known entry keys may be echoed.
+        $token = bin2hex(random_bytes(32));
+        $map   = json_encode([$token => 'second'], JSON_THROW_ON_ERROR);
+        foreach (['with the file' => [$this->spec, 'token_for_unknown_key'], 'file refused' => [null, 'token_invalid_format']] as $name => [$spec, $code]) {
+            try {
+                (new PushTokenFileReader())->read('-', $spec, $this->stream($map));
+                self::fail('accepted: ' . $name);
+            } catch (ApplyRefusedException $refused) {
+                self::assertSame([['token-file:/?', $code]], array_map(static fn (ApplyError $error): array => [$error->path, $error->code], $refused->getErrors()), $name);
+                $dump = $refused->getMessage() . $refused . print_r(array_map(static fn (ApplyError $error): array => $error->toArray(), $refused->getErrors()), true);
+                self::assertStringNotContainsString($token, $dump, $name);
+                self::assertStringNotContainsString(hash('sha256', $token), $dump, $name);
+            }
+        }
     }
 
     public function testTheTokensNeverShowInDumpsAndRefuseSerialization(): void

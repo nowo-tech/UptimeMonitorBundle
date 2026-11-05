@@ -40,7 +40,15 @@ final class ApplyResultTest extends TestCase
         self::assertTrue($array['ok']);
         self::assertSame('sha', $array['file_sha256']);
         self::assertSame([], $array['errors']);
+        self::assertSame([], $array['warnings']);
         self::assertArrayNotHasKey('quota_checked_unlocked', $array);
+
+        $warned = $result->withWarning(self::A, 'event_listener_failed', RuntimeException::class)->withWarning(self::B, 'event_listener_failed', 'X');
+        self::assertCount(2, $warned->warnings);
+        self::assertSame(RuntimeException::class, $warned->warnings[0]['error']);
+        self::assertSame([['tenant' => self::A, 'code' => 'event_listener_failed'], ['tenant' => self::B, 'code' => 'event_listener_failed']], $warned->toArray('sha')['warnings'], 'the class is logged, not printed');
+        self::assertSame($result->created, $warned->created);
+        self::assertSame(2, $warned->tokensChanged());
 
         $a = $result->forTenant(self::A);
         self::assertSame([['key' => 'one', 'id' => 1, 'token' => 'set']], $a['created']);

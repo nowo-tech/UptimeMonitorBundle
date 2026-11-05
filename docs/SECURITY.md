@@ -52,14 +52,21 @@ This bundle provides:
   the same cap; a terminal is refused before any read). There is no token option or argument (`/proc/<pid>/cmdline`
   and the option list are tested). Tokens are 64–128 lowercase hex with entropy heuristics and a denylist; only
   `sha256(token)` is stored, the same token twice (in the file or against any stored hash) is refused, and a token
-  never contains its `url_key`. Every method that receives a token or the raw file text marks it
+  never contains its `url_key`. The plaintext is overwritten with `sodium_memzero()` when ext-sodium is present, but
+  that is **best effort only**: PHP strings are shared copy-on-write (the decoded JSON keeps its own copy), so other
+  copies may stay in memory until the process ends. Error paths name a token's entry key only when it is an entry of
+  the monitors file, otherwise `token-file:/?` (an inverted map `{"<token>": "<key>"}` never echoes the token). The
+  monitors file is read with a hard cap (1 MiB + 1 byte), not trusted by its reported size. Every method that receives a token or the raw file text marks it
   `#[\SensitiveParameter]`; refusals carry JSON pointers and codes only; database exceptions are replaced by
   `ApplyFailedException('apply_failed: <class>')` with no previous exception (a DBAL message can quote the bound
   hash). Tests walk every failure path's exception chain, trace and `FlattenException` (how hosts ship exceptions).
   The run is validated first, then applied in one transaction under per-tenant row locks (slug order) with the
   conflicts and the tenant quota re-checked under the lock; any error rolls back. Monitors with `origin = 'ui'` are
   never selected for update or prune; cross-tenant `url_key` conflicts are refused without naming the tenant. In the
-  UI, file-managed monitors refuse edit, delete and token actions with 409 (pause stays). Replay and floods on the
+  UI, file-managed monitors refuse edit, delete and token actions with 409 (pause stays). A `MonitorsAppliedEvent`
+  listener that throws after the commit does not report "nothing applied": the run exits 0 with an
+  `event_listener_failed` entry in `warnings` (the listener's class is logged), and the later tenants still get their
+  event. Replay and floods on the
   ingest route stay the host's job (HTTPS, Traefik IP allow-list and rate limit); signed file pushes are future work.
 - **SSRF hardening details**: the per-monitor proxy is resolved once, validated and pinned to that IP; the HTTPS
   certificate-expiry probe reads the certificate chain of the validated HTTP connection (no second lookup).

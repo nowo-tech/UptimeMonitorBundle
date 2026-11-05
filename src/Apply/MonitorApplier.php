@@ -32,7 +32,8 @@ use function max;
  *
  * All or nothing: the tenants are resolved first, then one transaction locks every tenant row (slug order), plans
  * against the locked state, refuses on any conflict, writes and flushes. A database failure is rolled back and
- * replaced by {@see ApplyFailedException}, which keeps only the failure's class.
+ * replaced by {@see ApplyFailedException}, which keeps only the failure's class. A {@see MonitorsAppliedEvent}
+ * listener that throws after the commit becomes a result warning, not a failure.
  */
 final readonly class MonitorApplier
 {
@@ -41,6 +42,8 @@ final readonly class MonitorApplier
     private const TOKEN_UNCHANGED = 'unchanged';
     private const TOKEN_KEPT      = 'kept';
     private const TOKEN_ABSENT    = 'absent';
+    /** A {@see MonitorsAppliedEvent} listener threw after the commit (the run stays applied, exit 0). */
+    public const WARNING_LISTENER_FAILED = 'event_listener_failed';
 
     /**
      * @param TenantQuota|null $quota Tenant limits (monitor count and minimum interval)
@@ -108,10 +111,16 @@ final readonly class MonitorApplier
             throw $failure instanceof ApplyRefusedException ? $failure : ApplyFailedException::from($failure);
         }
 
+        // The changes are committed: a failing listener must not turn the run into "nothing applied", nor deprive the
+        // later tenants of their event. Its failure is reported as a warning (exit 0) with its class only.
         $result = $this->result($plan, $tenants, false, $prune);
         foreach (array_keys($tenants) as $slug) {
             $entries = $result->forTenant($slug);
-            $this->eventDispatcher?->dispatch(new MonitorsAppliedEvent($slug, $entries['created'], $entries['updated'], $entries['unchanged'], $entries['pruned']));
+            try {
+                $this->eventDispatcher?->dispatch(new MonitorsAppliedEvent($slug, $entries['created'], $entries['updated'], $entries['unchanged'], $entries['pruned']));
+            } catch (Throwable $listenerFailure) {
+                $result = $result->withWarning($slug, self::WARNING_LISTENER_FAILED, $listenerFailure::class);
+            }
         }
 
         return $result;

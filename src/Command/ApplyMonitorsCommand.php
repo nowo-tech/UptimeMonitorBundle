@@ -93,7 +93,8 @@ you or root, or - for a non-interactive stdin, holding {"<entry key>": "<64+ low
 SHA-256 is stored; a different token replaces (rotates) the stored one.
 
 stdout is always one JSON document; exit codes: 0 ok, 1 failure (rolled back), 2 usage, 3 invalid file,
-4 token input refused, 5 tenant not found, 6 conflict with the database or the tenant limits.
+4 token input refused, 5 tenant not found, 6 conflict with the database or the tenant limits. A run that was
+applied but whose MonitorsAppliedEvent listener failed exits 0 with an "event_listener_failed" entry in "warnings".
 HELP
             );
     }
@@ -130,14 +131,18 @@ HELP
             'pruned'         => count($result->pruned),
             'tokens_changed' => $result->tokensChanged(),
         ]);
+        foreach ($result->warnings as $warning) {
+            $this->logger->warning('Uptime monitors applied with a warning: {code} ({error})', ['bundle' => 'NowoUptimeMonitorBundle', 'tenant' => $warning['tenant'], 'code' => $warning['code'], 'error' => $warning['error']]);
+        }
         $this->write($output, $result->toArray($spec->sha256));
         $this->human($output, sprintf(
-            '%s: %d created, %d updated, %d unchanged, %d pruned.',
+            '%s: %d created, %d updated, %d unchanged, %d pruned.%s',
             $dryRun ? 'Dry run' : 'Applied',
             count($result->created),
             count($result->updated),
             count($result->unchanged),
             count($result->pruned),
+            $result->warnings !== [] ? sprintf(' %d warning(s): see "warnings".', count($result->warnings)) : '',
         ));
 
         return Command::SUCCESS;

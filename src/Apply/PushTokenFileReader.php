@@ -16,7 +16,6 @@ use function get_object_vars;
 use function is_resource;
 use function is_string;
 use function json_decode;
-use function preg_match;
 use function sodium_memzero;
 use function str_contains;
 use function stream_get_contents;
@@ -29,7 +28,9 @@ use const JSON_THROW_ON_ERROR;
  * The push token intake of `nowo:uptime:apply-monitors` (since 1.18). Tokens arrive only from a 0600 regular file
  * (`--token-file=<path>`) or from a non-interactive stdin (`--token-file=-`), as a JSON map `{"<entry key>": "<token>"}`
  * of at most {@see self::MAX_BYTES}. Each token is checked by {@see PushTokenPolicy}, reduced to its SHA-256 at once,
- * and the plaintext is wiped where ext-sodium allows. Refusals (exit 4) name the entry key, never the value.
+ * and the plaintext is overwritten where ext-sodium allows (best effort only: PHP may keep other copies of the
+ * string). Refusals (exit 4) name the entry key only when it is an entry of the monitors file (otherwise `?`), never
+ * the value.
  */
 final readonly class PushTokenFileReader
 {
@@ -54,6 +55,7 @@ final readonly class PushTokenFileReader
      * @param MonitorFileSpec|null $spec The whole monitors file: every token must name one of its entries. Null when the
      *                                   file itself was refused: the tokens are still checked (format, entropy,
      *                                   duplicates) so that one run reports every error, but not against entry keys
+     *                                   (and every error path is then `token-file:/?`)
      * @param resource $stdin The stream read for `-`
      *
      * @throws ApplyRefusedException exit 4
@@ -101,8 +103,9 @@ final readonly class PushTokenFileReader
         $hashes = [];
         $seen   = [];
         foreach ($tokens as $key => $token) {
-            $key  = (string) $key;
-            $path = 'token-file:/' . (preg_match(MonitorFileParser::KEY_PATTERN, $key) === 1 ? $key : '?');
+            $key = (string) $key;
+            // Only a known entry key is echoed: an inverted map ({"<token>": "<key>"}) must not print the token.
+            $path = 'token-file:/' . (isset($urlKeys[$key]) ? $key : '?');
             if ($spec instanceof MonitorFileSpec && !isset($urlKeys[$key])) {
                 $errors[] = new ApplyError($path, 'token_for_unknown_key', ApplyError::EXIT_TOKEN);
                 continue;

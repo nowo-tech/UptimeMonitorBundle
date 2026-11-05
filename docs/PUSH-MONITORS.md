@@ -245,9 +245,11 @@ The file (schema `src/Resources/schema/apply-monitors.v1.json`; placeholders onl
 - **All or nothing:** every error (JSON pointer + code, never a value) is reported, and nothing is applied when there
   is one. The tenant rows are locked during the write; a database failure is rolled back.
 - **Output:** one JSON document on stdout (`created`, `updated` with the changed fields, `unchanged`, `pruned`,
-  `prune_candidates`, token states `set` / `rotated` / `unchanged` / `kept` / `absent`). Exit codes: 0 ok, 1 failure,
-  2 usage, 3 invalid file, 4 token input refused, 5 tenant not found, 6 conflict (URL key taken, tenant limits, type
-  change).
+  `prune_candidates`, token states `set` / `rotated` / `unchanged` / `kept` / `absent`, `warnings`). Exit codes: 0 ok,
+  1 failure, 2 usage, 3 invalid file, 4 token input refused, 5 tenant not found, 6 conflict (URL key taken, tenant
+  limits, type change). A `MonitorsAppliedEvent` listener that throws after the commit gives exit 0 with
+  `{"tenant": …, "code": "event_listener_failed"}` in `warnings`: the changes are applied (and rotated tokens are in
+  force).
 - **Prune:** without `--prune`, file monitors the file no longer names are only listed. With it they are deleted with
   their history. UI monitors are never touched.
 - **In the UI** a file monitor shows "Managed from file (key)"; edit, delete and the token actions are not offered

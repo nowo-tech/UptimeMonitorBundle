@@ -53,8 +53,10 @@ use Symfony\Component\HttpFoundation\Request;
 use Throwable;
 
 use function array_column;
+use function array_filter;
 use function array_keys;
 use function array_map;
+use function array_values;
 use function bin2hex;
 use function chmod;
 use function count;
@@ -400,6 +402,8 @@ final class ApplyMonitorsDbTest extends TestCase
             'invalid file'     => [['--file' => $bad, '--token-file' => '-'], $map, null],
             'weak token'       => [['--file' => $good, '--token-file' => '-'], json_encode(['little-vps-1.resources' => substr($token, 0, 62)], JSON_THROW_ON_ERROR), null],
             'open token file'  => [['--file' => $good, '--token-file' => $this->path($map, 0o644)], '', null],
+            'inverted map'     => [['--file' => $good, '--token-file' => '-'], json_encode([$token => 'little-vps-1.resources'], JSON_THROW_ON_ERROR), null],
+            'inverted, bad'    => [['--file' => $bad, '--token-file' => '-'], json_encode([$token => 'little-vps-1.resources'], JSON_THROW_ON_ERROR), null],
             'success'          => [['--file' => $good, '--token-file' => '-'], $map, null],
             'database failure' => [['--file' => $good, '--token-file' => '-'], $map, $this->isolatedApplier('failing', $hash, $token)],
         ];
@@ -493,7 +497,7 @@ final class ApplyMonitorsDbTest extends TestCase
         );
         self::assertSame(3, $code);
         self::assertSame(['out_of_range', 'token_too_short'], array_column($json['errors'], 'code'));
-        self::assertSame('token-file:/little-vps-1.resources', $json['errors'][1]['path']);
+        self::assertSame('token-file:/?', $json['errors'][1]['path'], 'no entry key is echoed without a valid monitors file');
 
         // A missing tenant and a conflict of a tenant that exists: both listed, exit 5, nothing written.
         $other = $this->tenants->findOneBySlug(self::OTHER);
@@ -573,6 +577,37 @@ final class ApplyMonitorsDbTest extends TestCase
 
         self::assertSame([6, [['path' => '/tenants/' . self::TENANT . '/monitors/0/url_key', 'code' => 'url_key_taken']]], [$code, $json['errors']]);
         self::assertSame('warning', $this->logger->records[count($this->logger->records) - 1]['level'] ?? null);
+    }
+
+    public function testAFailingListenerAfterTheCommitIsAWarningAndTheOtherTenantsStillGetTheirEvent(): void
+    {
+        $file = $this->path(json_encode(['version' => 1, 'tenants' => [
+            self::TENANT => ['monitors' => [MonitorFileParserTest::entry()]],
+            self::OTHER  => ['monitors' => [MonitorFileParserTest::entry(['key' => 'other', 'url_key' => 'fedcba9876543210fedcba9876543210'])]],
+        ]], JSON_THROW_ON_ERROR), 0o644);
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorsAppliedEvent::class, function (object $event): void {
+            self::assertInstanceOf(MonitorsAppliedEvent::class, $event);
+            if ($event->tenantSlug === self::TENANT) {
+                throw new RuntimeException('audit sink down');
+            }
+            $this->events[] = $event;
+        });
+
+        [$code, $json, $stderr] = $this->runCommand(['--file' => $file], '', new MonitorApplier($this->em, $this->monitors, $this->tenants, null, $dispatcher));
+
+        self::assertSame(0, $code, 'the changes are committed');
+        self::assertTrue($json['ok']);
+        self::assertSame([['tenant' => self::TENANT, 'code' => MonitorApplier::WARNING_LISTENER_FAILED]], $json['warnings']);
+        self::assertSame(['little-vps-1.resources', 'other'], array_column($json['created'], 'key'));
+        self::assertNotNull($this->fileMonitor());
+        self::assertNotNull($this->fileMonitor('other'));
+        self::assertSame([self::OTHER], array_map(static fn (object $event): string => $event instanceof MonitorsAppliedEvent ? $event->tenantSlug : $event::class, $this->events), 'the later tenant still gets its event');
+        self::assertStringContainsString('1 warning(s)', $stderr);
+        self::assertStringNotContainsString('audit sink down', $stderr . $json['warnings'][0]['code']);
+        $warnings = array_values(array_filter($this->logger->records, static fn (array $record): bool => $record['level'] === 'warning'));
+        self::assertCount(1, $warnings);
+        self::assertSame([self::TENANT, RuntimeException::class], [$warnings[0]['context']['tenant'], $warnings[0]['context']['error']]);
     }
 
     public function testPruneDeletesTheHistoryAndOnlyInTheScopedTenant(): void
