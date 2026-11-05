@@ -181,6 +181,10 @@ final class PageContractTest extends PageContractTestCase
         // 1.19 (UiKit 2.29): the wide dialog size and an empty footer target the dialog script fills with the actions.
         self::assertMatchesRegularExpression('#<dialog id="uptime-monitor-form-modal"[^>]*class="[^"]*nowo-ui-dialog--wide#', $html);
         self::assertMatchesRegularExpression('#<dialog id="uptime-monitor-form-modal".*?<footer [^>]*data-nowo-ui-dialog-footer hidden[^>]*></footer>#s', $html);
+        // Dialog rule v2: the idle footer (Cancel, secondary) for the steps without the form's actions; no primary in it.
+        self::assertMatchesRegularExpression('#<dialog id="uptime-monitor-form-modal".*?<template data-monitor-form-footer-idle><button type="button" class="[^"]*nowo-ui-btn--secondary[^"]*" data-nowo-ui-dialog-close>Cancel</button></template>.*?</dialog>#s', $html);
+        self::assertSame(1, preg_match('#<dialog id="uptime-monitor-form-modal".*?</dialog>#s', $html, $dialog));
+        self::assertStringNotContainsString('nowo-ui-btn--primary', $dialog[0]);
         self::assertStringNotContainsString('data-bs-', $html);
     }
 

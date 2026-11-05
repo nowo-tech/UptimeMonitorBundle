@@ -116,6 +116,15 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+From **1.20.0**: `composer update nowo-tech/uptime-monitor-bundle` then `php bin/console assets:install` (the dialog
+script changed). No configuration change; the constraint stays `nowo-tech/ui-kit-bundle ^2.29`.
+
+- **Visual change, no configuration needed.** The monitor dialog shows Cancel in the footer while the form loads or
+  when it cannot be shown. Its height is UiKit's: update to UiKit **2.31** for the content height (dialog rule v2).
+- **Template override of `monitor/_monitor_edit_modal.html.twig`:** keep (or add) the
+  `<template data-monitor-form-footer-idle>` with the Cancel button inside the `nowo_ui_dialog_body` block; without it
+  the footer stays hidden on those steps as in 1.20.0.
+
 ## To 1.20.0
 
 From **1.19.1**:

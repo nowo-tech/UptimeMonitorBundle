@@ -186,12 +186,21 @@ function dialogFooter(bodyEl: HTMLElement): HTMLElement | null {
   );
 }
 
+/**
+ * The footer every step without its own actions shows (dialog rule v2: loading, a load error, a file-managed monitor):
+ * the dialog template's <template data-monitor-form-footer-idle> (Cancel), read once when the dialog is wired since
+ * the body that holds it is replaced on the first opening.
+ */
+const idleFooters = new WeakMap<HTMLElement, HTMLTemplateElement>();
+
 function clearFooter(bodyEl: HTMLElement): void {
   const footer = dialogFooter(bodyEl);
-  if (footer !== null) {
-    footer.replaceChildren();
-    footer.hidden = true;
+  if (footer === null) {
+    return;
   }
+  const idle = idleFooters.get(bodyEl);
+  footer.replaceChildren(...(idle !== undefined ? [idle.content.cloneNode(true)] : []));
+  footer.hidden = idle === undefined;
 }
 
 /**
@@ -413,6 +422,11 @@ export function initMonitorFormModal(doc: Document = document): void {
   const titleEl = modalEl?.querySelector<HTMLElement>('[data-monitor-form-title]') ?? null;
   if (modalEl === null || dialog === null || bodyEl === null) {
     return;
+  }
+  const idle = bodyEl.querySelector<HTMLTemplateElement>('template[data-monitor-form-footer-idle]');
+  if (idle !== null) {
+    idleFooters.set(bodyEl, idle);
+    idle.remove();
   }
   const loadingText = bodyEl.textContent?.trim() ?? '';
 

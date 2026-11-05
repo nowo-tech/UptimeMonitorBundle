@@ -73,6 +73,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Dialog rule v2 (owner decision D-20261105-54) for the monitor dialog (*New monitor* / *Edit monitor*). No configuration
+change. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Changed
+
+- **The monitor dialog's footer is filled on every step.** The form's actions row (Cancel, then **Save**, the one
+  primary) still moves into the UiKit dialog footer, bound with `form="uptime-monitor-form"` (1.19); the steps without
+  a form — loading, a load error, a file-managed monitor refused with 409 — now show **Cancel** (secondary) in the
+  footer instead of an empty, hidden footer, from a `<template data-monitor-form-footer-idle>` in
+  `monitor/_monitor_edit_modal.html.twig`. New monitor and Edit monitor share the same anatomy: header (title + ×),
+  scrolling body, footer outside it.
+- **No dialog height of its own.** The monitor dialog keeps UiKit's wide width and takes UiKit's height: with UiKit
+  **2.31** (dialog rule v2, default `theme.dialog.height: content`) the content's height capped at
+  `min(--nowo-dialog-height-wide, 100dvh - 2rem)`, only the body scrolling. The bundle adds no height rule, so the
+  host's `theme.dialog.height` choice applies.
+
 ## [1.20.0] - 2026-11-05
 
 ### Added

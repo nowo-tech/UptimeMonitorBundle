@@ -5,6 +5,9 @@
   back. Without JavaScript the openers are plain links to the monitor form page. Optional: bundle.
   1.19 (UiKit 2.29 dialog sizes): the wide size (a two-column form), the body is the only scroller and the fragment's
   Cancel / Save move into the footer (footer_target, bound to the form with form="…"), outside the scrolling body.
+  Dialog rule v2 (owner decision D-20261105-54): the footer is filled on every step — the steps without a form
+  (loading, a load error, a file-managed monitor) show the Cancel of <template data-monitor-form-footer-idle>. No
+  height of its own: UiKit's (from 2.31 the content's, capped at the wide size's height token).
 #}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
 {% set _b = bundle|default('NowoUptimeMonitorBundle') %}
@@ -20,5 +23,6 @@
 } only %}
     {% block nowo_ui_dialog_body %}
         <p class="uptime-monitor-form-loading {{ nowo_ui_class('muted', bundle) }}" data-monitor-form-loading>{{ 'monitor.form.loading'|trans({}, 'NowoUptimeMonitorBundle') }}</p>
+        <template data-monitor-form-footer-idle><button type="button" class="{{ nowo_ui_class('btn_secondary', bundle) }}" data-nowo-ui-dialog-close>{{ 'monitor.form.cancel'|trans({}, 'NowoUptimeMonitorBundle') }}</button></template>
     {% endblock %}
 {% endembed %}

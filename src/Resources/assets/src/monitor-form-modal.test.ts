@@ -367,6 +367,48 @@ describe('monitor form dialog', () => {
     expect(dialog.querySelector('[data-monitor-form-body] .nowo-ui-flash--error')?.textContent).toBe('Managed from a file.');
   });
 
+  it('fills the footer with the idle Cancel on every step without actions (dialog rule v2)', async () => {
+    const dialog = mountDialog();
+    dialog.querySelector('[data-monitor-form-body]')?.insertAdjacentHTML(
+      'beforeend',
+      '<template data-monitor-form-footer-idle><button type="button" data-nowo-ui-dialog-close>Cancel</button></template>',
+    );
+    dialog.showModal = vi.fn(function (this: HTMLDialogElement) { this.setAttribute('open', ''); });
+    dialog.close = vi.fn(function (this: HTMLDialogElement) { this.removeAttribute('open'); });
+    let releaseLoad: (response: Response) => void = () => undefined;
+    vi.stubGlobal('fetch', vi.fn()
+      .mockReturnValueOnce(new Promise<Response>((resolve) => { releaseLoad = resolve; }))
+      .mockResolvedValueOnce(new Response('Managed from a file.', { status: 409, headers: { 'Content-Type': 'text/plain' } })));
+
+    initMonitorFormModal(document);
+    const footer = dialog.querySelector<HTMLElement>('[data-nowo-ui-dialog-footer]') as HTMLElement;
+    const body = dialog.querySelector<HTMLElement>('[data-monitor-form-body]') as HTMLElement;
+    // The template leaves the body: the loading text stays the body's only content.
+    expect(body.querySelector('template')).toBeNull();
+    const opener = document.querySelector<HTMLElement>('[data-monitor-form-open]') as HTMLElement;
+
+    // Loading: Cancel only, visible.
+    opener.click();
+    await flush();
+    expect(body.textContent).toBe('Loading form…');
+    expect(footer.hidden).toBe(false);
+    expect(Array.from(footer.querySelectorAll('button')).map((button) => button.textContent)).toEqual(['Cancel']);
+
+    // The form: its own actions replace the idle Cancel (one Cancel, then Save).
+    releaseLoad(new Response(FORM_WITH_ACTIONS, { headers: { 'Content-Type': 'text/html' } }));
+    await vi.waitFor(() => expect(dialog.querySelector('form')).not.toBeNull());
+    expect(Array.from(footer.querySelectorAll('button')).map((button) => button.textContent)).toEqual(['Cancel', 'Save']);
+
+    // A refused monitor (409): the message and Cancel again; Cancel closes the dialog.
+    opener.click();
+    await flush();
+    expect(body.querySelector('.nowo-ui-flash--error')?.textContent).toBe('Managed from a file.');
+    expect(footer.hidden).toBe(false);
+    expect(Array.from(footer.querySelectorAll('button')).map((button) => button.textContent)).toEqual(['Cancel']);
+    footer.querySelector<HTMLButtonElement>('button')?.click();
+    expect(dialog.close).toHaveBeenCalled();
+  });
+
   it('leaves the actions in the form when the dialog has no footer target or the fragment no actions row', async () => {
     const dialog = mountDialog();
     dialog.querySelector('[data-nowo-ui-dialog-footer]')?.remove();
