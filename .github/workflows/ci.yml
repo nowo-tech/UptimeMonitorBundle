@@ -264,6 +264,13 @@ jobs:
       - name: Build assets
         run: pnpm run build
 
+      # Audit GJ-I3: the committed bundle assets must be the build of the committed sources.
+      - name: Committed assets match the build
+        run: |
+          git status --porcelain -- src/Resources/public
+          git diff --exit-code -- src/Resources/public
+          test -z "$(git status --porcelain --untracked-files=all -- src/Resources/public)"
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest

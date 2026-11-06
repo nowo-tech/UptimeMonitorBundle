@@ -295,7 +295,8 @@
 
 /* Monitor dialog (1.19, UiKit 2.29 dialog sizes): the UiKit `dialog` partial gives the wide size (tokens
    --nowo-dialog-width-wide / --nowo-dialog-height-wide), the scrolling body and the footer that holds Cancel / Save;
-   the bundle sets no width, height or padding of its own. The form takes the body's whole width (the 56rem cap is for
+   the bundle sets no width, height or padding of its own (dialog rule v2: with UiKit >= 2.31 the height follows the
+   content, capped at min(--nowo-dialog-height-wide, 100dvh - 2rem); the host's `theme.dialog.height` decides). The form takes the body's whole width (the 56rem cap is for
    the page form). */
 [data-uptime-monitor-form-modal] .uptime-app--embedded.uptime-monitor-form-fields {
   max-width: none;

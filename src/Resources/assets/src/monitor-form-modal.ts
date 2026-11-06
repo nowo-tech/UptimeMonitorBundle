@@ -186,11 +186,41 @@ function dialogFooter(bodyEl: HTMLElement): HTMLElement | null {
   );
 }
 
+/**
+ * The footer every step without its own actions shows (dialog rule v2: loading, a load error, a file-managed monitor):
+ * the dialog template's <template data-monitor-form-footer-idle> (Cancel), read once when the dialog is wired since
+ * the body that holds it is replaced on the first opening.
+ */
+const idleFooters = new WeakMap<HTMLElement, HTMLTemplateElement>();
+
+/** True when the keyboard focus is on a control of the footer (it is lost when the footer's children are swapped). */
+function footerHasFocus(footer: HTMLElement): boolean {
+  const active = footer.ownerDocument.activeElement;
+
+  return active !== null && active !== footer && footer.contains(active);
+}
+
+/**
+ * Audit GJ-I2: after a footer swap that removed the focused control, focus goes to the first field of the form (when
+ * there is one), else to the footer's Cancel / Close, so it never falls back to <body> behind the open dialog.
+ */
+function restoreFocus(footer: HTMLElement, form: HTMLFormElement | null): void {
+  const field = form?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])') ?? null;
+  const target = field ?? footer.querySelector<HTMLElement>('[data-nowo-ui-dialog-close]') ?? footer.querySelector<HTMLElement>('button');
+  target?.focus();
+}
+
 function clearFooter(bodyEl: HTMLElement): void {
   const footer = dialogFooter(bodyEl);
-  if (footer !== null) {
-    footer.replaceChildren();
-    footer.hidden = true;
+  if (footer === null) {
+    return;
+  }
+  const hadFocus = footerHasFocus(footer);
+  const idle = idleFooters.get(bodyEl);
+  footer.replaceChildren(...(idle !== undefined ? [idle.content.cloneNode(true)] : []));
+  footer.hidden = idle === undefined;
+  if (hadFocus && !footer.hidden) {
+    restoreFocus(footer, null);
   }
 }
 
@@ -210,6 +240,7 @@ function mountFooterActions(bodyEl: HTMLElement, form: HTMLFormElement): void {
   }
 
   form.id = uniqueFormId(form);
+  const hadFocus = footerHasFocus(footer);
   const controls = Array.from(actions.querySelectorAll<FormControl>('button, input, select, textarea'));
   footer.replaceChildren(...Array.from(actions.childNodes));
   actions.remove();
@@ -219,6 +250,9 @@ function mountFooterActions(bodyEl: HTMLElement, form: HTMLFormElement): void {
       control.setAttribute('form', form.id);
     }
   });
+  if (hadFocus) {
+    restoreFocus(footer, form);
+  }
 }
 
 /** The submit buttons of the form: inside it, or bound to it from the dialog footer (form="<id>"). */
@@ -413,6 +447,11 @@ export function initMonitorFormModal(doc: Document = document): void {
   const titleEl = modalEl?.querySelector<HTMLElement>('[data-monitor-form-title]') ?? null;
   if (modalEl === null || dialog === null || bodyEl === null) {
     return;
+  }
+  const idle = bodyEl.querySelector<HTMLTemplateElement>('template[data-monitor-form-footer-idle]');
+  if (idle !== null) {
+    idleFooters.set(bodyEl, idle);
+    idle.remove();
   }
   const loadingText = bodyEl.textContent?.trim() ?? '';
 
