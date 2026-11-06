@@ -6,6 +6,8 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\UiKitBundle\View\DetailItem;
+use Nowo\UiKitBundle\View\ShowPage;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -13,10 +15,14 @@ use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
 use Nowo\UptimeMonitorBundle\Event\UptimeEvents;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
+use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
+use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Security\MonitorAwareUptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Security\MonitorReadScope;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
@@ -37,7 +43,10 @@ use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_map;
+use function in_array;
 use function json_decode;
+use function json_encode;
 
 /**
  * Monitor create / edit submissions on a real SQLite schema (page and modal flows).
@@ -67,7 +76,7 @@ final class MonitorControllerSubmitTest extends TestCase
         $this->em->flush();
     }
 
-    private function controller(?EventDispatcher $dispatcher = null): MonitorController
+    private function controller(?EventDispatcher $dispatcher = null, ?TenantQuota $quota = null, ?MonitorReadScope $readScope = null): MonitorController
     {
         $registry = $this->createStub(ManagerRegistry::class);
         $registry->method('getManagerForClass')->willReturn($this->em);
@@ -87,7 +96,9 @@ final class MonitorControllerSubmitTest extends TestCase
             new AggregateChartService($aggregates),
             new DashboardViewBuilder($this->monitors, $results, $aggregates, new UptimeMetricsService(), new TenantDashboardSerializer()),
             $this->em,
+            quota: $quota,
             eventDispatcher: $dispatcher,
+            readScope: $readScope,
         );
     }
 
@@ -163,6 +174,272 @@ final class MonitorControllerSubmitTest extends TestCase
         $this->bindController($controller, true, $pause);
         $controller->togglePause('main', $id, $pause);
         self::assertTrue($monitor->isPaused());
+    }
+
+    private function persisted(string $name, MonitorType $type, bool $paused = false): Monitor
+    {
+        $monitor = new Monitor($this->tenant, $name, $type, 'https://p.test');
+        $monitor->setPaused($paused);
+        $this->em->persist($monitor);
+        $this->em->flush();
+
+        return $monitor;
+    }
+
+    /**
+     * Posts the edit form of a monitor with a listener denying `$action`; returns the checks it saw.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @return list<MonitorQuotaCheckEvent>
+     */
+    private function editDenying(Monitor $monitor, string $action, array $fields): array
+    {
+        $seen       = [];
+        $dispatcher = $this->denying($action, 'Plan limit.');
+        $dispatcher->addListener(MonitorQuotaCheckEvent::class, static function (MonitorQuotaCheckEvent $check) use (&$seen): void {
+            $seen[] = $check;
+        }, 10);
+        $id         = (int) $monitor->getId();
+        $request    = $this->submit('/main/monitors/' . $id . '/edit', $fields);
+        $controller = $this->controller($dispatcher);
+        $this->bindController($controller, true, $request);
+
+        self::assertFalse($controller->edit('main', $id, $request)->isRedirect(), 'the form comes back');
+        $form = $this->renderedContext['form'] ?? null;
+        self::assertInstanceOf(FormView::class, $form);
+        $errors = $form->vars['errors'];
+        self::assertInstanceOf(FormErrorIterator::class, $errors);
+        $error = $errors[0];
+        self::assertInstanceOf(FormError::class, $error);
+        self::assertSame('Plan limit.', $error->getMessage());
+
+        return $seen;
+    }
+
+    public function testGuM1UncheckingPausedInTheEditFormIsAResume(): void
+    {
+        $monitor = $this->persisted('Paused', MonitorType::Https, true);
+
+        $seen = $this->editDenying($monitor, MonitorQuotaCheckEvent::ACTION_RESUME, ['name' => 'Renamed']);
+
+        $this->em->refresh($monitor);
+        self::assertTrue($monitor->isPaused(), 'still paused');
+        self::assertSame('Paused', $monitor->getName(), 'nothing of the edit written');
+        self::assertCount(1, $seen);
+        self::assertSame([MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Https, $monitor, null], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitor, $seen[0]->previousType]);
+    }
+
+    public function testGuM1AGroupTurnedIntoACheckIsACreate(): void
+    {
+        $seen = $this->editDenying($this->group, MonitorQuotaCheckEvent::ACTION_CREATE, ['name' => 'Payments']);
+
+        $this->em->refresh($this->group);
+        self::assertTrue($this->group->isGroup(), 'still a group');
+        self::assertCount(1, $seen);
+        self::assertSame([MonitorQuotaCheckEvent::ACTION_CREATE, 'main', MonitorType::Https, $this->group, MonitorType::Group], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitor, $seen[0]->previousType]);
+    }
+
+    public function testGuM1ATypeChangeToPushIsACreate(): void
+    {
+        $monitor = $this->persisted('Web', MonitorType::Https);
+
+        $seen = $this->editDenying($monitor, MonitorQuotaCheckEvent::ACTION_CREATE, ['name' => 'Web', 'type' => 'push']);
+
+        $this->em->refresh($monitor);
+        self::assertSame(MonitorType::Https, $monitor->getType(), 'still https');
+        self::assertNull($monitor->getPushKey());
+        self::assertCount(1, $seen);
+        self::assertSame([MonitorQuotaCheckEvent::ACTION_CREATE, 'main', MonitorType::Push, $monitor, MonitorType::Https], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitor, $seen[0]->previousType]);
+    }
+
+    public function testGuM1AnEditChangingBothChecksBothCreateFirst(): void
+    {
+        $monitor = $this->persisted('Both', MonitorType::Https, true);
+
+        $seen = $this->editDenying($monitor, MonitorQuotaCheckEvent::ACTION_RESUME, ['name' => 'Both', 'type' => 'push']);
+
+        $this->em->refresh($monitor);
+        self::assertSame([MonitorType::Https, true], [$monitor->getType(), $monitor->isPaused()]);
+        self::assertSame([MonitorQuotaCheckEvent::ACTION_CREATE, MonitorQuotaCheckEvent::ACTION_RESUME], array_map(static fn (MonitorQuotaCheckEvent $check): string => $check->action, $seen));
+        self::assertSame(MonitorType::Push, $seen[1]->type, 'the type it will have');
+    }
+
+    public function testGuM1AnEditChangingNeitherDispatchesNothing(): void
+    {
+        $monitor    = $this->persisted('Quiet', MonitorType::Https);
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorQuotaCheckEvent::class, static function (): never {
+            self::fail('no check expected');
+        });
+        $id         = (int) $monitor->getId();
+        $request    = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Quiet']);
+        $controller = $this->controller($dispatcher);
+        $this->bindController($controller, true, $request);
+
+        self::assertTrue($controller->edit('main', $id, $request)->isRedirect());
+    }
+
+    public function testGuM1AnAllowedResumeByEditIsSaved(): void
+    {
+        $monitor    = $this->persisted('Quiet', MonitorType::Https, true);
+        $id         = (int) $monitor->getId();
+        $request    = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Quiet']);
+        $controller = $this->controller($this->denying(MonitorQuotaCheckEvent::ACTION_CREATE, 'no'));
+        $this->bindController($controller, true, $request);
+
+        self::assertTrue($controller->edit('main', $id, $request)->isRedirect());
+        self::assertFalse($monitor->isPaused());
+    }
+
+    public function testGuM1APerTypeListenerCanRefuseResumingAPausedPushMonitorOnly(): void
+    {
+        $push       = $this->persisted('Agent', MonitorType::Push, true);
+        $https      = $this->persisted('Site', MonitorType::Https, true);
+        $seen       = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorQuotaCheckEvent::class, static function (MonitorQuotaCheckEvent $check) use (&$seen): void {
+            $seen[] = [$check->action, $check->tenantSlug, $check->type, $check->monitor, $check->previousType];
+            if ($check->action === MonitorQuotaCheckEvent::ACTION_RESUME && $check->type === MonitorType::Push) {
+                $check->deny('Push limit reached.');
+            }
+        });
+        $controller = $this->controller($dispatcher);
+
+        foreach ([$push, $https] as $monitor) {
+            $id      = (int) $monitor->getId();
+            $request = Request::create('/main/monitors/' . $id . '/toggle-pause', 'POST', ['_token' => 'valid']);
+            $this->bindController($controller, true, $request);
+            $controller->togglePause('main', $id, $request);
+        }
+
+        self::assertTrue($push->isPaused(), 'push refused');
+        self::assertFalse($https->isPaused(), 'https allowed');
+        self::assertSame([
+            [MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Push, $push, null],
+            [MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Https, $https, null],
+        ], $seen);
+    }
+
+    public function testGuL1TheChecksRunInsideTheTenantRowLock(): void
+    {
+        $paused     = $this->persisted('Locked', MonitorType::Https, true);
+        $edited     = $this->persisted('Edited', MonitorType::Https, true);
+        $inLock     = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorQuotaCheckEvent::class, function (MonitorQuotaCheckEvent $check) use (&$inLock): void {
+            $inLock[] = $this->em->getConnection()->isTransactionActive();
+        });
+        $controller = $this->controller($dispatcher, new TenantQuota(new ConfigurableTenantLimits(0, 30), $this->monitors));
+
+        $id      = (int) $paused->getId();
+        $request = Request::create('/main/monitors/' . $id . '/toggle-pause', 'POST', ['_token' => 'valid']);
+        $this->bindController($controller, true, $request);
+        $controller->togglePause('main', $id, $request);
+        self::assertFalse($paused->isPaused());
+
+        $id      = (int) $edited->getId();
+        $request = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Edited']);
+        $this->bindController($controller, true, $request);
+        self::assertTrue($controller->edit('main', $id, $request)->isRedirect());
+
+        $request = $this->submit('/main/monitors/new', ['name' => 'New group', 'type' => 'group']);
+        $this->bindController($controller, true, $request);
+        self::assertTrue($controller->new('main', $request)->isRedirect());
+
+        self::assertSame([true, true, true], $inLock, 'resume, edit and group create');
+        self::assertFalse($this->em->getConnection()->isTransactionActive());
+    }
+
+    public function testGuL1PausingTakesNoLock(): void
+    {
+        $monitor = $this->persisted('Running', MonitorType::Https);
+        $em      = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('wrapInTransaction');
+        $em->expects(self::once())->method('flush');
+        $this->em = $em;
+        $id       = 4;
+        $repo     = $this->createStub(MonitorRepository::class);
+        $repo->method('find')->willReturn($monitor);
+        $this->monitors = $repo;
+        $controller     = $this->controller(null, new TenantQuota(new ConfigurableTenantLimits(0, 30), $repo));
+
+        $request = Request::create('/main/monitors/' . $id . '/toggle-pause', 'POST', ['_token' => 'valid']);
+        $this->bindController($controller, true, $request);
+        $controller->togglePause('main', $id, $request);
+
+        self::assertTrue($monitor->isPaused());
+    }
+
+    /**
+     * A checker sharing only the listed monitor names, and the tenant with nobody (`$tenantAccess` false).
+     *
+     * @param list<string> $shared
+     */
+    private function readScope(array $shared, bool $tenantAccess): MonitorReadScope
+    {
+        $checker = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessTenant')->willReturn($tenantAccess);
+        $checker->method('canViewMonitor')->willReturnCallback(static fn (object $user, Monitor $monitor): bool => $tenantAccess || in_array($monitor->getName(), $shared, true));
+
+        return new MonitorReadScope($checker);
+    }
+
+    /**
+     * @return array<string, mixed> The context of the page
+     */
+    private function showAs(Monitor $monitor, MonitorReadScope $scope): array
+    {
+        $controller = $this->controller(null, null, $scope);
+        $this->bindController($controller, true, new Request());
+        $controller->show('main', (int) $monitor->getId());
+
+        return $this->renderedContext;
+    }
+
+    public function testGuL2AGroupPageListsOnlyTheChildrenTheUserMayView(): void
+    {
+        foreach (['shared-child', 'hidden-child'] as $name) {
+            $this->persisted($name, MonitorType::Https)->setParent($this->group);
+        }
+        $this->em->flush();
+
+        $shared = $this->showAs($this->group, $this->readScope(['shared-child'], false));
+        self::assertIsArray($shared['detail']);
+        self::assertSame(['shared-child'], array_map(static fn (array $child): string => $child['monitor']->getName(), $shared['detail']['children']));
+
+        $tenant = $this->showAs($this->group, $this->readScope([], true));
+        self::assertIsArray($tenant['detail']);
+        self::assertCount(2, $tenant['detail']['children']);
+    }
+
+    public function testGuL2TheParentGroupIsShownToTenantUsersOnly(): void
+    {
+        $child = $this->persisted('child', MonitorType::Https)->setParent($this->group);
+        $this->em->flush();
+
+        $labels = static function (array $context): array {
+            self::assertInstanceOf(ShowPage::class, $context['page']);
+
+            return array_map(static fn (DetailItem $item): mixed => $item->value, $context['page']->sections[0]->items);
+        };
+
+        self::assertNotContains('Payments', $labels($this->showAs($child, $this->readScope(['child'], false))));
+        self::assertContains('Payments', $labels($this->showAs($child, $this->readScope([], true))));
+    }
+
+    public function testGuI6SlotTemplatesGetAMaskedViewOfTheMonitor(): void
+    {
+        $monitor = new Monitor($this->tenant, 'Secret', MonitorType::Https, 'https://user:placeholder@p.test/');
+        $monitor->setConfig(['url' => 'https://user:placeholder@p.test/', 'headers' => ['Authorization' => 'placeholder']]);
+        $this->em->persist($monitor);
+        $this->em->flush();
+
+        $context = $this->showAs($monitor, $this->readScope([], true));
+
+        self::assertIsArray($context['monitor_safe']);
+        self::assertStringNotContainsString('placeholder', (string) json_encode($context['monitor_safe']));
+        self::assertSame($monitor, $context['monitor'], 'the raw entity stays for existing overrides');
     }
 
     /**

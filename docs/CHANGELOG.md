@@ -84,9 +84,11 @@ off by default: the default output does not change. See [UPGRADING](UPGRADING.md
   charts (with `charts: host`) or the details card. The regions are also the blocks `monitor_details`,
   `monitor_figures` and `monitor_charts`. `uptime-monitor-detail.js` already skips missing chart canvases.
 - **Cancellable quota check** `Event\UptimeEvents::MONITOR_QUOTA_CHECK` (`Event\MonitorQuotaCheckEvent`: `action`
-  `create|resume`, `tenantSlug`, `type`, `monitor`, `deny($reason)`), dispatched before a new monitor is saved (inside
-  the tenant row lock when it takes a `limits` slot) and before a paused monitor is resumed. A denial shows the reason
-  in the monitor form (dialog: 422) or as an `error` flash; nothing is written. `limits.provider` stays.
+  `create|resume`, `tenantSlug`, `type`, `monitor`, `previousType`, `deny($reason)`), dispatched inside the tenant row
+  lock before a new monitor is saved, a monitor changes type or a paused monitor is resumed, from the forms, the pause
+  action and backup import. A denial shows the reason in the monitor form (dialog: 422), as an `error` flash or as an
+  import warning (`quota_denied`, `quota_denied_reason` in the `import()` result); nothing is written for it.
+  `limits.provider` stays. See [CONFIGURATION](CONFIGURATION.md#host-quota-check).
 - **Tenant provisioner** `multi_tenant.provisioner` (`Tenant\MissingTenantProvisionerInterface`): creates the tenant
   of a slug without one when an admin page or tenant API runs, after the access check; null → 404.
 - **Monitor-level read access** `Security\MonitorAwareUptimeMonitorAccessCheckerInterface::canViewMonitor()`: decides
@@ -94,13 +96,37 @@ off by default: the default output does not change. See [UPGRADING](UPGRADING.md
   tenant methods. Default (other checkers): tenant access, as before.
 - **Settings per tenant** `web_ui.settings.sections_resolver` (`Ui\SettingsSectionsResolverInterface`): narrows
   `web_ui.settings.sections` per tenant; a tenant without a screen has no Settings action or area tab.
-- **`web_ui.strict_tenant_paths`** (default `false`): a tenant is served only under the path its slug selects
-  (`tenant_paths` entry or the default path); any other path answers 404.
+- **`web_ui.strict_tenant_paths`** (default `false`): on the admin routes, a tenant is served only under the path its
+  slug selects (`tenant_paths` entry or the default path); any other path answers 404. The status page and the tenant
+  APIs are not covered.
+- **`monitor_safe`** page variable of the monitor page (`target`, `config`, masked with `SecretRedactor`), for slot
+  templates: `monitor` stays the raw entity.
 
 ### Changed
 
 - The dashboard *Settings* action and the area *Settings* tab are left out when the tenant keeps no settings screen
   (before, they led to a 404). With the default `web_ui.settings.sections` nothing changes.
+- A resume and a group created from the monitor form now run in a short transaction holding the tenant row lock. The
+  responses do not change.
+
+### Security
+
+Findings of the independent review of this release's host hooks (REQ-SEC-004 Appendix GU), all before any release. Every
+one needs a host to opt in to a hook; default configuration is not affected.
+
+- **The host quota event could be avoided (GU-M1, Medium).** Editing a monitor (unchecking `paused`, a group into a
+  check, `https` into `push`) and backup import never dispatched `MONITOR_QUOTA_CHECK`. They do now, including a backup
+  overwrite, and a denied import row is reported instead of written. **Hosts with a pre-1.21 listener on `new` and
+  `toggle_pause` only have the same gap in their listener: move it to this event.**
+- **The resume check ran outside any lock (GU-L1, Low):** concurrent resumes could each pass a counting listener. It now
+  runs through `TenantQuota::withTenantLock()`, as do edits with a check and group creation.
+- **`canViewMonitor` did not narrow the monitor page (GU-L2, Low):** a user shared one monitor also got the names and
+  statuses of unshared children of a shared group, the parent group's name and the push ingest URL. Children are filtered
+  by `canViewMonitor()`; the parent and the URL need `canAccessTenant()`.
+- **The provisioner got an unvalidated slug and ran before CSRF (GU-L3, Low):** a slug outside `SLUG_PATTERN` answers 404
+  before it, and a POST never provisions.
+- `TenantFormType::SLUG_PATTERN` no longer accepts a trailing newline (`$` without the `D` modifier), found while fixing
+  GU-L3. It reached `TenantProvisioner::ensure()` through the API routes, which have no slug requirement.
 
 ## [1.20.1] - 2026-11-06
 

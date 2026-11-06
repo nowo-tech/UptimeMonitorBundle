@@ -251,6 +251,7 @@ flash.settings.cleared: 'Se eliminaron %checks% comprobaciones, %aggregates% agr
 flash.settings.backup_no_file: 'No se subió ningún archivo de copia.'
 flash.settings.backup_imported: 'Importación: %imported% nuevos, %skipped% omitidos, %overwritten% sobrescritos, %invalid% no válidos.'
 flash.settings.backup_over_quota: '%count% monitor(es) no importado(s): se ha alcanzado el límite de monitores del tenant.'
+flash.settings.backup_quota_denied: '%count% monitor(es) no importado(s): %reason%'
 flash.settings.backup_import_failed: 'Error al importar: el archivo no es una copia válida.'
 
 # Pages (UiKit page contract, REQ-UI-003)

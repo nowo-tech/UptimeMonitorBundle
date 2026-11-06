@@ -91,6 +91,40 @@ final class TenantProvisioningSubscriberTest extends TestCase
         $subscriber->onKernelController(new ControllerEvent($this->createStub(HttpKernelInterface::class), static fn (): null => null, new Request(), HttpKernelInterface::MAIN_REQUEST));
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function badSlugs(): iterable
+    {
+        yield 'markup' => ['Bad_Slug<x'];
+        yield 'uppercase' => ['Acme'];
+        yield 'trailing newline' => ["acme\n"];
+        yield 'uri template' => ['{acme}'];
+    }
+
+    #[DataProvider('badSlugs')]
+    public function testGuL3ABadSlugIsNotFoundBeforeTheProvisionerAndTheLookup(string $slug): void
+    {
+        $provisioner = $this->createMock(MissingTenantProvisionerInterface::class);
+        $provisioner->expects(self::never())->method('provision');
+        $tenants = $this->createMock(TenantRepository::class);
+        $tenants->expects(self::never())->method('findOneBySlug');
+
+        $this->expectException(NotFoundHttpException::class);
+        (new TenantProvisioningSubscriber($tenants, $provisioner))->onKernelController($this->event(StatusApiController::class, $slug));
+    }
+
+    public function testGuL3AnUnsafeRequestNeverProvisions(): void
+    {
+        $provisioner = $this->createMock(MissingTenantProvisionerInterface::class);
+        $provisioner->expects(self::never())->method('provision');
+        $event = $this->event(MonitorController::class, 'csrf-probe');
+        $event->getRequest()->setMethod('POST');
+
+        // No exception here: the controller answers the missing tenant's 404, as without a provisioner.
+        (new TenantProvisioningSubscriber($this->tenants(null), $provisioner))->onKernelController($event);
+    }
+
     public function testWithoutProvisionerNothingHappens(): void
     {
         $tenants = $this->createMock(TenantRepository::class);

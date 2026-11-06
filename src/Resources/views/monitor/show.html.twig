@@ -17,6 +17,7 @@
   Since 1.21 (web_ui.monitor_show, variable monitor_layout): the regions sit in the blocks monitor_details,
   monitor_figures and monitor_charts; slots.details / slots.figures replace a region with a host template (rendered
   with the page variables), charts: host renders slots.charts instead of the bundle charts, charts: none drops them.
+  monitor is the raw entity (unmasked target and config, push key): a slot prints monitor_safe.target / .config.
 #}
 {% extends '@NowoUiKit/page/show.html.twig' %}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}

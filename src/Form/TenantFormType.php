@@ -22,7 +22,7 @@ use function preg_match;
 #[FormKitConfig('uptime_monitor')]
 final class TenantFormType extends AbstractUptimeFormType
 {
-    public const SLUG_PATTERN = '/^[a-z0-9\-]+$/';
+    public const SLUG_PATTERN = '/^[a-z0-9\-]+$/D';
 
     /**
      * Adds the tenant fields.

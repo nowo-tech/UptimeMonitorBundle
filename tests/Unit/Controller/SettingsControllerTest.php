@@ -9,6 +9,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
@@ -23,6 +24,7 @@ use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Flash\FlashBagInterface;
@@ -72,6 +74,22 @@ final class SettingsControllerTest extends TestCase
 
         self::assertTrue($controller->backup('main', $request)->isRedirect());
         self::assertSame(['flash.settings.backup_over_quota'], $this->flashBag($request)->peek('warning'));
+    }
+
+    public function testGuM1ARowDeniedByTheHostQuotaIsReportedInAWarning(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('persist');
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorQuotaCheckEvent::class, static fn (MonitorQuotaCheckEvent $check) => $check->deny('Plan limit.'));
+
+        $request    = $this->createImportRequest('valid', '{"monitors":[{"name":"API","target":"https://api.test"}]}');
+        $controller = $this->createController($em, null, null, $dispatcher);
+        $this->bindController($controller, true, $request);
+
+        self::assertTrue($controller->backup('main', $request)->isRedirect());
+        self::assertSame(['flash.settings.backup_quota_denied'], $this->flashBag($request)->peek('warning'));
+        self::assertSame(['flash.settings.backup_imported'], $this->flashBag($request)->peek('success'));
     }
 
     public function testBackupPageRendersImportForm(): void
@@ -181,7 +199,7 @@ final class SettingsControllerTest extends TestCase
         ], [], ['backup' => $file]);
     }
 
-    private function createController(EntityManagerInterface $em, ?Tenant $tenant = null, ?TenantQuota $quota = null): SettingsController
+    private function createController(EntityManagerInterface $em, ?Tenant $tenant = null, ?TenantQuota $quota = null, ?EventDispatcher $dispatcher = null): SettingsController
     {
         $tenant ??= new Tenant('main', 'Main');
 
@@ -203,7 +221,7 @@ final class SettingsControllerTest extends TestCase
             new TagRepository($registry),
             new TenantSettingsMapper(),
             $em,
-            new MonitorBackupService($monitorRepo, new MonitorFactory($monitorRepo), $em, quota: $quota),
+            new MonitorBackupService($monitorRepo, new MonitorFactory($monitorRepo), $em, quota: $quota, eventDispatcher: $dispatcher),
             new UptimeDataClearService($em, $tenantRepo, $monitorRepo),
             new DetailRetentionService($em, $tenantRepo, ['detail_days' => 30]),
             ['detail_days' => 30],

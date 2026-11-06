@@ -10,6 +10,8 @@ use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
+use Nowo\UptimeMonitorBundle\Event\UptimeEvents;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
@@ -21,6 +23,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Validator\Validation;
 
 use function array_column;
@@ -52,6 +55,111 @@ final class MonitorBackupServiceDbTest extends TestCase
         );
         $this->tenant = new Tenant('main', 'Main');
         $this->em->persist($this->tenant);
+    }
+
+    /**
+     * @param callable(MonitorQuotaCheckEvent): void $listener
+     */
+    private function serviceWithListener(callable $listener, ?TenantQuota $quota = null): MonitorBackupService
+    {
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(UptimeEvents::MONITOR_QUOTA_CHECK, $listener);
+
+        return new MonitorBackupService($this->monitors, new MonitorFactory($this->monitors), $this->em, quota: $quota, eventDispatcher: $dispatcher);
+    }
+
+    public function testGuM1ADeniedRowIsNotWrittenAndIsReportedAndTheOthersGoOn(): void
+    {
+        $seen    = [];
+        $service = $this->serviceWithListener(static function (MonitorQuotaCheckEvent $check) use (&$seen): void {
+            $seen[] = [$check->action, $check->tenantSlug, $check->type, $check->monitor];
+            if ($check->type === MonitorType::Push) {
+                $check->deny('No more push monitors.');
+            }
+        });
+
+        $result = $service->import($this->tenant, ['monitors' => [
+            ['name' => 'Site', 'target' => 'https://site.test'],
+            ['name' => 'Agent 1', 'type' => 'push'],
+            ['name' => 'Agent 2', 'type' => 'push'],
+        ]]);
+
+        self::assertSame(['imported' => 1, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 0, 'quota_denied' => 2, 'quota_denied_reason' => 'No more push monitors.'], $result);
+        self::assertInstanceOf(Monitor::class, $this->monitors->findOneBy(['name' => 'Site']));
+        self::assertNull($this->monitors->findOneBy(['name' => 'Agent 1']));
+        self::assertNull($this->monitors->findOneBy(['name' => 'Agent 2']));
+        self::assertSame([
+            ['create', 'main', MonitorType::Https, null],
+            ['create', 'main', MonitorType::Push, null],
+            ['create', 'main', MonitorType::Push, null],
+        ], $seen);
+    }
+
+    public function testGuM1ACountingListenerSeesTheRowsAlreadyImported(): void
+    {
+        $this->em->flush();
+        $service = $this->serviceWithListener(function (MonitorQuotaCheckEvent $check): void {
+            if ($this->monitors->countChecksByTenantSlug($check->tenantSlug) >= 2) {
+                $check->deny('Plan allows 2.');
+            }
+        }, new TenantQuota(new ConfigurableTenantLimits(0, 30), $this->monitors));
+
+        $result = $service->import($this->tenant, ['monitors' => [
+            ['name' => 'One', 'target' => 'https://one.test'],
+            ['name' => 'Two', 'target' => 'https://two.test'],
+            ['name' => 'Three', 'target' => 'https://three.test'],
+            ['name' => 'Four', 'target' => 'https://four.test'],
+        ]]);
+
+        self::assertSame([2, 2, 'Plan allows 2.'], [$result['imported'], $result['quota_denied'], $result['quota_denied_reason']]);
+        self::assertSame(2, $this->monitors->countChecksByTenantSlug('main'));
+    }
+
+    public function testGuM1AnOverwriteIsCheckedLikeAnEdit(): void
+    {
+        $paused = (new Monitor($this->tenant, 'Paused', MonitorType::Https, 'https://p.test'))->setPaused(true);
+        $group  = new Monitor($this->tenant, 'Group', MonitorType::Group, 'Group');
+        $site   = new Monitor($this->tenant, 'Site', MonitorType::Https, 'https://s.test');
+        $free   = (new Monitor($this->tenant, 'Free', MonitorType::Https, 'https://f.test'))->setPaused(true);
+        foreach ([$paused, $group, $site, $free] as $monitor) {
+            $this->em->persist($monitor);
+        }
+        $this->em->flush();
+        $seen    = [];
+        $service = $this->serviceWithListener(static function (MonitorQuotaCheckEvent $check) use (&$seen, $free): void {
+            $seen[] = [$check->action, $check->monitor?->getName(), $check->type, $check->previousType];
+            if ($check->monitor !== $free) {
+                $check->deny('Denied.');
+            }
+        });
+
+        $result = $service->import($this->tenant, ['monitors' => [
+            ['name' => 'Paused', 'target' => 'https://p.test', 'paused' => false],
+            ['name' => 'Group', 'target' => 'https://g.test'],
+            ['name' => 'Site', 'type' => 'push'],
+            ['name' => 'Free', 'target' => 'https://f.test', 'paused' => false],
+        ]], MonitorBackupService::IMPORT_OVERWRITE);
+
+        self::assertSame([0, 1, 3, 'Denied.'], [$result['imported'], $result['overwritten'], $result['quota_denied'], $result['quota_denied_reason']]);
+        self::assertTrue($paused->isPaused());
+        self::assertTrue($group->isGroup());
+        self::assertSame(MonitorType::Https, $site->getType());
+        self::assertFalse($free->isPaused());
+        self::assertSame([
+            ['resume', 'Paused', MonitorType::Https, null],
+            ['create', 'Group', MonitorType::Https, MonitorType::Group],
+            ['create', 'Site', MonitorType::Push, MonitorType::Https],
+            ['resume', 'Free', MonitorType::Https, null],
+        ], $seen);
+    }
+
+    public function testGuM1WithoutAListenerARegisteredDispatcherChangesNothing(): void
+    {
+        $service = new MonitorBackupService($this->monitors, new MonitorFactory($this->monitors), $this->em, eventDispatcher: new EventDispatcher());
+
+        $result = $service->import($this->tenant, ['monitors' => [['name' => 'One', 'target' => 'https://one.test']]]);
+
+        self::assertSame(['imported' => 1, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 0, 'quota_denied' => 0, 'quota_denied_reason' => null], $result);
     }
 
     public function testExportSkipsGroupsAndCarriesTheFormFields(): void
@@ -106,7 +214,7 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'Bare', 'config' => 'ignored', 'target' => 'https://bare.test'],
         ]];
 
-        self::assertSame(['imported' => 2, 'skipped' => 1, 'overwritten' => 0, 'invalid' => 3, 'over_quota' => 0], $this->service->import($this->tenant, $payload));
+        self::assertSame(['imported' => 2, 'skipped' => 1, 'overwritten' => 0, 'invalid' => 3, 'over_quota' => 0, 'quota_denied' => 0, 'quota_denied_reason' => null], $this->service->import($this->tenant, $payload));
         self::assertSame('https://old.test', $existing->getTarget(), 'skip mode keeps the existing monitor');
 
         $shop = $this->monitors->findOneBy(['name' => 'Shop']);
@@ -121,9 +229,9 @@ final class MonitorBackupServiceDbTest extends TestCase
         self::assertSame('POST', $shop->getConfig()['method']);
         self::assertSame([200, 202], $shop->getConfig()['expected_status_codes']);
 
-        self::assertSame(['imported' => 0, 'skipped' => 3, 'overwritten' => 0, 'invalid' => 3, 'over_quota' => 0], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_KEEP));
+        self::assertSame(['imported' => 0, 'skipped' => 3, 'overwritten' => 0, 'invalid' => 3, 'over_quota' => 0, 'quota_denied' => 0, 'quota_denied_reason' => null], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_KEEP));
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 3, 'invalid' => 3, 'over_quota' => 0], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_OVERWRITE));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 3, 'invalid' => 3, 'over_quota' => 0, 'quota_denied' => 0, 'quota_denied_reason' => null], $this->service->import($this->tenant, $payload, MonitorBackupService::IMPORT_OVERWRITE));
         self::assertSame('https://new.test/form', $existing->getTarget());
         self::assertSame([200, 201], $existing->getConfig()['expected_status_codes']);
 
@@ -148,7 +256,7 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'Too many pins', 'type' => 'ssl', 'target' => 't:443', 'config' => ['host' => 't.example.test', 'port' => 443, 'expected_spki_pins' => array_map(static fn (int $i): string => 'sha256/' . base64_encode(hash('sha256', (string) $i, true)), range(1, 500))]],
         ]]);
 
-        self::assertSame(['imported' => 5, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 4, 'over_quota' => 0], $result);
+        self::assertSame(['imported' => 5, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 4, 'over_quota' => 0, 'quota_denied' => 0, 'quota_denied_reason' => null], $result);
         self::assertNull($this->monitors->findOneBy(['name' => 'String pin']), 'a non-list pin value is never imported unpinned');
         self::assertSame(['sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg='], $this->monitors->findOneBy(['name' => 'Pinned'])?->getConfig()['expected_spki_pins'] ?? null);
         $db = $this->monitors->findOneBy(['name' => 'DB']);
@@ -171,7 +279,7 @@ final class MonitorBackupServiceDbTest extends TestCase
 
         $result = $this->service->import($this->tenant, ['monitors' => [['name' => 'web-01', 'type' => 'https', 'target' => 'https://x.test']]], MonitorBackupService::IMPORT_OVERWRITE);
 
-        self::assertSame(['imported' => 0, 'skipped' => 1, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 0], $result);
+        self::assertSame(['imported' => 0, 'skipped' => 1, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 0, 'quota_denied' => 0, 'quota_denied_reason' => null], $result);
         self::assertSame(MonitorType::Push, $file->getType());
         $row = $this->service->export($this->tenant)['monitors'][0];
         self::assertSame(['file', 'web-01'], [$row['origin'], $row['origin_key']]);
@@ -259,7 +367,7 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'Fine', 'target' => 'https://c.test', 'config' => ['method' => 'head']],
         ]]);
 
-        self::assertSame(['imported' => 1, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 2, 'over_quota' => 0], $result);
+        self::assertSame(['imported' => 1, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 2, 'over_quota' => 0, 'quota_denied' => 0, 'quota_denied_reason' => null], $result);
         self::assertSame('HEAD', $this->monitors->findOneBy(['name' => 'Fine'])?->getConfig()['method']);
     }
 
@@ -284,7 +392,7 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'Four', 'target' => 'https://four.test'],
         ]]);
 
-        self::assertSame(['imported' => 3, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 2], $result);
+        self::assertSame(['imported' => 3, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 2, 'quota_denied' => 0, 'quota_denied_reason' => null], $result);
         self::assertSame(2, $this->monitors->countChecksByTenantSlug('main'), 'groups are not counted, checks stop at max_monitors');
         self::assertSame(120, $this->monitors->findOneBy(['name' => 'One'])?->getIntervalSeconds(), 'raised to the tenant minimum');
         self::assertSame(300, $this->monitors->findOneBy(['name' => 'Two'])?->getIntervalSeconds());
@@ -297,7 +405,7 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'One', 'target' => 'https://one-new.test', 'interval_seconds' => 10],
         ]], MonitorBackupService::IMPORT_OVERWRITE);
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 1, 'invalid' => 0, 'over_quota' => 1], $overwrite);
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 1, 'invalid' => 0, 'over_quota' => 1, 'quota_denied' => 0, 'quota_denied_reason' => null], $overwrite);
         self::assertTrue($this->monitors->findOneBy(['name' => 'Team'])?->isGroup());
         self::assertSame(120, $this->monitors->findOneBy(['name' => 'One'])?->getIntervalSeconds());
     }
@@ -320,7 +428,7 @@ final class MonitorBackupServiceDbTest extends TestCase
             ['name' => 'Other', 'target' => 'https://other.test'],
         ]], MonitorBackupService::IMPORT_OVERWRITE);
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 1, 'invalid' => 0, 'over_quota' => 1], $result);
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'overwritten' => 1, 'invalid' => 0, 'over_quota' => 1, 'quota_denied' => 0, 'quota_denied_reason' => null], $result);
         self::assertFalse($this->monitors->findOneBy(['name' => 'Team'])?->isGroup());
     }
 

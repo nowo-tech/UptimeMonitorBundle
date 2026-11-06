@@ -29,4 +29,29 @@ final class MonitorQuotaCheckEventTest extends TestCase
         self::assertTrue($check->isDenied());
         self::assertSame('Plan limit reached.', $check->getReason());
     }
+
+    public function testForChangeOfARunningMonitor(): void
+    {
+        $monitor = new Monitor(new Tenant('main', 'Main'), 'API', MonitorType::Https, 'https://x.test');
+
+        self::assertCount(0, MonitorQuotaCheckEvent::forChange('main', $monitor, MonitorType::Https, false));
+        self::assertCount(0, MonitorQuotaCheckEvent::forChange('main', $monitor, MonitorType::Https, true), 'pausing is never checked');
+
+        [$create] = MonitorQuotaCheckEvent::forChange('main', $monitor, MonitorType::Push, false);
+        self::assertSame(['create', 'main', MonitorType::Push, $monitor, MonitorType::Https], [$create->action, $create->tenantSlug, $create->type, $create->monitor, $create->previousType]);
+
+    }
+
+    public function testForChangeOfAPausedMonitor(): void
+    {
+        $monitor = (new Monitor(new Tenant('main', 'Main'), 'API', MonitorType::Https, 'https://x.test'))->setPaused(true);
+        self::assertCount(0, MonitorQuotaCheckEvent::forChange('main', $monitor, MonitorType::Https, true), 'staying paused');
+
+        [$resume] = MonitorQuotaCheckEvent::forChange('main', $monitor, MonitorType::Https, false);
+        self::assertSame(['resume', 'main', MonitorType::Https, $monitor, null], [$resume->action, $resume->tenantSlug, $resume->type, $resume->monitor, $resume->previousType]);
+
+        $both = MonitorQuotaCheckEvent::forChange('main', $monitor, MonitorType::Push, false);
+        self::assertSame(['create', 'resume'], [$both[0]->action, $both[1]->action]);
+        self::assertSame(MonitorType::Push, $both[1]->type);
+    }
 }

@@ -42,9 +42,30 @@ This bundle provides:
   read from a 0600 file or a non-interactive stdin only — see [PUSH-MONITORS.md](PUSH-MONITORS.md#monitors-as-code)
 - Optional notifications (email, webhook, Slack)
 - Doctrine persistence for check results and aggregates
+- Host hooks (1.21, all off by default): monitor page slots, `MONITOR_QUOTA_CHECK`, `multi_tenant.provisioner`,
+  `canViewMonitor()`, `web_ui.settings.sections_resolver`, `web_ui.strict_tenant_paths` — see
+  [CONFIGURATION.md](CONFIGURATION.md#host-hooks-121)
 
 ## Threat model and mitigations
 
+- **Host hooks (1.21)**: host code and host templates are trusted as written; the bundle only calls them. Nothing here
+  changes anonymous push ingest or the public status page.
+  - **Quota bypass by a tenant manager**: `MONITOR_QUOTA_CHECK` fires inside the tenant row lock on every UI and backup
+    write that may count: new monitor, type change, resume (form, pause action, import row). A denial writes nothing.
+    `nowo:uptime:apply-monitors` is an operator command and does not fire it. A listener should call `deny()`: a throw
+    also refuses the write but closes the EntityManager. Residual: the lock is per tenant, so a host limit spanning
+    several tenants can be raced.
+  - **Over-exposure to a shared read-only user**: under a monitor-aware checker a user without `canAccessTenant()` gets
+    only the group children `canViewMonitor()` allows, no parent group name and no push ingest URL; every mutation is 403
+    and unshared monitors 404. Residuals: a group's own roll-up counts all its children; the dashboard is not filtered
+    per monitor, so the host must return `canAccessTenant()` false for those users; slot templates receive the raw
+    `monitor` entity, so they must print `monitor_safe` and nothing else of it to such users.
+  - **Tenant creation by URL**: the provisioner runs after the access check, on safe requests only (never with a POST,
+    whose CSRF token is checked later), and never for a slug outside `TenantFormType::SLUG_PATTERN`, the status page or
+    the push endpoint. It does run on GET for read-only users: a host whose checker ignores the slug must decide there
+    who may create what. With `security.allow_unauthenticated: true` it decides alone.
+  - **Wrong path for a tenant**: `web_ui.strict_tenant_paths` covers admin routes only, not the status page or the APIs.
+  - **Settings per tenant**: a section outside the resolver's list answers 404 on every route of that section.
 - **SSRF / outbound requests**: HTTP/HTTPS, TCP, SSL and ping monitors use `MonitorUrlSsrfGuard` when `checks.block_private_urls` is `true` (default). Blocked ranges are `IpUtils::PRIVATE_SUBNETS` (loopback, RFC1918, link-local, `0.0.0.0/8`, `100.64.0.0/10`, `fc00::/7`, IPv4-mapped IPv6, …) plus multicast/broadcast; every A/AAAA record is checked. HTTP checks run through `NoPrivateNetworkHttpClient`, so redirects and the connected IP are re-validated (DNS rebinding), and a private per-monitor `proxy` is rejected. TCP/SSL/ping connect to the validated, pinned IP. DNS monitors (system resolver, no connection) validate the hostname (private IP literals, `localhost`, metadata hosts) before the lookup and report an answer with any private/local A/AAAA address or blocked CNAME/MX target as blocked, without exposing the resolved records. Restrict who can create monitors; default UI roles require **`ROLE_ADMIN`**. Regression coverage: `tests/Unit/Security/MonitorUrlSsrfGuardTest.php`, `HttpCheckRunnerTest`, `PingCheckRunnerTest`, `DnsCheckRunnerTest`.
 - **Monitors as code (`nowo:uptime:apply-monitors`, 1.18)**: external push tokens enter only through
   `--token-file` (a regular file, not a symlink, `lstat`/`fstat` inode match, mode `& 077 == 0`, owned by the
@@ -255,6 +276,7 @@ make release-check
 | Grade | **Pass (good)** |
 | Risk | Low |
 | Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH (+ 1.12.x delta) |
+| Unreleased 1.21 host hooks | Appendix GU (2026-11-06, PR #149 at `04cce18`): Pass (conditional) / Medium, 1 Medium, 3 Low, 6 Info. Fixes below; **re-verification pending**, the grade above does not cover these hooks until then |
 | Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked (also in stored check messages); `limits.max_monitors` defaults to 0 (no quota; the scan stays bounded by `max_scan_seconds`); a host `security.access_checker` or `TenantLimitsInterface` is trusted as written; `StatusPageMonitorsEvent` listeners can still hide monitors (only narrowing is enforced) |
 
 ### Findings (2026-10-27, all fixed in PR #121)
@@ -285,3 +307,18 @@ make release-check
 | I1 | Info | `StatusPageMonitorsEvent` listeners could add monitors of another tenant or paused ones | The page re-filters the listener result (same tenant, not paused) |
 | I2 | Info | A URL without a scheme was only caught by the check | HTTP(S) monitors validate a full `http://` / `https://` URL with a host (`form.monitor.url_invalid`; backup rows too) |
 | I3 | Info | Transport errors stored the target URL with its credentials in the check message | `CheckResultDto::sanitized()` masks URLs in the message and metadata (`SecretRedactor::maskUrlsInText()`) |
+
+### Findings (2026-11-06, unreleased 1.21 host hooks, Appendix GU, fixed on PR #149, re-verification pending)
+
+| Id | Severity | Finding | Fix |
+| -- | -------- | ------- | --- |
+| GU-M1 | Medium | `MONITOR_QUOTA_CHECK` avoidable by editing a monitor (`paused` unchecked, group into check, type change) and by backup import | Edit and import dispatch `resume` / `create`, per row in an import; a denied row is not written and is counted as `quota_denied` |
+| GU-L1 | Low | Resume check outside any lock | Runs through `TenantQuota::withTenantLock()`, as do edits with a check and group creation |
+| GU-L2 | Low | `canViewMonitor` did not narrow the monitor page (unshared children, parent name, push ingest URL) | `Security\MonitorReadScope`: children by `canViewMonitor()`, parent and URL by `canAccessTenant()` |
+| GU-L3 | Low | Provisioner got an unvalidated slug, on POST before CSRF | 404 for a slug outside `SLUG_PATTERN` before it (the pattern also stops accepting a trailing newline); unsafe requests never provision. It still runs on GET for readers: documented |
+| GU-I1 | Info | `strict_tenant_paths` scope | Documented: admin routes only |
+| GU-I2 | Info | Dashboard rows are not filtered by `canViewMonitor` | Documented: left to `canAccessTenant()` |
+| GU-I3 | Info | A throwing quota listener closes the EntityManager | Documented: call `deny()` |
+| GU-I4 | Info | This file did not mention the hooks | This section and the threat model above |
+| GU-I5 | Info | Slug case on API routes without a requirement (case-insensitive collation) | Not changed for default config. With a provisioner the subscriber's slug check answers 404 first |
+| GU-I6 | Info | Slot templates get the raw `monitor` | Documented; masked `monitor_safe` added |

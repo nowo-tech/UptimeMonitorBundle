@@ -12,6 +12,11 @@ use Nowo\UptimeMonitorBundle\Service\TenantProvisioner;
  * tenant yet runs, after the access checks let the user in (kernel.controller, priority -8). Return the tenant of
  * that slug, persisted and flushed (e.g. through {@see TenantProvisioner::ensure()}),
  * or null when the slug names no tenant of the host: the request then answers 404.
+ *
+ * The slug always matches `TenantFormType::SLUG_PATTERN` (anything else answers 404 first) and the request is a safe
+ * one: a POST never provisions. It does run on GET for every user the checker lets read, read-only users included, so
+ * a checker that ignores the slug lets them create tenants by URL: decide here who may create what, and return null
+ * otherwise. With `security.allow_unauthenticated: true` there is no access check before it.
  */
 interface MissingTenantProvisionerInterface
 {

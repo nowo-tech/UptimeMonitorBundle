@@ -307,6 +307,19 @@ final class PageContractTest extends PageContractTestCase
         self::assertStringNotContainsString('host-charts', $default);
     }
 
+    public function testGuL2APushPageWithoutTheUrlPrintsNoIngestUrl(): void
+    {
+        $fixture = PageFixtures::monitorShowPush();
+        self::assertIsArray($fixture['push']);
+        $fixture['push']['url'] = null;
+
+        $html = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', $fixture))->html;
+
+        self::assertStringNotContainsString('uptime-push-url', $html);
+        self::assertStringContainsString('uptime-push-token-state', $html, 'the rest of the card stays');
+        self::assertStringContainsString('uptime-push-url', $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShowPush()))->html);
+    }
+
     public function testAFileManagedMonitorIsMarkedOnItsPageAndInTheDashboard(): void
     {
         $push = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShowPush(true)))->html;

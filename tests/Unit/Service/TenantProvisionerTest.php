@@ -50,6 +50,7 @@ final class TenantProvisionerTest extends TestCase
      */
     public static function invalidSlugProvider(): iterable
     {
+        yield 'trailing newline' => ["acme\n"];
         yield 'mercure template selector' => ['{tenant}'];
         yield 'uppercase' => ['Acme'];
         yield 'path' => ['a/b'];

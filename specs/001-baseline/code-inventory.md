@@ -167,6 +167,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Security/MonitorAwareUptimeMonitorAccessCheckerInterface.php` | Monitor-level read access (`canViewMonitor`, 1.21) | FR-SEC-002 |
 | `EventSubscriber/TenantProvisioningSubscriber.php` | `multi_tenant.provisioner`: creates a missing tenant after the access check (1.21) | FR-SEC-002 |
 | `Tenant/MissingTenantProvisionerInterface.php` | Host contract of `multi_tenant.provisioner` (1.21) | FR-SEC-002 |
+| `Security/MonitorReadScope.php` | Narrows the monitor page for users without tenant access (1.21) | FR-SEC-002 |
 | `Security/MonitorUrlSsrfGuard.php` | URL/HTML policy | FR-SEC-004 |
 | `Security/SecretRedactor.php` | Credential masking / backup redaction | FR-SEC-006 |
 | `Security/UptimeMonitorAccessCheckerInterface.php` | Access checker contract | FR-SEC-001 |
@@ -394,7 +395,7 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Domain models | 4 | 4 |
 | Application services | 22 | 22 |
 | Notifications | 5 | 5 |
-| Security | 11 | 11 |
+| Security | 12 | 12 |
 | Twig PHP | 1 | 1 |
 | Persistence integration | 2 | 2 |
 | Async messaging | 2 | 2 |
@@ -411,6 +412,6 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Twig views | 32 | 32 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **235** | **235** |
+| **Total production sources** | **236** | **236** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.
