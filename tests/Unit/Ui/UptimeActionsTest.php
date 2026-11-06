@@ -14,6 +14,8 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
+use Nowo\UptimeMonitorBundle\Ui\SettingsSectionsResolverInterface;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -148,6 +150,24 @@ final class UptimeActionsTest extends TestCase
 
         $broken = $this->actions($this->tenantChecker(true, true), webUi: ['dashboard' => ['actions' => 'settings']]);
         self::assertSame([], $broken->dashboardHeader('main'));
+    }
+
+    public function testNoSettingsActionForATenantWithoutSettings(): void
+    {
+        $resolver = $this->createStub(SettingsSectionsResolverInterface::class);
+        $resolver->method('sections')->willReturnCallback(static fn (string $slug): array => $slug === 'main' ? ['tags'] : []);
+        $urls = $this->createStub(UrlGeneratorInterface::class);
+        $urls->method('generate')->willReturn('/x');
+        $actions = new UptimeActions(
+            $this->tenantChecker(true, true),
+            $urls,
+            new TenantQuota(new ConfigurableTenantLimits(), $this->createStub(MonitorRepository::class)),
+            webUi: ['dashboard' => ['actions' => ['settings']]],
+            sections: new SettingsSections([], $resolver),
+        );
+
+        self::assertSame(['uptime-dashboard-settings'], $this->testIds($actions->dashboardHeader('main')));
+        self::assertSame([], $actions->dashboardHeader('user-1'));
     }
 
     public function testNewMonitorOpensTheDialogUntilTheLimit(): void

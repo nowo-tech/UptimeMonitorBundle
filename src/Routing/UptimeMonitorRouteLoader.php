@@ -9,6 +9,7 @@ use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Controller\SummaryController;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
+use Nowo\UptimeMonitorBundle\EventSubscriber\TenantPathGuardSubscriber;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Route;
@@ -31,6 +32,9 @@ use function substr_replace;
  * `/uptime/{tenantSlug}/monitors/new`. The tenant-less pages (tenant list, new tenant) are left out in that mode: the
  * host owns its tenants. Without the placeholder the routes are those of `routes.yaml`.
  *
+ * With `web_ui.strict_tenant_paths` (since 1.21) every tenant route carries {@see self::TENANT_PATH_ATTRIBUTE}, so a
+ * tenant is served only under the path its slug prefix selects.
+ *
  * With `web_ui.enabled: false` the admin pages (dashboard, monitors, settings, tenants) are not registered at all —
  * only the status page and the JSON APIs remain (SEC-004 N3).
  */
@@ -41,6 +45,12 @@ final class UptimeMonitorRouteLoader extends Loader
 
     /** `routes.yaml` prefixes the admin routes with this parameter; the router resolves it after loading. */
     private const PATH_PARAMETER = '%nowo_uptime_monitor.dashboard.path%';
+
+    /**
+     * Route default naming the tenant path copy a tenant route belongs to (`''` = the default path, else the
+     * `name_prefix`), set with `web_ui.strict_tenant_paths` (since 1.21) for {@see TenantPathGuardSubscriber}.
+     */
+    public const TENANT_PATH_ATTRIBUTE = '_nowo_uptime_tenant_path';
 
     /** Controllers of the admin UI, dropped when `web_ui.enabled` is false. */
     public const ADMIN_CONTROLLERS = [DashboardController::class, MonitorController::class, SettingsController::class, SummaryController::class, TenantController::class];
@@ -86,6 +96,7 @@ final class UptimeMonitorRouteLoader extends Loader
         }
 
         $prefix = rtrim($this->dashboardPath, '/');
+        $strict = ($this->webUi['strict_tenant_paths'] ?? false) === true;
         /** @var array<string, array{0: Route, 1: string}> $tenantRoutes */
         $tenantRoutes = [];
         foreach ($routes->all() as $name => $route) {
@@ -108,6 +119,10 @@ final class UptimeMonitorRouteLoader extends Loader
             // @igor-ignore - Route collection built by this load() call at cache warm-up; not request state.
             $route->setPath($prefix . $rest);
             $tenantRoutes[$name] = [$route, $rest];
+            if ($strict) {
+                // @igor-ignore - Route collection built by this load() call at cache warm-up; not request state.
+                $route->setDefault(self::TENANT_PATH_ATTRIBUTE, '');
+            }
         }
 
         // dashboard.tenant_paths: the tenant pages once more per slug prefix (TenantPathUrlGenerator links to them).
@@ -117,6 +132,9 @@ final class UptimeMonitorRouteLoader extends Loader
                 $copy = clone $route;
                 $copy->setPath(rtrim($tenantPath['path'], '/') . $rest);
                 $copy->setRequirement('tenantSlug', $requirement);
+                if ($strict) {
+                    $copy->setDefault(self::TENANT_PATH_ATTRIBUTE, $tenantPath['name_prefix']);
+                }
                 // @igor-ignore - Route collection built by this load() call at cache warm-up; not request state.
                 $routes->add($tenantPath['name_prefix'] . $name, $copy);
             }

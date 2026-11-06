@@ -251,6 +251,7 @@ flash.settings.cleared: '%checks% contrôles, %aggregates% agrégats et %inciden
 flash.settings.backup_no_file: 'Aucun fichier de sauvegarde téléversé.'
 flash.settings.backup_imported: 'Importation terminée : %imported% nouveaux, %skipped% ignorés, %overwritten% écrasés, %invalid% invalides.'
 flash.settings.backup_over_quota: '%count% moniteur(s) non importé(s) : la limite de moniteurs du tenant est atteinte.'
+flash.settings.backup_quota_denied: '%count% moniteur(s) non importé(s) : %reason%'
 flash.settings.backup_import_failed: 'Échec de l''importation : le fichier n''est pas une sauvegarde valide.'
 
 # Pages (UiKit page contract, REQ-UI-003)

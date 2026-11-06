@@ -81,17 +81,20 @@ final readonly class UptimeAreaNav implements AreaNavProviderInterface
         $params = ['tenantSlug' => $tenantSlug];
         if ($area === self::AREA_SETTINGS) {
             $items = [];
-            foreach ($this->sections->all() as $id => $route) {
+            foreach ($this->sections->all($tenantSlug) as $id => $route) {
                 $items[] = new AreaNavItem(UptimePages::label('settings.nav.' . $id), $this->urlGenerator->generate($route, $params), false, ['data-testid' => 'uptime-nav-settings-' . $id], self::ICONS[$id] ?? null);
             }
 
             return new AreaNav($items, UptimePages::label('settings.title'));
         }
 
-        return new AreaNav([
-            new AreaNavItem(UptimePages::label('nav.dashboard'), $this->urlGenerator->generate('nowo_uptime_dashboard', $params), false, ['data-testid' => 'uptime-nav-dashboard'], self::ICONS['dashboard']),
-            new AreaNavItem(UptimePages::label('dashboard.settings'), $this->urlGenerator->generate('nowo_uptime_settings_index', $params), false, ['data-testid' => 'uptime-nav-settings'], self::ICONS['settings']),
-            new AreaNavItem(UptimePages::label('dashboard.status_page'), $this->urlGenerator->generate('nowo_uptime_status_page', $params), false, ['data-testid' => 'uptime-nav-status-page'], self::ICONS['status_page']),
-        ], UptimePages::label('app.title'));
+        $items = [new AreaNavItem(UptimePages::label('nav.dashboard'), $this->urlGenerator->generate('nowo_uptime_dashboard', $params), false, ['data-testid' => 'uptime-nav-dashboard'], self::ICONS['dashboard'])];
+        // Since 1.21: a tenant without a settings screen (`web_ui.settings.sections_resolver`) has no Settings item.
+        if ($this->sections->first($tenantSlug) !== null) {
+            $items[] = new AreaNavItem(UptimePages::label('dashboard.settings'), $this->urlGenerator->generate('nowo_uptime_settings_index', $params), false, ['data-testid' => 'uptime-nav-settings'], self::ICONS['settings']);
+        }
+        $items[] = new AreaNavItem(UptimePages::label('dashboard.status_page'), $this->urlGenerator->generate('nowo_uptime_status_page', $params), false, ['data-testid' => 'uptime-nav-status-page'], self::ICONS['status_page']);
+
+        return new AreaNav($items, UptimePages::label('app.title'));
     }
 }

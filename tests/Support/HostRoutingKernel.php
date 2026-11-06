@@ -22,6 +22,8 @@ use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 
 use function dirname;
+use function md5;
+use function serialize;
 use function sys_get_temp_dir;
 
 use const PHP_VERSION_ID;
@@ -35,7 +37,10 @@ final class HostRoutingKernel extends Kernel
 {
     use MicroKernelTrait;
 
-    public function __construct(private readonly bool $importBundleRoutes)
+    /**
+     * @param array<string, mixed> $webUi `nowo_uptime_monitor.web_ui` of this host
+     */
+    public function __construct(private readonly bool $importBundleRoutes, private readonly array $webUi = [])
     {
         parent::__construct('test', true);
     }
@@ -59,7 +64,7 @@ final class HostRoutingKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/nowo-uptime-monitor-host-routing/' . ($this->importBundleRoutes ? 'imported' : 'controllers-only') . '/cache';
+        return sys_get_temp_dir() . '/nowo-uptime-monitor-host-routing/' . ($this->importBundleRoutes ? 'imported' : 'controllers-only') . '/' . md5(serialize($this->webUi)) . '/cache';
     }
 
     public function getLogDir(): string
@@ -78,7 +83,11 @@ final class HostRoutingKernel extends Kernel
             'form'                 => ['csrf_protection' => true],
             'session'              => ['storage_factory_id' => 'session.storage.factory.mock_file'],
             'property_info'        => ['with_constructor_extractor' => true],
+            'assets'               => true,
+            'validation'           => true,
+            'translator'           => ['default_path' => '%kernel.project_dir%/tests/Fixtures/translations'],
         ]);
+        $container->extension('twig', ['paths' => ['%kernel.project_dir%/tests/Fixtures/templates' => null]]);
         // No stderr logs from the default logger during the test run.
         $container->services()->set('logger', NullLogger::class);
         $container->extension('doctrine', [
@@ -90,6 +99,7 @@ final class HostRoutingKernel extends Kernel
         ]);
         $container->extension('nowo_uptime_monitor', [
             'security' => ['allow_unauthenticated' => true],
+            'web_ui'   => $this->webUi,
         ]);
     }
 

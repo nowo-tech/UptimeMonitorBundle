@@ -251,6 +251,7 @@ flash.settings.cleared: '%checks% controles, %aggregates% aggregaten en %inciden
 flash.settings.backup_no_file: 'Geen back-upbestand geüpload.'
 flash.settings.backup_imported: 'Import voltooid: %imported% nieuw, %skipped% overgeslagen, %overwritten% overschreven, %invalid% ongeldig.'
 flash.settings.backup_over_quota: '%count% monitor(s) niet geïmporteerd: de monitorlimiet van de tenant is bereikt.'
+flash.settings.backup_quota_denied: '%count% monitor(s) niet geïmporteerd: %reason%'
 flash.settings.backup_import_failed: 'Import mislukt: het bestand is geen geldige back-up.'
 
 # Pages (UiKit page contract, REQ-UI-003)

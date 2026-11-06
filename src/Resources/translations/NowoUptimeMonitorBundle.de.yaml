@@ -251,6 +251,7 @@ flash.settings.cleared: '%checks% Prüfungen, %aggregates% Aggregationen und %in
 flash.settings.backup_no_file: 'Keine Sicherungsdatei hochgeladen.'
 flash.settings.backup_imported: 'Import abgeschlossen: %imported% neu, %skipped% übersprungen, %overwritten% überschrieben, %invalid% ungültig.'
 flash.settings.backup_over_quota: '%count% Monitor(e) nicht importiert: das Monitor-Limit des Mandanten ist erreicht.'
+flash.settings.backup_quota_denied: '%count% Monitor(e) nicht importiert: %reason%'
 flash.settings.backup_import_failed: 'Import fehlgeschlagen: Die Datei ist keine gültige Sicherung.'
 
 # Pages (UiKit page contract, REQ-UI-003)

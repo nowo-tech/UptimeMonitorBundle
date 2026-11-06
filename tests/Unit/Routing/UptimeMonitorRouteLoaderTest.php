@@ -42,6 +42,20 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
         self::assertSame('/api/uptime/{tenantSlug}/summary', $routes->get('nowo_uptime_api_summary')?->getPath());
     }
 
+    public function testStrictTenantPathsMarkEachCopy(): void
+    {
+        $tenantPaths = [['slug_prefix' => 'user-', 'path' => '/uptime/{tenantSlug}', 'name_prefix' => 'personal_', 'slug_requirement' => null]];
+        $strict      = $this->loader('/projects/{tenantSlug}/uptime', $tenantPaths, strict: true)->load('.', UptimeMonitorRouteLoader::TYPE);
+
+        self::assertSame('', $strict->get('nowo_uptime_monitor_new')?->getDefault(UptimeMonitorRouteLoader::TENANT_PATH_ATTRIBUTE));
+        self::assertSame('personal_', $strict->get('personal_nowo_uptime_monitor_new')?->getDefault(UptimeMonitorRouteLoader::TENANT_PATH_ATTRIBUTE));
+        self::assertNull($strict->get('nowo_uptime_status_page')?->getDefault(UptimeMonitorRouteLoader::TENANT_PATH_ATTRIBUTE), 'not a tenant path route');
+
+        $default = $this->loader('/projects/{tenantSlug}/uptime', $tenantPaths)->load('.', UptimeMonitorRouteLoader::TYPE);
+        self::assertFalse($default->get('nowo_uptime_monitor_new')?->hasDefault(UptimeMonitorRouteLoader::TENANT_PATH_ATTRIBUTE));
+        self::assertFalse($default->get('personal_nowo_uptime_monitor_new')?->hasDefault(UptimeMonitorRouteLoader::TENANT_PATH_ATTRIBUTE));
+    }
+
     public function testTenantPathsCopyTheTenantRoutes(): void
     {
         $routes = $this->loader('/projects/{tenantSlug}/uptime', [
@@ -78,7 +92,7 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
     /**
      * @param list<array{slug_prefix: string, path: string, name_prefix: string, slug_requirement: string|null}> $tenantPaths
      */
-    private function loader(string $dashboardPath, array $tenantPaths = [], bool $webUiEnabled = true): UptimeMonitorRouteLoader
+    private function loader(string $dashboardPath, array $tenantPaths = [], bool $webUiEnabled = true, bool $strict = false): UptimeMonitorRouteLoader
     {
         $bundleRoutes = new class extends Loader {
             public function load(mixed $resource, ?string $type = null): RouteCollection
@@ -101,7 +115,7 @@ final class UptimeMonitorRouteLoaderTest extends TestCase
                 return $resource === '@UptimeMonitorBundle/Resources/config/routes.yaml';
             }
         };
-        $loader = new UptimeMonitorRouteLoader($dashboardPath, null, $tenantPaths, ['enabled' => $webUiEnabled]);
+        $loader = new UptimeMonitorRouteLoader($dashboardPath, null, $tenantPaths, ['enabled' => $webUiEnabled, 'strict_tenant_paths' => $strict]);
         $loader->setResolver(new LoaderResolver([$bundleRoutes, $loader]));
 
         return $loader;

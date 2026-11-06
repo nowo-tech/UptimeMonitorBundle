@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\EventSubscriber;
 
+use Nowo\UptimeMonitorBundle\Controller\Api\AggregatesApiController;
+use Nowo\UptimeMonitorBundle\Controller\Api\HistoryApiController;
 use Nowo\UptimeMonitorBundle\Controller\Api\StatusApiController;
 use Nowo\UptimeMonitorBundle\Controller\DashboardController;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Controller\StatusPageController;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\EventSubscriber\UptimeMonitorAccessSubscriber;
+use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Nowo\UptimeMonitorBundle\Security\MonitorAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -269,6 +276,90 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
 
         $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(TenantController::class), 'index']));
         $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(MonitorController::class), 'new'], 'POST'));
+    }
+
+    public function testAMonitorAwareCheckerDecidesTheReadsOfOneMonitor(): void
+    {
+        $monitor = new Monitor(new Tenant('user-1', 'Ana'), 'API', MonitorType::Https, 'https://x.test');
+        $checker = $this->createMock(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::never())->method('canAccessTenant');
+        $checker->expects(self::exactly(3))->method('canViewMonitor')->with(self::anything(), $monitor)->willReturn(true);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false, null, true, $this->monitors($monitor));
+
+        foreach ([[MonitorController::class, 'show'], [HistoryApiController::class, 'monitorHistory'], [AggregatesApiController::class, 'monitorAggregates']] as [$class, $method]) {
+            $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor($class), $method], 'user-1', '7'));
+        }
+    }
+
+    public function testAMonitorTheUserMayNotViewIsNotFound(): void
+    {
+        $monitor = new Monitor(new Tenant('user-1', 'Ana'), 'API', MonitorType::Https, 'https://x.test');
+        $checker = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canViewMonitor')->willReturn(false);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false, null, true, $this->monitors($monitor));
+
+        $this->expectException(NotFoundHttpException::class);
+        $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(MonitorController::class), 'show'], 'user-1', '7'));
+    }
+
+    public function testAMonitorOfAnotherTenantIsNotFoundEvenIfViewable(): void
+    {
+        $monitor = new Monitor(new Tenant('user-2', 'Bob'), 'API', MonitorType::Https, 'https://x.test');
+        $checker = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canViewMonitor')->willReturn(true);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false, null, true, $this->monitors($monitor));
+
+        $this->expectException(NotFoundHttpException::class);
+        $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(MonitorController::class), 'show'], 'user-1', '7'));
+    }
+
+    public function testAnUnknownOrMissingMonitorIsNotFound(): void
+    {
+        $checker = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canViewMonitor')->willReturn(true);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+
+        try {
+            $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(MonitorController::class), 'show'], 'user-1', 'x'));
+            self::fail('a non-numeric id is not found');
+        } catch (NotFoundHttpException) {
+        }
+
+        $this->expectException(NotFoundHttpException::class);
+        $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(MonitorController::class), 'show'], 'user-1', '7'));
+    }
+
+    public function testAMonitorAwareCheckerKeepsTheTenantMethodsElsewhere(): void
+    {
+        $checker = $this->createMock(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::never())->method('canViewMonitor');
+        $checker->expects(self::once())->method('canAccessTenant')->willReturn(true);
+        $checker->expects(self::once())->method('canManageTenantMonitors')->willReturn(true);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+
+        $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(DashboardController::class), 'index'], 'user-1', null));
+        $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(MonitorController::class), 'edit'], 'user-1', '7'));
+    }
+
+    private function monitors(Monitor $monitor): MonitorRepository
+    {
+        $monitors = $this->createStub(MonitorRepository::class);
+        $monitors->method('find')->willReturnCallback(static fn (int $id): ?Monitor => $id === 7 ? $monitor : null);
+
+        return $monitors;
+    }
+
+    /**
+     * @param array{0: object, 1: string} $controller
+     */
+    private function monitorEvent(array $controller, string $tenant, ?string $id): ControllerEvent
+    {
+        $event = $this->controllerEvent($controller, 'GET', $tenant);
+        if ($id !== null) {
+            $event->getRequest()->attributes->set('id', $id);
+        }
+
+        return $event;
     }
 
     /**

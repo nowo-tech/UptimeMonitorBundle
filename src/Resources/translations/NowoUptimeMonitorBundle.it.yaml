@@ -251,6 +251,7 @@ flash.settings.cleared: 'Eliminati %checks% controlli, %aggregates% aggregati, %
 flash.settings.backup_no_file: 'Nessun file di backup caricato.'
 flash.settings.backup_imported: 'Importazione completata: %imported% nuovi, %skipped% saltati, %overwritten% sovrascritti, %invalid% non validi.'
 flash.settings.backup_over_quota: '%count% monitor non importati: è stato raggiunto il limite di monitor del tenant.'
+flash.settings.backup_quota_denied: '%count% monitor non importati: %reason%'
 flash.settings.backup_import_failed: 'Importazione fallita: il file non è un backup valido.'
 
 # Pages (UiKit page contract, REQ-UI-003)

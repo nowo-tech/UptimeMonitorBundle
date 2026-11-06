@@ -112,7 +112,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(string $tenantSlug): RedirectResponse
     {
-        $first = $this->sections->first();
+        $first = $this->sections->first($tenantSlug);
         if ($first === null) {
             throw $this->createNotFoundException('No settings screen.');
         }
@@ -131,7 +131,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/general', name: 'general', methods: ['GET', 'POST'])]
     public function general(string $tenantSlug, Request $request): Response
     {
-        $this->requireSection('general');
+        $this->requireSection('general', $tenantSlug);
         $tenant = $this->requireTenant($tenantSlug);
         $data   = $this->settingsMapper->toGeneralData($tenant);
         $form   = $this->createForm(SettingsGeneralFormType::class, $data);
@@ -161,7 +161,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/appearance', name: 'appearance', methods: ['GET', 'POST'])]
     public function appearance(string $tenantSlug, Request $request): Response
     {
-        $this->requireSection('appearance');
+        $this->requireSection('appearance', $tenantSlug);
         $tenant = $this->requireTenant($tenantSlug);
         $data   = $this->settingsMapper->toAppearanceData($tenant);
         $form   = $this->createForm(SettingsAppearanceFormType::class, $data);
@@ -190,7 +190,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/notifications', name: 'notifications', methods: ['GET'])]
     public function notifications(string $tenantSlug): Response
     {
-        $this->requireSection('notifications');
+        $this->requireSection('notifications', $tenantSlug);
         $tenant = $this->requireTenant($tenantSlug);
 
         return $this->renderSettings($tenant, 'notifications', '@NowoUptimeMonitorBundle/settings/notifications.html.twig', null, null, [
@@ -210,7 +210,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/reverse-proxy', name: 'reverse_proxy', methods: ['GET', 'POST'])]
     public function reverseProxy(string $tenantSlug, Request $request): Response
     {
-        $this->requireSection('reverse_proxy');
+        $this->requireSection('reverse_proxy', $tenantSlug);
         $tenant = $this->requireTenant($tenantSlug);
         $data   = $this->settingsMapper->toReverseProxyData($tenant);
         $form   = $this->createForm(SettingsReverseProxyFormType::class, $data);
@@ -240,7 +240,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/status-page', name: 'status_page', methods: ['GET', 'POST'])]
     public function statusPage(string $tenantSlug, Request $request): Response
     {
-        $this->requireSection('status_page');
+        $this->requireSection('status_page', $tenantSlug);
         $tenant  = $this->requireTenant($tenantSlug);
         $data    = $this->settingsMapper->toStatusPageData($tenant);
         $choices = [];
@@ -281,7 +281,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/tags', name: 'tags', methods: ['GET', 'POST'])]
     public function tags(string $tenantSlug, Request $request): Response
     {
-        $this->requireSection('tags');
+        $this->requireSection('tags', $tenantSlug);
 
         return $this->tagsScreen($tenantSlug, $request, null);
     }
@@ -298,7 +298,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/tags/{id}', name: 'tag_edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function editTag(string $tenantSlug, int $id, Request $request): Response
     {
-        $this->requireSection('tags');
+        $this->requireSection('tags', $tenantSlug);
 
         return $this->tagsScreen($tenantSlug, $request, $id);
     }
@@ -315,7 +315,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/tags/{id}/delete', name: 'tag_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function deleteTag(string $tenantSlug, int $id, Request $request): RedirectResponse
     {
-        $this->requireSection('tags');
+        $this->requireSection('tags', $tenantSlug);
         $tenant = $this->requireTenant($tenantSlug);
         $tag    = $this->tagRepository->find($id);
         if ($tag === null || $tag->getTenant()->getId() !== $tenant->getId()) {
@@ -342,7 +342,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/history', name: 'history', methods: ['GET', 'POST'])]
     public function history(string $tenantSlug, Request $request): Response
     {
-        $this->requireSection('history');
+        $this->requireSection('history', $tenantSlug);
         $tenant     = $this->requireTenant($tenantSlug);
         $globalDays = (int) ($this->retentionConfig['detail_days'] ?? 30);
         $data       = $this->settingsMapper->toHistoryData($tenant, $globalDays);
@@ -405,7 +405,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/history/purge', name: 'history_purge', methods: ['POST'])]
     public function purgeHistory(string $tenantSlug, Request $request): RedirectResponse
     {
-        $this->requireSection('history');
+        $this->requireSection('history', $tenantSlug);
         $this->requireTenant($tenantSlug);
         if ($this->isCsrfActionSubmitted($this->createPurgeHistoryForm($tenantSlug), $request)) {
             $deleted = $this->detailRetentionService->purgeExpiredDetailForTenant($tenantSlug);
@@ -426,7 +426,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/history/clear-stats', name: 'history_clear', methods: ['POST'])]
     public function clearStats(string $tenantSlug, Request $request): RedirectResponse
     {
-        $this->requireSection('history');
+        $this->requireSection('history', $tenantSlug);
         $this->requireTenant($tenantSlug);
         if ($this->isCsrfActionSubmitted($this->createClearStatsForm($tenantSlug), $request)) {
             // @igor-ignore - HTTP handler delegates to services; no controller worker state.
@@ -452,7 +452,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/backup', name: 'backup', methods: ['GET', 'POST'])]
     public function backup(string $tenantSlug, Request $request): Response
     {
-        $this->requireSection('backup');
+        $this->requireSection('backup', $tenantSlug);
         $tenant = $this->requireTenant($tenantSlug);
         $form   = $this->createForm(BackupImportFormType::class, null, [
             'action' => $this->generateUrl('nowo_uptime_settings_backup', ['tenantSlug' => $tenantSlug]),
@@ -485,7 +485,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/backup/export', name: 'backup_export', methods: ['GET'])]
     public function exportBackup(string $tenantSlug): JsonResponse
     {
-        $this->requireSection('backup');
+        $this->requireSection('backup', $tenantSlug);
         $tenant  = $this->requireTenant($tenantSlug);
         $payload = $this->backupService->export($tenant);
 
@@ -508,7 +508,7 @@ final class SettingsController extends AbstractUptimeController
     #[Route('/about', name: 'about', methods: ['GET'])]
     public function about(string $tenantSlug): Response
     {
-        $this->requireSection('about');
+        $this->requireSection('about', $tenantSlug);
         $tenant = $this->requireTenant($tenantSlug);
 
         return $this->renderSettings($tenant, 'about', '@NowoUptimeMonitorBundle/settings/about.html.twig', null, null, [
@@ -550,6 +550,9 @@ final class SettingsController extends AbstractUptimeController
                 ]));
                 if ($result['over_quota'] > 0) {
                     $this->addFlash('warning', $this->transMessage('flash.settings.backup_over_quota', ['%count%' => $result['over_quota']]));
+                }
+                if ($result['quota_denied'] > 0) {
+                    $this->addFlash('warning', $this->transMessage('flash.settings.backup_quota_denied', ['%count%' => $result['quota_denied'], '%reason%' => (string) $result['quota_denied_reason']]));
                 }
             } catch (Throwable $e) {
                 // Generic message: exception texts may echo file content, SQL or paths (SEC-004 L7).
@@ -632,7 +635,7 @@ final class SettingsController extends AbstractUptimeController
     {
         $tenantSlug = $tenant->getSlug();
         $sections   = [];
-        foreach ($this->sections->all() as $id => $route) {
+        foreach ($this->sections->all($tenantSlug) as $id => $route) {
             $current    = $id === $section;
             $sections[] = new SettingsSection(
                 $id,
@@ -802,13 +805,14 @@ final class SettingsController extends AbstractUptimeController
     }
 
     /**
-     * A settings screen the host left out (`web_ui.settings.sections`) answers 404, its actions too.
+     * A settings screen the host left out (`web_ui.settings.sections`, or for this tenant
+     * `web_ui.settings.sections_resolver`) answers 404, its actions too.
      *
      * @throws NotFoundHttpException When the host does not keep the section
      */
-    private function requireSection(string $section): void
+    private function requireSection(string $section, string $tenantSlug): void
     {
-        if (!$this->sections->has($section)) {
+        if (!$this->sections->has($section, $tenantSlug)) {
             throw $this->createNotFoundException(sprintf('Settings screen "%s" is not available.', $section));
         }
     }

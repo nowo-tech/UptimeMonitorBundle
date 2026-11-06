@@ -35,6 +35,9 @@ final class Configuration implements ConfigurationInterface
     /** Settings screens (`web_ui.settings.sections`), bundle order. */
     public const SETTINGS_SECTIONS = ['general', 'appearance', 'notifications', 'reverse_proxy', 'status_page', 'tags', 'history', 'backup', 'about'];
 
+    /** Chart modes of the monitor page (`web_ui.monitor_show.charts`). */
+    public const MONITOR_SHOW_CHARTS = ['bundle', 'host', 'none'];
+
     /** Dashboard layouts (`web_ui.dashboard.view`). */
     public const DASHBOARD_VIEWS = ['tree', 'table'];
 
@@ -232,6 +235,10 @@ final class Configuration implements ConfigurationInterface
                             ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.5', 'The "%path%.%node%" option is deprecated and has no effect: tenants are resolved from the URL slug, not a request header.')
                         ->end()
                         ->scalarNode('default_tenant')->defaultValue('main')->end()
+                        ->scalarNode('provisioner')
+                            ->defaultNull()
+                            ->info('Since 1.21: service id of a Nowo\\UptimeMonitorBundle\\Tenant\\MissingTenantProvisionerInterface, called (after the access checks) when an admin page or API names a tenant slug without a tenant; it returns the new tenant, or null for a 404. null = off.')
+                        ->end()
                     ->end()
                 ->end()
                 ->arrayNode('tenants')
@@ -378,7 +385,35 @@ final class Configuration implements ConfigurationInterface
                                     ->enumPrototype()->values(self::SETTINGS_SECTIONS)->end()
                                     ->defaultValue(self::SETTINGS_SECTIONS)
                                 ->end()
+                                ->scalarNode('sections_resolver')
+                                    ->defaultNull()
+                                    ->info('Since 1.21: service id of a Nowo\\UptimeMonitorBundle\\Ui\\SettingsSectionsResolverInterface narrowing `sections` per tenant (e.g. none for personal tenants); null = the same sections for every tenant.')
+                                ->end()
                             ->end()
+                        ->end()
+                        ->arrayNode('monitor_show')
+                            ->addDefaultsIfNotSet()
+                            ->info('Monitor page regions (since 1.21).')
+                            ->children()
+                                ->enumNode('charts')
+                                    ->values(self::MONITOR_SHOW_CHARTS)
+                                    ->defaultValue('bundle')
+                                    ->info('bundle: the bundle charts (response time, uptime, latency); host: no bundle chart, the slots.charts template instead (if set); none: no charts.')
+                                ->end()
+                                ->arrayNode('slots')
+                                    ->addDefaultsIfNotSet()
+                                    ->info('Templates rendered, with the page variables, in place of a bundle region; null keeps the bundle region. Blocks of the same names (monitor_figures, monitor_charts, monitor_details) wrap the regions for hosts that extend the page.')
+                                    ->children()
+                                        ->scalarNode('figures')->defaultNull()->info('Replaces the key figures (24 h / 30 d uptime, latency).')->end()
+                                        ->scalarNode('charts')->defaultNull()->info('Rendered in the charts region with charts: host.')->end()
+                                        ->scalarNode('details')->defaultNull()->info('Replaces the details card(s) (with the status badge of the first one).')->end()
+                                    ->end()
+                                ->end()
+                            ->end()
+                        ->end()
+                        ->booleanNode('strict_tenant_paths')
+                            ->defaultFalse()
+                            ->info('Since 1.21: serve a tenant only under the path its slug selects (a tenant_paths entry whose slug_prefix it starts with, else the default path); any other path answers 404.')
                         ->end()
                         ->integerNode('per_page')
                             ->min(5)

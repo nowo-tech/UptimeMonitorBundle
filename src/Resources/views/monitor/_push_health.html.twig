@@ -1,6 +1,7 @@
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
 {#
-  Server health view of a push monitor (since 1.14). Variables: push (MonitorController::pushView(): url, has_token,
+  Server health view of a push monitor (since 1.14). Variables: push (MonitorController::pushView(): url (since 1.21
+  null for a user without tenant access), has_token,
   signed, last_at, grace, gauges, series, series_json, ranges), monitor, tenant_slug, _b (UiKit bundle
   key), and once, right after "Generate token", push_secret / push_signing_secret (never stored, never cached).
   Since 1.17 the gauges, disk table and charts sit flat inside the health card (no card in the card) and the chart
@@ -9,8 +10,8 @@
 <section class="uptime-push-credentials {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-push-credentials">
     <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.push.credentials'|trans }}</h2>
     <dl class="uptime-push-facts">
-        <dt>{{ 'monitor.push.url'|trans }}</dt>
-        <dd><code data-testid="uptime-push-url">{{ push.url }}</code></dd>
+        {% if push.url %}<dt>{{ 'monitor.push.url'|trans }}</dt>
+        <dd><code data-testid="uptime-push-url">{{ push.url }}</code></dd>{% endif %}
         <dt>{{ 'monitor.push.token'|trans }}</dt>
         <dd data-testid="uptime-push-token-state">{{ (push.has_token ? 'monitor.push.token_active' : 'monitor.push.token_none')|trans }}</dd>
         <dt>{{ 'monitor.push.last_push'|trans }}</dt>

@@ -11,6 +11,8 @@ use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
+use Nowo\UptimeMonitorBundle\Event\UptimeEvents;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Monitor\SpkiPins;
@@ -21,6 +23,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Throwable;
 
@@ -45,6 +48,11 @@ use function strtoupper;
  * Tenant limits (SEC-004 Q1): with a {@see TenantQuota}, monitors (groups not counted) beyond the tenant's remaining
  * quota are not created — nor an existing group overwritten into a monitor — and are counted as `over_quota`; the
  * check interval of every imported or overwritten monitor is raised to the tenant minimum.
+ *
+ * Host quota (since 1.21): every row that would write dispatches {@see MonitorQuotaCheckEvent} (`create` for a new row
+ * or a changed type, `resume` for an overwrite that resumes a paused monitor). A denied row is not written and is counted
+ * as `quota_denied`, with the first reason in `quota_denied_reason`; the other rows go on. With a listener each written
+ * row is flushed before the next check, so a listener that counts monitors sees it.
  */
 final readonly class MonitorBackupService
 {
@@ -61,6 +69,7 @@ final readonly class MonitorBackupService
      * @param ValidatorInterface|null $validator Validates import rows against the monitor form constraints
      * @param LoggerInterface $logger Receives export / import start, success (counts) and failure (exception class)
      * @param TenantQuota|null $quota Tenant limits (max monitors, minimum interval) applied to imported rows
+     * @param EventDispatcherInterface|null $eventDispatcher Dispatches the host quota check of each row (since 1.21)
      */
     public function __construct(
         private MonitorRepository $monitorRepository,
@@ -71,6 +80,7 @@ final readonly class MonitorBackupService
         private ?ValidatorInterface $validator = null,
         private LoggerInterface $logger = new NullLogger(),
         private ?TenantQuota $quota = null,
+        private ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -105,7 +115,7 @@ final readonly class MonitorBackupService
     /**
      * @param array<string, mixed> $payload
      *
-     * @return array{imported: int, skipped: int, overwritten: int, invalid: int, over_quota: int}
+     * @return array{imported: int, skipped: int, overwritten: int, invalid: int, over_quota: int, quota_denied: int, quota_denied_reason: string|null}
      */
     public function import(Tenant $tenant, array $payload, string $mode = self::IMPORT_SKIP): array
     {
@@ -147,7 +157,7 @@ final readonly class MonitorBackupService
      * @param array<mixed> $rows
      * @param int|null $remaining Monitors the tenant may still add (null = no limit)
      *
-     * @return array{imported: int, skipped: int, overwritten: int, invalid: int, over_quota: int}
+     * @return array{imported: int, skipped: int, overwritten: int, invalid: int, over_quota: int, quota_denied: int, quota_denied_reason: string|null}
      */
     private function importRows(Tenant $tenant, array $rows, string $mode, ?int $remaining): array
     {
@@ -164,6 +174,10 @@ final readonly class MonitorBackupService
         $overwritten = 0;
         $invalid     = 0;
         $overQuota   = 0;
+        $denied      = 0;
+        $reason      = null;
+        // No listener: no per-row flush, the import runs as before.
+        $checked = $this->eventDispatcher?->hasListeners(UptimeEvents::MONITOR_QUOTA_CHECK) === true;
 
         foreach ($rows as $row) {
             if (!is_array($row)) {
@@ -192,6 +206,10 @@ final readonly class MonitorBackupService
             if ($existing instanceof Monitor) {
                 // A file-managed monitor (1.18) belongs to its monitors file: never overwritten by an import.
                 if ($mode === self::IMPORT_OVERWRITE && !$existing->isFileManaged()) {
+                    if ($checked && $this->isDenied(MonitorQuotaCheckEvent::forChange($tenant->getSlug(), $existing, $data->type, $data->paused), $reason)) {
+                        ++$denied;
+                        continue;
+                    }
                     // A group (not counted) overwritten into a monitor takes one slot of the quota.
                     if ($countsAgainstQuota && $existing->isGroup() && !$this->takeSlot($remaining)) {
                         ++$overQuota;
@@ -199,10 +217,18 @@ final readonly class MonitorBackupService
                     }
                     $this->monitorFactory->applyFormData($existing, $data);
                     ++$overwritten;
+                    if ($checked) {
+                        $this->entityManager->flush();
+                    }
                     continue;
                 }
 
                 ++$skipped;
+                continue;
+            }
+
+            if ($checked && $this->isDenied([new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_CREATE, $tenant->getSlug(), $data->type)], $reason)) {
+                ++$denied;
                 continue;
             }
 
@@ -215,11 +241,33 @@ final readonly class MonitorBackupService
             $this->entityManager->persist($monitor);
             $byName[$name] = $monitor;
             ++$imported;
+            if ($checked) {
+                $this->entityManager->flush();
+            }
         }
 
         $this->entityManager->flush();
 
-        return ['imported' => $imported, 'skipped' => $skipped, 'overwritten' => $overwritten, 'invalid' => $invalid, 'over_quota' => $overQuota];
+        return ['imported' => $imported, 'skipped' => $skipped, 'overwritten' => $overwritten, 'invalid' => $invalid, 'over_quota' => $overQuota, 'quota_denied' => $denied, 'quota_denied_reason' => $reason];
+    }
+
+    /**
+     * Dispatches the checks of one row, stopping at the first denial; `$reason` keeps the first reason of the import.
+     *
+     * @param list<MonitorQuotaCheckEvent> $checks
+     */
+    private function isDenied(array $checks, ?string &$reason): bool
+    {
+        foreach ($checks as $check) {
+            $this->eventDispatcher?->dispatch($check);
+            if ($check->isDenied()) {
+                $reason ??= $check->getReason();
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

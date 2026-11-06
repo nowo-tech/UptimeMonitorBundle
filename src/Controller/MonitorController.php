@@ -18,6 +18,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
 use Nowo\UptimeMonitorBundle\Event\UptimePageEvent;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
@@ -27,6 +28,7 @@ use Nowo\UptimeMonitorBundle\Push\PushMetricsSeries;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Security\MonitorReadScope;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
@@ -47,10 +49,13 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_filter;
 use function array_reverse;
 use function array_slice;
+use function array_values;
 use function count;
 use function in_array;
+use function is_array;
 use function is_int;
 use function json_encode;
 use function sprintf;
@@ -74,6 +79,7 @@ final class MonitorController extends AbstractUptimeController
      * @param list<string> $hiddenFields `form.hidden_fields`: monitor fields the host left out
      * @param PushCredentials|null $pushCredentials Issues and revokes push tokens (since 1.14)
      * @param PushMetricsSeries|null $pushSeries Server health view of push monitors (since 1.14)
+     * @param MonitorReadScope|null $readScope Narrows the monitor page for users without tenant access (since 1.21)
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -94,6 +100,7 @@ final class MonitorController extends AbstractUptimeController
         private readonly array $hiddenFields = [],
         private readonly ?PushCredentials $pushCredentials = null,
         private readonly ?PushMetricsSeries $pushSeries = null,
+        private readonly ?MonitorReadScope $readScope = null,
     ) {
         parent::__construct($translator);
     }
@@ -164,22 +171,32 @@ final class MonitorController extends AbstractUptimeController
      */
     private function renderShow(string $tenantSlug, Monitor $monitor, ?Request $request, array $extra = []): Response
     {
-        $id      = (int) $monitor->getId();
-        $series  = $this->chartService->buildMonitorSeries($monitor, AggregatePeriod::Day, 30);
-        $detail  = $this->dashboardViewBuilder->buildMonitorDetail($monitor);
-        $latest  = $this->checkResultRepository->findLatestForMonitor($monitor);
+        $id     = (int) $monitor->getId();
+        $series = $this->chartService->buildMonitorSeries($monitor, AggregatePeriod::Day, 30);
+        $detail = $this->dashboardViewBuilder->buildMonitorDetail($monitor);
+        $latest = $this->checkResultRepository->findLatestForMonitor($monitor);
+        $scope  = $this->readScope;
+        if ($scope instanceof MonitorReadScope) {
+            // Only the group children the user may view (GU-L2).
+            $detail['children'] = array_values(array_filter($detail['children'], static fn (array $child): bool => $scope->canView($child['monitor'])));
+        }
         $event   = $this->dispatchPageEvent(new UptimePageEvent('monitor_show', $tenantSlug, $monitor));
         $log     = array_reverse($detail['events']);
         $perPage = $this->perPage();
         $pager   = Pagination::fromTotal(count($log), $request?->query->getInt('page', 1) ?? 1, $perPage, [$perPage], variant: Pagination::VARIANT_COMPACT);
 
         return $this->render($this->pages->template('monitor_show', '@NowoUptimeMonitorBundle/monitor/show.html.twig'), $this->pages->context([
-            'page'                => $this->buildShowPage($tenantSlug, $monitor, $event),
-            'page_sections'       => ['before' => $event->getSections('before'), 'after' => $event->getSections('after')],
-            'log_events'          => array_slice($log, ($pager->page - 1) * $perPage, $perPage),
-            'log_pagination'      => $pager,
-            'tenant_slug'         => $tenantSlug,
-            'monitor'             => $monitor,
+            'page'           => $this->buildShowPage($tenantSlug, $monitor, $event),
+            'page_sections'  => ['before' => $event->getSections('before'), 'after' => $event->getSections('after')],
+            'log_events'     => array_slice($log, ($pager->page - 1) * $perPage, $perPage),
+            'log_pagination' => $pager,
+            'tenant_slug'    => $tenantSlug,
+            'monitor'        => $monitor,
+            // Since 1.21: what a slot template should print of the target and config (`monitor` holds them unmasked).
+            'monitor_safe' => [
+                'target' => SecretRedactor::maskUrl($monitor->getTarget()),
+                'config' => SecretRedactor::redactMonitorConfig($monitor->getConfig()),
+            ],
             'latest'              => $latest,
             'detail'              => $detail,
             'chart_series_json'   => json_encode($series, JSON_THROW_ON_ERROR),
@@ -192,17 +209,27 @@ final class MonitorController extends AbstractUptimeController
                 'tenantSlug' => $tenantSlug,
                 'id'         => $id,
             ]),
-            'push' => $this->pushView($monitor, $request),
+            // A token just issued comes with its URL: only a manager reaches that action.
+            'push'           => $this->pushView($monitor, $request, $extra !== [] || $this->seesTenant($tenantSlug)),
+            'monitor_layout' => $this->monitorShowLayout(),
         ] + $extra));
     }
 
     /**
-     * Server health view of a push monitor (null for other types): ingest URL, token state, gauges and chart series
-     * of the `range` (hours) query.
+     * Whether the user reads the tenant as a whole, not just monitors shared with them (GU-L2).
+     */
+    private function seesTenant(string $tenantSlug): bool
+    {
+        return !$this->readScope instanceof MonitorReadScope || $this->readScope->seesTenant($tenantSlug);
+    }
+
+    /**
+     * Server health view of a push monitor (null for other types): ingest URL (null for a user who may not see it),
+     * token state, gauges and chart series of the `range` (hours) query.
      *
      * @return array<string, mixed>|null
      */
-    private function pushView(Monitor $monitor, ?Request $request): ?array
+    private function pushView(Monitor $monitor, ?Request $request, bool $withUrl): ?array
     {
         if ($monitor->getType() !== MonitorType::Push || !$this->pushSeries instanceof PushMetricsSeries || $monitor->getPushKey() === null) {
             return null;
@@ -211,7 +238,7 @@ final class MonitorController extends AbstractUptimeController
         $series = $this->pushSeries->series($monitor, $hours);
 
         return [
-            'url'         => $this->generateUrl('nowo_uptime_push', ['key' => $monitor->getPushKey()], UrlGeneratorInterface::ABSOLUTE_URL),
+            'url'         => $withUrl ? $this->generateUrl('nowo_uptime_push', ['key' => $monitor->getPushKey()], UrlGeneratorInterface::ABSOLUTE_URL) : null,
             'has_token'   => $monitor->getPushTokenHash() !== null,
             'signed'      => ($monitor->getConfig()['push_signed'] ?? false) === true,
             'last_at'     => $monitor->getPushLastAt(),
@@ -273,8 +300,9 @@ final class MonitorController extends AbstractUptimeController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $monitor = $this->monitorFactory->createFromFormData($tenant, $data);
-            if (!$this->saveUnderQuota($tenant, $monitor, $data->type !== MonitorType::Group)) {
-                $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
+            $check   = new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_CREATE, $tenantSlug, $monitor->getType());
+            if (!$this->saveUnderQuota($tenant, fn () => $this->entityManager->persist($monitor), $data->type !== MonitorType::Group, [$check])) {
+                $form->addError(new FormError($check->getReason() ?? $this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
 
                 return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.new');
             }
@@ -331,8 +359,10 @@ final class MonitorController extends AbstractUptimeController
         }
 
         if ($form->isSubmitted() && $form->isValid()) {
-            if (!$this->saveUnderQuota($monitor->getTenant(), $monitor, $takesSlot, $data)) {
-                $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
+            // Since 1.21: the same host quota as a new monitor or the pause action (GU-M1).
+            $checks = MonitorQuotaCheckEvent::forChange($tenantSlug, $monitor, $data->type, $data->paused);
+            if (!$this->saveUnderQuota($monitor->getTenant(), fn () => $this->monitorFactory->applyFormData($monitor, $data), $takesSlot, $checks)) {
+                $form->addError(new FormError($this->denialReason($checks) ?? $this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
 
                 return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.edit', $monitor);
             }
@@ -381,31 +411,51 @@ final class MonitorController extends AbstractUptimeController
     }
 
     /**
-     * Saves a new monitor (`$data` null) or applies an edit. When the save takes a slot of the tenant quota it runs
-     * under the tenant row lock with the quota counted again (SEC-004 Q3: no count-then-insert race); false, with
-     * nothing written, when the tenant is full.
+     * Runs a write. When it takes a slot of the tenant quota or has host checks ({@see MonitorQuotaCheckEvent}, since
+     * 1.21) it runs under the tenant row lock, with the quota counted again and the checks dispatched inside (SEC-004
+     * Q3, GU-L1: no count-then-write race). False, with nothing written, when the tenant is full or a check is denied.
+     *
+     * @param callable(): mixed $apply The change, flushed after it
+     * @param list<MonitorQuotaCheckEvent> $checks
      */
-    private function saveUnderQuota(Tenant $tenant, Monitor $monitor, bool $takesSlot, ?MonitorFormData $data = null): bool
+    private function saveUnderQuota(Tenant $tenant, callable $apply, bool $takesSlot, array $checks = []): bool
     {
-        $write = function (?int $remaining) use ($monitor, $takesSlot, $data): bool {
+        $write = function (?int $remaining) use ($apply, $takesSlot, $checks): bool {
             if ($takesSlot && $remaining === 0) {
                 return false;
             }
-            if ($data instanceof MonitorFormData) {
-                $this->monitorFactory->applyFormData($monitor, $data);
-            } else {
-                $this->entityManager->persist($monitor);
+            foreach ($checks as $check) {
+                if ($this->dispatchQuotaCheck($check)->isDenied()) {
+                    return false;
+                }
             }
+            $apply();
             $this->entityManager->flush();
 
             return true;
         };
 
-        if ($takesSlot && $this->quota instanceof TenantQuota) {
+        if (($takesSlot || $checks !== []) && $this->quota instanceof TenantQuota) {
             return $this->quota->withTenantLock($this->entityManager, $tenant, $write);
         }
 
         return $write(null);
+    }
+
+    /**
+     * The text of the first denied check; null when none was denied.
+     *
+     * @param list<MonitorQuotaCheckEvent> $checks
+     */
+    private function denialReason(array $checks): ?string
+    {
+        foreach ($checks as $check) {
+            if ($check->isDenied()) {
+                return $check->getReason();
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -446,9 +496,13 @@ final class MonitorController extends AbstractUptimeController
         $monitor = $this->requireMonitor($tenantSlug, $id);
 
         if ($this->isCsrfTokenValid('toggle' . $monitor->getId(), (string) $request->request->get('_token'))) {
+            // Since 1.21: a host quota may refuse the resume (MonitorQuotaCheckEvent), checked under the tenant row lock;
+            // the reason becomes a flash. Pausing is never checked.
+            $checks = MonitorQuotaCheckEvent::forChange($tenantSlug, $monitor, $monitor->getType(), false);
             // @igor-ignore - HTTP handler delegates to services; no controller worker state.
-            $monitor->setPaused(!$monitor->isPaused());
-            $this->entityManager->flush();
+            if (!$this->saveUnderQuota($monitor->getTenant(), static fn (): Monitor => $monitor->setPaused(!$monitor->isPaused()), false, $checks)) {
+                $this->addFlash('error', (string) $this->denialReason($checks));
+            }
         }
 
         // From the monitor page (`?return=show`), back to it.
@@ -474,7 +528,9 @@ final class MonitorController extends AbstractUptimeController
         };
         $pushActions = $this->actions?->push($tenantSlug, $monitor) ?? [];
         $items       = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
-        if ($parent instanceof Monitor || !in_array('project', $this->hiddenFields, true)) {
+        // A user shown only this monitor does not get the name of its group (GU-L2): no group row, no project row instead.
+        $hideParent = $parent instanceof Monitor && !$this->seesTenant($tenantSlug);
+        if (!$hideParent && ($parent instanceof Monitor || !in_array('project', $this->hiddenFields, true))) {
             $items[] = new DetailItem(
                 UptimePages::label($parent instanceof Monitor ? 'monitor.show.group' : 'monitor.show.project'),
                 $parent instanceof Monitor ? $parent->getName() : $monitor->getProject(),
@@ -550,6 +606,33 @@ final class MonitorController extends AbstractUptimeController
         $this->eventDispatcher?->dispatch($event);
 
         return $event;
+    }
+
+    /**
+     * Dispatches a host quota check (returned as is without a dispatcher: allowed).
+     */
+    private function dispatchQuotaCheck(MonitorQuotaCheckEvent $check): MonitorQuotaCheckEvent
+    {
+        $this->eventDispatcher?->dispatch($check);
+
+        return $check;
+    }
+
+    /**
+     * The monitor page regions (`web_ui.monitor_show`, since 1.21): chart mode and slot templates.
+     *
+     * @return array{charts: string, slots: array<string, string|null>}
+     */
+    private function monitorShowLayout(): array
+    {
+        $options = $this->webUi['monitor_show'] ?? [];
+        $charts  = $options['charts'] ?? 'bundle';
+        $slots   = $options['slots'] ?? [];
+
+        return [
+            'charts' => in_array($charts, ['host', 'none'], true) ? $charts : 'bundle',
+            'slots'  => is_array($slots) ? $slots : [],
+        ];
     }
 
     /**

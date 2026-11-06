@@ -19,6 +19,8 @@ use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Security\MonitorAwareUptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Security\MonitorReadScope;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
@@ -48,7 +50,7 @@ final class MonitorControllerPushTest extends TestCase
         $this->credentials = new PushCredentials('kernel-secret');
     }
 
-    private function controller(Monitor $monitor, ?EntityManagerInterface $em = null): MonitorController
+    private function controller(Monitor $monitor, ?EntityManagerInterface $em = null, ?MonitorReadScope $readScope = null): MonitorController
     {
         $this->setEntityId($monitor, 7);
         $tenantRepo = $this->createMock(TenantRepository::class);
@@ -72,6 +74,7 @@ final class MonitorControllerPushTest extends TestCase
             new UptimePages(),
             pushCredentials: $this->credentials,
             pushSeries: new PushMetricsSeries($results),
+            readScope: $readScope,
         );
     }
 
@@ -101,6 +104,37 @@ final class MonitorControllerPushTest extends TestCase
         self::assertSame(6, $push['series']['hours']);
         self::assertSame([['key' => 'cpu', 'value' => 5.0, 'level' => 'ok']], $push['gauges']['metrics']);
         self::assertArrayNotHasKey('push_secret', $this->renderedContext);
+    }
+
+    public function testGuL2TheIngestUrlIsShownToTenantUsersOnly(): void
+    {
+        $checker = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessTenant')->willReturn(false);
+        $monitor    = $this->pushMonitor();
+        $controller = $this->controller($monitor, null, new MonitorReadScope($checker));
+        $this->bindController($controller, true, new Request());
+
+        $controller->show('main', 7);
+
+        self::assertIsArray($this->renderedContext['push']);
+        self::assertNull($this->renderedContext['push']['url']);
+
+        // Only a manager reaches the token action: the token just issued comes with its URL.
+        $request = Request::create('/main/monitors/7/push-token', 'POST', ['_token' => 'valid']);
+        $this->bindController($controller, true, $request);
+        $controller->pushToken('main', 7, $request);
+
+        self::assertIsArray($this->renderedContext['push']);
+        self::assertSame('/generated/nowo_uptime_push', $this->renderedContext['push']['url']);
+
+        $tenantUser = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $tenantUser->method('canAccessTenant')->willReturn(true);
+        $controller = $this->controller($monitor, null, new MonitorReadScope($tenantUser));
+        $this->bindController($controller, true, new Request());
+        $controller->show('main', 7);
+
+        self::assertIsArray($this->renderedContext['push']);
+        self::assertSame('/generated/nowo_uptime_push', $this->renderedContext['push']['url']);
     }
 
     public function testOtherMonitorsHaveNoServerHealthView(): void
