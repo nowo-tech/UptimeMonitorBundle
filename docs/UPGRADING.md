@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.20.1](#to-1201)
 - [To 1.20.0](#to-1200)
 - [To 1.19.1](#to-1191)
 - [To 1.19.0](#to-1190)
@@ -115,6 +116,8 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.20.1
 
 From **1.20.0**: `composer update nowo-tech/uptime-monitor-bundle` then `php bin/console assets:install` (the dialog
 script changed). No configuration change; the constraint stays `nowo-tech/ui-kit-bundle ^2.29`.

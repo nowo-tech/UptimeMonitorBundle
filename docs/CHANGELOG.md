@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.20.1] - 2026-11-06](#1201---2026-11-06)
 - [[1.20.0] - 2026-11-05](#1200---2026-11-05)
 - [[1.19.1] - 2026-11-05](#1191---2026-11-05)
 - [[1.19.0] - 2026-11-05](#1190---2026-11-05)
@@ -72,6 +73,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.20.1] - 2026-11-06
+
+Dialog rule v2: the monitor dialog footer shows Cancel on every step; CI checks committed assets against the build.
 
 Dialog rule v2 (owner decision D-20261105-54) for the monitor dialog (*New monitor* / *Edit monitor*). No configuration
 change. See [UPGRADING](UPGRADING.md#unreleased).
@@ -1289,7 +1294,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.20.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.20.1...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
