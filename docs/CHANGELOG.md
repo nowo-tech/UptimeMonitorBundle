@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.21.0] - 2026-11-06](#1210---2026-11-06)
 - [[1.20.1] - 2026-11-06](#1201---2026-11-06)
 - [[1.20.0] - 2026-11-05](#1200---2026-11-05)
 - [[1.19.1] - 2026-11-05](#1191---2026-11-05)
@@ -74,8 +75,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-11-06
+
 Host hooks so an embedding app can drop its listeners and its monitor page override (1.21.0, minor). Every option is
-off by default: the default output does not change. See [UPGRADING](UPGRADING.md#unreleased).
+off by default: the default output does not change. See [UPGRADING](UPGRADING.md#to-1210).
 
 ### Added
 
@@ -133,7 +136,7 @@ one needs a host to opt in to a hook; default configuration is not affected.
 Dialog rule v2: the monitor dialog footer shows Cancel on every step; CI checks committed assets against the build.
 
 Dialog rule v2 (owner decision D-20261105-54) for the monitor dialog (*New monitor* / *Edit monitor*). No configuration
-change. See [UPGRADING](UPGRADING.md#unreleased).
+change. See [UPGRADING](UPGRADING.md#to-1210).
 
 ### Changed
 
@@ -568,7 +571,7 @@ SEC-004 delta re-audit of 1.12.x (`af6692d`): Pass (good) / Low; its findings ar
 - **URL fields** (`url` of the monitor form, `primaryBaseUrl` of Settings → General) set `default_protocol: null` on
   every Symfony version: the value is kept as typed and the field renders as `type="url"`. On Symfony 7.4 a URL typed
   without a scheme was prefixed with `http://` (and the deprecated implicit default of symfony/form 7.1 was
-  triggered); Symfony 8 already behaved like this. See [UPGRADING](UPGRADING.md#unreleased).
+  triggered); Symfony 8 already behaved like this. See [UPGRADING](UPGRADING.md#to-1210).
 - **Deprecation gate** (REQ-SF-005): PHPUnit fails on any deprecation, silenced `trigger_deprecation()` calls
   included (`failOnDeprecation`, `failOnPhpunitDeprecation`, `ignoreSuppressionOfDeprecations` in
   `phpunit.xml.dist`; symfony/phpunit-bridge does nothing on PHPUnit ≥ 10). Tests of the deprecated 1.x keys assert
@@ -1348,7 +1351,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.20.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.21.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
