@@ -276,7 +276,7 @@ make release-check
 | Grade | **Pass (good)** |
 | Risk | Low |
 | Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH (+ 1.12.x delta) |
-| Unreleased 1.21 host hooks | Appendix GU (2026-11-06, PR #149 at `04cce18`): Pass (conditional) / Medium, 1 Medium, 3 Low, 6 Info. Fixes below; **re-verification pending**, the grade above does not cover these hooks until then |
+| Unreleased 1.21 host hooks | Appendix GU (2026-11-06, PR #149): audited at `04cce18` as Pass (conditional) / Medium; fixes re-verified at `80747e4`: **Pass (good) / Low**, no open Critical, High or Medium. Open residual (Low): the tenant row lock does not serialise a host limit spanning several tenants |
 | Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked (also in stored check messages); `limits.max_monitors` defaults to 0 (no quota; the scan stays bounded by `max_scan_seconds`); a host `security.access_checker` or `TenantLimitsInterface` is trusted as written; `StatusPageMonitorsEvent` listeners can still hide monitors (only narrowing is enforced) |
 
 ### Findings (2026-10-27, all fixed in PR #121)
@@ -308,7 +308,7 @@ make release-check
 | I2 | Info | A URL without a scheme was only caught by the check | HTTP(S) monitors validate a full `http://` / `https://` URL with a host (`form.monitor.url_invalid`; backup rows too) |
 | I3 | Info | Transport errors stored the target URL with its credentials in the check message | `CheckResultDto::sanitized()` masks URLs in the message and metadata (`SecretRedactor::maskUrlsInText()`) |
 
-### Findings (2026-11-06, unreleased 1.21 host hooks, Appendix GU, fixed on PR #149, re-verification pending)
+### Findings (2026-11-06, unreleased 1.21 host hooks, Appendix GU, fixed on PR #149, re-verified at `80747e4`)
 
 | Id | Severity | Finding | Fix |
 | -- | -------- | ------- | --- |
