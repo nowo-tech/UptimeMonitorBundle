@@ -6,17 +6,20 @@ namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use LogicException;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
+use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
+use Symfony\Component\DependencyInjection\Reference;
 
 use function array_key_exists;
 use function is_array;
@@ -204,6 +207,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
 
         $this->registerAccessChecker($container, $config['security'], (bool) $config['web_ui']['enabled']);
         $this->registerTenantLimits($container, $config['limits']);
+        $this->registerHostHooks($container, $config['multi_tenant']['provisioner'], $config['web_ui']['settings']['sections_resolver']);
         $this->registerTablePrefixListener($container);
     }
 
@@ -224,6 +228,18 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         }
 
         $container->setAlias(TenantLimitsInterface::class, $providerId);
+    }
+
+    /**
+     * Since 1.21: wires the host hooks `multi_tenant.provisioner` and `web_ui.settings.sections_resolver` (null = off;
+     * never autowired from the interface, so only the configured service is called).
+     */
+    private function registerHostHooks(ContainerBuilder $container, ?string $provisioner, ?string $sectionsResolver): void
+    {
+        $container->getDefinition(TenantProvisioningSubscriber::class)
+            ->setArgument('$provisioner', is_string($provisioner) && $provisioner !== '' ? new Reference($provisioner) : null);
+        $container->getDefinition(SettingsSections::class)
+            ->setArgument('$resolver', is_string($sectionsResolver) && $sectionsResolver !== '' ? new Reference($sectionsResolver) : null);
     }
 
     /**

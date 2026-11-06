@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/uptime-monitor-bundle`  
-**Last audited**: 2026-11-05 (Unreleased, SSL SPKI pins)
+**Last audited**: 2026-11-06 (Unreleased, 1.21 host hooks)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -164,6 +164,9 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Security/ConfigurableUptimeMonitorAccessChecker.php` | Configurable access checker | FR-SEC-001 |
 | `Security/TenantAwareUptimeMonitorAccessCheckerInterface.php` | Per-tenant access decisions for host-owned tenants | FR-SEC-002 |
 | `EventSubscriber/UptimeMonitorAccessSubscriber.php` | Enforces the access checker on admin/manage controllers (public status page excluded) | FR-SEC-001 |
+| `Security/MonitorAwareUptimeMonitorAccessCheckerInterface.php` | Monitor-level read access (`canViewMonitor`, 1.21) | FR-SEC-002 |
+| `EventSubscriber/TenantProvisioningSubscriber.php` | `multi_tenant.provisioner`: creates a missing tenant after the access check (1.21) | FR-SEC-002 |
+| `Tenant/MissingTenantProvisionerInterface.php` | Host contract of `multi_tenant.provisioner` (1.21) | FR-SEC-002 |
 | `Security/MonitorUrlSsrfGuard.php` | URL/HTML policy | FR-SEC-004 |
 | `Security/SecretRedactor.php` | Credential masking / backup redaction | FR-SEC-006 |
 | `Security/UptimeMonitorAccessCheckerInterface.php` | Access checker contract | FR-SEC-001 |
@@ -209,10 +212,12 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
+| `Event/MonitorQuotaCheckEvent.php` | Cancellable host quota check before a monitor is created or resumed (1.21) | FR-EVENT-002 |
 | `Event/MonitorRecoveredEvent.php` | Dispatched when an incident resolves | FR-EVENT-001 |
 | `Event/MonitorsAppliedEvent.php` | Dispatched per tenant after `nowo:uptime:apply-monitors` commits (keys, ids, changed fields; no secrets) | FR-APPLY-005 |
 | `Event/MonitorWentDownEvent.php` | Dispatched when an incident opens | FR-EVENT-001 |
 | `Event/StatusPageMonitorsEvent.php` | The monitors a public status page shows (host filter) | FR-EVENT-002 |
+| `Event/UptimeEvents.php` | Event names a host listens to (`MONITOR_QUOTA_CHECK`, 1.21) | FR-EVENT-002 |
 | `Event/UptimePageEvent.php` | Host header actions and sections of the dashboard and monitor pages | FR-EVENT-002 |
 
 ## Routing & tenants
@@ -221,6 +226,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | --- | --- |
 | `Routing/TenantPathUrlGenerator.php` | Router decorator: tenant links to the `web_ui.tenant_paths` copy of a slug | FR-ROUTE-002 |
 | `Routing/TenantPaths.php` | Tenant path matching (slug prefix → route copy) | FR-ROUTE-002 |
+| `EventSubscriber/TenantPathGuardSubscriber.php` | `web_ui.strict_tenant_paths`: 404 for a tenant under another path copy (1.21) | FR-ROUTE-002 |
 | `Routing/UptimeMonitorRouteLoader.php` | Route import `type: nowo_uptime_monitor` (prefix with `{tenantSlug}`, tenant path copies) | FR-ROUTE-001 |
 | `Service/TenantProvisioner.php` | Host-owned tenants: ensure / enable / disable | FR-TENANT-001 |
 
@@ -233,7 +239,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Ui/UptimeAreaNav.php` | UiKit area-nav provider (tenant + settings navigation) | FR-UI-004 |
 | `Form/SettingsStatusPageFormType.php` | Settings → Status page form (visibility, monitors shown) | FR-UI-006 |
 | `Form/Model/SettingsStatusPageData.php` | Settings → Status page form model | FR-UI-006 |
-| `Ui/SettingsSections.php` | Settings screens the host keeps (`web_ui.settings.sections`) | FR-UI-006 |
+| `Ui/SettingsSections.php` | Settings screens the host keeps (`web_ui.settings.sections`, per tenant with `sections_resolver`) | FR-UI-006 |
+| `Ui/SettingsSectionsResolverInterface.php` | Host contract of `web_ui.settings.sections_resolver` (1.21) | FR-UI-006 |
 | `Controller/SummaryController.php` | Tenant status summary page (`nowo_uptime_summary`) | FR-UI-007 |
 | `Service/StatusSummary.php` | Active monitors, counts per status and overall status of a tenant | FR-UI-007 |
 | `Ui/UptimeActions.php` | Page actions by access (dashboard header, New monitor with the tenant limit, monitor edit / pause / delete) | FR-UI-005 |
@@ -254,7 +261,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/src/uptime-dashboard.ts` | Dashboard entrypoint | FR-UI-010 |
 | `Resources/assets/src/uptime-logger.ts` | Frontend logger | FR-UI-012 |
 | `Resources/assets/src/vite-env.d.ts` | Vite type shims | FR-BUILD-002 |
-| `Resources/public/assets/monitor-form-modal-D2vQZVQS.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
+| `Resources/public/assets/monitor-form-modal-CiZBoFyn.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
 | `Resources/public/auto.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/history-bar.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-dashboard.css` | Built frontend asset | FR-BUILD-001 |
@@ -387,15 +394,15 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Domain models | 4 | 4 |
 | Application services | 22 | 22 |
 | Notifications | 5 | 5 |
-| Security | 8 | 8 |
+| Security | 11 | 11 |
 | Twig PHP | 1 | 1 |
 | Persistence integration | 2 | 2 |
 | Async messaging | 2 | 2 |
 | Scheduler | 1 | 1 |
 | Monitor helpers | 5 | 5 |
-| Events | 5 | 5 |
-| Routing & tenants | 4 | 4 |
-| UI page contract | 9 | 9 |
+| Events | 7 | 7 |
+| Routing & tenants | 5 | 5 |
+| UI page contract | 10 | 10 |
 | Tenant limits | 3 | 3 |
 | Frontend TypeScript | 11 | 11 |
 | SCSS themes | 13 | 13 |
@@ -404,6 +411,6 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Twig views | 32 | 32 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **228** | **228** |
+| **Total production sources** | **235** | **235** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.

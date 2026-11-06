@@ -151,6 +151,21 @@ final class ConfigurationTest extends TestCase
         self::assertSame([], $config['web_ui']['templates']);
         self::assertSame([Configuration::DEFAULT_FORM_THEME], $config['web_ui']['form_themes']);
         self::assertSame(['dashboard' => null, 'manage' => null, 'settings' => null], $config['security']['roles']);
+        // 1.21 host hooks: off by default.
+        self::assertSame(['charts' => 'bundle', 'slots' => ['figures' => null, 'charts' => null, 'details' => null]], $config['web_ui']['monitor_show']);
+        self::assertNull($config['web_ui']['settings']['sections_resolver']);
+        self::assertFalse($config['web_ui']['strict_tenant_paths']);
+        self::assertNull($config['multi_tenant']['provisioner']);
+    }
+
+    public function testMonitorShowAcceptsTheChartModesOnly(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['monitor_show' => ['charts' => 'host', 'slots' => ['charts' => 'host/_charts.html.twig']]]]]);
+        self::assertSame('host', $config['web_ui']['monitor_show']['charts']);
+        self::assertSame('host/_charts.html.twig', $config['web_ui']['monitor_show']['slots']['charts']);
+
+        $this->expectException(InvalidConfigurationException::class);
+        (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['monitor_show' => ['charts' => 'mine']]]]);
     }
 
     public function testWebUiAcceptsPageOverridesAndRoles(): void

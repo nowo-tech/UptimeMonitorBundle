@@ -272,6 +272,41 @@ final class PageContractTest extends PageContractTestCase
         self::assertMatchesRegularExpression('#data-nowo-ui-dialog-actions[^>]*>\s*<button type="button"[^>]*data-nowo-ui-dialog-close>[^<]*</button>\s*<button type="submit" form="uptime-monitor-form"#', $fragment);
     }
 
+    public function testTheMonitorPageRegionsFollowWebUiMonitorShow(): void
+    {
+        $page = static fn (array $layout): array => ['monitor_layout' => $layout] + PageFixtures::monitorShow();
+
+        $slots = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', $page([
+            'charts' => 'host',
+            'slots'  => ['figures' => 'host/_figures.html.twig', 'charts' => 'host/_charts.html.twig', 'details' => 'host/_details.html.twig'],
+        ])))->html;
+        self::assertStringNotContainsString('<canvas', $slots, 'charts: host draws no bundle chart');
+        self::assertStringNotContainsString('uptime-metrics-cards', $slots);
+        self::assertStringNotContainsString('uptime-details-header', $slots);
+        self::assertStringContainsString('id="uptime-monitor-detail-root"', $slots, 'the live root stays');
+        self::assertStringContainsString('data-events-table', $slots, 'the check log stays');
+        $details = strpos($slots, '<p class="host-details">API health</p>');
+        $figures = strpos($slots, '<p class="host-figures">97.25</p>');
+        $charts  = strpos($slots, '<p class="host-charts">/main/api/monitors/7/history</p>');
+        self::assertIsInt($details);
+        self::assertIsInt($figures);
+        self::assertIsInt($charts);
+        self::assertTrue($details < $figures && $figures < $charts, 'the slots render in the page order');
+
+        $hostless = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', $page(['charts' => 'host', 'slots' => []])))->html;
+        self::assertStringNotContainsString('uptime-detail-charts', $hostless);
+        self::assertStringContainsString('uptime-metrics-cards', $hostless);
+        self::assertStringContainsString('uptime-details-header', $hostless);
+
+        $none = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', $page(['charts' => 'none', 'slots' => ['charts' => 'host/_charts.html.twig']])))->html;
+        self::assertStringNotContainsString('uptime-detail-charts', $none);
+        self::assertStringNotContainsString('host-charts', $none, 'charts: none ignores the slot');
+
+        $default = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', $page(['charts' => 'bundle', 'slots' => ['charts' => 'host/_charts.html.twig']])))->html;
+        self::assertStringContainsString('id="uptime-chart-uptime"', $default);
+        self::assertStringNotContainsString('host-charts', $default);
+    }
+
     public function testAFileManagedMonitorIsMarkedOnItsPageAndInTheDashboard(): void
     {
         $push = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShowPush(true)))->html;
@@ -469,7 +504,11 @@ final class PageContractTest extends PageContractTestCase
             'host/legacy.html.twig' => '<legacy-layout><title>{% block title %}{% endblock %}</title><head-css>{% block stylesheets %}<host-css/>{% endblock %}</head-css>{% block uptime_content %}{% endblock %}<js>{% block javascripts %}{% endblock %}</js></legacy-layout>',
             // web_ui.templates.tenant_index: thin override of a data block.
             // UptimePageEvent section of a host.
-            'host/_section.html.twig'         => '<p class="host-section">{{ note }}</p>',
+            'host/_section.html.twig' => '<p class="host-section">{{ note }}</p>',
+            // web_ui.monitor_show slots (1.21): rendered with the page variables.
+            'host/_details.html.twig'         => '<p class="host-details">{{ monitor.name }}</p>',
+            'host/_figures.html.twig'         => '<p class="host-figures">{{ detail.uptime_24h }}</p>',
+            'host/_charts.html.twig'          => '<p class="host-charts">{{ api_history_url }}</p>',
             'host/tenants_override.html.twig' => "{% extends '@NowoUptimeMonitorBundle/tenant/index.html.twig' %}{% block nowo_ui_list_after %}<p class=\"host-note\">Managed by the host.</p>{% endblock %}",
         ];
     }

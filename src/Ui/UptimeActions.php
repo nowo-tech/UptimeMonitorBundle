@@ -41,6 +41,7 @@ final readonly class UptimeActions
      * @param bool $allowUnauthenticated `security.allow_unauthenticated`: every action for everyone
      * @param array<string, mixed> $webUi Processed `web_ui` config
      * @param array<string, mixed> $statusPage Processed `status_page` config
+     * @param SettingsSections $sections The tenant's settings screens: no Settings action without one (since 1.21)
      */
     public function __construct(
         private UptimeMonitorAccessCheckerInterface $accessChecker,
@@ -55,6 +56,7 @@ final readonly class UptimeActions
         private array $webUi = [],
         #[Autowire('%nowo_uptime_monitor.status_page%')]
         private array $statusPage = [],
+        private SettingsSections $sections = new SettingsSections(),
     ) {
     }
 
@@ -102,7 +104,7 @@ final readonly class UptimeActions
         $actions    = [];
         foreach (is_array($configured) ? $configured : [] as $key) {
             $action = match ($key) {
-                'settings'    => $this->canManageSettings($tenantSlug) ? new Action('custom', UptimePages::label('dashboard.settings'), $this->urls->generate('nowo_uptime_settings_index', ['tenantSlug' => $tenantSlug]), icon: 'config', attributes: ['data-testid' => 'uptime-dashboard-settings']) : null,
+                'settings'    => $this->canManageSettings($tenantSlug) && $this->sections->first($tenantSlug) !== null ? new Action('custom', UptimePages::label('dashboard.settings'), $this->urls->generate('nowo_uptime_settings_index', ['tenantSlug' => $tenantSlug]), icon: 'config', attributes: ['data-testid' => 'uptime-dashboard-settings']) : null,
                 'status_page' => ($this->statusPage['enabled'] ?? true) ? new Action('view', UptimePages::label('dashboard.status_page'), $this->urls->generate('nowo_uptime_status_page', ['tenantSlug' => $tenantSlug]), attributes: ['data-testid' => 'uptime-dashboard-status-page']) : null,
                 'new_monitor' => $this->newMonitor($tenantSlug),
                 default       => null,

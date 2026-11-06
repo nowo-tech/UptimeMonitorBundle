@@ -117,6 +117,22 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+To **1.21.0** from **1.20.1**: `composer update nowo-tech/uptime-monitor-bundle`. No configuration change is required;
+every new option is off by default and the pages render as before.
+
+- **Custom access checkers:** unchanged. Implement `MonitorAwareUptimeMonitorAccessCheckerInterface` only to let users
+  read single monitors without tenant access (then return `canAccessTenant()` false for them).
+- **Hosts with `web_ui.settings.sections: []`:** the dashboard *Settings* action and the area *Settings* tab disappear
+  (they led to a 404).
+- **`monitor/show.html.twig` overrides:** the details cards, the key figures and the charts now sit in the blocks
+  `monitor_details`, `monitor_figures`, `monitor_charts`. An override that replaces `nowo_ui_show_sections` /
+  `nowo_ui_show_after` keeps working; consider `web_ui.monitor_show` (`charts`, `slots`) instead of the override.
+- **Replacing host listeners** (optional): a kernel.controller listener refusing new / resumed monitors →
+  `UptimeEvents::MONITOR_QUOTA_CHECK`; one creating tenants on the first visit → `multi_tenant.provisioner`; one
+  narrowing a tenant to shared monitors → `MonitorAwareUptimeMonitorAccessCheckerInterface`; one hiding settings
+  screens per tenant or refusing a slug under the wrong path → `web_ui.settings.sections_resolver` and
+  `web_ui.strict_tenant_paths: true`. See [CONFIGURATION](CONFIGURATION.md#host-hooks-121).
+
 ## To 1.20.1
 
 From **1.20.0**: `composer update nowo-tech/uptime-monitor-bundle` then `php bin/console assets:install` (the dialog

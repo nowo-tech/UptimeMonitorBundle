@@ -29,6 +29,7 @@ nowo_uptime_monitor:
         # enabled: true                # deprecated (1.5), no effect
         # header: X-Uptime-Tenant      # deprecated (1.5), no effect: tenant comes from the URL
         default_tenant: main
+        provisioner: null      # since 1.21: service id of a Tenant\MissingTenantProvisionerInterface (creates a missing tenant)
     tenants:
         list_enabled: true
         redirect_when_single: false
@@ -39,6 +40,7 @@ nowo_uptime_monitor:
         # Each copies the tenant routes as <name_prefix><route>; links to a matching slug use the copy.
         tenant_paths: []
         #   - { slug_prefix: 'user-', path: '/uptime/{tenantSlug}', name_prefix: 'personal_', slug_requirement: null }
+        strict_tenant_paths: false   # since 1.21: true = a tenant answers only under the path its slug selects (else 404)
         layout_template: null  # null = nowo_ui_kit.layouts.admin; else a layout rendering the UiKit canonical blocks
         templates: {}          # per-page override, e.g. { dashboard: 'uptime/dashboard.html.twig' } (ids: docs/TEMPLATES.md)
         form_themes: ['@NowoUiKitBundle/form/nowo_ui_layout.html.twig']   # [] = only twig.form_themes
@@ -48,6 +50,10 @@ nowo_uptime_monitor:
             actions: [settings, status_page, new_monitor]   # header actions, in this order, each one by access
         settings:              # since 1.13
             sections: [general, appearance, notifications, reverse_proxy, tags, history, backup, about]   # the others: 404
+            sections_resolver: null   # since 1.21: service id of a Ui\SettingsSectionsResolverInterface (narrows per tenant)
+        monitor_show:          # since 1.21
+            charts: bundle     # bundle | host (slots.charts instead of the bundle charts) | none
+            slots: { figures: null, charts: null, details: null }   # templates rendered in place of a region
         per_page: 20           # check log (monitor page) and latest checks (table dashboard) rows per page
         back_links: true       # since 1.14.2: false drops the "← Dashboard" link (the host's own tabs lead back)
     limits:                    # since 1.12: New monitor disabled with the reason, the form refuses beyond them
@@ -125,6 +131,19 @@ A host that shows the bundle pages inside its own navigation (tabs, its own sett
   instance settings;
 - listeners of `Event\UptimePageEvent` (header actions, sections before / after the dashboard or a monitor page) and
   `Event\StatusPageMonitorsEvent` (the monitors of a public status page) instead of template overrides.
+
+### Host hooks (1.21)
+
+Everything below is off by default; each replaces a host listener or template override.
+
+| Need | Option / hook | Contract |
+| --- | --- | --- |
+| Monitor page regions | `web_ui.monitor_show.charts: bundle\|host\|none`, `web_ui.monitor_show.slots.{figures,charts,details}` | A slot is a template rendered with the page variables (`monitor`, `latest`, `detail`, `chart_series_json`, `api_history_url`, …) in place of the bundle region. `charts: host` draws no bundle chart and renders `slots.charts`; `none` renders no chart. The regions are also the blocks `monitor_details`, `monitor_figures`, `monitor_charts`. Slot templates are configuration (trusted); they must escape what they print. |
+| Host quota on create / resume | listener of `Event\UptimeEvents::MONITOR_QUOTA_CHECK` (`Event\MonitorQuotaCheckEvent`) | `action` `create` or `resume`, `tenantSlug`, `type`, `monitor` (resume); `deny($reason)` refuses the write: the monitor form shows the reason (dialog: 422), a resume flashes it as `error`. On create the event runs inside the tenant row lock when the monitor takes a `limits` slot. `limits.provider` still applies. |
+| Create tenants on demand | `multi_tenant.provisioner` → `Tenant\MissingTenantProvisionerInterface::provision(string $tenantSlug): ?Tenant` | Called on kernel.controller (priority -8, after the access check) for the admin pages and the tenant APIs when the slug has no tenant; return the flushed tenant of that slug, or null → 404. Never for the status page or the push endpoint. With `security.allow_unauthenticated: true` there is no access check before it: the provisioner decides alone. |
+| Monitor-level read access | access checker implementing `Security\MonitorAwareUptimeMonitorAccessCheckerInterface::canViewMonitor(object $user, Monitor $monitor): bool` | Decides the monitor page and its history / aggregates APIs (404 when false, unknown or of another tenant). Tenant-wide reads (dashboard, summary, status API) and every mutation keep `canAccessTenant()` / `canManageTenantMonitors()`: return `canAccessTenant()` false for users who may only read shared monitors. |
+| Settings per tenant | `web_ui.settings.sections_resolver` → `Ui\SettingsSectionsResolverInterface::sections(string $tenantSlug): list<string>` | Narrows `web_ui.settings.sections` for that tenant (404 for the rest; with none, no Settings action or tab). |
+| One path per tenant kind | `web_ui.strict_tenant_paths: true` | A slug that starts with a `tenant_paths` `slug_prefix` answers only under that copy, any other slug only under `path_prefix`; anything else is 404 (e.g. `/projects/user-…/uptime`). |
 
 ### Public status page
 

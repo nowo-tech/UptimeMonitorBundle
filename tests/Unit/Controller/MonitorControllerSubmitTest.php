@@ -10,6 +10,8 @@ use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
+use Nowo\UptimeMonitorBundle\Event\UptimeEvents;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
 use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
@@ -24,6 +26,10 @@ use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormErrorIterator;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\Form\Util\StringUtil;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -61,7 +67,7 @@ final class MonitorControllerSubmitTest extends TestCase
         $this->em->flush();
     }
 
-    private function controller(): MonitorController
+    private function controller(?EventDispatcher $dispatcher = null): MonitorController
     {
         $registry = $this->createStub(ManagerRegistry::class);
         $registry->method('getManagerForClass')->willReturn($this->em);
@@ -81,7 +87,82 @@ final class MonitorControllerSubmitTest extends TestCase
             new AggregateChartService($aggregates),
             new DashboardViewBuilder($this->monitors, $results, $aggregates, new UptimeMetricsService(), new TenantDashboardSerializer()),
             $this->em,
+            eventDispatcher: $dispatcher,
         );
+    }
+
+    private function denying(string $action, string $reason): EventDispatcher
+    {
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(UptimeEvents::MONITOR_QUOTA_CHECK, static function (MonitorQuotaCheckEvent $check) use ($action, $reason): void {
+            if ($check->action === $action) {
+                $check->deny($reason);
+            }
+        });
+
+        return $dispatcher;
+    }
+
+    public function testAQuotaDenialRefusesTheNewMonitorWithItsReason(): void
+    {
+        $seen       = [];
+        $dispatcher = $this->denying(MonitorQuotaCheckEvent::ACTION_CREATE, 'Your plan allows 3 monitors.');
+        $dispatcher->addListener(MonitorQuotaCheckEvent::class, static function (MonitorQuotaCheckEvent $check) use (&$seen): void {
+            $seen[] = [$check->tenantSlug, $check->type, $check->monitor];
+        }, 10);
+        $request    = $this->submit('/main/monitors/new', ['name' => 'Server'], ['X-Uptime-Modal' => '1']);
+        $controller = $this->controller($dispatcher);
+        $this->bindController($controller, true, $request);
+
+        $response = $controller->new('main', $request);
+
+        self::assertSame(422, $response->getStatusCode());
+        self::assertNull($this->monitors->findOneBy(['name' => 'Server']), 'nothing written');
+        self::assertSame([['main', MonitorType::Https, null]], $seen);
+        $form = $this->renderedContext['form'] ?? null;
+        self::assertInstanceOf(FormView::class, $form);
+        $errors = $form->vars['errors'];
+        self::assertInstanceOf(FormErrorIterator::class, $errors);
+        $error = $errors[0];
+        self::assertInstanceOf(FormError::class, $error);
+        self::assertSame('Your plan allows 3 monitors.', $error->getMessage());
+    }
+
+    public function testAnAllowedQuotaCheckCreatesTheMonitor(): void
+    {
+        $request    = $this->submit('/main/monitors/new');
+        $controller = $this->controller($this->denying(MonitorQuotaCheckEvent::ACTION_RESUME, 'no'));
+        $this->bindController($controller, true, $request);
+
+        self::assertTrue($controller->new('main', $request)->isRedirect());
+        self::assertInstanceOf(Monitor::class, $this->monitors->findOneBy(['name' => 'API']));
+    }
+
+    public function testAQuotaDenialKeepsAMonitorPausedAndSaysWhy(): void
+    {
+        $monitor = new Monitor($this->tenant, 'Paused', MonitorType::Https, 'https://p.test');
+        $monitor->setPaused(true);
+        $this->em->persist($monitor);
+        $this->em->flush();
+        $id         = (int) $monitor->getId();
+        $controller = $this->controller($this->denying(MonitorQuotaCheckEvent::ACTION_RESUME, 'Monitor limit reached.'));
+
+        $request = Request::create('/main/monitors/' . $id . '/toggle-pause', 'POST', ['_token' => 'valid']);
+        $this->bindController($controller, true, $request);
+        $controller->togglePause('main', $id, $request);
+
+        self::assertTrue($monitor->isPaused());
+        $session = $request->getSession();
+        self::assertInstanceOf(Session::class, $session);
+        self::assertSame(['Monitor limit reached.'], $session->getFlashBag()->peek('error'));
+
+        // Pausing is never checked.
+        $monitor->setPaused(false);
+        $this->em->flush();
+        $pause = Request::create('/main/monitors/' . $id . '/toggle-pause', 'POST', ['_token' => 'valid']);
+        $this->bindController($controller, true, $pause);
+        $controller->togglePause('main', $id, $pause);
+        self::assertTrue($monitor->isPaused());
     }
 
     /**

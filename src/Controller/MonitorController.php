@@ -18,6 +18,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
 use Nowo\UptimeMonitorBundle\Event\UptimePageEvent;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
@@ -51,6 +52,7 @@ use function array_reverse;
 use function array_slice;
 use function count;
 use function in_array;
+use function is_array;
 use function is_int;
 use function json_encode;
 use function sprintf;
@@ -192,7 +194,8 @@ final class MonitorController extends AbstractUptimeController
                 'tenantSlug' => $tenantSlug,
                 'id'         => $id,
             ]),
-            'push' => $this->pushView($monitor, $request),
+            'push'           => $this->pushView($monitor, $request),
+            'monitor_layout' => $this->monitorShowLayout(),
         ] + $extra));
     }
 
@@ -273,8 +276,9 @@ final class MonitorController extends AbstractUptimeController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $monitor = $this->monitorFactory->createFromFormData($tenant, $data);
-            if (!$this->saveUnderQuota($tenant, $monitor, $data->type !== MonitorType::Group)) {
-                $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
+            $check   = new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_CREATE, $tenantSlug, $monitor->getType());
+            if (!$this->saveUnderQuota($tenant, $monitor, $data->type !== MonitorType::Group, null, $check)) {
+                $form->addError(new FormError($check->getReason() ?? $this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
 
                 return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.new');
             }
@@ -383,12 +387,16 @@ final class MonitorController extends AbstractUptimeController
     /**
      * Saves a new monitor (`$data` null) or applies an edit. When the save takes a slot of the tenant quota it runs
      * under the tenant row lock with the quota counted again (SEC-004 Q3: no count-then-insert race); false, with
-     * nothing written, when the tenant is full.
+     * nothing written, when the tenant is full. A `$check` ({@see MonitorQuotaCheckEvent}, since 1.21) is dispatched
+     * inside that lock; a denial also returns false with nothing written.
      */
-    private function saveUnderQuota(Tenant $tenant, Monitor $monitor, bool $takesSlot, ?MonitorFormData $data = null): bool
+    private function saveUnderQuota(Tenant $tenant, Monitor $monitor, bool $takesSlot, ?MonitorFormData $data = null, ?MonitorQuotaCheckEvent $check = null): bool
     {
-        $write = function (?int $remaining) use ($monitor, $takesSlot, $data): bool {
+        $write = function (?int $remaining) use ($monitor, $takesSlot, $data, $check): bool {
             if ($takesSlot && $remaining === 0) {
+                return false;
+            }
+            if ($check instanceof MonitorQuotaCheckEvent && $this->dispatchQuotaCheck($check)->isDenied()) {
                 return false;
             }
             if ($data instanceof MonitorFormData) {
@@ -446,9 +454,17 @@ final class MonitorController extends AbstractUptimeController
         $monitor = $this->requireMonitor($tenantSlug, $id);
 
         if ($this->isCsrfTokenValid('toggle' . $monitor->getId(), (string) $request->request->get('_token'))) {
-            // @igor-ignore - HTTP handler delegates to services; no controller worker state.
-            $monitor->setPaused(!$monitor->isPaused());
-            $this->entityManager->flush();
+            // Since 1.21: a host quota may refuse the resume (MonitorQuotaCheckEvent); the reason becomes a flash.
+            $reason = $monitor->isPaused()
+                ? $this->dispatchQuotaCheck(new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_RESUME, $tenantSlug, $monitor->getType(), $monitor))->getReason()
+                : null;
+            if ($reason !== null) {
+                $this->addFlash('error', $reason);
+            } else {
+                // @igor-ignore - HTTP handler delegates to services; no controller worker state.
+                $monitor->setPaused(!$monitor->isPaused());
+                $this->entityManager->flush();
+            }
         }
 
         // From the monitor page (`?return=show`), back to it.
@@ -550,6 +566,33 @@ final class MonitorController extends AbstractUptimeController
         $this->eventDispatcher?->dispatch($event);
 
         return $event;
+    }
+
+    /**
+     * Dispatches a host quota check (returned as is without a dispatcher: allowed).
+     */
+    private function dispatchQuotaCheck(MonitorQuotaCheckEvent $check): MonitorQuotaCheckEvent
+    {
+        $this->eventDispatcher?->dispatch($check);
+
+        return $check;
+    }
+
+    /**
+     * The monitor page regions (`web_ui.monitor_show`, since 1.21): chart mode and slot templates.
+     *
+     * @return array{charts: string, slots: array<string, string|null>}
+     */
+    private function monitorShowLayout(): array
+    {
+        $options = $this->webUi['monitor_show'] ?? [];
+        $charts  = $options['charts'] ?? 'bundle';
+        $slots   = $options['slots'] ?? [];
+
+        return [
+            'charts' => in_array($charts, ['host', 'none'], true) ? $charts : 'bundle',
+            'slots'  => is_array($slots) ? $slots : [],
+        ];
     }
 
     /**

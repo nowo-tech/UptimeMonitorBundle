@@ -13,6 +13,9 @@ use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Controller\StatusPageController;
 use Nowo\UptimeMonitorBundle\Controller\SummaryController;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Nowo\UptimeMonitorBundle\Security\MonitorAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use stdClass;
@@ -25,6 +28,7 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 use function in_array;
 use function is_array;
+use function is_numeric;
 use function is_object;
 use function is_string;
 
@@ -33,12 +37,21 @@ use function is_string;
  *
  * Public {@see StatusPageController} is excluded. When allow_unauthenticated is true, checks are skipped.
  * Tenant creation requires canManageSettings; any other unsafe-method request (POST/PUT/PATCH/DELETE) to a
- * protected action that is not explicitly mapped fails closed to canManageSettings as well.
+ * protected action that is not explicitly mapped fails closed to canManageSettings as well. Since 1.21 a
+ * {@see MonitorAwareUptimeMonitorAccessCheckerInterface} decides the reads of one monitor (page, history and aggregates
+ * APIs) with canViewMonitor; its refusal answers 404.
  */
 final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInterface
 {
     /** MonitorController methods that mutate state (CRUD / pause). */
     private const MONITOR_MUTATIONS = ['new', 'edit', 'delete', 'togglePause', 'pushToken', 'pushRevoke'];
+
+    /** Read actions of one monitor (`{id}`): controller class => method. */
+    private const MONITOR_READS = [
+        MonitorController::class       => 'show',
+        HistoryApiController::class    => 'monitorHistory',
+        AggregatesApiController::class => 'monitorAggregates',
+    ];
 
     /** TenantController methods that mutate state (tenant creation). */
     private const TENANT_MUTATIONS = ['new'];
@@ -52,12 +65,14 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
      * @param bool $allowUnauthenticated When true the access checks are skipped (demo / trusted networks)
      * @param TokenStorageInterface|null $tokenStorage Current security token; null when SecurityBundle is not installed
      * @param bool $webUiEnabled `web_ui.enabled`: when false the admin pages answer 404 even if a host imported their routes
+     * @param MonitorRepository|null $monitorRepository Loads the monitor of a monitor read for a monitor-aware checker (since 1.21)
      */
     public function __construct(
         private UptimeMonitorAccessCheckerInterface $accessChecker,
         private bool $allowUnauthenticated,
         private ?TokenStorageInterface $tokenStorage = null,
         private bool $webUiEnabled = true,
+        private ?MonitorRepository $monitorRepository = null,
     ) {
     }
 
@@ -77,6 +92,7 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
      * Denies access to bundle dashboard, monitor and settings actions the current user may not use.
      *
      * @throws AccessDeniedException When the access checker refuses the action
+     * @throws NotFoundHttpException When a monitor-aware checker refuses a monitor read
      */
     public function onKernelController(ControllerEvent $event): void
     {
@@ -113,7 +129,12 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
         $tenant  = $event->getRequest()->attributes->get('tenantSlug');
         $checker = $this->accessChecker;
         // Since 1.9: a tenant-aware checker decides every request that names a tenant for that tenant.
-        $scoped  = $checker instanceof TenantAwareUptimeMonitorAccessCheckerInterface && is_string($tenant) && $tenant !== '';
+        $scoped = $checker instanceof TenantAwareUptimeMonitorAccessCheckerInterface && is_string($tenant) && $tenant !== '';
+        if ($scoped && $checker instanceof MonitorAwareUptimeMonitorAccessCheckerInterface && (self::MONITOR_READS[$controllerObject::class] ?? null) === $method) {
+            $this->checkMonitorRead($checker, $user, $tenant, $event->getRequest()->attributes->get('id'));
+
+            return;
+        }
         $allowed = match (true) {
             $controllerObject instanceof SettingsController => $scoped
                 ? $checker->canManageTenantSettings($user, $tenant)
@@ -134,6 +155,20 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
 
         if (!$allowed) {
             throw new AccessDeniedException('Access to Uptime Monitor admin is denied.');
+        }
+    }
+
+    /**
+     * A monitor read under a monitor-aware checker: the monitor of the tenant the user may view, else 404 (an unknown
+     * monitor, one of another tenant and one the user may not view answer alike).
+     *
+     * @throws NotFoundHttpException When the user may not view the monitor
+     */
+    private function checkMonitorRead(MonitorAwareUptimeMonitorAccessCheckerInterface $checker, object $user, string $tenantSlug, mixed $id): void
+    {
+        $monitor = is_numeric($id) ? $this->monitorRepository?->find((int) $id) : null;
+        if (!$monitor instanceof Monitor || $monitor->getTenant()->getSlug() !== $tenantSlug || !$checker->canViewMonitor($user, $monitor)) {
+            throw new NotFoundHttpException('Monitor not found.');
         }
     }
 

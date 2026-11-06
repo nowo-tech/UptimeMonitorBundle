@@ -14,6 +14,9 @@
   bar, uptime / latency figures, charts, check log, group children — sibling cards on the page, no card around them;
   updated live by uptime-monitor-detail.js; until the first check one notice stands for the history, figures, charts
   and log, which the script reveals once a check arrives). Chart colours: the --uptime-chart-* custom properties.
+  Since 1.21 (web_ui.monitor_show, variable monitor_layout): the regions sit in the blocks monitor_details,
+  monitor_figures and monitor_charts; slots.details / slots.figures replace a region with a host template (rendered
+  with the page variables), charts: host renders slots.charts instead of the bundle charts, charts: none drops them.
 #}
 {% extends '@NowoUiKit/page/show.html.twig' %}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -40,6 +43,11 @@
     {% for _key, _slot in {up: 'badge_success', down: 'badge_danger', degraded: 'badge_warning', unknown: 'badge_neutral'} %}
         {% set _badges = _badges|merge({(_key): {label: ('status.' ~ _key)|trans, class: 'uptime-status-badge uptime-status-badge--' ~ _key ~ ' ' ~ nowo_ui_class(_slot, _b)}}) %}
     {% endfor %}
+    {% set _layout = monitor_layout|default({charts: 'bundle', slots: {}}) %}
+    {% block monitor_details %}
+    {% if _layout.slots.details|default(null) %}
+        {{ include(_layout.slots.details) }}
+    {% else %}
     {% for section in page.sections %}
         <section class="{{ nowo_ui_class('section', _b) }} {{ nowo_ui_class('card', _b) }}"{% if section.id %} id="{{ section.id }}"{% endif %} data-nowo-ui-region="section"{{ nowo_ui_attrs('section', _b) }}>
             {% if section.title or loop.first %}
@@ -68,11 +76,14 @@
             </div>
         </section>
     {% endfor %}
+    {% endif %}
+    {% endblock %}
 {% endblock %}
 
 {% block nowo_ui_show_after %}
     {% set _b = page.bundle %}
     {% set _theme = uptime_theme() %}
+    {% set _layout = monitor_layout|default({charts: 'bundle', slots: {}}) %}
     {% for section in page_sections.before|default([]) %}
         {{ include(section.template, section.context) }}
     {% endfor %}
@@ -121,6 +132,10 @@
                 </p>
             </section>
 
+            {% block monitor_figures %}
+            {% if _layout.slots.figures|default(null) %}
+                {{ include(_layout.slots.figures) }}
+            {% else %}
             <section class="uptime-metrics-cards {{ nowo_ui_class('kpis', _b) }}"{{ nowo_ui_attrs('kpis', _b) }}>
                 <div class="uptime-metric-card {{ nowo_ui_class('kpi', _b) }}">
                     <span class="uptime-metric-label {{ nowo_ui_class('kpi_label', _b) }}">{{ 'monitor.show.uptime_24h'|trans }}</span>
@@ -135,7 +150,13 @@
                     <span class="uptime-metric-value {{ nowo_ui_class('kpi_value', _b) }}" data-detail-latency>{{ latest ? latest.latencyMs ~ ' ms' : '—' }}</span>
                 </div>
             </section>
+            {% endif %}
+            {% endblock %}
 
+            {% block monitor_charts %}
+            {% if _layout.charts == 'host' %}
+                {% if _layout.slots.charts|default(null) %}{{ include(_layout.slots.charts) }}{% endif %}
+            {% elseif _layout.charts != 'none' %}
             <section class="uptime-charts uptime-detail-charts">
                 {% if not push|default(null) %}
                 <div class="uptime-chart-box {{ nowo_ui_class('card', _b) }}">
@@ -152,6 +173,8 @@
                     <canvas id="uptime-chart-latency" height="120"></canvas>
                 </div>
             </section>
+            {% endif %}
+            {% endblock %}
 
             <section class="uptime-events {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-monitor-log" aria-labelledby="uptime-monitor-log-title">
                 <header class="uptime-events-header {{ nowo_ui_class('card_header', _b) }}">

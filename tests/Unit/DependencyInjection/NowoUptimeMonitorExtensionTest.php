@@ -8,6 +8,7 @@ use LogicException;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
+use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
@@ -15,6 +16,7 @@ use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeDoctrineExtension;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeFrameworkExtension;
+use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
@@ -23,6 +25,7 @@ use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
+use Symfony\Component\DependencyInjection\Reference;
 
 #[CoversClass(UptimeMonitorExtension::class)]
 final class NowoUptimeMonitorExtensionTest extends TestCase
@@ -457,6 +460,26 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $webUi = $container->getParameter('nowo_uptime_monitor.web_ui');
         self::assertSame(['view' => 'tree', 'header' => 'tenant', 'actions' => ['settings', 'status_page', 'new_monitor']], $webUi['dashboard']);
         self::assertSame(20, $webUi['per_page']);
+    }
+
+    public function testHostHooksAreWiredOnlyWhenConfigured(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[]], $container);
+        self::assertNull($container->getDefinition(TenantProvisioningSubscriber::class)->getArgument('$provisioner'));
+        self::assertNull($container->getDefinition(SettingsSections::class)->getArgument('$resolver'));
+
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[
+            'multi_tenant' => ['provisioner' => 'app.uptime_provisioner'],
+            'web_ui'       => ['settings' => ['sections_resolver' => 'app.uptime_sections']],
+        ]], $container);
+        $provisioner = $container->getDefinition(TenantProvisioningSubscriber::class)->getArgument('$provisioner');
+        self::assertInstanceOf(Reference::class, $provisioner);
+        self::assertSame('app.uptime_provisioner', (string) $provisioner);
+        $resolver = $container->getDefinition(SettingsSections::class)->getArgument('$resolver');
+        self::assertInstanceOf(Reference::class, $resolver);
+        self::assertSame('app.uptime_sections', (string) $resolver);
     }
 
     #[IgnoreDeprecations]

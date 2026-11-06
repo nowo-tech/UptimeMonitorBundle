@@ -74,6 +74,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Host hooks so an embedding app can drop its listeners and its monitor page override (1.21.0, minor). Every option is
+off by default: the default output does not change. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **Monitor page regions** (`web_ui.monitor_show`): `charts: bundle|host|none` (default `bundle`) and
+  `slots.{figures,charts,details}` — templates rendered with the page variables in place of the key figures, the
+  charts (with `charts: host`) or the details card. The regions are also the blocks `monitor_details`,
+  `monitor_figures` and `monitor_charts`. `uptime-monitor-detail.js` already skips missing chart canvases.
+- **Cancellable quota check** `Event\UptimeEvents::MONITOR_QUOTA_CHECK` (`Event\MonitorQuotaCheckEvent`: `action`
+  `create|resume`, `tenantSlug`, `type`, `monitor`, `deny($reason)`), dispatched before a new monitor is saved (inside
+  the tenant row lock when it takes a `limits` slot) and before a paused monitor is resumed. A denial shows the reason
+  in the monitor form (dialog: 422) or as an `error` flash; nothing is written. `limits.provider` stays.
+- **Tenant provisioner** `multi_tenant.provisioner` (`Tenant\MissingTenantProvisionerInterface`): creates the tenant
+  of a slug without one when an admin page or tenant API runs, after the access check; null → 404.
+- **Monitor-level read access** `Security\MonitorAwareUptimeMonitorAccessCheckerInterface::canViewMonitor()`: decides
+  the monitor page and its history / aggregates APIs (404 when refused); tenant-wide pages and mutations keep the
+  tenant methods. Default (other checkers): tenant access, as before.
+- **Settings per tenant** `web_ui.settings.sections_resolver` (`Ui\SettingsSectionsResolverInterface`): narrows
+  `web_ui.settings.sections` per tenant; a tenant without a screen has no Settings action or area tab.
+- **`web_ui.strict_tenant_paths`** (default `false`): a tenant is served only under the path its slug selects
+  (`tenant_paths` entry or the default path); any other path answers 404.
+
+### Changed
+
+- The dashboard *Settings* action and the area *Settings* tab are left out when the tenant keeps no settings screen
+  (before, they led to a 404). With the default `web_ui.settings.sections` nothing changes.
+
 ## [1.20.1] - 2026-11-06
 
 Dialog rule v2: the monitor dialog footer shows Cancel on every step; CI checks committed assets against the build.

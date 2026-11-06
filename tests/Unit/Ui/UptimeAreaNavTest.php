@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Ui;
 use Nowo\UiKitBundle\View\AreaNav;
 use Nowo\UiKitBundle\View\Label;
 use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
+use Nowo\UptimeMonitorBundle\Ui\SettingsSectionsResolverInterface;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -55,6 +56,24 @@ final class UptimeAreaNavTest extends TestCase
         self::assertInstanceOf(AreaNav::class, $nav);
         self::assertSame(['/nowo_uptime_settings_tags', '/nowo_uptime_settings_history'], [$nav->items[0]->href, $nav->items[1]->href]);
         self::assertCount(2, $nav->items);
+    }
+
+    public function testATenantWithoutSettingsHasNoSettingsItem(): void
+    {
+        $router = $this->createStub(UrlGeneratorInterface::class);
+        $router->method('generate')->willReturnCallback(static fn (string $route): string => '/' . $route);
+        $resolver = $this->createStub(SettingsSectionsResolverInterface::class);
+        $resolver->method('sections')->willReturn([]);
+        $provider = new UptimeAreaNav($router, new SettingsSections([], $resolver));
+
+        $nav = $provider->areaNav(UptimeAreaNav::AREA, ['tenantSlug' => 'user-1']);
+        self::assertInstanceOf(AreaNav::class, $nav);
+        self::assertSame(['/nowo_uptime_dashboard', '/nowo_uptime_status_page'], [$nav->items[0]->href, $nav->items[1]->href]);
+        self::assertCount(2, $nav->items);
+
+        $settings = $provider->areaNav(UptimeAreaNav::AREA_SETTINGS, ['tenantSlug' => 'user-1']);
+        self::assertInstanceOf(AreaNav::class, $settings);
+        self::assertSame([], $settings->items);
     }
 
     public function testUnknownAreaOrMissingTenant(): void
