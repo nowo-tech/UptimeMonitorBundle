@@ -84,6 +84,11 @@ change. See [UPGRADING](UPGRADING.md#unreleased).
   footer instead of an empty, hidden footer, from a `<template data-monitor-form-footer-idle>` in
   `monitor/_monitor_edit_modal.html.twig`. New monitor and Edit monitor share the same anatomy: header (title + ×),
   scrolling body, footer outside it.
+- **Focus survives the footer swap** (audit GJ-I2): when the keyboard focus is on a footer control that a step change
+  replaces (the idle Cancel when the form arrives, Save on a re-render or a refused reload), it moves to the form's
+  first field, else to the new Cancel, instead of falling back to the page behind the dialog.
+- **CI:** the Frontend job fails when the committed `src/Resources/public` differs from a fresh `pnpm run build`
+  (audit GJ-I3).
 - **No dialog height of its own.** The monitor dialog keeps UiKit's wide width and takes UiKit's height: with UiKit
   **2.31** (dialog rule v2, default `theme.dialog.height: content`) the content's height capped at
   `min(--nowo-dialog-height-wide, 100dvh - 2rem)`, only the body scrolling. The bundle adds no height rule, so the
