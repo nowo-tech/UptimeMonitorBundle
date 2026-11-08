@@ -8,16 +8,24 @@
   Dialog rule v2 (owner decision D-20261105-54): the footer is filled on every step — the steps without a form
   (loading, a load error, a file-managed monitor) show the Cancel of <template data-monitor-form-footer-idle>. No
   height of its own: UiKit's (from 2.31 the content's, capped at the wide size's height token).
+  1.22 (UM-6): new_monitor (Ui\NewMonitorState, the dashboard's uptime_new_monitor), when enabled, puts its URL and
+  title on the dialog (data-uptime-new-monitor-url / -title), so any [data-uptime-open="new-monitor"] opener of the
+  host opens the New monitor form. Without it (or at the monitor limit) such openers do nothing but follow their href.
 #}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
 {% set _b = bundle|default('NowoUptimeMonitorBundle') %}
+{% set _new = new_monitor|default(null) %}
+{% set _attr = {'data-uptime-monitor-form-modal': true} %}
+{% if _new and not _new.disabled() %}
+    {% set _attr = _attr|merge({'data-uptime-new-monitor-url': _new.url, 'data-uptime-new-monitor-title': _new.label|nowo_ui_trans}) %}
+{% endif %}
 {% embed nowo_ui_partial('dialog', bundle) with {
     id: 'uptime-monitor-form-modal',
     title: 'monitor.edit'|trans,
     size: 'wide',
     footer_target: true,
     bundle: _b,
-    attr: {'data-uptime-monitor-form-modal': true},
+    attr: _attr,
     title_attr: {'data-monitor-form-title': true},
     body_attr: {'data-monitor-form-body': true},
 } only %}

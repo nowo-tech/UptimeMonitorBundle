@@ -106,7 +106,7 @@ final readonly class UptimeActions
             $action = match ($key) {
                 'settings'    => $this->canManageSettings($tenantSlug) && $this->sections->first($tenantSlug) !== null ? new Action('custom', UptimePages::label('dashboard.settings'), $this->urls->generate('nowo_uptime_settings_index', ['tenantSlug' => $tenantSlug]), icon: 'config', attributes: ['data-testid' => 'uptime-dashboard-settings']) : null,
                 'status_page' => ($this->statusPage['enabled'] ?? true) ? new Action('view', UptimePages::label('dashboard.status_page'), $this->urls->generate('nowo_uptime_status_page', ['tenantSlug' => $tenantSlug]), attributes: ['data-testid' => 'uptime-dashboard-status-page']) : null,
-                'new_monitor' => $this->newMonitor($tenantSlug),
+                'new_monitor' => $this->newMonitorPlacement() === 'header' ? $this->newMonitor($tenantSlug) : null,
                 default       => null,
             };
             if ($action instanceof Action) {
@@ -118,10 +118,21 @@ final readonly class UptimeActions
     }
 
     /**
-     * New monitor for monitor managers (opens the monitor form dialog; a plain link without JavaScript); disabled,
-     * saying why, once the tenant holds as many monitors as its limit allows.
+     * Where the dashboard's New monitor goes (`web_ui.dashboard.new_monitor`, 1.22): `header` (default) or `hidden`.
      */
-    public function newMonitor(string $tenantSlug): ?Action
+    public function newMonitorPlacement(): string
+    {
+        $dashboard = $this->webUi['dashboard'] ?? [];
+
+        return is_array($dashboard) && ($dashboard['new_monitor'] ?? 'header') === 'hidden' ? 'hidden' : 'header';
+    }
+
+    /**
+     * New monitor for a host-placed opener (1.22, template variable `uptime_new_monitor` of the dashboard): null when
+     * the current user may not manage the tenant's monitors; else the form URL, the label key, and whether it is
+     * disabled (the tenant holds as many monitors as its limit allows) with the reason as a translatable label.
+     */
+    public function newMonitorState(string $tenantSlug): ?NewMonitorState
     {
         if (!$this->canManageMonitors($tenantSlug)) {
             return null;
@@ -129,14 +140,33 @@ final readonly class UptimeActions
 
         $url = $this->urls->generate('nowo_uptime_monitor_new', ['tenantSlug' => $tenantSlug]);
         if (!$this->quota->canAdd($tenantSlug)) {
+            return new NewMonitorState($url, UptimePages::label('monitor.new'), UptimePages::label('monitor.limits.max_monitors', ['%count%' => $this->quota->max($tenantSlug)]));
+        }
+
+        return new NewMonitorState($url, UptimePages::label('monitor.new'));
+    }
+
+    /**
+     * New monitor for monitor managers (opens the monitor form dialog; a plain link without JavaScript); disabled,
+     * saying why, once the tenant holds as many monitors as its limit allows.
+     */
+    public function newMonitor(string $tenantSlug): ?Action
+    {
+        $state = $this->newMonitorState($tenantSlug);
+        if (!$state instanceof NewMonitorState) {
+            return null;
+        }
+
+        $url = $state->url;
+        if ($state->disabled()) {
             return new Action(
                 'create',
-                UptimePages::label('monitor.new'),
+                $state->label,
                 $url,
                 variant: 'primary',
                 attributes: ['data-testid' => 'uptime-monitor-new'],
                 disabled: true,
-                title: UptimePages::label('monitor.limits.max_monitors', ['%count%' => $this->quota->max($tenantSlug)]),
+                title: $state->reason,
             );
         }
 

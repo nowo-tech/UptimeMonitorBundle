@@ -445,7 +445,7 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertSame(60, $limits->getArgument('$minIntervalSeconds'));
         /** @var array<string, mixed> $webUi */
         $webUi = $container->getParameter('nowo_uptime_monitor.web_ui');
-        self::assertEquals(['view' => 'table', 'header' => 'tenant', 'actions' => ['new_monitor']], $webUi['dashboard']);
+        self::assertEquals(['view' => 'table', 'header' => 'tenant', 'actions' => ['new_monitor'], 'new_monitor' => 'header'], $webUi['dashboard']);
         self::assertSame(50, $webUi['per_page']);
     }
 
@@ -458,7 +458,7 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertFalse($container->hasDefinition('nowo_uptime_monitor.tenant_limits.default'));
         /** @var array<string, mixed> $webUi */
         $webUi = $container->getParameter('nowo_uptime_monitor.web_ui');
-        self::assertSame(['view' => 'tree', 'header' => 'tenant', 'actions' => ['settings', 'status_page', 'new_monitor']], $webUi['dashboard']);
+        self::assertSame(['view' => 'tree', 'header' => 'tenant', 'actions' => ['settings', 'status_page', 'new_monitor'], 'new_monitor' => 'header'], $webUi['dashboard']);
         self::assertSame(20, $webUi['per_page']);
     }
 

@@ -48,6 +48,7 @@ nowo_uptime_monitor:
             view: tree         # tree (live monitor tree) | table (monitors table + paginated latest checks)
             header: tenant     # tenant (name, slug as intro) | monitors ("Monitors": the host shows the tenant)
             actions: [settings, status_page, new_monitor]   # header actions, in this order, each one by access
+            new_monitor: header   # since 1.22: header | hidden (never in the header; the host places its own opener)
         settings:              # since 1.13
             sections: [general, appearance, notifications, reverse_proxy, tags, history, backup, about]   # the others: 404
             sections_resolver: null   # since 1.21: service id of a Ui\SettingsSectionsResolverInterface (narrows per tenant)
@@ -131,6 +132,27 @@ A host that shows the bundle pages inside its own navigation (tabs, its own sett
   instance settings;
 - listeners of `Event\UptimePageEvent` (header actions, sections before / after the dashboard or a monitor page) and
   `Event\StatusPageMonitorsEvent` (the monitors of a public status page) instead of template overrides.
+
+### New monitor outside the header (1.22)
+
+`web_ui.dashboard.new_monitor: hidden` keeps New monitor out of the dashboard header, also when it is disabled at the
+monitor limit (default `header`: today's button). The empty-state button stays. The host places its own opener:
+
+- any element with `data-uptime-open="new-monitor"` (a page actions menu item, a button) opens the monitor form
+  dialog on the dashboard (`uptime-dashboard.js`): the dialog carries the New monitor URL and title
+  (`data-uptime-new-monitor-url` / `-title`) only while the user may add a monitor; otherwise the opener does nothing
+  (a link is followed). A disabled opener (`disabled` / `aria-disabled="true"`) is ignored;
+- the dashboard template variable `uptime_new_monitor` (`Nowo\UptimeMonitorBundle\Ui\NewMonitorState`, also visible
+  to the host layout's blocks; `null` when the user may not manage the tenant's monitors): `url`, `label`,
+  `disabled()` and `reason` — UiKit labels, so `{{ uptime_new_monitor.reason|nowo_ui_trans }}` prints "You can add up
+  to N monitors" for a disabled item or notice.
+
+```twig
+{% set _new = uptime_new_monitor ?? null %}
+{% if _new %}
+    <button type="button" data-uptime-open="new-monitor"{% if _new.disabled() %} aria-disabled="true" title="{{ _new.reason|nowo_ui_trans }}"{% endif %}>{{ _new.label|nowo_ui_trans }}</button>
+{% endif %}
+```
 
 ### Host hooks (1.21)
 

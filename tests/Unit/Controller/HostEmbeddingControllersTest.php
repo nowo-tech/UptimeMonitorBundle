@@ -35,6 +35,7 @@ use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
+use Nowo\UptimeMonitorBundle\Ui\NewMonitorState;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -422,6 +423,21 @@ final class HostEmbeddingControllersTest extends TestCase
         self::assertSame('dashboard.table.title', $page->header->title->key);
         self::assertNull($page->header->intro);
         self::assertSame(['uptime-monitor-new', 'host-share'], array_map(static fn (Action $action): string => (string) $action->attributes['data-testid'], $page->header->actions));
+        self::assertInstanceOf(NewMonitorState::class, $this->renderedContext['uptime_new_monitor']);
+        self::assertFalse($this->renderedContext['uptime_new_monitor']->disabled());
+    }
+
+    public function testHiddenNewMonitorLeavesTheHeaderWithAndWithoutTheActionsService(): void
+    {
+        $checks = $this->createStub(CheckResultRepository::class);
+        $checks->method('findLatestByMonitorIds')->willReturn([]);
+        $controller = $this->dashboardController([], $checks, null, ['dashboard' => ['new_monitor' => 'hidden']]);
+        $this->bindController($controller);
+
+        $controller->index('main', new Request());
+
+        self::assertSame(['uptime-dashboard-settings', 'uptime-dashboard-status-page', 'host-share'], array_map(static fn (Action $action): string => (string) $action->attributes['data-testid'], $this->renderedContext['page']->header->actions));
+        self::assertNull($this->renderedContext['uptime_new_monitor']);
     }
 
     public function testTreeDashboardWithoutActionsServiceKeepsTheThreeActions(): void
