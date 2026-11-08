@@ -286,7 +286,7 @@ make release-check
 | Grade | **Pass (good)** |
 | Risk | Low |
 | Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH (+ 1.12.x delta) |
-| 1.23.0 `denied_tenant_status` (UM-7) | Appendix IQ (2026-11-08, PR #151 at `2e0e814`): **Pass / Low**. IQ-L1 (API 404 shape, unknown-slug contract), IQ-L2 (UPGRADING precondition), IQ-I3 (anonymous users) and IQ-I4 (text) addressed on the same PR: re-verification pending |
+| 1.23.0 `denied_tenant_status` (UM-7) | Appendix IQ (2026-11-08, PR #151 at `2e0e814`): **Pass / Low**. IQ-L1 (API 404 shape, unknown-slug contract), IQ-L2 (UPGRADING precondition), IQ-I3 (anonymous users) and IQ-I4 (text) addressed on the same PR (`abc0ad9`); Delta IQ: **Pass** (IQ-I7, IQ-I8 Info) |
 | 1.21.0 host hooks | Appendix GU (2026-11-06, PR #149): audited at `04cce18` as Pass (conditional) / Medium; fixes re-verified at `80747e4`: **Pass (good) / Low**, no open Critical, High or Medium. Open residual (Low): the tenant row lock does not serialise a host limit spanning several tenants |
 | Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked (also in stored check messages); `limits.max_monitors` defaults to 0 (no quota; the scan stays bounded by `max_scan_seconds`); a host `security.access_checker` or `TenantLimitsInterface` is trusted as written; `StatusPageMonitorsEvent` listeners can still hide monitors (only narrowing is enforced) |
 

@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.23.0](#to-1230)
 - [To 1.22.0](#to-1220)
 - [To 1.21.0](#to-1210)
 - [To 1.20.1](#to-1201)
@@ -118,6 +119,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.23.0
+
+From **1.22.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 Nothing to do: `security.denied_tenant_status` defaults to `403`, today's answer. A host whose tenant-aware checker
 keeps users out of some tenants (personal tenants, monitors shared with outsiders) and that turned the bundle's 403
