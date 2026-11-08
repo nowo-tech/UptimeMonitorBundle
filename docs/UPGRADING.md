@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.22.0](#to-1220)
 - [To 1.21.0](#to-1210)
 - [To 1.20.1](#to-1201)
 - [To 1.20.0](#to-1200)
@@ -117,6 +118,8 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.22.0
 
 Nothing to do: `web_ui.dashboard.new_monitor` defaults to `header` (today's button). A host that hid the header's New
 monitor with CSS and clicked it from its own menu can set `new_monitor: hidden`, give its menu item

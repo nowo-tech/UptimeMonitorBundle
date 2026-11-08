@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.22.0] - 2026-11-08](#1220---2026-11-08)
 - [[1.21.0] - 2026-11-06](#1210---2026-11-06)
 - [[1.20.1] - 2026-11-06](#1201---2026-11-06)
 - [[1.20.0] - 2026-11-05](#1200---2026-11-05)
@@ -74,6 +75,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.22.0] - 2026-11-08
+
+`web_ui.dashboard.new_monitor: header|hidden`, a public `data-uptime-open="new-monitor"` opener and `uptime_new_monitor` for hosts (Beacon UM-6). Audit: Appendix IN, Pass.
 
 ### Added
 
@@ -1361,7 +1366,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.21.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.22.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
