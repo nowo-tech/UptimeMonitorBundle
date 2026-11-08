@@ -24,6 +24,7 @@ use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -363,7 +364,6 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
             [[DashboardController::class, 'index'], 'GET'],
             [[SummaryController::class, 'index'], 'GET'],
             [[SettingsController::class, 'index'], 'GET'],
-            [[StatusApiController::class, 'summary'], 'GET'],
             [[MonitorController::class, 'show'], 'GET'],
             [[MonitorController::class, 'edit'], 'POST'],
             [[DashboardController::class, 'index'], 'POST'],
@@ -371,11 +371,28 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
             try {
                 $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor($class), $method], $httpMethod, 'user-1'));
                 self::fail($class . '::' . $method . ' must be refused');
-            } catch (NotFoundHttpException) {
+            } catch (NotFoundHttpException $e) {
+                self::assertSame('Tenant "user-1" not found.', $e->getMessage(), 'the message of a missing tenant');
                 ++$notFound;
             }
         }
-        self::assertSame(7, $notFound);
+        self::assertSame(6, $notFound);
+    }
+
+    public function testDeniedTenantStatus404AnswersTheApisMissingTenantBody(): void
+    {
+        $checker = $this->createStub(TenantAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessTenant')->willReturn(false);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false, null, true, null, 404);
+
+        foreach ([[StatusApiController::class, 'summary'], [HistoryApiController::class, 'monitorHistory'], [AggregatesApiController::class, 'tenantOverview']] as [$class, $method]) {
+            $event = $this->controllerEvent([$this->instanceWithoutConstructor($class), $method], tenant: 'user-1');
+            $subscriber->onKernelController($event);
+            $response = ($event->getController())();
+            self::assertInstanceOf(JsonResponse::class, $response, $class);
+            self::assertSame(404, $response->getStatusCode());
+            self::assertSame('{"error":"Tenant not found"}', $response->getContent());
+        }
     }
 
     public function testDeniedTenantStatus404KeepsForbiddenForAMemberRefusedOneAction(): void

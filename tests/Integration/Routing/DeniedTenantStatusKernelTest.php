@@ -14,6 +14,10 @@ use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+use function sprintf;
+use function str_contains;
 
 /**
  * UM-7: `security.denied_tenant_status` through a real kernel, with a monitor-aware checker that closes `user-*`
@@ -66,11 +70,16 @@ final class DeniedTenantStatusKernelTest extends TestCase
 
     private function statusOf(string $uri, string $method = 'GET'): int
     {
+        return $this->response($uri, $method)->getStatusCode();
+    }
+
+    private function response(string $uri, string $method = 'GET'): Response
+    {
         self::assertInstanceOf(HostRoutingKernel::class, $this->kernel);
         $request = Request::create($uri, $method);
         $request->headers->set('Accept', str_contains($uri, '/api/') ? 'application/json' : 'text/html');
 
-        return $this->kernel->handle($request)->getStatusCode();
+        return $this->kernel->handle($request);
     }
 
     public function testATenantTheUserMayNotAccessIsNotFoundOnPagesAndApis(): void
@@ -92,6 +101,25 @@ final class DeniedTenantStatusKernelTest extends TestCase
             self::assertSame(404, $this->statusOf($uri), $uri);
         }
         self::assertSame(404, $this->statusOf('/uptime/user-a/monitors/' . $shared . '/toggle-pause', 'POST'));
+    }
+
+    public function testARefusedTenantAndAMissingOneAnswerTheSameOnTheApis(): void
+    {
+        $this->boot(404);
+
+        // `user-a` exists but is refused; `nope` is granted by the checker but has no tenant row (controller's 404).
+        foreach (['/api/uptime/%s/summary', '/api/uptime/%s/aggregates/overview'] as $pattern) {
+            $refused = $this->response(sprintf($pattern, 'user-a'));
+            $missing = $this->response(sprintf($pattern, 'nope'));
+
+            self::assertSame(404, $refused->getStatusCode(), $pattern);
+            self::assertSame($missing->getStatusCode(), $refused->getStatusCode(), $pattern);
+            self::assertSame('{"error":"Tenant not found"}', $refused->getContent(), $pattern);
+            self::assertSame($missing->getContent(), $refused->getContent(), $pattern);
+            $refused->headers->remove('Date');
+            $missing->headers->remove('Date');
+            self::assertSame($missing->headers->all(), $refused->headers->all(), $pattern);
+        }
     }
 
     public function testTheSharedMonitorStaysReadable(): void

@@ -20,6 +20,8 @@ use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInter
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use stdClass;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -31,6 +33,7 @@ use function is_array;
 use function is_numeric;
 use function is_object;
 use function is_string;
+use function sprintf;
 
 /**
  * Enforces UptimeMonitorAccessCheckerInterface on admin/manage controllers (REQ-UI-002).
@@ -159,8 +162,15 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
 
         if (!$allowed) {
             if ($scoped && $this->deniedTenantStatus === 404 && !$checker->canAccessTenant($user, $tenant)) {
-                // UM-7: someone kept out of the tenant learns nothing about it, on HTML, JSON and API routes alike.
-                throw new NotFoundHttpException('Not found.');
+                // UM-7: someone kept out of the tenant learns nothing about it. The answer is the one the controller
+                // gives for a missing tenant: the APIs' JSON body, the pages' not-found exception.
+                if ($this->isApiController($controllerObject)) {
+                    $event->setController(static fn (): JsonResponse => new JsonResponse(['error' => 'Tenant not found'], Response::HTTP_NOT_FOUND));
+
+                    return;
+                }
+
+                throw new NotFoundHttpException(sprintf('Tenant "%s" not found.', $tenant));
             }
 
             throw new AccessDeniedException('Access to Uptime Monitor admin is denied.');
@@ -198,6 +208,13 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
             || $controller instanceof SummaryController
             || $controller instanceof TenantController
             || $controller instanceof StatusApiController
+            || $controller instanceof HistoryApiController
+            || $controller instanceof AggregatesApiController;
+    }
+
+    private function isApiController(object $controller): bool
+    {
+        return $controller instanceof StatusApiController
             || $controller instanceof HistoryApiController
             || $controller instanceof AggregatesApiController;
     }

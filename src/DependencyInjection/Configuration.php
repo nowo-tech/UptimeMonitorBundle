@@ -274,7 +274,7 @@ final class Configuration implements ConfigurationInterface
                         ->enumNode('denied_tenant_status')
                             ->values([403, 404])
                             ->defaultValue(403)
-                            ->info('Since 1.23 (UM-7): status of a refusal on a {tenantSlug} route when a tenant-aware checker says the user may not access that tenant (canAccessTenant false). 404 hides the tenant\'s existence on HTML, JSON and API routes; 403 (default) keeps the previous answer. Members refused one action keep 403.')
+                            ->info('Since 1.23 (UM-7): status of a refusal on a {tenantSlug} route when a tenant-aware checker says the user may not access that tenant (canAccessTenant false). 404 answers what a missing tenant answers (HTML pages, JSON APIs) and needs canAccessTenant() false for unknown slugs too; 403 (default) keeps the previous answer. Members refused one action keep 403.')
                         ->end()
                         ->arrayNode('roles')
                             ->addDefaultsIfNotSet()

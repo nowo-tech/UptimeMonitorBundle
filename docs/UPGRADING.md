@@ -129,10 +129,22 @@ nowo_uptime_monitor:
         denied_tenant_status: 404
 ```
 
-and delete that listener. The 404 covers every `{tenantSlug}` route (HTML pages and JSON APIs) whenever
-`canAccessTenant()` is false; shared monitor reads keep going through `canViewMonitor()`. A tenant member refused one
-action still gets 403. Note it applies to every tenant the checker refuses, not only personal ones
-([CONFIGURATION](CONFIGURATION.md#security-req-ui-002)).
+The 404 covers every `{tenantSlug}` route (HTML pages and JSON APIs) whenever `canAccessTenant()` is false, with the
+answer of a missing tenant (`{"error":"Tenant not found"}` on the APIs). Shared monitor reads keep going through
+`canViewMonitor()`. A tenant member refused one action still gets 403. It applies to every tenant the checker refuses,
+not only personal ones ([CONFIGURATION](CONFIGURATION.md#security-req-ui-002)).
+
+**The setting changes the status code, not who gets in.** Delete your listener only when both hold:
+
+1. your checker implements `MonitorAwareUptimeMonitorAccessCheckerInterface`, and its `canViewMonitor()` grants the
+   monitors shared with a user;
+2. its `canAccessTenant()` returns **false** for users who may only read shared monitors, and for slugs with no tenant
+   (otherwise a missing tenant passes the check and answers differently from a refused one).
+
+If the listener also narrowed access (only the shared monitor's routes, a monitor id check) and `canAccessTenant()` is
+true for shared-only users, deleting it opens the whole tenant to them. Anonymous users: a refusal that used to send
+them to the firewall's login (403 → entry point) is now a 404, unless `access_control` requires login on these paths
+first.
 
 ## To 1.22.0
 
