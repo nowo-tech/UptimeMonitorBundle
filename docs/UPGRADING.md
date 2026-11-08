@@ -119,6 +119,21 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Nothing to do: `security.denied_tenant_status` defaults to `403`, today's answer. A host whose tenant-aware checker
+keeps users out of some tenants (personal tenants, monitors shared with outsiders) and that turned the bundle's 403
+into a 404 with its own `kernel.controller` listener can set:
+
+```yaml
+nowo_uptime_monitor:
+    security:
+        denied_tenant_status: 404
+```
+
+and delete that listener. The 404 covers every `{tenantSlug}` route (HTML pages and JSON APIs) whenever
+`canAccessTenant()` is false; shared monitor reads keep going through `canViewMonitor()`. A tenant member refused one
+action still gets 403. Note it applies to every tenant the checker refuses, not only personal ones
+([CONFIGURATION](CONFIGURATION.md#security-req-ui-002)).
+
 ## To 1.22.0
 
 Nothing to do: `web_ui.dashboard.new_monitor` defaults to `header` (today's button). A host that hid the header's New

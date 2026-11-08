@@ -125,6 +125,7 @@ services:
             $allowUnauthenticated: '%nowo_uptime_monitor.security.allow_unauthenticated%'
             $tokenStorage: '@?security.token_storage'
             $webUiEnabled: '%nowo_uptime_monitor.web_ui.enabled%'
+            $deniedTenantStatus: '%nowo_uptime_monitor.security.denied_tenant_status%'
 
     Nowo\UptimeMonitorBundle\Security\MonitorReadScope:
         arguments:

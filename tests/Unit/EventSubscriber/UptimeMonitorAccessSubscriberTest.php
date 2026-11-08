@@ -11,6 +11,7 @@ use Nowo\UptimeMonitorBundle\Controller\DashboardController;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
 use Nowo\UptimeMonitorBundle\Controller\StatusPageController;
+use Nowo\UptimeMonitorBundle\Controller\SummaryController;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -339,6 +340,78 @@ final class UptimeMonitorAccessSubscriberTest extends TestCase
 
         $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(DashboardController::class), 'index'], 'user-1', null));
         $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(MonitorController::class), 'edit'], 'user-1', '7'));
+    }
+
+    public function testByDefaultATenantTheUserMayNotAccessIsForbidden(): void
+    {
+        $checker = $this->createMock(TenantAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::once())->method('canAccessTenant')->with(self::anything(), 'user-1')->willReturn(false);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false);
+
+        $this->expectException(AccessDeniedException::class);
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(DashboardController::class), 'index'], tenant: 'user-1'));
+    }
+
+    public function testDeniedTenantStatus404HidesATenantTheUserMayNotAccess(): void
+    {
+        $checker = $this->createStub(TenantAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessTenant')->willReturn(false);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false, null, true, null, 404);
+        $notFound   = 0;
+
+        foreach ([
+            [[DashboardController::class, 'index'], 'GET'],
+            [[SummaryController::class, 'index'], 'GET'],
+            [[SettingsController::class, 'index'], 'GET'],
+            [[StatusApiController::class, 'summary'], 'GET'],
+            [[MonitorController::class, 'show'], 'GET'],
+            [[MonitorController::class, 'edit'], 'POST'],
+            [[DashboardController::class, 'index'], 'POST'],
+        ] as [[$class, $method], $httpMethod]) {
+            try {
+                $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor($class), $method], $httpMethod, 'user-1'));
+                self::fail($class . '::' . $method . ' must be refused');
+            } catch (NotFoundHttpException) {
+                ++$notFound;
+            }
+        }
+        self::assertSame(7, $notFound);
+    }
+
+    public function testDeniedTenantStatus404KeepsForbiddenForAMemberRefusedOneAction(): void
+    {
+        $checker = $this->createStub(TenantAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessTenant')->willReturn(true);
+        $checker->method('canManageTenantMonitors')->willReturn(false);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false, null, true, null, 404);
+
+        $this->expectException(AccessDeniedException::class);
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(MonitorController::class), 'edit'], 'POST', 'acme'));
+    }
+
+    public function testDeniedTenantStatus404LeavesTheGlobalChecksForbidden(): void
+    {
+        $checker = $this->createStub(UptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessDashboard')->willReturn(false);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false, null, true, null, 404);
+
+        $this->expectException(AccessDeniedException::class);
+        $subscriber->onKernelController($this->controllerEvent([$this->instanceWithoutConstructor(DashboardController::class), 'index'], tenant: 'user-1'));
+    }
+
+    public function testDeniedTenantStatus404KeepsTheSharedMonitorReadable(): void
+    {
+        $monitor = new Monitor(new Tenant('user-1', 'Ana'), 'API', MonitorType::Https, 'https://x.test');
+        $checker = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessTenant')->willReturn(false);
+        $checker->method('canViewMonitor')->willReturn(true);
+        $subscriber = new UptimeMonitorAccessSubscriber($checker, false, null, true, $this->monitors($monitor), 404);
+
+        $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(MonitorController::class), 'show'], 'user-1', '7'));
+        $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(HistoryApiController::class), 'monitorHistory'], 'user-1', '7'));
+
+        $this->expectException(NotFoundHttpException::class);
+        $subscriber->onKernelController($this->monitorEvent([$this->instanceWithoutConstructor(MonitorController::class), 'togglePause'], 'user-1', '7'));
     }
 
     private function monitors(Monitor $monitor): MonitorRepository

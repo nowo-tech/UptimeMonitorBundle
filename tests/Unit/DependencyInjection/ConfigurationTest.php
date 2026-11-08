@@ -168,6 +168,15 @@ final class ConfigurationTest extends TestCase
         (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['monitor_show' => ['charts' => 'mine']]]]);
     }
 
+    public function testDeniedTenantStatusDefaultsTo403AndAccepts404Only(): void
+    {
+        self::assertSame(403, (new Processor())->processConfiguration(new Configuration(), [])['security']['denied_tenant_status']);
+        self::assertSame(404, (new Processor())->processConfiguration(new Configuration(), [['security' => ['denied_tenant_status' => 404]]])['security']['denied_tenant_status']);
+
+        $this->expectException(InvalidConfigurationException::class);
+        (new Processor())->processConfiguration(new Configuration(), [['security' => ['denied_tenant_status' => 401]]]);
+    }
+
     public function testWebUiAcceptsPageOverridesAndRoles(): void
     {
         $config = (new Processor())->processConfiguration(new Configuration(), [[

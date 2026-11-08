@@ -46,6 +46,8 @@ Captured from the Symfony 8 demo (seeded monitors + 24 h of history) by Playwrig
 - ✅ Mercure real-time dashboard sync (`dashboard.sync: mercure`)
 - ✅ Monitors as code: `nowo:uptime:apply-monitors` applies push monitors from a JSON file (schema shipped), with push
   tokens from a 0600 file or stdin only — see [docs/PUSH-MONITORS.md](docs/PUSH-MONITORS.md#monitors-as-code)
+- ✅ Multi-tenant access checkers: per-tenant and per-monitor decisions, and `security.denied_tenant_status: 404` to
+  hide tenants a user may not access — see [docs/CONFIGURATION.md](docs/CONFIGURATION.md#security-req-ui-002)
 
 ## Quick start
 

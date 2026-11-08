@@ -57,7 +57,12 @@ This bundle provides:
     several tenants can be raced.
   - **Over-exposure to a shared read-only user**: under a monitor-aware checker a user without `canAccessTenant()` gets
     only the group children `canViewMonitor()` allows, no parent group name and no push ingest URL; every mutation is 403
-    and unshared monitors 404. Residuals: a group's own roll-up counts all its children; the dashboard is not filtered
+    and unshared monitors 404.
+  - **Tenant existence (1.23, UM-7)**: by default a user the checker keeps out of a tenant gets 403 on its tenant-wide
+    routes and mutations, which tells a valid slug (403) from a missing one. `security.denied_tenant_status: 404` answers
+    404 there whenever `canAccessTenant()` is false, on HTML pages, the JSON APIs and POST actions alike; the monitor
+    reads keep `canViewMonitor()` (shared monitors stay readable). A member refused one action keeps 403. Residuals: the
+    status page (`/status/{slug}`) has its own rules; response timing is not masked. Residuals: a group's own roll-up counts all its children; the dashboard is not filtered
     per monitor, so the host must return `canAccessTenant()` false for those users; slot templates receive the raw
     `monitor` entity, so they must print `monitor_safe` and nothing else of it to such users.
   - **Tenant creation by URL**: the provisioner runs after the access check, on safe requests only (never with a POST,
@@ -276,6 +281,7 @@ make release-check
 | Grade | **Pass (good)** |
 | Risk | Low |
 | Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH (+ 1.12.x delta) |
+| 1.23.0 `denied_tenant_status` (UM-7) | Re-verification pending |
 | 1.21.0 host hooks | Appendix GU (2026-11-06, PR #149): audited at `04cce18` as Pass (conditional) / Medium; fixes re-verified at `80747e4`: **Pass (good) / Low**, no open Critical, High or Medium. Open residual (Low): the tenant row lock does not serialise a host limit spanning several tenants |
 | Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked (also in stored check messages); `limits.max_monitors` defaults to 0 (no quota; the scan stays bounded by `max_scan_seconds`); a host `security.access_checker` or `TenantLimitsInterface` is trusted as written; `StatusPageMonitorsEvent` listeners can still hide monitors (only narrowing is enforced) |
 
