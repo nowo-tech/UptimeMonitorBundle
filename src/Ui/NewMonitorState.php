@@ -14,8 +14,8 @@ use Nowo\UiKitBundle\View\Label;
 final readonly class NewMonitorState
 {
     /**
-     * @param string     $url    Monitor form URL of the tenant
-     * @param Label      $label  Button label (`monitor.new`)
+     * @param string $url Monitor form URL of the tenant
+     * @param Label $label Button label (`monitor.new`)
      * @param Label|null $reason Why New monitor is disabled (`monitor.limits.max_monitors`); null while allowed
      */
     public function __construct(
