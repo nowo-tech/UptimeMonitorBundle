@@ -123,6 +123,7 @@ final class DashboardController extends AbstractController
             'page'                     => $this->buildPage($tenant, $tenantSlug, $pageEvent),
             'page_sections'            => ['before' => $pageEvent->getSections('before'), 'after' => $pageEvent->getSections('after')],
             'dashboard_view'           => $view,
+            'uptime_new_monitor'       => $this->actions?->newMonitorState($tenantSlug),
             'dashboard_header'         => ($this->webUi['dashboard']['header'] ?? 'tenant') === 'monitors' ? 'monitors' : 'tenant',
             'tenant'                   => $tenant,
             'tenant_slug'              => $tenantSlug,
@@ -269,18 +270,22 @@ final class DashboardController extends AbstractController
      */
     private function defaultActions(string $tenantSlug): array
     {
-        $newUrl = $this->generateUrl('nowo_uptime_monitor_new', ['tenantSlug' => $tenantSlug]);
-
-        return [
+        $newUrl  = $this->generateUrl('nowo_uptime_monitor_new', ['tenantSlug' => $tenantSlug]);
+        $actions = [
             new Action('custom', UptimePages::label('dashboard.settings'), $this->generateUrl('nowo_uptime_settings_index', ['tenantSlug' => $tenantSlug]), icon: 'config', attributes: ['data-testid' => 'uptime-dashboard-settings']),
             new Action('view', UptimePages::label('dashboard.status_page'), $this->generateUrl('nowo_uptime_status_page', ['tenantSlug' => $tenantSlug]), attributes: ['data-testid' => 'uptime-dashboard-status-page']),
-            new Action('create', UptimePages::label('monitor.new'), $newUrl, variant: 'primary', attributes: [
-                'data-monitor-form-open'   => true,
-                'data-monitor-form-url'    => $newUrl,
-                'data-monitor-form-return' => 'dashboard',
-                'data-testid'              => 'uptime-monitor-new',
-            ]),
         ];
+        if (($this->webUi['dashboard']['new_monitor'] ?? 'header') === 'hidden') {
+            return $actions;
+        }
+        $actions[] = new Action('create', UptimePages::label('monitor.new'), $newUrl, variant: 'primary', attributes: [
+            'data-monitor-form-open'   => true,
+            'data-monitor-form-url'    => $newUrl,
+            'data-monitor-form-return' => 'dashboard',
+            'data-testid'              => 'uptime-monitor-new',
+        ]);
+
+        return $actions;
     }
 
     private function resolveEventsFilterMonitor(string $tenantSlug, Request $request): ?Monitor

@@ -75,6 +75,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **New monitor placement (UM-6):** `web_ui.dashboard.new_monitor: header|hidden` (default `header`, today's
+  output). `hidden` keeps New monitor out of the dashboard header, also when disabled at the monitor limit. A public
+  opener `data-uptime-open="new-monitor"` opens the monitor form dialog on the dashboard (the dialog carries
+  `data-uptime-new-monitor-url` / `-title` while the user may add a monitor), and the dashboard template variable
+  `uptime_new_monitor` (`Ui\NewMonitorState`: `url`, `label`, `disabled()`, `reason`) gives the host the disabled
+  reason. `UptimeActions::newMonitorState()` and `newMonitorPlacement()`. See
+  [CONFIGURATION](CONFIGURATION.md#new-monitor-outside-the-header-122).
+
 ## [1.21.0] - 2026-11-06
 
 Host hooks so an embedding app can drop its listeners and its monitor page override (1.21.0, minor). Every option is

@@ -126,6 +126,47 @@ describe('monitor form dialog', () => {
     expect(dialog.close).toHaveBeenCalled();
   });
 
+  it('opens New monitor from a host opener [data-uptime-open="new-monitor"] with the URL on the dialog (1.22)', async () => {
+    const dialog = mountDialog();
+    dialog.dataset.uptimeNewMonitorUrl = '/main/monitors/new';
+    dialog.dataset.uptimeNewMonitorTitle = 'Add a monitor';
+    dialog.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(FORM_HTML, { status: 200, headers: { 'Content-Type': 'text/html' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    document.body.insertAdjacentHTML('afterbegin', '<button type="button" data-uptime-open="new-monitor"><span>Menu item</span></button><button type="button" data-uptime-open="new-monitor" aria-disabled="true">Off</button>');
+
+    initMonitorFormModal(document);
+    document.querySelector<HTMLElement>('[aria-disabled="true"]')?.click();
+    await flush();
+    expect(dialog.showModal).not.toHaveBeenCalled();
+
+    document.querySelector<HTMLElement>('[data-uptime-open] span')?.click();
+    await flush();
+    expect(dialog.showModal).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith('/main/monitors/new', expect.objectContaining({ headers: expect.objectContaining({ 'X-Uptime-Return': 'dashboard' }) }));
+    expect(document.querySelector('[data-monitor-form-title]')?.textContent).toBe('Add a monitor');
+  });
+
+  it('follows a host opener link when the dialog carries no New monitor URL (no permission, monitor limit)', async () => {
+    const dialog = mountDialog();
+    dialog.showModal = vi.fn();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    document.body.insertAdjacentHTML('afterbegin', '<a href="#limit" data-uptime-open="new-monitor">New</a><span data-other>x</span>');
+
+    initMonitorFormModal(document);
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    document.querySelector<HTMLElement>('[data-uptime-open]')?.dispatchEvent(click);
+    document.querySelector<HTMLElement>('[data-other]')?.click();
+    await flush();
+
+    expect(click.defaultPrevented).toBe(false);
+    expect(dialog.showModal).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('does nothing without the dialog', () => {
     freshBody();
     document.body.innerHTML = '<a href="/x" data-monitor-form-open data-monitor-form-url="/x">x</a>';

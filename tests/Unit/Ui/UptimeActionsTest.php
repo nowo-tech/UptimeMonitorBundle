@@ -14,6 +14,7 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
+use Nowo\UptimeMonitorBundle\Ui\NewMonitorState;
 use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Nowo\UptimeMonitorBundle\Ui\SettingsSectionsResolverInterface;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
@@ -183,6 +184,31 @@ final class UptimeActionsTest extends TestCase
         self::assertArrayNotHasKey('data-monitor-form-open', $full->attributes);
 
         self::assertNull($this->actions($this->tenantChecker(false, false))->newMonitor('main'));
+    }
+
+    public function testNewMonitorPlacementHiddenLeavesTheHeaderAndKeepsTheState(): void
+    {
+        self::assertSame('header', $this->actions($this->tenantChecker(true, true))->newMonitorPlacement());
+        self::assertSame('header', $this->actions($this->tenantChecker(true, true), webUi: ['dashboard' => 'x'])->newMonitorPlacement());
+
+        $hidden = $this->actions($this->tenantChecker(true, true), maxMonitors: 2, monitorCount: 2, webUi: ['dashboard' => ['new_monitor' => 'hidden']]);
+        self::assertSame('hidden', $hidden->newMonitorPlacement());
+        self::assertSame(['uptime-dashboard-settings', 'uptime-dashboard-status-page'], $this->testIds($hidden->dashboardHeader('main')), 'hidden even when disabled');
+
+        $full = $hidden->newMonitorState('main');
+        self::assertInstanceOf(NewMonitorState::class, $full);
+        self::assertTrue($full->disabled());
+        self::assertSame('/nowo_uptime_monitor_new', $full->url);
+        self::assertSame('monitor.new', $full->label->key);
+        self::assertSame('monitor.limits.max_monitors', $full->reason?->key);
+        self::assertSame(['%count%' => 2], $full->reason->params);
+
+        $open = $this->actions($this->tenantChecker(true, false), maxMonitors: 2, monitorCount: 1)->newMonitorState('main');
+        self::assertInstanceOf(NewMonitorState::class, $open);
+        self::assertFalse($open->disabled());
+        self::assertNull($open->reason);
+
+        self::assertNull($this->actions($this->tenantChecker(false, false))->newMonitorState('main'));
     }
 
     public function testMonitorActionsForManagers(): void

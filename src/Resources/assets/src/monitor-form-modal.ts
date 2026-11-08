@@ -147,6 +147,22 @@ function readFormOpenConfig(trigger: HTMLElement): FormOpenConfig | null {
   return { url, returnTarget, title };
 }
 
+/**
+ * Config of a host opener [data-uptime-open="new-monitor"] (1.22, UM-6): the New monitor URL and title the dialog
+ * carries while New monitor is allowed; null without them (no permission, monitor limit) or for a disabled opener.
+ */
+function readNewMonitorConfig(trigger: HTMLElement, modalEl: HTMLElement): FormOpenConfig | null {
+  if (trigger.matches(':disabled, [aria-disabled="true"]')) {
+    return null;
+  }
+  const url = modalEl.dataset.uptimeNewMonitorUrl ?? '';
+  if (url === '') {
+    return null;
+  }
+
+  return { url, returnTarget: 'dashboard', title: modalEl.dataset.uptimeNewMonitorTitle ?? '' };
+}
+
 function syncDashboardEditButton(dashboardRoot: HTMLElement): void {
   const button = dashboardRoot.querySelector<HTMLElement>('[data-events-edit-monitor]');
   if (button === null) {
@@ -411,16 +427,12 @@ async function submitModalForm(
 }
 
 async function openFormModal(
-  trigger: HTMLElement,
+  config: FormOpenConfig,
   dialog: HTMLDialogElement,
   bodyEl: HTMLElement,
   titleEl: HTMLElement | null,
   loadingText: string,
 ): Promise<void> {
-  const config = readFormOpenConfig(trigger);
-  if (config === null) {
-    return;
-  }
 
   if (titleEl !== null && config.title !== '') {
     titleEl.textContent = config.title;
@@ -439,6 +451,7 @@ export const initMonitorEditModal = initMonitorFormModal;
 /**
  * Opens the monitor form in the native <dialog> ([data-uptime-monitor-form-modal]) for every
  * [data-monitor-form-open] opener; openers are links to the form page, followed as-is without the dialog.
+ * 1.22: also for every [data-uptime-open="new-monitor"] (the New monitor form, URL from the dialog).
  */
 export function initMonitorFormModal(doc: Document = document): void {
   const modalEl = doc.querySelector<HTMLElement>('[data-uptime-monitor-form-modal]');
@@ -466,12 +479,25 @@ export function initMonitorFormModal(doc: Document = document): void {
 
   doc.body.addEventListener('click', (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-monitor-form-open]');
-    if (target === null) {
+    if (target !== null) {
+      event.preventDefault();
+      const config = readFormOpenConfig(target);
+      if (config !== null) {
+        void openFormModal(config, dialog, bodyEl, titleEl, loadingText);
+      }
+
       return;
     }
 
+    // 1.22 (UM-6): a host opener of New monitor (page actions menu, own button); a link without a URL on the dialog
+    // (no permission, monitor limit) is followed as-is.
+    const opener = (event.target as HTMLElement).closest<HTMLElement>('[data-uptime-open="new-monitor"]');
+    const config = opener !== null ? readNewMonitorConfig(opener, modalEl) : null;
+    if (config === null) {
+      return;
+    }
     event.preventDefault();
-    void openFormModal(target, dialog, bodyEl, titleEl, loadingText);
+    void openFormModal(config, dialog, bodyEl, titleEl, loadingText);
   });
 
   const dashboardRoot = doc.getElementById('uptime-dashboard-root');

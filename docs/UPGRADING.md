@@ -118,6 +118,12 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Nothing to do: `web_ui.dashboard.new_monitor` defaults to `header` (today's button). A host that hid the header's New
+monitor with CSS and clicked it from its own menu can set `new_monitor: hidden`, give its menu item
+`data-uptime-open="new-monitor"` and read `uptime_new_monitor` for the disabled reason
+([CONFIGURATION](CONFIGURATION.md#new-monitor-outside-the-header-122)). The monitor form chunk under
+`public/assets/` has a new hash: run `assets:install` as usual.
+
 ## To 1.21.0
 
 To **1.21.0** from **1.20.1**: `composer update nowo-tech/uptime-monitor-bundle`. No configuration change is required;

@@ -13,6 +13,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
+use Nowo\UptimeMonitorBundle\Ui\NewMonitorState;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -186,6 +187,18 @@ final class PageContractTest extends PageContractTestCase
         self::assertSame(1, preg_match('#<dialog id="uptime-monitor-form-modal".*?</dialog>#s', $html, $dialog));
         self::assertStringNotContainsString('nowo-ui-btn--primary', $dialog[0]);
         self::assertStringNotContainsString('data-bs-', $html);
+    }
+
+    public function testTheDialogCarriesNewMonitorForHostOpenersWhileItIsAllowed(): void
+    {
+        $plain = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboard()))->html;
+        self::assertStringNotContainsString('data-uptime-new-monitor-url', $plain, 'no state, no URL (1.21 markup)');
+
+        $open = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', ['uptime_new_monitor' => new NewMonitorState('/main/monitors/new?a=1&b="2"', UptimePages::label('monitor.new'))] + PageFixtures::dashboard()))->html;
+        self::assertMatchesRegularExpression('#<dialog id="uptime-monitor-form-modal"[^>]*data-uptime-new-monitor-url="/main/monitors/new\?a=1&amp;b=&quot;2&quot;"[^>]*data-uptime-new-monitor-title="New monitor"#', $open);
+
+        $full = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', ['uptime_new_monitor' => new NewMonitorState('/main/monitors/new', UptimePages::label('monitor.new'), UptimePages::label('monitor.limits.max_monitors', ['%count%' => 2]))] + PageFixtures::dashboard()))->html;
+        self::assertStringNotContainsString('data-uptime-new-monitor-url', $full, 'at the limit the host opener does nothing');
     }
 
     public function testDashboardFollowsTheTenantTheme(): void
