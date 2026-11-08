@@ -204,6 +204,10 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             Configuration::ALIAS . '.security.allow_unauthenticated',
             $config['security']['allow_unauthenticated'],
         );
+        $container->setParameter(
+            Configuration::ALIAS . '.security.denied_tenant_status',
+            $config['security']['denied_tenant_status'],
+        );
 
         $this->registerAccessChecker($container, $config['security'], (bool) $config['web_ui']['enabled']);
         $this->registerTenantLimits($container, $config['limits']);

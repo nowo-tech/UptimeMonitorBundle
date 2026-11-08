@@ -76,6 +76,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **404 for a refused tenant (UM-7):** `security.denied_tenant_status: 403|404` (default `403`, today's answer). With
+  `404` and a tenant-aware access checker, a refusal on any `{tenantSlug}` route (admin pages, summary, settings, the
+  status / history / aggregates APIs, every mutation) answers 404 when `canAccessTenant()` is false for that user and
+  tenant, so a stranger or a user who may only read shared monitors learns nothing about the tenant (Beacon spec 174
+  FR-005). A tenant member refused one action (edit, settings) keeps 403. Monitor reads under a monitor-aware checker
+  are unchanged: a shared monitor stays readable, any other answers 404 as since 1.21. Without a tenant-aware checker
+  or without a tenant in the URL nothing changes. The 404 is the answer of a missing tenant: `{"error":"Tenant not found"}`
+  (`application/json`) on the APIs, `Tenant "<slug>" not found.` on the pages, so a refused tenant and a missing one
+  cannot be told apart, provided `canAccessTenant()` is false for unknown slugs too. The setting changes the status
+  code, not who gets in: see UPGRADING before deleting a host listener. Audit: Appendix IQ Pass-Low; IQ-L1, IQ-L2,
+  IQ-I3, IQ-I4 addressed, re-verification pending.
+
 ## [1.22.0] - 2026-11-08
 
 `web_ui.dashboard.new_monitor: header|hidden`, a public `data-uptime-open="new-monitor"` opener and `uptime_new_monitor` for hosts (Beacon UM-6). Audit: Appendix IN, Pass.

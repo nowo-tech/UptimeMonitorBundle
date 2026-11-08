@@ -60,6 +60,16 @@ This bundle provides:
     and unshared monitors 404. Residuals: a group's own roll-up counts all its children; the dashboard is not filtered
     per monitor, so the host must return `canAccessTenant()` false for those users; slot templates receive the raw
     `monitor` entity, so they must print `monitor_safe` and nothing else of it to such users.
+  - **Tenant existence (1.23, UM-7)**: by default a user the checker keeps out of a tenant gets 403 on its tenant-wide
+    routes and mutations, which tells a valid slug (403) from a missing one. `security.denied_tenant_status: 404` answers
+    there, whenever `canAccessTenant()` is false, what a missing tenant answers: `{"error":"Tenant not found"}`
+    (`application/json`) on the APIs, `Tenant "<slug>" not found.` on HTML pages and POST actions. The monitor reads keep
+    `canViewMonitor()` (shared monitors stay readable). A member refused one action keeps 403. The setting changes the
+    status code, never who gets in. Host contract: `canAccessTenant()` must be false for unknown slugs too, or a missing
+    tenant passes the check and answers differently from a refused one; it must be false for users who may only read
+    shared monitors, or they read the whole tenant. Anonymous users get 404 instead of the firewall's login redirect
+    unless `access_control` requires login first. Residuals: the status page (`/status/{slug}`) has its own rules;
+    response timing is not masked; the debug error page shows the exception message.
   - **Tenant creation by URL**: the provisioner runs after the access check, on safe requests only (never with a POST,
     whose CSRF token is checked later), and never for a slug outside `TenantFormType::SLUG_PATTERN`, the status page or
     the push endpoint. It does run on GET for read-only users: a host whose checker ignores the slug must decide there
@@ -276,6 +286,7 @@ make release-check
 | Grade | **Pass (good)** |
 | Risk | Low |
 | Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH (+ 1.12.x delta) |
+| 1.23.0 `denied_tenant_status` (UM-7) | Appendix IQ (2026-11-08, PR #151 at `2e0e814`): **Pass / Low**. IQ-L1 (API 404 shape, unknown-slug contract), IQ-L2 (UPGRADING precondition), IQ-I3 (anonymous users) and IQ-I4 (text) addressed on the same PR: re-verification pending |
 | 1.21.0 host hooks | Appendix GU (2026-11-06, PR #149): audited at `04cce18` as Pass (conditional) / Medium; fixes re-verified at `80747e4`: **Pass (good) / Low**, no open Critical, High or Medium. Open residual (Low): the tenant row lock does not serialise a host limit spanning several tenants |
 | Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked (also in stored check messages); `limits.max_monitors` defaults to 0 (no quota; the scan stays bounded by `max_scan_seconds`); a host `security.access_checker` or `TenantLimitsInterface` is trusted as written; `StatusPageMonitorsEvent` listeners can still hide monitors (only narrowing is enforced) |
 

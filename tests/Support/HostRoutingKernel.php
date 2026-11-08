@@ -39,8 +39,9 @@ final class HostRoutingKernel extends Kernel
 
     /**
      * @param array<string, mixed> $webUi `nowo_uptime_monitor.web_ui` of this host
+     * @param array<string, mixed> $security `nowo_uptime_monitor.security` of this host; empty = allow_unauthenticated
      */
-    public function __construct(private readonly bool $importBundleRoutes, private readonly array $webUi = [])
+    public function __construct(private readonly bool $importBundleRoutes, private readonly array $webUi = [], private readonly array $security = [])
     {
         parent::__construct('test', true);
     }
@@ -64,7 +65,7 @@ final class HostRoutingKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/nowo-uptime-monitor-host-routing/' . ($this->importBundleRoutes ? 'imported' : 'controllers-only') . '/' . md5(serialize($this->webUi)) . '/cache';
+        return sys_get_temp_dir() . '/nowo-uptime-monitor-host-routing/' . ($this->importBundleRoutes ? 'imported' : 'controllers-only') . '/' . md5(serialize([$this->webUi, $this->security])) . '/cache';
     }
 
     public function getLogDir(): string
@@ -97,8 +98,11 @@ final class HostRoutingKernel extends Kernel
         $container->extension('security', [
             'firewalls' => ['main' => ['security' => false]],
         ]);
+        if ($this->security !== []) {
+            $container->services()->set('test.shared_monitor_access_checker', SharedMonitorAccessChecker::class);
+        }
         $container->extension('nowo_uptime_monitor', [
-            'security' => ['allow_unauthenticated' => true],
+            'security' => $this->security === [] ? ['allow_unauthenticated' => true] : $this->security,
             'web_ui'   => $this->webUi,
         ]);
     }

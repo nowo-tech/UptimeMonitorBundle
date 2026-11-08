@@ -20,6 +20,8 @@ use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInter
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use stdClass;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -31,6 +33,7 @@ use function is_array;
 use function is_numeric;
 use function is_object;
 use function is_string;
+use function sprintf;
 
 /**
  * Enforces UptimeMonitorAccessCheckerInterface on admin/manage controllers (REQ-UI-002).
@@ -39,7 +42,9 @@ use function is_string;
  * Tenant creation requires canManageSettings; any other unsafe-method request (POST/PUT/PATCH/DELETE) to a
  * protected action that is not explicitly mapped fails closed to canManageSettings as well. Since 1.21 a
  * {@see MonitorAwareUptimeMonitorAccessCheckerInterface} decides the reads of one monitor (page, history and aggregates
- * APIs) with canViewMonitor; its refusal answers 404.
+ * APIs) with canViewMonitor; its refusal answers 404. Since 1.23 `security.denied_tenant_status: 404` makes any refusal
+ * on a `{tenantSlug}` route of a user the tenant-aware checker keeps out of that tenant (canAccessTenant false) a 404
+ * too, so the tenant's existence is not revealed (UM-7); a member refused one action keeps 403.
  */
 final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInterface
 {
@@ -66,6 +71,7 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
      * @param TokenStorageInterface|null $tokenStorage Current security token; null when SecurityBundle is not installed
      * @param bool $webUiEnabled `web_ui.enabled`: when false the admin pages answer 404 even if a host imported their routes
      * @param MonitorRepository|null $monitorRepository Loads the monitor of a monitor read for a monitor-aware checker (since 1.21)
+     * @param int $deniedTenantStatus `security.denied_tenant_status` (since 1.23): 404 answers a refusal on a tenant the user may not access as not found
      */
     public function __construct(
         private UptimeMonitorAccessCheckerInterface $accessChecker,
@@ -73,6 +79,7 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
         private ?TokenStorageInterface $tokenStorage = null,
         private bool $webUiEnabled = true,
         private ?MonitorRepository $monitorRepository = null,
+        private int $deniedTenantStatus = 403,
     ) {
     }
 
@@ -92,7 +99,7 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
      * Denies access to bundle dashboard, monitor and settings actions the current user may not use.
      *
      * @throws AccessDeniedException When the access checker refuses the action
-     * @throws NotFoundHttpException When a monitor-aware checker refuses a monitor read
+     * @throws NotFoundHttpException When a monitor-aware checker refuses a monitor read, or (denied_tenant_status 404) the user may not access the tenant
      */
     public function onKernelController(ControllerEvent $event): void
     {
@@ -154,6 +161,18 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
         };
 
         if (!$allowed) {
+            if ($scoped && $this->deniedTenantStatus === 404 && !$checker->canAccessTenant($user, $tenant)) {
+                // UM-7: someone kept out of the tenant learns nothing about it. The answer is the one the controller
+                // gives for a missing tenant: the APIs' JSON body, the pages' not-found exception.
+                if ($this->isApiController($controllerObject)) {
+                    $event->setController(static fn (): JsonResponse => new JsonResponse(['error' => 'Tenant not found'], Response::HTTP_NOT_FOUND));
+
+                    return;
+                }
+
+                throw new NotFoundHttpException(sprintf('Tenant "%s" not found.', $tenant));
+            }
+
             throw new AccessDeniedException('Access to Uptime Monitor admin is denied.');
         }
     }
@@ -189,6 +208,13 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
             || $controller instanceof SummaryController
             || $controller instanceof TenantController
             || $controller instanceof StatusApiController
+            || $controller instanceof HistoryApiController
+            || $controller instanceof AggregatesApiController;
+    }
+
+    private function isApiController(object $controller): bool
+    {
+        return $controller instanceof StatusApiController
             || $controller instanceof HistoryApiController
             || $controller instanceof AggregatesApiController;
     }
