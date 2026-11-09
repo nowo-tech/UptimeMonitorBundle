@@ -245,6 +245,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Controller/SummaryController.php` | Tenant status summary page (`nowo_uptime_summary`) | FR-UI-007 |
 | `Service/StatusSummary.php` | Active monitors, counts per status and overall status of a tenant | FR-UI-007 |
 | `Ui/UptimeActions.php` | Page actions by access (dashboard header, New monitor with the tenant limit, monitor edit / pause / delete) | FR-UI-005 |
+| `Ui/NewMonitorState.php` | New monitor for a host-placed opener (1.22, UM-6): form URL, label, disabled reason at the monitor limit | FR-UI-005 |
 
 ## Tenant limits
 
@@ -262,7 +263,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/src/uptime-dashboard.ts` | Dashboard entrypoint | FR-UI-010 |
 | `Resources/assets/src/uptime-logger.ts` | Frontend logger | FR-UI-012 |
 | `Resources/assets/src/vite-env.d.ts` | Vite type shims | FR-BUILD-002 |
-| `Resources/public/assets/monitor-form-modal-CiZBoFyn.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
+| `Resources/public/assets/monitor-form-modal-DyVTc7ej.js` | Built frontend asset (hashed Vite chunk; rename the row when a build changes the hash) | FR-BUILD-001 |
 | `Resources/public/auto.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/history-bar.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/uptime-dashboard.css` | Built frontend asset | FR-BUILD-001 |
@@ -281,6 +282,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/assets/scss/_host-theme.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/_kuma.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/_mixins.scss` | SCSS partial/theme | FR-STYLE-001 |
+| `Resources/assets/scss/_phone.scss` | SCSS partial/theme (phone layout of the lists and figures, 1.24) | FR-STYLE-001 |
 | `Resources/assets/scss/_settings.scss` | SCSS partial/theme | FR-STYLE-001 |
 | `Resources/assets/scss/_table-view.scss` | SCSS partial (table dashboard, since 1.12) | FR-STYLE-001, FR-UI-005 |
 | `Resources/assets/scss/_variables.scss` | SCSS partial/theme | FR-STYLE-001 |
@@ -412,6 +414,6 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Twig views | 32 | 32 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **236** | **236** |
+| **Total production sources** | **238** | **238** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.

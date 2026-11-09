@@ -1,3 +1,6 @@
+parameters:
+    env(UPTIME_DASHBOARD_VIEW): tree
+
 nowo_uptime_monitor:
     connection: default
     # Demo-only: firewall security off + allow_unauthenticated (never use in production).
@@ -11,6 +14,9 @@ nowo_uptime_monitor:
     # Pages are UiKit scaffolds (REQ-UI-003): layout and theme come from config/packages/nowo_ui_kit.yaml.
     web_ui:
         path_prefix: /uptime
+        # tree (default) or table (UPTIME_DASHBOARD_VIEW, docker-compose.yml; `make test-e2e-phone` uses table).
+        dashboard:
+            view: '%env(UPTIME_DASHBOARD_VIEW)%'
     # Demo-only: every demo monitor probes this app over the Compose network (http://php/demo/uptime/*), a
     # private address the SSRF guard blocks by default. Keep the default (true) in production.
     checks:

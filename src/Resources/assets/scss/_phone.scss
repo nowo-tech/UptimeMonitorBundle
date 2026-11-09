@@ -1,0 +1,169 @@
+// Phone layout (1.24, Beacon mobile audit MUX-21 / MUX-100 / MUX-101): layout only, colours and type stay with the
+// UiKit theme slots.
+//
+// Lists: a wrapper with `uptime-phone-list` is a size container; under 40rem of its width a `uptime-phone-table`
+// becomes a list of stacked rows (no horizontal scroll). The cells say what they are with `data-uptime-phone`:
+//   status   the status badge, first in the row
+//   actions  the row actions, at the end of the first line
+//   title    the name, a line of its own
+//   meta     small facts on one wrapping line (prefixed with their `data-label`, when there is one)
+//   detail   a muted line of its own (messages)
+//   hidden   not shown on phones
+// A cell without the attribute (empty-state cells) takes the whole width. A UiKit responsive table switched to
+// "scroll" by the user keeps the table. The markup also carries UiKit's `data-label` / `data-nowo-ui-priority`, so a
+// host list layout (UiKit ListPage cards) reads the same columns.
+
+$uptime-phone-list-max: 39.99rem;
+$uptime-phone-figures-max: 30rem;
+
+.uptime-phone-list {
+  container: uptime-phone-list / inline-size;
+  min-width: 0;
+}
+
+@container uptime-phone-list (max-width: #{$uptime-phone-list-max}) {
+  .uptime-phone-table:not(.nowo-ui-responsive-table[data-table-mode='scroll'] *) {
+    display: block;
+    width: 100%;
+    min-width: 0;
+
+    > thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    > tbody {
+      display: block;
+      width: 100%;
+    }
+
+    > tbody > tr {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.25rem 0.75rem;
+      box-sizing: border-box;
+      width: 100%;
+      padding: 0.625rem 0;
+      border-bottom: var(--nowo-ui-border-width, 1px) solid var(--nowo-ui-table-border, var(--nowo-ui-border, var(--uptime-border, rgba(127, 127, 127, 0.25))));
+    }
+
+    > tbody > tr:last-child {
+      border-bottom: 0;
+    }
+
+    > tbody > tr > td {
+      display: block;
+      box-sizing: border-box;
+      flex: 1 1 100%;
+      min-width: 0;
+      max-width: 100%;
+      padding: 0;
+      border: 0;
+      text-align: start;
+      overflow-wrap: anywhere;
+    }
+
+    > tbody > tr > td[data-uptime-phone] {
+      // The monitor column's desktop min-width (14rem) and nowrap utilities must not widen the row.
+      min-width: 0;
+    }
+
+    > tbody > tr > td[data-uptime-phone='status'] {
+      order: -2;
+      flex: 0 1 auto;
+    }
+
+    > tbody > tr > td[data-uptime-phone='actions'],
+    > tbody > tr > td.nowo-ui-row-detail-cell {
+      order: -1;
+      flex: 0 0 auto;
+      margin-inline-start: auto;
+      width: auto;
+    }
+
+    > tbody > tr > td[data-uptime-phone='title'] {
+      flex-basis: 100%;
+      overflow: hidden; // a long word (URL, host) is clipped while the responsive table measures, never the page
+    }
+
+    > tbody > tr > td[data-uptime-phone='meta'] {
+      flex: 0 1 auto;
+      font-size: 0.8125rem;
+      color: var(--nowo-ui-muted, var(--uptime-muted, inherit));
+      white-space: normal;
+    }
+
+    > tbody > tr > td[data-uptime-phone='meta'][data-label]::before {
+      content: attr(data-label) ' ';
+      font-weight: 600;
+    }
+
+    > tbody > tr > td[data-uptime-phone='detail'] {
+      flex-basis: 100%;
+      max-width: none;
+      font-size: 0.8125rem;
+      white-space: normal;
+      text-overflow: clip;
+    }
+
+    > tbody > tr > td[data-uptime-phone='hidden'] {
+      display: none;
+    }
+
+    // The latency under the last check (table dashboard) joins its line.
+    .uptime-dashboard-latency {
+      display: inline;
+      margin: 0 0 0 0.25rem;
+    }
+
+    .uptime-dashboard-row-target {
+      overflow: hidden;
+    }
+  }
+
+  // Nested monitors (group children) keep a small indent in the stacked list.
+  .uptime-phone-table:not(.nowo-ui-responsive-table[data-table-mode='scroll'] *) > tbody > tr.uptime-dashboard-row--nested {
+    padding-inline-start: 0.75rem;
+  }
+
+  .uptime-phone-table:not(.nowo-ui-responsive-table[data-table-mode='scroll'] *) > tbody > tr.uptime-dashboard-row--nested > td[data-column='monitor'] {
+    padding-left: 0;
+  }
+}
+
+// Monitor page figures (MUX-100): two columns on phones, the last odd tile across both; labels may wrap.
+@media (max-width: #{$uptime-phone-figures-max}) {
+  .uptime-metrics-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+
+    > .uptime-metric-card {
+      width: auto;
+      min-width: 0;
+      max-width: none;
+      margin: 0;
+      padding: 0.625rem 0.75rem;
+    }
+
+    > .uptime-metric-card:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+
+    .uptime-metric-label {
+      font-size: 0.75rem;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    .uptime-metric-value {
+      font-size: 1.25rem;
+      white-space: nowrap;
+    }
+  }
+}

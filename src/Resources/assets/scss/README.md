@@ -8,7 +8,7 @@
 | `uptime-ui-bootstrap.scss` | `public/uptime-ui-bootstrap.css` | when `ui.framework: bootstrap` |
 | `uptime-ui-tailwind.scss` | `public/uptime-ui-tailwind.css` | when `ui.framework: tailwind` |
 
-Partials: `_variables.scss`, `_mixins.scss`, `_base.scss`, `_kuma.scss`, `_forms.scss`, `_settings.scss`.
+Partials: `_variables.scss`, `_mixins.scss`, `_base.scss`, `_kuma.scss`, `_forms.scss`, `_settings.scss`, `_table-view.scss`, `_phone.scss` (1.24: phone layout of the lists and the monitor figures).
 
 ```bash
 make assets   # or: pnpm run build

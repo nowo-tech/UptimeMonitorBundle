@@ -77,6 +77,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target 1.24.0. Phone layout of the lists and the monitor page (Beacon mobile UX audit 2026-11-09).
+
+### Added
+
+- **Phone layout of the monitors list (MUX-21):** the table dashboard's monitors table becomes a stacked list under
+  40rem of card width (a container query, so it also applies in a narrow host column): the status badge first, the
+  row actions on the same line, the name on its own line, then the meta (24 h uptime, last check and latency,
+  interval) on one wrapping line with their labels. No column is clipped and the page no longer scrolls sideways. The
+  recent checks card stacks the same way (status, time, monitor, message). A UiKit responsive table switched to
+  *scroll* by the user keeps the table; desktop is unchanged.
+- **Phone check log (MUX-101):** the monitor page's check log stacks under 40rem (status, time, latency, the HTTP code
+  when there is one, then the message on its own line) instead of a table 1.7 times the screen wide.
+- **Layout hooks:** `uptime-phone-list` (wrapper, size container), `uptime-phone-table` (table) and
+  `data-uptime-phone="status|title|meta|detail|actions|hidden"` on the cells, plus UiKit's `data-label` and
+  `data-nowo-ui-priority` on the meta / low-value columns, so host templates and a UiKit list card layout read the same
+  columns ([UPGRADING](UPGRADING.md#unreleased)).
+- **Demo:** `UPTIME_DASHBOARD_VIEW` (tree | table) and `make test-e2e-phone`: Playwright projects `phone-chromium` and
+  `phone-webkit` at 390 x 844 (status first, nothing clipped, no horizontal page overflow, two figure columns, the
+  check log inside its card; a desktop check that the tables stay tables).
+
+### Changed
+
+- **Monitor figures on phones (MUX-100):** under 30rem the three figure tiles (24 h uptime, 30 d uptime, latency) are
+  two columns, the third across both; labels wrap inside their tile (12 px) and values stay on one line.
+- The check log's time cell is a `<time datetime>` element (same text).
+
 ## [1.23.0] - 2026-11-08
 
 ### Added

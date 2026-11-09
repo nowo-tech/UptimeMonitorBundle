@@ -1,4 +1,4 @@
-.PHONY: help up down build install shell logs test test-coverage cache-clear clear-data reset-demo demo-history link-bundle update-bundle ensure-up restart release-check sync-schema test-e2e demo-screenshots
+.PHONY: help up down build install shell logs test test-coverage cache-clear clear-data reset-demo demo-history link-bundle update-bundle ensure-up restart release-check sync-schema test-e2e test-e2e-phone demo-screenshots
 
 help:
 	@echo "Symfony 8 Demo - Uptime Monitor Bundle"
@@ -113,6 +113,20 @@ test-e2e: ensure-up reset-demo
 		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
 		$(PLAYWRIGHT_IMAGE) \
 		bash -lc 'npm ci --no-fund --no-audit && npx playwright test --project=chromium --workers=1'
+
+# 1.24 (MUX-21 / 100 / 101): the phone layout at 390 x 844 in Chromium and WebKit. Recreates php with the table
+# dashboard (UPTIME_DASHBOARD_VIEW=table), runs the phone projects, then recreates php with the default view again.
+test-e2e-phone: ensure-up reset-demo
+	@mkdir -p e2e/node_modules
+	@UPTIME_DASHBOARD_VIEW=table $(COMPOSE) up -d --no-deps php >/dev/null
+	@PORT=$(DEMO_PORT); \
+	for i in $$(seq 1 60); do curl -fsS -o /dev/null "http://127.0.0.1:$$PORT/uptime/main" && break; sleep 1; done; \
+	docker run --rm --network host --user "$$(id -u):$$(id -g)" -e HOME=/tmp \
+		-v "$(CURDIR)/e2e:/e2e" -w /e2e \
+		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
+		$(PLAYWRIGHT_IMAGE) \
+		bash -lc 'npm ci --no-fund --no-audit && npx playwright test --project=phone-chromium --project=phone-webkit --workers=1'; \
+	status=$$?; $(COMPOSE) up -d --no-deps php >/dev/null; exit $$status
 
 # Reseeds the demo (history included), captures PNGs with the screenshots project, converts them to WebP
 # (sharp, quality 90) under docs/images/demo/ and deletes the PNGs. One command to refresh README images.
