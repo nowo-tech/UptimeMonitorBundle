@@ -10,6 +10,7 @@
 - [Commands](#commands)
 - [Notifications](#notifications)
 - [Host integration (tenants, access, events)](#host-integration-tenants-access-events)
+- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 - [Overriding templates](#overriding-templates)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
   - [Layout and CSS stack (REQ-UI-001 / REQ-UI-003)](#layout-and-css-stack-req-ui-001--req-ui-003)
@@ -125,6 +126,74 @@ public function onDown(MonitorWentDownEvent $event): void
     $this->issues->openFor($event->monitor, $event->message);
 }
 ```
+
+## Using it from a DDD / hexagonal application
+
+**Layer.** The bundle is a bounded context of its own: it owns the `Tenant`, `Monitor`, `CheckResult`,
+`CheckAggregate`, `Incident` and `Tag` entities and their tables, the scheduler, the admin UI, the REST API and the
+status page. Treat it as an external monitoring subdomain. Your domain references it only by **tenant slug** (for
+example your project id) and, when needed, by monitor id. Do not map or query its entities from your model.
+
+**No coupling to your entities.** It has no relation to host entities, no `resolve_target_entities`, no mapped
+superclass or trait to extend. The current user is passed to the access checker as `object`.
+
+**Ports you implement (infrastructure adapters):**
+
+| Port | Config key | Purpose |
+|---|---|---|
+| `Security\TenantAwareUptimeMonitorAccessCheckerInterface` (or `MonitorAwareUptimeMonitorAccessCheckerInterface`) | `security.access_checker` | Map your users and permissions to dashboard / manage / settings rights per tenant |
+| `Limits\TenantLimitsInterface` | `limits.provider` | Per-tenant `maxMonitors()` / `minIntervalSeconds()` from your plans |
+| `Tenant\MissingTenantProvisionerInterface` | `multi_tenant.provisioner` | Create a tenant on first access (usually delegates to `TenantProvisioner::ensure()`) |
+| `Ui\SettingsSectionsResolverInterface` | `web_ui.settings.sections_resolver` | Settings sections shown per tenant |
+| `Notification\NotificationChannelInterface` | service tag `nowo.uptime_monitor.notification_channel` | Extra alert channel |
+
+**Events to translate into your own domain events:**
+
+- `Event\MonitorWentDownEvent` / `Event\MonitorRecoveredEvent`: an incident opened or resolved. Both are dispatched
+  before the check is flushed.
+- `Event\MonitorsAppliedEvent`: `nowo:uptime:apply-monitors` committed a tenant's monitors. Scalars only, dispatched
+  after the commit.
+- `Event\MonitorQuotaCheckEvent` (`UptimeEvents::MONITOR_QUOTA_CHECK`): cancellable check before an admin-UI create
+  or resume. Call `deny()` and do not throw.
+
+**Driving it from your application.** Use `TenantProvisioner::ensure($slug, $name)` / `setEnabled($slug, false)` for
+tenants, and the declarative `nowo:uptime:apply-monitors` file (or `Apply\MonitorApplier`) for monitors. Wrap these
+calls behind your own port.
+
+**Example anti-corruption listener:**
+
+```php
+use Nowo\UptimeMonitorBundle\Event\MonitorWentDownEvent;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+
+final readonly class UptimeIncidentTranslator
+{
+    public function __construct(private ProjectAlerts $alerts) {} // your domain port
+
+    #[AsEventListener]
+    public function onDown(MonitorWentDownEvent $event): void
+    {
+        $monitor = $event->monitor;
+        // Copy scalars out; never keep the bundle entities in your domain.
+        $this->alerts->serviceDown(
+            projectId: $monitor->getTenant()->getSlug(),
+            checkName: $monitor->getName(),
+            reason: $event->message,
+            since: $event->incident->getStartedAt(),
+        );
+    }
+}
+```
+
+**Known limitations:**
+
+- Incident events carry the bundle's `Monitor` / `Incident` entities and fire before flush, so a new incident's id
+  may still be null. Copy scalars, and defer side effects outside the transaction (for example a Messenger message).
+- There is no fine-grained programmatic API for single monitors yet. Use the apply file or `MonitorApplier`.
+- Monitor create, edit, pause and delete in the admin UI dispatch no post-commit events (only the pre-write quota
+  check).
+- `MissingTenantProvisionerInterface` returns a `Tenant` entity, and `canViewMonitor()` receives a `Monitor` entity.
+- Custom notification channels must be tagged by hand.
 
 ## Overriding templates
 
