@@ -120,6 +120,50 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Target **1.24.0**, from **1.23.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+Nothing to do for hosts that use the bundle templates: the phone layout is CSS in `uptime-dashboard.css` (already
+loaded by `_stylesheets.html.twig`) and the new attributes in the table dashboard and the monitor page. Desktop renders
+as before.
+
+**What changes on phones.** Under 40rem of the card's width (a container query on the card wrapper, not the
+viewport) the monitors table, the recent checks and the check log become stacked rows: status badge first, the row
+actions on its line, the name, then the meta on one wrapping line. Under 30rem of viewport width the three monitor
+figures are two columns. A responsive table the user switched to *scroll* keeps the table and scrolls inside the card.
+
+**Hosts that override these templates** (for instance a `web_ui.templates.monitor_show` page or a copied table view)
+get the same layout by adding the hooks to their markup:
+
+```twig
+<div class="uptime-phone-list">                          {# the wrapper (card) of the list: a size container #}
+    <table class="… uptime-phone-table">
+        <tbody>
+            <tr>
+                <td data-uptime-phone="title">name</td>      {# a line of its own #}
+                <td data-uptime-phone="status">badge</td>    {# first in the row #}
+                <td data-uptime-phone="meta" data-label="Uptime 24 h">99.9 %</td> {# small, on one wrapping line #}
+                <td data-uptime-phone="detail">message</td>  {# a muted line of its own #}
+                <td data-uptime-phone="hidden">…</td>        {# not shown on phones #}
+                <td data-uptime-phone="actions">…</td>       {# at the end of the first line #}
+            </tr>
+        </tbody>
+    </table>
+</div>
+```
+
+The figures need only the `uptime-metrics-cards` / `uptime-metric-card` / `uptime-metric-label` /
+`uptime-metric-value` classes the bundle page already uses. The markup also carries UiKit's `data-label` and
+`data-nowo-ui-priority` (code, last check, interval), so a UiKit list card layout reads the same columns.
+
+**Browsers:** container queries (Chrome 105, Safari 16, Firefox 110). Older browsers keep the table.
+
+**Demo (contributors):** `UPTIME_DASHBOARD_VIEW=table` serves the table dashboard; `make test-e2e-phone` runs the phone
+checks at 390 x 844 in Chromium and WebKit (it recreates the demo `php` service with the table view and back).
+
 ## To 1.23.0
 
 From **1.22.0**:

@@ -21,6 +21,8 @@ services:
       FRANKENPHP_MODE: ${FRANKENPHP_MODE:-worker}
       APP_DEBUG: "1"
       APP_SECRET: ${APP_SECRET:-demo-secret}
+      # 1.24: tree (default) or table; `make test-e2e-phone` runs the phone checks against the table dashboard.
+      UPTIME_DASHBOARD_VIEW: ${UPTIME_DASHBOARD_VIEW:-tree}
       DATABASE_URL: mysql://app:app@database:3306/app?serverVersion=8.4&charset=utf8mb4
       MERCURE_URL: http://php/.well-known/mercure
       MERCURE_PUBLIC_URL: http://localhost:${PORT:-8011}/.well-known/mercure

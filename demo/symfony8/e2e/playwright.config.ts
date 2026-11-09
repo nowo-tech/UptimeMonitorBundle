@@ -37,7 +37,18 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /screenshots\.spec\.ts/,
+      testIgnore: /(screenshots|phone)\.spec\.ts/,
+    },
+    // 1.24 (MUX-21 / 100 / 101): the phone layout at 390 x 844 in Chromium and WebKit (`make test-e2e-phone`).
+    {
+      name: 'phone-chromium',
+      use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } },
+      testMatch: /phone\.spec\.ts/,
+    },
+    {
+      name: 'phone-webkit',
+      use: { ...devices['iPhone 14'], viewport: { width: 390, height: 844 } },
+      testMatch: /phone\.spec\.ts/,
     },
     {
       name: 'screenshots',

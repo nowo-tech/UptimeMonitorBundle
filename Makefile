@@ -1,4 +1,4 @@
-.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix rector rector-dry phpstan igor qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form check-spec-inventory twig-lint test-e2e demo-screenshots validate-phpdoc
+.PHONY: help up down build shell ensure-up install assets test test-coverage test-coverage-90 test-coverage-100 test-ts cs-check cs-fix rector rector-dry phpstan igor qa composer-sync release-check release-check-demos demo-smoke validate-translations clean update validate test-with-db test-coverage-with-db setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history check-twig-extra check-no-raw-html-form check-spec-inventory twig-lint test-e2e test-e2e-phone demo-screenshots validate-phpdoc
 
 COMPOSE_FILE ?= docker-compose.yml
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -69,6 +69,7 @@ help:
 	@echo "  release-check-demos   Demo release-check (update bundle, tests, HTTP verify)"
 	@echo "  demo-smoke            Boot demo/symfony8 and expect HTTP 200 on /uptime/main (REQ-TEST-011)"
 	@echo "  test-e2e              Playwright e2e against demo/symfony8: dashboard, monitors, status page, settings (REQ-DEMO-013)"
+	@echo "  test-e2e-phone        Playwright phone layout (390x844, Chromium + WebKit) against demo/symfony8, table dashboard"
 	@echo "  demo-screenshots      Reseed the demo and refresh README screenshots docs/images/demo/*.webp (REQ-DEMO-013)"
 	@echo "  make -C demo up-symfony8 | down-symfony8 | reset-demo-symfony8 | clear-data-symfony8"
 
@@ -170,6 +171,9 @@ demo-smoke:
 # REQ-DEMO-013: Playwright e2e + WebP README screenshots (demo/symfony8/e2e, Playwright Docker image).
 test-e2e:
 	@$(MAKE) -C demo/symfony8 test-e2e
+
+test-e2e-phone:
+	@$(MAKE) -C demo/symfony8 test-e2e-phone
 
 demo-screenshots:
 	@$(MAKE) -C demo/symfony8 demo-screenshots

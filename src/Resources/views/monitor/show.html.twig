@@ -18,6 +18,9 @@
   monitor_figures and monitor_charts; slots.details / slots.figures replace a region with a host template (rendered
   with the page variables), charts: host renders slots.charts instead of the bundle charts, charts: none drops them.
   monitor is the raw entity (unmasked target and config, push key): a slot prints monitor_safe.target / .config.
+  Since 1.24 (MUX-100, MUX-101): on phones (under 30rem) the figures are two columns; the check log is a stacked list
+  under 40rem of card width (status badge, time, latency, code when there is one, then the message; same
+  uptime-phone-* hooks as the table dashboard).
 #}
 {% extends '@NowoUiKit/page/show.html.twig' %}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -177,30 +180,30 @@
             {% endif %}
             {% endblock %}
 
-            <section class="uptime-events {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-monitor-log" aria-labelledby="uptime-monitor-log-title">
+            <section class="uptime-events uptime-phone-list {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-monitor-log" aria-labelledby="uptime-monitor-log-title">
                 <header class="uptime-events-header {{ nowo_ui_class('card_header', _b) }}">
                     <h2 class="{{ nowo_ui_class('card_title', _b) }}" id="uptime-monitor-log-title">{{ 'monitor.show.check_log'|trans }}</h2>
                 </header>
                 {# A plain scroller: the host's table_wrap slot may be a panel of its own (a card in the card). #}
                 <div class="uptime-table-scroll">
-                    <table class="uptime-events-table {{ nowo_ui_class('table', _b) }}" data-events-table>
+                    <table class="uptime-events-table uptime-phone-table {{ nowo_ui_class('table', _b) }}" data-events-table>
                         <thead class="{{ nowo_ui_class('table_head', _b) }}">
                             <tr>
                                 <th scope="col">{{ 'monitor.show.col.status'|trans }}</th>
                                 <th scope="col">{{ 'monitor.show.col.datetime'|trans }}</th>
                                 <th scope="col">{{ 'monitor.show.col.latency'|trans }}</th>
-                                <th scope="col">{{ 'monitor.show.col.code'|trans }}</th>
+                                <th scope="col" data-nowo-ui-priority="3">{{ 'monitor.show.col.code'|trans }}</th>
                                 <th scope="col">{{ 'monitor.show.col.message'|trans }}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for event in log_events|default(detail.events|reverse) %}
                                 <tr>
-                                    <td><span class="uptime-status uptime-status-{{ event.status }}">{{ ('status.' ~ event.status)|trans }}</span></td>
-                                    <td>{{ event.checked_at|date('Y-m-d H:i:s') }}</td>
-                                    <td>{{ event.latency_ms }} ms</td>
-                                    <td>{{ event.status_code ?? '—' }}</td>
-                                    <td class="uptime-event-message">{{ event.message ?? '—' }}</td>
+                                    <td data-uptime-phone="status"><span class="uptime-status uptime-status-{{ event.status }}">{{ ('status.' ~ event.status)|trans }}</span></td>
+                                    <td data-uptime-phone="meta"><time datetime="{{ event.checked_at|date('c') }}">{{ event.checked_at|date('Y-m-d H:i:s') }}</time></td>
+                                    <td data-uptime-phone="meta">{{ event.latency_ms }} ms</td>
+                                    <td data-nowo-ui-priority="3" data-uptime-phone="{{ event.status_code is null ? 'hidden' : 'meta' }}" data-label="{{ 'monitor.show.col.code'|trans }}">{{ event.status_code ?? '—' }}</td>
+                                    <td class="uptime-event-message" data-uptime-phone="detail">{{ event.message ?? '—' }}</td>
                                 </tr>
                             {% else %}
                                 <tr>

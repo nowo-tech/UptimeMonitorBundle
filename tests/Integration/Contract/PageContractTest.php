@@ -442,6 +442,50 @@ final class PageContractTest extends PageContractTestCase
         self::assertMatchesRegularExpression('#data-detail-pending\s+hidden#', $unchecked);
     }
 
+    /**
+     * 1.24 (MUX-21, MUX-101): the lists carry the phone layout hooks; the status cell is marked to come first, the meta
+     * cells carry their labels, a check without an HTTP code drops the code cell on phones.
+     */
+    public function testListsCarryThePhoneLayoutHooks(): void
+    {
+        $table = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboardTable()))->html;
+        self::assertStringContainsString('class="uptime-dashboard-monitors uptime-phone-list"', $table);
+        self::assertStringContainsString('class="uptime-dashboard-events uptime-phone-list"', $table);
+        self::assertMatchesRegularExpression('#<table class="[^"]* uptime-phone-table" data-responsive-table-target="table" data-testid="uptime-monitors-table">#', $table);
+        self::assertMatchesRegularExpression('#<table class="[^"]* uptime-phone-table" data-testid="uptime-events-table">#', $table);
+        self::assertStringContainsString('<td data-column="monitor" data-uptime-phone="title">', $table);
+        self::assertMatchesRegularExpression('#<td data-column="status" data-uptime-phone="status">\s*<span class="[^"]*nowo-ui-badge#', $table);
+        self::assertMatchesRegularExpression('#<td data-column="uptime" [^>]*data-uptime-phone="meta" data-label="Uptime 24 h">#', $table);
+        self::assertMatchesRegularExpression('#<td data-column="last_check" [^>]*data-nowo-ui-priority="2" data-uptime-phone="meta" data-label="[^"]+">#', $table);
+        self::assertMatchesRegularExpression('#<td data-column="interval" [^>]*data-nowo-ui-priority="3" data-uptime-phone="meta"#', $table);
+        self::assertStringContainsString('<td data-column="actions" data-uptime-phone="actions">', $table);
+        self::assertStringContainsString('<td class="uptime-event-message" data-uptime-phone="detail">HTTP 200</td>', $table);
+
+        $show = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', PageFixtures::monitorShow()))->html;
+        self::assertMatchesRegularExpression('#<section class="uptime-events uptime-phone-list #', $show);
+        self::assertStringContainsString('<table class="uptime-events-table uptime-phone-table ', $show);
+        self::assertStringContainsString('<td data-uptime-phone="status"><span class="uptime-status uptime-status-down">Down</span></td>', $show);
+        self::assertStringContainsString('<td data-uptime-phone="meta">1200 ms</td>', $show);
+        self::assertStringContainsString('<td data-nowo-ui-priority="3" data-uptime-phone="meta" data-label="Code">503</td>', $show);
+        self::assertStringContainsString('<td class="uptime-event-message" data-uptime-phone="detail">Service unavailable</td>', $show);
+
+        $context                                 = PageFixtures::monitorShowPaged();
+        $context['log_events'][0]['status_code'] = null;
+        $noCode                                  = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', $context))->html;
+        self::assertStringContainsString('<td data-nowo-ui-priority="3" data-uptime-phone="hidden" data-label="Code">—</td>', $noCode);
+    }
+
+    /** 1.24 (MUX-21, MUX-100): the committed stylesheet carries the phone rules. */
+    public function testTheStylesheetCarriesThePhoneLayout(): void
+    {
+        $css = preg_replace('/\s+/', '', (string) file_get_contents(dirname(__DIR__, 3) . '/src/Resources/public/uptime-dashboard.css')) ?? '';
+        self::assertStringContainsString('container:uptime-phone-list/inline-size', $css);
+        // The build may write the range syntax (width<=…) for max-width.
+        self::assertMatchesRegularExpression('#@containeruptime-phone-list\((max-width:|width<=)39\.99rem\)#', $css);
+        self::assertMatchesRegularExpression('#\[data-uptime-phone=["\']?status["\']?\]\{[^}]*order:-2#', $css);
+        self::assertMatchesRegularExpression('#@media\((max-width:|width<=)30rem\)\{\.uptime-metrics-cards\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)#', $css);
+    }
+
     public function testSummaryAndTagEdit(): void
     {
         $summary = $this->renderPage(new PageFixture(self::VIEWS . 'summary/index.html.twig', PageFixtures::summary()))->html;
