@@ -79,6 +79,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Documentation
+
+- USAGE: new section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the ports, events and DTOs to build an anti-corruption layer on, and the known limitations).
+
 ## [1.24.1] - 2026-11-09
 
 Patch: dashboard assets rebuilt (vite 8.3.6, sass 1.108.0).
