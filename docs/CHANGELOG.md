@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.24.1] - 2026-11-09](#1241---2026-11-09)
 - [[1.24.0] - 2026-11-09](#1240---2026-11-09)
 - [[1.23.0] - 2026-11-08](#1230---2026-11-08)
 - [[1.22.0] - 2026-11-08](#1220---2026-11-08)
@@ -78,6 +79,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.24.1] - 2026-11-09
+
+Patch: dashboard assets rebuilt (vite 8.3.6, sass 1.108.0).
+
+### Changed
+
+- **Dependencies:** the dashboard and monitor-detail assets (`src/Resources/public/uptime-*.js`) are rebuilt with vite 8.3.6 and sass 1.108.0. Dev-only: `symfony/mercure` ^0.9 || ^0.10 in require-dev and php-cs-fixer. No API or configuration change.
+
 ## [1.24.0] - 2026-11-09
 
 Target 1.24.0. Phone layout of the lists and the monitor page (Beacon mobile UX audit 2026-11-09).
@@ -95,7 +104,7 @@ Target 1.24.0. Phone layout of the lists and the monitor page (Beacon mobile UX 
 - **Layout hooks:** `uptime-phone-list` (wrapper, size container), `uptime-phone-table` (table) and
   `data-uptime-phone="status|title|meta|detail|actions|hidden"` on the cells, plus UiKit's `data-label` and
   `data-nowo-ui-priority` on the meta / low-value columns, so host templates and a UiKit list card layout read the same
-  columns ([UPGRADING](UPGRADING.md#unreleased)).
+  columns ([UPGRADING](UPGRADING.md#to-1241)).
 - **Demo:** `UPTIME_DASHBOARD_VIEW` (tree | table) and `make test-e2e-phone`: Playwright projects `phone-chromium` and
   `phone-webkit` at 390 x 844 (status first, nothing clipped, no horizontal page overflow, two figure columns, the
   check log inside its card; a desktop check that the tables stay tables).
@@ -600,7 +609,7 @@ UiKit ^2.15.4 (workarounds removed), real deprecation gate; SEC-004 1.12 delta: 
 ### Security
 
 SEC-004 delta re-audit of 1.12.x (`af6692d`): Pass (good) / Low; its findings are fixed. See
-[SECURITY](SECURITY.md#ai-security-audit) and [UPGRADING](UPGRADING.md#unreleased).
+[SECURITY](SECURITY.md#ai-security-audit) and [UPGRADING](UPGRADING.md#to-1241).
 
 - **Empty role lists deny (P1)**: the built-in access checker no longer treats an empty list as "everyone". An area is
   allowed when the user holds a role of each non-empty list among `security.access_roles` and the area's list; both
@@ -807,7 +816,7 @@ SEC-004 re-audit 2026-10-27 findings (M1, L1–L7 and Info items):
   `_monitor_actions.html.twig`, `settings/_layout.html.twig`, `settings/_nav.html.twig`, the Bootstrap modal markup of
   `monitor/_monitor_edit_modal.html.twig`, the `uptime_content` / `settings_body` / `title` / `stylesheets` /
   `javascripts` page blocks (now the UiKit canonical and data blocks), and the `uptime-ui-bootstrap.css` /
-  `uptime-ui-tailwind.css` assets. See [UPGRADING.md](UPGRADING.md#unreleased).
+  `uptime-ui-tailwind.css` assets. See [UPGRADING.md](UPGRADING.md#to-1241).
 
 ### Fixed
 
@@ -1412,7 +1421,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.24.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.24.1...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
