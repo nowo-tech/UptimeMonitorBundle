@@ -85,7 +85,8 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertTrue($back->upsideDown);
         self::assertTrue($back->checkCertExpiry);
         self::assertSame('ok', $back->keyword);
-        self::assertSame('{"ping":1}', $back->httpBody);
+        self::assertSame('***', $back->httpBody, 'write-only (1.25.2): a stored body is masked');
+        self::assertFalse($back->httpBodyClear);
         self::assertSame('xml', $back->bodyEncoding);
         self::assertSame("X-One: ***\nX-Two: ***", $back->httpHeaders, 'write-only (1.25.1): header values are masked');
         self::assertSame('http://proxy.test:3128', $back->proxy);
@@ -151,14 +152,14 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame("Authorization: ***\nX-Empty: ", $data->httpHeaders);
 
         // Saved unchanged (and with the header name in another case): every stored secret is kept.
-        $data->httpHeaders = "authorization: ***\nX-Empty: \nX-New: ***";
+        $data->httpHeaders = "authorization: ***\nX-Empty: ";
         $data->url         = 'https://***@api.test/v2?token=***&page=3';
         $this->factory()->applyFormData($monitor, $data);
         $config = $monitor->getConfig();
         self::assertSame('https://u:pw@api.test/v2?token=t1&page=3', $config['url']);
         self::assertSame('https://u:pw@api.test/v2?token=t1&page=3', $monitor->getTarget());
         self::assertSame('http://pu:pp@proxy.test:3128', $config['proxy']);
-        self::assertSame(['authorization' => 'Bearer abc', 'X-Empty' => '', 'X-New' => '***'], $config['headers'], 'a mask with no stored header stays as typed');
+        self::assertSame(['authorization' => 'Bearer abc', 'X-Empty' => ''], $config['headers']);
     }
 
     /** Since 1.25.1: a typed secret replaces the stored one; removing it from the form removes it. */
@@ -204,18 +205,130 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame('http://u:pw@legacy.test/', $monitor->getConfig()['url']);
     }
 
-    /** A new monitor has nothing stored: a typed mask is saved as typed. */
-    public function testANewMonitorSavesATypedMaskAsIs(): void
+    /**
+     * Since 1.25.2 (KE-U151-L1): a new monitor has nothing stored, so every mask is unresolved; the form asks for it and
+     * applyFormData() drops it instead of saving the literal `***`.
+     */
+    public function testANewMonitorNeverSavesAMask(): void
     {
         $data              = new MonitorFormData();
         $data->name        = 'API';
         $data->type        = MonitorType::Https;
-        $data->url         = 'https://***@api.test/';
-        $data->httpHeaders = 'X-Key: ***';
+        $data->url         = 'https://***@api.test/?token=***&page=2&x=***';
+        $data->proxy       = '***@proxy.test:3128';
+        $data->httpHeaders = "X-Key: ***\nX-Other: kept";
+        $data->httpBody    = '***';
+        self::assertSame(['url', 'httpHeaders', 'httpBody', 'proxy'], $this->factory()->unresolvedMasks(null, $data));
 
         $monitor = $this->factory()->createFromFormData($this->tenant, $data);
-        self::assertSame('https://***@api.test/', $monitor->getConfig()['url']);
-        self::assertSame(['X-Key' => '***'], $monitor->getConfig()['headers']);
+        $config  = $monitor->getConfig();
+        self::assertSame('https://api.test/?page=2', $config['url']);
+        self::assertSame('https://api.test/?page=2', $monitor->getTarget());
+        self::assertSame('proxy.test:3128', $config['proxy']);
+        self::assertSame(['X-Other' => 'kept'], $config['headers']);
+        self::assertArrayNotHasKey('body', $config);
+        self::assertStringNotContainsString('***', (string) json_encode($config));
+
+        $data->url         = 'https://api.test/';
+        $data->proxy       = '';
+        $data->httpHeaders = 'X-Key: typed';
+        $data->httpBody    = '{"a":1}';
+        self::assertSame([], $this->factory()->unresolvedMasks(null, $data));
+        $data->type = MonitorType::Tcp;
+        $data->url  = 'https://***@api.test/';
+        self::assertSame([], $this->factory()->unresolvedMasks(null, $data), 'other types have no write-only fields');
+    }
+
+    /**
+     * Since 1.25.2 (KE-U151-L1): on an edit, a mask with no stored value behind it (a renamed header, a new or surplus
+     * credential-like parameter) is unresolved and dropped; a mask with a stored value is kept as before.
+     */
+    public function testAnEditDropsAMaskWithNothingStoredBehindIt(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://api.test/?token=t1');
+        $monitor->setConfig([
+            'url'     => 'https://api.test/?token=t1',
+            'proxy'   => 'http://proxy.test:3128',
+            'headers' => ['Authorization' => 'Bearer abc'],
+        ]);
+
+        $data              = $this->factory()->toFormData($monitor);
+        $data->url         = 'https://***@api.test/?token=***&token=***&tokenx=***';
+        $data->proxy       = 'http://***@proxy.test:3128';
+        $data->httpHeaders = "Authorization: ***\nX-Other: ***";
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+        self::assertSame(['url', 'httpHeaders', 'proxy'], $this->factory()->unresolvedMasks($monitor, $data));
+
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        self::assertSame('https://api.test/?token=t1', $config['url']);
+        self::assertSame('http://proxy.test:3128', $config['proxy']);
+        self::assertSame(['Authorization' => 'Bearer abc'], $config['headers']);
+
+        $data = $this->factory()->toFormData($monitor);
+        self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data), 'the form as shown resolves every mask');
+    }
+
+    /**
+     * Since 1.25.2 (KE-U151-L1): a field hidden with `form.hidden_fields` keeps its masked value from toFormData(); when
+     * the URL moves to another host that mask cannot be restored, and it is dropped instead of being stored as `***`.
+     */
+    public function testHiddenHeadersAreDroppedWhenTheUrlMovesHost(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://api.test/');
+        $monitor->setConfig(['url' => 'https://api.test/', 'headers' => ['Authorization' => 'Bearer abc', 'X-Plain' => '']]);
+
+        $data      = $this->factory()->toFormData($monitor);
+        $data->url = 'https://other.test/';
+        self::assertSame(['httpHeaders'], $this->factory()->secretsNeedingRetype($monitor, $data));
+        self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data), 'already reported as a retype');
+
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertSame(['X-Plain' => ''], $monitor->getConfig()['headers']);
+        self::assertStringNotContainsString('Bearer abc', (string) json_encode($monitor->getConfig()));
+    }
+
+    /**
+     * Since 1.25.2 (KE-U151-L2): the request body is write-only. A stored body shows as the mask; blank or the mask keeps
+     * it for the same origin, a typed body replaces it, the clear box removes it, and another origin asks for it again.
+     */
+    public function testTheRequestBodyIsWriteOnly(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://api.test/login');
+        $monitor->setConfig(['url' => 'https://api.test/login', 'method' => 'POST', 'body' => '{"login":"body-fixture"}']);
+
+        $data = $this->factory()->toFormData($monitor);
+        self::assertSame('***', $data->httpBody);
+        self::assertStringNotContainsString('body-fixture', (string) json_encode($data));
+
+        foreach (['***', ''] as $kept) {
+            $data->httpBody = $kept;
+            self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data));
+            $this->factory()->applyFormData($monitor, $data);
+            self::assertSame('{"login":"body-fixture"}', $monitor->getConfig()['body'], 'kept with ' . $kept);
+        }
+
+        $data->url = 'https://other.test/login';
+        self::assertSame(['httpBody'], $this->factory()->secretsNeedingRetype($monitor, $data));
+        self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data));
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertArrayNotHasKey('body', $monitor->getConfig(), 'never carried to another origin');
+
+        $monitor->setConfig(['url' => 'https://api.test/login', 'body' => 'old']);
+        $data           = $this->factory()->toFormData($monitor);
+        $data->httpBody = 'new';
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertSame('new', $monitor->getConfig()['body']);
+
+        $data                = $this->factory()->toFormData($monitor);
+        $data->httpBodyClear = true;
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+        self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data), 'with the clear box the mask means remove');
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertArrayNotHasKey('body', $monitor->getConfig());
+
+        $monitor->setConfig(['url' => 'https://api.test/login', 'body' => '']);
+        self::assertSame('', $this->factory()->toFormData($monitor)->httpBody, 'an empty body shows blank');
     }
 
     /**
@@ -260,10 +373,12 @@ final class MonitorFactoryRoundTripTest extends TestCase
         $config     = $monitor->getConfig();
         $urlMoved   = in_array('url', $expected, true);
         $proxyMoved = in_array('proxy', $expected, true);
-        self::assertSame($urlMoved ? $url : str_replace(['***@', 'token=***'], ['u:pw@', 'token=t1'], $url), $config['url']);
-        self::assertSame($urlMoved ? ['Authorization' => '***'] : ['Authorization' => 'Bearer abc'], $config['headers']);
+        // Since 1.25.2 a mask that cannot be restored is dropped, never stored as `***`.
+        self::assertSame($urlMoved ? str_replace(['***@', '?token=***'], '', $url) : str_replace(['***@', 'token=***'], ['u:pw@', 'token=t1'], $url), $config['url']);
+        self::assertSame($urlMoved ? null : ['Authorization' => 'Bearer abc'], $config['headers'] ?? null);
         self::assertSame($urlMoved ? null : 'stored', $config['auth_password'] ?? null);
-        self::assertSame($proxyMoved ? $proxy : str_replace('***@', 'pu:pp@', $proxy), $config['proxy']);
+        self::assertSame($proxyMoved ? str_replace('***@', '', $proxy) : str_replace('***@', 'pu:pp@', $proxy), $config['proxy']);
+        self::assertStringNotContainsString('***', (string) json_encode($config));
         $json = (string) json_encode($config);
         foreach (array_merge($urlMoved ? ['u:pw', 't1', 'Bearer abc', 'stored'] : [], $proxyMoved ? ['pu:pp'] : []) as $secret) {
             self::assertStringNotContainsString($secret, $json);

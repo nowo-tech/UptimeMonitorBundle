@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Security;
 
+use function array_filter;
 use function array_key_exists;
 use function array_map;
 use function array_shift;
@@ -30,13 +31,19 @@ use const PREG_SET_ORDER;
  * The monitor edit form is write-only for the same secrets (since 1.25.1): {@see self::maskEditableUrl()} and
  * {@see self::maskEditableHeaders()} put {@see self::MASK} in their place, and {@see self::restoreEditableUrl()} /
  * {@see self::restoreEditableHeaders()} put the stored value back where the submitted form still holds the mask.
+ * A mask with nothing stored behind it is never saved (since 1.25.2): the form asks for the value, and
+ * {@see self::stripMaskedUrl()} / {@see self::stripMaskedHeaders()} drop it everywhere else.
  */
 final class SecretRedactor
 {
     public const MASK = '***';
 
-    /** Query parameter names (case-insensitive substrings) whose values are masked. */
-    private const SENSITIVE_QUERY_KEY = '/token|key|secret|pass|pwd|sig|auth|credential|session|code/i';
+    /**
+     * Query parameter names (case-insensitive substrings) whose values are masked; `jwt`, `bearer` and `hash` since
+     * 1.25.2 (`signature` is matched by `sig`). Masking is by name only: a secret in the URL path (a Slack webhook
+     * `/services/…`, a Telegram `/bot<token>/`) or under another name is not masked.
+     */
+    private const SENSITIVE_QUERY_KEY = '/token|key|secret|pass|pwd|sig|auth|credential|session|code|jwt|bearer|hash/i';
 
     /** The userinfo of a URL, with or without a scheme (`http://user:pass@` or `user:pass@`), up to its last `@`. */
     private const EDITABLE_USERINFO = '#^((?:[a-z][a-z0-9+.\-]*://)?)([^/?\#]*)@#i';
@@ -137,7 +144,7 @@ final class SecretRedactor
      * The URL or proxy to store from the edit form (since 1.25.1): where the submitted value still holds the mask of
      * {@see self::maskEditableUrl()}, the stored userinfo and the stored values of the same credential-like query
      * parameters (in order) are put back. A typed value replaces the stored one; a URL without userinfo or parameter
-     * removes it. A mask with no stored value behind it stays as typed.
+     * removes it. A mask with no stored value behind it stays as typed ({@see self::stripMaskedUrl()} drops it).
      */
     public static function restoreEditableUrl(string $submitted, string $stored): string
     {
@@ -198,7 +205,8 @@ final class SecretRedactor
     /**
      * The headers to store from the edit form (since 1.25.1): a header whose submitted value is still the mask keeps
      * the stored value of the header with the same name (case-insensitive). A typed value replaces it; a removed line
-     * removes the header. A mask with no stored header behind it stays as typed.
+     * removes the header. A mask with no stored header behind it stays as typed ({@see self::stripMaskedHeaders()}
+     * drops it).
      *
      * @param array<string, string> $submitted
      *
@@ -224,6 +232,45 @@ final class SecretRedactor
         }
 
         return $submitted;
+    }
+
+    /**
+     * The URL or proxy without the masks left in it (since 1.25.2): a userinfo that is exactly {@see self::MASK} and
+     * every query parameter whose value is exactly the mask are removed, so a mask with nothing stored behind it is
+     * never sent as the literal `***`.
+     */
+    public static function stripMaskedUrl(string $value): string
+    {
+        if (!str_contains($value, self::MASK)) {
+            return $value;
+        }
+
+        $value = (string) preg_replace_callback(
+            self::EDITABLE_USERINFO,
+            static fn (array $m): string => $m[2] === self::MASK ? $m[1] : $m[0],
+            $value,
+        );
+
+        // A removed pair keeps its separator, marked with NUL, then the separators are tidied up.
+        $value = (string) preg_replace_callback(
+            self::QUERY_PAIR,
+            static fn (array $m): string => $m[3] === self::MASK ? $m[1] . "\0" : $m[0],
+            $value,
+        );
+
+        return (string) preg_replace(['#&\x00#', '#\?\x00&#', '#\?\x00#'], ['', '?', ''], $value);
+    }
+
+    /**
+     * The headers without those whose value is exactly {@see self::MASK} (since 1.25.2).
+     *
+     * @param array<string, string> $headers
+     *
+     * @return array<string, string>
+     */
+    public static function stripMaskedHeaders(array $headers): array
+    {
+        return array_filter($headers, static fn (string $value): bool => $value !== self::MASK);
     }
 
     /**

@@ -345,6 +345,9 @@ final readonly class MonitorBackupService
         $data->paused               = (bool) ($row['paused'] ?? false);
         $data->project              = (string) ($row['project'] ?? '');
 
+        // An export carries no request body (blanked): an overwrite never keeps or carries one (since 1.25.2, as before).
+        $data->httpBodyClear = true;
+
         $config = $row['config'] ?? [];
         if (is_array($config)) {
             $data->url    = isset($config['url']) && is_string($config['url']) ? $config['url'] : (string) ($row['target'] ?? '');

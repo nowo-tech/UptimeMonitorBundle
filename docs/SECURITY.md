@@ -131,16 +131,20 @@ This bundle provides:
   monitor managers enter (basic-auth password, custom headers such as `Authorization`, proxy and URL credentials).
   Protect database access and database backups.
 - **Credentials in targets**: URL userinfo (`https://user:pass@host`, up to the last `@` of the authority) is masked as
-  `***@`, and the values of credential-like query parameters (`token`, `key`, `secret`, `pass`, `sig`, `auth`,
-  `credential`, `session`, `code` — case-insensitive substrings of the name) as `***`, in the dashboard, the monitor
-  page, alert e-mails and webhook payloads (`SecretRedactor`). Since 1.25.1 the monitor edit form shows them masked
-  too, with every header value, and keeps the stored value where the mask is submitted unchanged.
+  `***@`, and the values of credential-like query parameters (`token`, `key`, `secret`, `pass`, `pwd`, `sig` — so also
+  `signature` —, `auth`, `credential`, `session`, `code`, and since 1.25.2 `jwt`, `bearer`, `hash` — case-insensitive
+  substrings of the name) as `***`, in the dashboard, the monitor page, alert e-mails and webhook payloads
+  (`SecretRedactor`). Since 1.25.1 the monitor edit form shows them masked too, with every header value (and since
+  1.25.2 the request body), and keeps the stored value where the mask is submitted unchanged. A mask with nothing
+  stored behind it is refused by the form and never saved or sent as `***` (since 1.25.2).
   A kept value never follows a new destination: when the scheme, host or port of the URL changes, the masked URL
-  credentials, header values and the blank basic-auth password must be typed again (or removed), and the same for the
+  credentials, header values, request body and the blank basic-auth password must be typed again (or removed), and the same for the
   proxy credentials when the proxy's changes; the form refuses the save until then
   (`MonitorFactory::secretsNeedingRetype()`).
-  Secrets elsewhere in a URL (path segments, unusual parameter names) are not detected: put them in headers or basic
-  auth instead.
+  **Masking is pattern-based.** Secrets elsewhere in a URL are not detected and are shown in the form, on the monitor
+  page and in exports: path segments (a Slack webhook `https://hooks.slack.com/services/T…/B…/…`, a Telegram
+  `https://api.telegram.org/bot<token>/…`) and parameters whose name matches none of the names above (`q`, `id`,
+  `t`…). Put secrets in headers, basic auth or a credential-named parameter instead.
 - **Bundle backups** (Settings → Backup): exports mask URL / proxy credentials and credential-like query parameters,
   and drop the basic-auth password, the request body and every custom header value. Treat the file as internal all the
   same — monitor names, targets and paths remain — and re-enter the secrets after an import. Imports are

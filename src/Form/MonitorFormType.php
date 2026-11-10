@@ -200,10 +200,16 @@ final class MonitorFormType extends AbstractUptimeFormType
                 'form.monitor.body_encoding.none' => 'none',
             ],
         ]);
+        // Write-only (since 1.25.2): a stored body shows as ***; blank or *** keeps it, the checkbox removes it.
         $this->addTextarea($builder, 'httpBody', [
             'label'    => 'form.monitor.body',
             'required' => false,
+            'help'     => 'form.monitor.body_help',
             'attr'     => ['rows' => 4, 'placeholder' => '{"key": "value"}'],
+        ]);
+        $this->addCheckbox($builder, 'httpBodyClear', [
+            'label'    => 'form.monitor.body_clear',
+            'required' => false,
         ]);
         // Write-only values (since 1.25.1): the edit form shows `Name: ***`; a line still holding *** keeps the value.
         $this->addTextarea($builder, 'httpHeaders', [
@@ -327,6 +333,9 @@ final class MonitorFormType extends AbstractUptimeFormType
             $builder->remove($field);
             if ($field === 'authPassword') {
                 $builder->remove('authPasswordClear');
+            }
+            if ($field === 'httpBody') {
+                $builder->remove('httpBodyClear');
             }
         }
     }

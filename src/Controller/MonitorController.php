@@ -311,7 +311,11 @@ final class MonitorController extends AbstractUptimeController
             $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota->max($tenantSlug)])));
         }
 
-        if ($form->isSubmitted() && $form->isValid()) {
+        // Since 1.25.2: a mask with nothing stored behind it is refused on its field (never saved as `***`).
+        $unresolved = $form->isSubmitted() && $form->isValid()
+            && $this->flagSecretFields($form, $this->monitorFactory->unresolvedMasks(null, $data), 'form.monitor.secret_mask_unresolved');
+
+        if (!$unresolved && $form->isSubmitted() && $form->isValid()) {
             $monitor = $this->monitorFactory->createFromFormData($tenant, $data);
             $check   = new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_CREATE, $tenantSlug, $monitor->getType());
             if (!$this->saveUnderQuota($tenant, fn () => $this->entityManager->persist($monitor), $data->type !== MonitorType::Group, [$check])) {
@@ -375,15 +379,12 @@ final class MonitorController extends AbstractUptimeController
         }
 
         // Since 1.25.1: a stored secret is not carried to another scheme, host or port; its field asks for it again.
+        // Since 1.25.2: so is a mask with nothing stored behind it (a renamed header, a new token parameter).
+        // A field the host hid (`form.hidden_fields`) cannot be typed: that secret or mask is dropped instead.
         $retype = false;
         if ($form->isSubmitted() && $form->isValid()) {
-            foreach ($this->monitorFactory->secretsNeedingRetype($monitor, $data) as $field) {
-                // A field the host hid (`form.hidden_fields`) cannot be typed: that secret is dropped instead.
-                if ($form->has($field)) {
-                    $form->get($field)->addError(new FormError($this->transMessage('form.monitor.secret_retype')));
-                    $retype = true;
-                }
-            }
+            $retype = $this->flagSecretFields($form, $this->monitorFactory->secretsNeedingRetype($monitor, $data), 'form.monitor.secret_retype');
+            $retype = $this->flagSecretFields($form, $this->monitorFactory->unresolvedMasks($monitor, $data), 'form.monitor.secret_mask_unresolved') || $retype;
         }
 
         if (!$retype && $form->isSubmitted() && $form->isValid()) {
@@ -418,6 +419,25 @@ final class MonitorController extends AbstractUptimeController
         }
 
         return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.edit', $monitor);
+    }
+
+    /**
+     * Adds the message as an error on each listed field the form has (a hidden field is skipped); true when one was added.
+     *
+     * @param FormInterface<mixed> $form
+     * @param list<string> $fields
+     */
+    private function flagSecretFields(FormInterface $form, array $fields, string $message): bool
+    {
+        $flagged = false;
+        foreach ($fields as $field) {
+            if ($form->has($field)) {
+                $form->get($field)->addError(new FormError($this->transMessage($message)));
+                $flagged = true;
+            }
+        }
+
+        return $flagged;
     }
 
     /**
@@ -657,7 +677,7 @@ final class MonitorController extends AbstractUptimeController
 
     /**
      * The stored values of the write-only form fields (the password since 1.25, the URL, proxy and headers since
-     * 1.25.1), compared in memory so a change is reported by name although the form only holds blanks or masks.
+     * 1.25.1, the request body since 1.25.2), compared in memory so a change is reported by name although the form only holds blanks or masks.
      *
      * @return array<string, mixed>
      */
@@ -670,6 +690,7 @@ final class MonitorController extends AbstractUptimeController
             'url'          => $config['url'] ?? null,
             'proxy'        => $config['proxy'] ?? null,
             'httpHeaders'  => $config['headers'] ?? null,
+            'httpBody'     => $config['body'] ?? null,
         ];
     }
 

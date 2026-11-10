@@ -98,6 +98,19 @@ final class MonitorFormTypeTest extends TypeTestCase
         self::assertSame('', $form->createView()['authPassword']->vars['value']);
     }
 
+    /** Since 1.25.2: hiding the request body also hides its clear box. */
+    public function testHidingTheBodyHidesItsClearBox(): void
+    {
+        $factory = Forms::createFormFactoryBuilder()
+            ->addExtensions($this->getExtensions())
+            ->addTypes([FormKitTestSupport::withMerger(new MonitorFormType(['httpBody']))])
+            ->getFormFactory();
+        $hidden = $factory->create(MonitorFormType::class, new MonitorFormData());
+        self::assertFalse($hidden->has('httpBody'));
+        self::assertFalse($hidden->has('httpBodyClear'));
+        self::assertTrue($this->factory->create(MonitorFormType::class, new MonitorFormData())->has('httpBodyClear'));
+    }
+
     public function testSubmitValidData(): void
     {
         $data                  = new MonitorFormData();

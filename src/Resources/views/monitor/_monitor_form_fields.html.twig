@@ -91,7 +91,7 @@
 {% set _advanced_defaults = {keyword: '', maxRedirects: '10', bodyEncoding: 'json', httpBody: '', httpHeaders: '', authMethod: 'none', authUsername: '', authPassword: '', proxy: '', tags: ''} %}
 {% set _advanced = [] %}
 {% set _advanced_open = false %}
-{% for _name in ['keyword', 'maxRedirects', 'ignoreTls', 'upsideDown', 'checkCertExpiry', 'bodyEncoding', 'httpBody', 'httpHeaders', 'authMethod', 'authUsername', 'authPassword', 'authPasswordClear', 'proxy', 'tags'] %}
+{% for _name in ['keyword', 'maxRedirects', 'ignoreTls', 'upsideDown', 'checkCertExpiry', 'bodyEncoding', 'httpBody', 'httpBodyClear', 'httpHeaders', 'authMethod', 'authUsername', 'authPassword', 'authPasswordClear', 'proxy', 'tags'] %}
     {% if form[_name] is defined %}
         {% set _field = form[_name] %}
         {% set _advanced = _advanced|merge([_field]) %}

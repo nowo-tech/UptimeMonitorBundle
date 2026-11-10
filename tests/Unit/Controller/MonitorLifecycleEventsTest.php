@@ -328,6 +328,99 @@ final class MonitorLifecycleEventsTest extends TestCase
     }
 
     /**
+     * Since 1.25.2 (KE-U151-L1): a mask with nothing stored behind it (a renamed header, a new token parameter, a mask
+     * typed into a new monitor) is refused on its field with 422; nothing is saved and no event is sent.
+     */
+    public function testAMaskWithNothingStoredBehindItIsRefusedOnItsField(): void
+    {
+        $monitor = $this->persisted('Leftover');
+        $config  = ['url' => 'https://p.test/h?token=t1', 'method' => 'GET', 'headers' => ['Authorization' => 'Bearer abc']];
+        $monitor->setConfig($config);
+        $this->em->flush();
+        $id         = (int) $monitor->getId();
+        $controller = $this->controller();
+
+        $post = $this->submit('/main/monitors/' . $id . '/edit', [
+            'name'        => 'Leftover',
+            'url'         => 'https://p.test/h?token=***&tokenx=***',
+            'httpHeaders' => "Authorization: ***\nX-Other: ***",
+            'httpBody'    => '***',
+        ], ['X-Uptime-Modal' => '1']);
+        $this->bindController($controller, true, $post);
+        self::assertSame(422, $controller->edit('main', $id, $post)->getStatusCode());
+        $form = $this->renderedContext['form'] ?? null;
+        self::assertInstanceOf(FormView::class, $form);
+        foreach (['url', 'httpHeaders', 'httpBody'] as $field) {
+            self::assertCount(1, $form[$field]->vars['errors'], $field);
+            self::assertSame('form.monitor.secret_mask_unresolved', $form[$field]->vars['errors'][0]->getMessage());
+        }
+        self::assertCount(0, $form['proxy']->vars['errors']);
+        self::assertSame(json_encode($config), json_encode($monitor->getConfig()), 'nothing saved');
+        self::assertSame([], $this->events);
+
+        // A new monitor has nothing stored: a typed mask is refused as well.
+        $new = $this->submit('/main/monitors/new', ['name' => 'Fresh', 'url' => 'https://***@p.test/', 'proxy' => '***@proxy.test:3128'], ['X-Uptime-Modal' => '1']);
+        $this->bindController($controller, true, $new);
+        self::assertSame(422, $controller->new('main', $new)->getStatusCode());
+        $form = $this->renderedContext['form'] ?? null;
+        self::assertInstanceOf(FormView::class, $form);
+        self::assertSame('form.monitor.secret_mask_unresolved', $form['url']->vars['errors'][0]->getMessage());
+        self::assertSame('form.monitor.secret_mask_unresolved', $form['proxy']->vars['errors'][0]->getMessage());
+        self::assertNull($this->monitors->findOneBy(['name' => 'Fresh']));
+        self::assertSame([], $this->events);
+    }
+
+    /**
+     * Since 1.25.2 (KE-U151-L2): the stored request body is never rendered; the mask keeps it, a typed body replaces it,
+     * the clear box removes it, another host asks for it again, and the event names the field only.
+     */
+    public function testTheRequestBodyIsWriteOnlyOnEveryEditPath(): void
+    {
+        $monitor = $this->persisted('Login');
+        $monitor->setConfig(['url' => 'https://p.test/login', 'method' => 'POST', 'body' => '{"login":"body-fixture"}']);
+        $this->em->flush();
+        $id         = (int) $monitor->getId();
+        $controller = $this->controller();
+
+        $get = Request::create('/main/monitors/' . $id . '/edit');
+        $this->bindController($controller, true, $get);
+        $controller->edit('main', $id, $get);
+        $this->assertRenderedMasks(['httpBody' => '***'], ['body-fixture']);
+
+        $base = ['name' => 'Login', 'url' => 'https://p.test/login', 'method' => 'POST'];
+        $keep = $this->submit('/main/monitors/' . $id . '/edit', $base + ['httpBody' => '***']);
+        $this->bindController($controller, true, $keep);
+        self::assertTrue($controller->edit('main', $id, $keep)->isRedirect());
+        self::assertSame('{"login":"body-fixture"}', $monitor->getConfig()['body']);
+        $event = $this->events[0] ?? null;
+        self::assertInstanceOf(MonitorUpdatedEvent::class, $event);
+        self::assertNotContains('httpBody', $event->changedFields);
+
+        $moved = $this->submit('/main/monitors/' . $id . '/edit', ['url' => 'https://evil.test/login', 'httpBody' => '***'] + $base, ['X-Uptime-Modal' => '1']);
+        $this->bindController($controller, true, $moved);
+        self::assertSame(422, $controller->edit('main', $id, $moved)->getStatusCode());
+        $form = $this->renderedContext['form'] ?? null;
+        self::assertInstanceOf(FormView::class, $form);
+        self::assertSame('form.monitor.secret_retype', $form['httpBody']->vars['errors'][0]->getMessage());
+        self::assertSame('https://p.test/login', $monitor->getConfig()['url']);
+
+        $this->events = [];
+        $replace      = $this->submit('/main/monitors/' . $id . '/edit', $base + ['httpBody' => '{"login":"typed-body"}']);
+        $this->bindController($controller, true, $replace);
+        $controller->edit('main', $id, $replace);
+        self::assertSame('{"login":"typed-body"}', $monitor->getConfig()['body']);
+        $event = $this->events[0] ?? null;
+        self::assertInstanceOf(MonitorUpdatedEvent::class, $event);
+        self::assertContains('httpBody', $event->changedFields);
+        self::assertStringNotContainsString('typed-body', (string) json_encode($event));
+
+        $clear = $this->submit('/main/monitors/' . $id . '/edit', $base + ['httpBody' => '***', 'httpBodyClear' => '1']);
+        $this->bindController($controller, true, $clear);
+        self::assertTrue($controller->edit('main', $id, $clear)->isRedirect());
+        self::assertArrayNotHasKey('body', $monitor->getConfig());
+    }
+
+    /**
      * @param array<string, string> $masked
      * @param list<string> $secrets
      */
