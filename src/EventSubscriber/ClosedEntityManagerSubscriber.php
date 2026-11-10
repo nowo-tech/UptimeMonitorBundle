@@ -6,10 +6,13 @@ namespace Nowo\UptimeMonitorBundle\EventSubscriber;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
+use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
+use function array_search;
 use function is_string;
 use function str_starts_with;
 
@@ -18,19 +21,23 @@ use function str_starts_with;
  *
  * When the kernel is not reset between requests (long-running workers without `services_resetter`),
  * a failed flush in a previous request leaves the manager closed for every later request of that worker.
- * Only closed managers are reset; open managers and their identity maps are left untouched.
+ * Only the bundle's manager is reset (1.25.3), and only when closed: the manager of the bundle entities
+ * (`doctrine.entity_manager`, else resolved with getManagerForClass()). Host managers, closed or open, are never
+ * touched.
  */
 final readonly class ClosedEntityManagerSubscriber implements EventSubscriberInterface
 {
     private const ROUTE_PREFIX = 'nowo_uptime_';
 
     /**
-     * Creates the subscriber for the Doctrine managers of the registry.
+     * Creates the subscriber for the bundle's Doctrine manager.
      *
-     * @param ManagerRegistry $registry Doctrine registry whose closed managers are reset
+     * @param ManagerRegistry $registry Doctrine registry
+     * @param string|null $entityManagerName `doctrine.entity_manager` (null: the manager of the bundle entities)
      */
     public function __construct(
         private ManagerRegistry $registry,
+        private ?string $entityManagerName = null,
     ) {
     }
 
@@ -48,7 +55,7 @@ final readonly class ClosedEntityManagerSubscriber implements EventSubscriberInt
     }
 
     /**
-     * Resets every closed Doctrine entity manager before a bundle route (`nowo_uptime_*`) of the main request runs.
+     * Resets the bundle's entity manager, when closed, before a bundle route (`nowo_uptime_*`) of the main request runs.
      */
     public function onKernelRequest(RequestEvent $event): void
     {
@@ -61,10 +68,25 @@ final readonly class ClosedEntityManagerSubscriber implements EventSubscriberInt
             return;
         }
 
-        foreach ($this->registry->getManagers() as $name => $manager) {
-            if ($manager instanceof EntityManagerInterface && !$manager->isOpen()) {
-                $this->registry->resetManager($name);
-            }
+        $name    = $this->bundleManagerName();
+        $manager = $name !== null ? $this->registry->getManager($name) : null;
+        if ($name !== null && $manager instanceof EntityManagerInterface && !$manager->isOpen()) {
+            $this->registry->resetManager($name);
         }
+    }
+
+    /**
+     * The manager of the bundle entities: `doctrine.entity_manager`, else resolved with getManagerForClass(Monitor).
+     */
+    private function bundleManagerName(): ?string
+    {
+        if ($this->entityManagerName !== null) {
+            return $this->entityManagerName;
+        }
+
+        $manager = $this->registry->getManagerForClass(Monitor::class);
+        $name    = $manager instanceof ObjectManager ? array_search($manager, $this->registry->getManagers(), true) : false;
+
+        return is_string($name) ? $name : null;
     }
 }

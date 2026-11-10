@@ -82,6 +82,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target 1.25.3.
+
+### Fixed
+
+- `ClosedEntityManagerSubscriber` reset **every** closed entity manager of the registry before a bundle route, host
+  managers included, and `MonitorBackupService::import()` did the same after a failed import flush. Both now reset only
+  the bundle's manager: the manager of the bundle entities (new `doctrine.entity_manager`, else
+  `getManagerForClass(Monitor)`) and, for the import, the manager it wrote through. Rule 6 of the bundle architecture
+  bar; standard hosts with one default manager see no change.
+
+### Added
+
+- `nowo_uptime_monitor.doctrine.entity_manager` (default `null`).
+
 ## [1.25.2] - 2026-11-10
 
 Target **1.25.2** (patch, security).

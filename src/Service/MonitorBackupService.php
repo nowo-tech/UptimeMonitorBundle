@@ -64,7 +64,7 @@ final readonly class MonitorBackupService
     /**
      * Creates the backup service.
      *
-     * @param ManagerRegistry|null $registry Resets closed managers after a failed import flush
+     * @param ManagerRegistry|null $registry Resets the bundle manager when a failed import flush closed it
      * @param ClockInterface $clock Clock for the export timestamp
      * @param ValidatorInterface|null $validator Validates import rows against the monitor form constraints
      * @param LoggerInterface $logger Receives export / import start, success (counts) and failure (exception class)
@@ -291,10 +291,13 @@ final readonly class MonitorBackupService
         return true;
     }
 
+    /**
+     * Resets the manager the import wrote through (1.25.3: only that one, never another closed manager of the host).
+     */
     private function resetClosedManagers(ManagerRegistry $registry): void
     {
         foreach ($registry->getManagers() as $name => $manager) {
-            if ($manager instanceof EntityManagerInterface && !$manager->isOpen()) {
+            if ($manager === $this->entityManager) {
                 $registry->resetManager($name);
             }
         }

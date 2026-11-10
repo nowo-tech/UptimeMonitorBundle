@@ -36,6 +36,8 @@ final class ClosedEntityManagerSubscriberTest extends TestCase
 
         $registry = $this->createMock(ManagerRegistry::class);
         $registry->method('getManagers')->willReturn(['default' => $em, 'other' => $this->createMock(ObjectManager::class)]);
+        $registry->method('getManagerForClass')->willReturn($em);
+        $registry->method('getManager')->with('default')->willReturn($em);
         $registry->expects(self::once())->method('resetManager')->with('default')
             ->willReturnCallback(static function () use (&$open, $em): EntityManagerInterface {
                 $open = true;
@@ -61,11 +63,32 @@ final class ClosedEntityManagerSubscriberTest extends TestCase
     {
         $registry = $this->createMock(ManagerRegistry::class);
         $registry->expects(self::never())->method('getManagers');
+        $registry->expects(self::never())->method('getManager');
 
         $subscriber = new ClosedEntityManagerSubscriber($registry);
         $subscriber->onKernelRequest($this->event('nowo_uptime_dashboard', HttpKernelInterface::SUB_REQUEST));
         $subscriber->onKernelRequest($this->event('app_home'));
         $subscriber->onKernelRequest($this->event(null));
+    }
+
+    public function testWithoutAManagerForTheBundleEntitiesNothingIsReset(): void
+    {
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->method('getManagerForClass')->willReturn(null);
+        $registry->expects(self::never())->method('getManager');
+        $registry->expects(self::never())->method('resetManager');
+
+        (new ClosedEntityManagerSubscriber($registry))->onKernelRequest($this->event('nowo_uptime_dashboard'));
+    }
+
+    public function testConfiguredManagerThatIsNotAnOrmManagerIsIgnored(): void
+    {
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->expects(self::never())->method('getManagerForClass');
+        $registry->method('getManager')->with('odm')->willReturn($this->createMock(ObjectManager::class));
+        $registry->expects(self::never())->method('resetManager');
+
+        (new ClosedEntityManagerSubscriber($registry, 'odm'))->onKernelRequest($this->event('nowo_uptime_dashboard'));
     }
 
     private function event(?string $route, int $type = HttpKernelInterface::MAIN_REQUEST): RequestEvent
