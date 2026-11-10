@@ -295,17 +295,17 @@ final class MonitorFactoryRoundTripTest extends TestCase
     public function testTheRequestBodyIsWriteOnly(): void
     {
         $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://api.test/login');
-        $monitor->setConfig(['url' => 'https://api.test/login', 'method' => 'POST', 'body' => '{"password":"s3cret"}']);
+        $monitor->setConfig(['url' => 'https://api.test/login', 'method' => 'POST', 'body' => '{"login":"body-fixture"}']);
 
         $data = $this->factory()->toFormData($monitor);
         self::assertSame('***', $data->httpBody);
-        self::assertStringNotContainsString('s3cret', (string) json_encode($data));
+        self::assertStringNotContainsString('body-fixture', (string) json_encode($data));
 
         foreach (['***', ''] as $kept) {
             $data->httpBody = $kept;
             self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data));
             $this->factory()->applyFormData($monitor, $data);
-            self::assertSame('{"password":"s3cret"}', $monitor->getConfig()['body'], 'kept with ' . $kept);
+            self::assertSame('{"login":"body-fixture"}', $monitor->getConfig()['body'], 'kept with ' . $kept);
         }
 
         $data->url = 'https://other.test/login';

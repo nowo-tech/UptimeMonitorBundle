@@ -377,7 +377,7 @@ final class MonitorLifecycleEventsTest extends TestCase
     public function testTheRequestBodyIsWriteOnlyOnEveryEditPath(): void
     {
         $monitor = $this->persisted('Login');
-        $monitor->setConfig(['url' => 'https://p.test/login', 'method' => 'POST', 'body' => '{"password":"body-secret"}']);
+        $monitor->setConfig(['url' => 'https://p.test/login', 'method' => 'POST', 'body' => '{"login":"body-fixture"}']);
         $this->em->flush();
         $id         = (int) $monitor->getId();
         $controller = $this->controller();
@@ -385,13 +385,13 @@ final class MonitorLifecycleEventsTest extends TestCase
         $get = Request::create('/main/monitors/' . $id . '/edit');
         $this->bindController($controller, true, $get);
         $controller->edit('main', $id, $get);
-        $this->assertRenderedMasks(['httpBody' => '***'], ['body-secret']);
+        $this->assertRenderedMasks(['httpBody' => '***'], ['body-fixture']);
 
         $base = ['name' => 'Login', 'url' => 'https://p.test/login', 'method' => 'POST'];
         $keep = $this->submit('/main/monitors/' . $id . '/edit', $base + ['httpBody' => '***']);
         $this->bindController($controller, true, $keep);
         self::assertTrue($controller->edit('main', $id, $keep)->isRedirect());
-        self::assertSame('{"password":"body-secret"}', $monitor->getConfig()['body']);
+        self::assertSame('{"login":"body-fixture"}', $monitor->getConfig()['body']);
         $event = $this->events[0] ?? null;
         self::assertInstanceOf(MonitorUpdatedEvent::class, $event);
         self::assertNotContains('httpBody', $event->changedFields);
@@ -405,10 +405,10 @@ final class MonitorLifecycleEventsTest extends TestCase
         self::assertSame('https://p.test/login', $monitor->getConfig()['url']);
 
         $this->events = [];
-        $replace      = $this->submit('/main/monitors/' . $id . '/edit', $base + ['httpBody' => '{"password":"typed-body"}']);
+        $replace      = $this->submit('/main/monitors/' . $id . '/edit', $base + ['httpBody' => '{"login":"typed-body"}']);
         $this->bindController($controller, true, $replace);
         $controller->edit('main', $id, $replace);
-        self::assertSame('{"password":"typed-body"}', $monitor->getConfig()['body']);
+        self::assertSame('{"login":"typed-body"}', $monitor->getConfig()['body']);
         $event = $this->events[0] ?? null;
         self::assertInstanceOf(MonitorUpdatedEvent::class, $event);
         self::assertContains('httpBody', $event->changedFields);
