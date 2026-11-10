@@ -6,10 +6,14 @@ namespace Nowo\UptimeMonitorBundle\Event;
 
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Model\IncidentSnapshot;
 
 /**
- * A monitor went down (or degraded) and an incident opened (since 1.9). Dispatched once per incident, before the
- * check's flush, so a listener can persist its own records in the same unit of work (e.g. open an issue in the host).
+ * A monitor went down (or degraded) and an incident opened (since 1.9). Dispatched once per incident. Since 1.25 it
+ * is dispatched after the check's flush (the incident has its id; a failed flush dispatches nothing); before 1.25 it
+ * was dispatched before that flush. Entities a listener persists are still flushed right after the dispatch.
+ *
+ * A host anti-corruption layer reads the scalar getters ({@see self::snapshot()}, since 1.25) instead of the entities.
  */
 final readonly class MonitorWentDownEvent
 {
@@ -25,5 +29,37 @@ final readonly class MonitorWentDownEvent
         public Incident $incident,
         public ?string $message,
     ) {
+    }
+
+    /**
+     * Scalar view of the incident and its monitor (since 1.25).
+     */
+    public function snapshot(): IncidentSnapshot
+    {
+        return IncidentSnapshot::fromIncident($this->incident);
+    }
+
+    /**
+     * Tenant slug of the monitor (since 1.25).
+     */
+    public function getTenantSlug(): string
+    {
+        return $this->monitor->getTenant()->getSlug();
+    }
+
+    /**
+     * Monitor id (since 1.25).
+     */
+    public function getMonitorId(): ?int
+    {
+        return $this->monitor->getId();
+    }
+
+    /**
+     * Incident id (since 1.25; set, as the event is dispatched after the flush).
+     */
+    public function getIncidentId(): ?int
+    {
+        return $this->incident->getId();
     }
 }

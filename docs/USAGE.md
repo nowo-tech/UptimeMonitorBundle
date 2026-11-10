@@ -105,8 +105,8 @@ On status change (up/down/degraded), optional email, webhook, and Slack channels
 
 For hosts that own their tenants (e.g. one tenant per project of the host application), since 1.9.0:
 
-- **Tenants**: `TenantProvisioner::ensure($slug, $name)` creates a tenant once (an existing one is kept);
-  `setEnabled($slug, false)` hides it. Set `tenants.list_enabled: false` so users do not create tenants themselves.
+- **Tenants**: `TenantProvisionerInterface::ensure($slug, $name)` (implemented by `TenantProvisioner`, since 1.25)
+  creates a tenant once (an existing one is kept); `setEnabled($slug, false)` hides it. Set `tenants.list_enabled: false` so users do not create tenants themselves.
 - **Per-tenant access**: when the service set as `security.access_checker` implements
   `TenantAwareUptimeMonitorAccessCheckerInterface`, every request whose route has `{tenantSlug}` is decided by
   `canAccessTenant` / `canManageTenantMonitors` / `canManageTenantSettings` for that tenant; the global methods still
@@ -116,14 +116,19 @@ For hosts that own their tenants (e.g. one tenant per project of the host applic
 - **Look**: wrap the pages in `.uptime-app.uptime-app--embedded` (bridge layout); the theme follows `data-theme` or
   `data-bs-theme` on an ancestor and the host maps the `--tblr-*` tokens to its palette.
 - **Events**: `MonitorWentDownEvent` (when an incident opens) and `MonitorRecoveredEvent` (when it resolves) carry the
-  monitor and the incident; they are dispatched before the check is flushed, so a listener may persist its own
-  entities in the same unit of work.
+  monitor and the incident, plus scalar getters (`getTenantSlug()`, `getMonitorId()`, `getIncidentId()`, `snapshot()`)
+  since 1.25. Since 1.25 they are dispatched **after** the check is flushed: the new incident has its id, and a failed
+  flush dispatches nothing. Entities a listener persists are flushed right after the dispatch (no longer in the same
+  flush as the check).
+- **Admin UI lifecycle events** (since 1.25): `MonitorCreatedEvent`, `MonitorUpdatedEvent` (with the changed field
+  names), `MonitorDeletedEvent` and `MonitorPausedEvent` (`paused` true or false), dispatched after the commit with the
+  tenant slug, monitor id, actor (`getUserIdentifier()` of the security token, or null) and `occurredAt`.
 
 ```php
 #[AsEventListener]
 public function onDown(MonitorWentDownEvent $event): void
 {
-    $this->issues->openFor($event->monitor, $event->message);
+    $this->issues->openFor($event->getTenantSlug(), (int) $event->getMonitorId(), $event->message);
 }
 ```
 
@@ -143,22 +148,28 @@ superclass or trait to extend. The current user is passed to the access checker 
 |---|---|---|
 | `Security\TenantAwareUptimeMonitorAccessCheckerInterface` (or `MonitorAwareUptimeMonitorAccessCheckerInterface`) | `security.access_checker` | Map your users and permissions to dashboard / manage / settings rights per tenant |
 | `Limits\TenantLimitsInterface` | `limits.provider` | Per-tenant `maxMonitors()` / `minIntervalSeconds()` from your plans |
-| `Tenant\MissingTenantProvisionerInterface` | `multi_tenant.provisioner` | Create a tenant on first access (usually delegates to `TenantProvisioner::ensure()`) |
+| `Tenant\MissingTenantProvisionerInterface` | `multi_tenant.provisioner` | Create a tenant on first access (usually delegates to `TenantProvisionerInterface::ensure()`) |
 | `Ui\SettingsSectionsResolverInterface` | `web_ui.settings.sections_resolver` | Settings sections shown per tenant |
 | `Notification\NotificationChannelInterface` | service tag `nowo.uptime_monitor.notification_channel` | Extra alert channel |
 
 **Events to translate into your own domain events:**
 
 - `Event\MonitorWentDownEvent` / `Event\MonitorRecoveredEvent`: an incident opened or resolved. Both are dispatched
-  before the check is flushed.
+  after the check is flushed (since 1.25), so the incident id is set. Read `snapshot()` (a `Model\IncidentSnapshot`:
+  tenant slug, monitor id, name and type, incident id, trigger status, message, started / ended at) or the
+  `getTenantSlug()` / `getMonitorId()` / `getIncidentId()` getters instead of the entities.
+- `Event\MonitorCreatedEvent` / `MonitorUpdatedEvent` / `MonitorDeletedEvent` / `MonitorPausedEvent` (since 1.25):
+  admin UI writes, after the commit. Scalars only: tenant slug, monitor id, actor id, `occurredAt`; the update carries
+  the changed field names (never values), the pause its new `paused` state.
 - `Event\MonitorsAppliedEvent`: `nowo:uptime:apply-monitors` committed a tenant's monitors. Scalars only, dispatched
   after the commit.
 - `Event\MonitorQuotaCheckEvent` (`UptimeEvents::MONITOR_QUOTA_CHECK`): cancellable check before an admin-UI create
   or resume. Call `deny()` and do not throw.
 
-**Driving it from your application.** Use `TenantProvisioner::ensure($slug, $name)` / `setEnabled($slug, false)` for
-tenants, and the declarative `nowo:uptime:apply-monitors` file (or `Apply\MonitorApplier`) for monitors. Wrap these
-calls behind your own port.
+**Driving it from your application.** Type-hint the interfaces (since 1.25), both autowirable:
+`Service\TenantProvisionerInterface` (`ensure($slug, $name)` / `setEnabled($slug, false)`) for tenants, and
+`Apply\MonitorApplierInterface::apply()` (the engine of the declarative `nowo:uptime:apply-monitors` file) for
+monitors. Wrap these calls behind your own port; in tests, replace the interface with a fake.
 
 **Example anti-corruption listener:**
 
@@ -173,13 +184,14 @@ final readonly class UptimeIncidentTranslator
     #[AsEventListener]
     public function onDown(MonitorWentDownEvent $event): void
     {
-        $monitor = $event->monitor;
         // Copy scalars out; never keep the bundle entities in your domain.
+        $incident = $event->snapshot();
         $this->alerts->serviceDown(
-            projectId: $monitor->getTenant()->getSlug(),
-            checkName: $monitor->getName(),
-            reason: $event->message,
-            since: $event->incident->getStartedAt(),
+            projectId: $incident->tenantSlug,
+            incidentId: (int) $incident->incidentId,
+            checkName: $incident->monitorName,
+            reason: $incident->message,
+            since: $incident->startedAt,
         );
     }
 }
@@ -187,11 +199,10 @@ final readonly class UptimeIncidentTranslator
 
 **Known limitations:**
 
-- Incident events carry the bundle's `Monitor` / `Incident` entities and fire before flush, so a new incident's id
-  may still be null. Copy scalars, and defer side effects outside the transaction (for example a Messenger message).
-- There is no fine-grained programmatic API for single monitors yet. Use the apply file or `MonitorApplier`.
-- Monitor create, edit, pause and delete in the admin UI dispatch no post-commit events (only the pre-write quota
-  check).
+- There is no fine-grained programmatic API for single monitors yet (upsert / remove one monitor). Use the apply
+  file or `MonitorApplierInterface`.
+- The settings backup import (`MonitorBackupService::import()`) dispatches no per-monitor lifecycle events.
+- `TenantProvisionerInterface::ensure()` returns the `Tenant` entity; read `getSlug()` and drop it.
 - `MissingTenantProvisionerInterface` returns a `Tenant` entity, and `canViewMonitor()` receives a `Monitor` entity.
 - Custom notification channels must be tagged by hand.
 

@@ -18,7 +18,11 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorCreatedEvent;
+use Nowo\UptimeMonitorBundle\Event\MonitorDeletedEvent;
+use Nowo\UptimeMonitorBundle\Event\MonitorPausedEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
+use Nowo\UptimeMonitorBundle\Event\MonitorUpdatedEvent;
 use Nowo\UptimeMonitorBundle\Event\UptimePageEvent;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
@@ -35,6 +39,8 @@ use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
@@ -46,14 +52,17 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function array_filter;
+use function array_keys;
 use function array_reverse;
 use function array_slice;
 use function array_values;
 use function count;
+use function get_object_vars;
 use function in_array;
 use function is_array;
 use function is_int;
@@ -80,6 +89,8 @@ final class MonitorController extends AbstractUptimeController
      * @param PushCredentials|null $pushCredentials Issues and revokes push tokens (since 1.14)
      * @param PushMetricsSeries|null $pushSeries Server health view of push monitors (since 1.14)
      * @param MonitorReadScope|null $readScope Narrows the monitor page for users without tenant access (since 1.21)
+     * @param TokenStorageInterface|null $tokenStorage Actor of the lifecycle events (since 1.25; null without SecurityBundle)
+     * @param ClockInterface $clock Occurred-at of the lifecycle events (since 1.25)
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -101,6 +112,8 @@ final class MonitorController extends AbstractUptimeController
         private readonly ?PushCredentials $pushCredentials = null,
         private readonly ?PushMetricsSeries $pushSeries = null,
         private readonly ?MonitorReadScope $readScope = null,
+        private readonly ?TokenStorageInterface $tokenStorage = null,
+        private readonly ClockInterface $clock = new NativeClock(),
     ) {
         parent::__construct($translator);
     }
@@ -306,6 +319,7 @@ final class MonitorController extends AbstractUptimeController
 
                 return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.new');
             }
+            $this->eventDispatcher?->dispatch(new MonitorCreatedEvent($tenantSlug, (int) $monitor->getId(), $this->actorId(), $this->clock->now()));
 
             $message = $this->transMessage('flash.monitor.created', ['%name%' => $monitor->getName()]);
 
@@ -346,6 +360,7 @@ final class MonitorController extends AbstractUptimeController
         }
         $monitor = $this->requireUiManaged($monitor);
         $data    = $this->monitorFactory->toFormData($monitor);
+        $before  = get_object_vars($data);
         $form    = $this->createForm(MonitorFormType::class, $data, [
             'group_choices'        => $this->buildGroupChoices($tenantSlug, $monitor),
             'min_interval_seconds' => $this->minIntervalSeconds($tenantSlug),
@@ -366,6 +381,13 @@ final class MonitorController extends AbstractUptimeController
 
                 return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.edit', $monitor);
             }
+            $this->eventDispatcher?->dispatch(new MonitorUpdatedEvent(
+                $tenantSlug,
+                (int) $monitor->getId(),
+                $this->changedFields($before, get_object_vars($this->monitorFactory->toFormData($monitor))),
+                $this->actorId(),
+                $this->clock->now(),
+            ));
 
             $message = $this->transMessage('flash.monitor.updated', ['%name%' => $monitor->getName()]);
 
@@ -473,8 +495,10 @@ final class MonitorController extends AbstractUptimeController
         $monitor = $this->requireUiManaged($this->requireMonitor($tenantSlug, $id));
 
         if ($this->isCsrfTokenValid('delete' . $monitor->getId(), (string) $request->request->get('_token'))) {
+            $monitorId = (int) $monitor->getId();
             $this->entityManager->remove($monitor);
             $this->entityManager->flush();
+            $this->eventDispatcher?->dispatch(new MonitorDeletedEvent($tenantSlug, $monitorId, $this->actorId(), $this->clock->now()));
             $this->addFlash('success', $this->transMessage('flash.monitor.deleted'));
         }
 
@@ -502,6 +526,8 @@ final class MonitorController extends AbstractUptimeController
             // @igor-ignore - HTTP handler delegates to services; no controller worker state.
             if (!$this->saveUnderQuota($monitor->getTenant(), static fn (): Monitor => $monitor->setPaused(!$monitor->isPaused()), false, $checks)) {
                 $this->addFlash('error', (string) $this->denialReason($checks));
+            } else {
+                $this->eventDispatcher?->dispatch(new MonitorPausedEvent($tenantSlug, (int) $monitor->getId(), $monitor->isPaused(), $this->actorId(), $this->clock->now()));
             }
         }
 
@@ -606,6 +632,34 @@ final class MonitorController extends AbstractUptimeController
         $this->eventDispatcher?->dispatch($event);
 
         return $event;
+    }
+
+    /**
+     * User identifier of the current user for the lifecycle events; null without a security token.
+     */
+    private function actorId(): ?string
+    {
+        return $this->tokenStorage?->getToken()?->getUserIdentifier();
+    }
+
+    /**
+     * Names of the monitor form fields whose value differs (never the values: the form holds credentials).
+     *
+     * @param array<string, mixed> $before
+     * @param array<string, mixed> $after
+     *
+     * @return list<string>
+     */
+    private function changedFields(array $before, array $after): array
+    {
+        $changed = [];
+        foreach (array_keys($after) as $field) {
+            if (($before[$field] ?? null) !== $after[$field]) {
+                $changed[] = $field;
+            }
+        }
+
+        return $changed;
     }
 
     /**

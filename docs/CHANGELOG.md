@@ -79,6 +79,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target **1.25.0** (minor, additive; one documented event timing change).
+
+### Added
+
+- **DDD ports**: `Apply\MonitorApplierInterface` (implemented by `MonitorApplier`) and
+  `Service\TenantProvisionerInterface` (implemented by `TenantProvisioner`), aliased for autowiring. The classes stay
+  `final`; `ApplyMonitorsCommand` type-hints the interface.
+- **Scalar views on incident events**: `MonitorWentDownEvent` / `MonitorRecoveredEvent` gain `getTenantSlug()`,
+  `getMonitorId()`, `getIncidentId()` and `snapshot()` (new readonly `Model\IncidentSnapshot`). The entity properties
+  stay.
+- **Admin UI lifecycle events**, dispatched after the commit, scalars only (tenant slug, monitor id, actor id,
+  occurred-at): `MonitorCreatedEvent`, `MonitorUpdatedEvent` (changed field names, never values),
+  `MonitorDeletedEvent`, `MonitorPausedEvent` (new `paused` state); names in `UptimeEvents::MONITOR_CREATED` /
+  `MONITOR_UPDATED` / `MONITOR_DELETED` / `MONITOR_PAUSED`. `MonitorController` takes optional `$tokenStorage` and
+  `$clock` arguments (last, with defaults).
+- `StatusTransitionService::handleAfterCheckDeferred()` / `dispatchCommitted()`.
+
+### Changed
+
+- **Incident events after the commit**: `CheckExecutorService` dispatches `MonitorWentDownEvent` /
+  `MonitorRecoveredEvent` after the check's flush instead of before it. The new incident's id is set; a failed flush
+  dispatches nothing. What a listener persists is flushed right after the dispatch. Same event classes and payload.
+  `StatusTransitionService::handleAfterCheck()` (when called directly) keeps dispatching immediately.
+
 ### Documentation
 
 - USAGE: new section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the ports, events and DTOs to build an anti-corruption layer on, and the known limitations).

@@ -41,7 +41,8 @@ final readonly class CheckExecutorService
 
     /**
      * Runs the monitor check, stores the result, aggregates, incidents and notifications, schedules the next check,
-     * notifies the dashboards and refreshes the parent group.
+     * dispatches the incident events after the flush (since 1.25), notifies the dashboards and refreshes the parent
+     * group.
      */
     public function execute(Monitor $monitor): CheckResult
     {
@@ -66,8 +67,10 @@ final readonly class CheckExecutorService
         $this->entityManager->persist($result);
         $this->monitorRetryService->scheduleAfterCheck($monitor, $now, $raw);
         $this->aggregateService->recordFromCheck($monitor, $dto);
-        $this->statusTransitionService->handleAfterCheck($monitor, $result);
+        $incidentEvents = $this->statusTransitionService->handleAfterCheckDeferred($monitor, $result);
         $this->entityManager->flush();
+        // Since 1.25 the incident events follow the commit: the new incident has its id, a failed flush sends none.
+        $this->statusTransitionService->dispatchCommitted($incidentEvents);
         $this->dashboardSyncDispatcher->dispatchAfterCheck($monitor, $result);
         $this->refreshParentGroupAfterChildCheck($monitor);
 

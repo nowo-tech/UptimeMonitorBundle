@@ -38,7 +38,7 @@ use function max;
  * failure's class. A {@see MonitorsAppliedEvent}
  * listener that throws after the commit becomes a result warning, not a failure.
  */
-final readonly class MonitorApplier
+final readonly class MonitorApplier implements MonitorApplierInterface
 {
     private const TOKEN_SET       = 'set';
     private const TOKEN_ROTATED   = 'rotated';

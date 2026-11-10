@@ -43,16 +43,67 @@ final readonly class StatusTransitionService
     }
 
     /**
-     * Updates the known status, opens or resolves incidents and sends transition or resend notifications.
+     * Updates the known status, opens or resolves incidents and sends transition or resend notifications. The incident
+     * events are dispatched right away (before any flush); {@see CheckExecutorService} uses
+     * {@see self::handleAfterCheckDeferred()} instead, since 1.25.
      */
     public function handleAfterCheck(Monitor $monitor, CheckResult $result): void
+    {
+        $this->transition($monitor, $result, function (object $event): void {
+            $this->eventDispatcher?->dispatch($event);
+        });
+    }
+
+    /**
+     * Same as {@see self::handleAfterCheck()}, but returns the incident events instead of dispatching them (since
+     * 1.25): the caller flushes, then hands them to {@see self::dispatchCommitted()}, so a listener sees the persisted
+     * incident (with its id) and a failed flush dispatches nothing.
+     *
+     * @return list<MonitorRecoveredEvent|MonitorWentDownEvent>
+     */
+    public function handleAfterCheckDeferred(Monitor $monitor, CheckResult $result): array
+    {
+        $events = [];
+        $this->transition($monitor, $result, static function (MonitorWentDownEvent|MonitorRecoveredEvent $event) use (&$events): void {
+            $events[] = $event;
+        });
+
+        return $events;
+    }
+
+    /**
+     * Dispatches the incident events of {@see self::handleAfterCheckDeferred()} once the check is committed (since
+     * 1.25), then flushes what the listeners persisted (before 1.25 they shared the check's flush). Nothing to do
+     * without events.
+     *
+     * @param list<MonitorRecoveredEvent|MonitorWentDownEvent> $events
+     */
+    public function dispatchCommitted(array $events): void
+    {
+        if ($events === []) {
+            return;
+        }
+
+        foreach ($events as $event) {
+            $this->eventDispatcher?->dispatch($event);
+        }
+
+        if ($this->eventDispatcher instanceof EventDispatcherInterface) {
+            $this->entityManager->flush();
+        }
+    }
+
+    /**
+     * @param callable(MonitorRecoveredEvent|MonitorWentDownEvent): void $emit Receives the incident events in order
+     */
+    private function transition(Monitor $monitor, CheckResult $result, callable $emit): void
     {
         $current  = $result->getStatus();
         $previous = $monitor->getLastKnownStatus();
 
         if (!$previous instanceof CheckStatus) {
             $monitor->setLastKnownStatus($current);
-            $this->updateIncidentState($monitor, $current, $result->getMessage());
+            $this->updateIncidentState($monitor, $current, $result->getMessage(), $emit);
 
             return;
         }
@@ -64,7 +115,7 @@ final readonly class StatusTransitionService
         }
 
         $monitor->setLastKnownStatus($current);
-        $this->updateIncidentState($monitor, $current, $result->getMessage());
+        $this->updateIncidentState($monitor, $current, $result->getMessage(), $emit);
         $this->resetDownNotifyStreak($monitor, $current);
         $this->sendTransitionNotification($monitor, $current, $previous, $result->getMessage());
     }
@@ -132,14 +183,17 @@ final readonly class StatusTransitionService
         }
     }
 
-    private function updateIncidentState(Monitor $monitor, CheckStatus $status, ?string $message): void
+    /**
+     * @param callable(MonitorRecoveredEvent|MonitorWentDownEvent): void $emit
+     */
+    private function updateIncidentState(Monitor $monitor, CheckStatus $status, ?string $message, callable $emit): void
     {
         $open = $this->incidentRepository->findOpenForMonitor($monitor);
 
         if ($status === CheckStatus::Up) {
             if ($open instanceof Incident) {
                 $open->resolve($this->clock->now());
-                $this->eventDispatcher?->dispatch(new MonitorRecoveredEvent($monitor, $open));
+                $emit(new MonitorRecoveredEvent($monitor, $open));
             }
 
             return;
@@ -148,7 +202,7 @@ final readonly class StatusTransitionService
         if (in_array($status, [CheckStatus::Down, CheckStatus::Degraded], true) && !$open instanceof Incident) {
             $incident = new Incident($monitor, $status, $message, $this->clock->now());
             $this->entityManager->persist($incident);
-            $this->eventDispatcher?->dispatch(new MonitorWentDownEvent($monitor, $incident, $message));
+            $emit(new MonitorWentDownEvent($monitor, $incident, $message));
         }
     }
 

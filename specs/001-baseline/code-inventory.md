@@ -118,6 +118,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Enum/CheckStatus.php` | Domain enum | FR-MDL-001 |
 | `Enum/MonitorType.php` | Domain enum | FR-MDL-001 |
 | `Model/CheckResultDto.php` | Domain model | FR-MDL-002 |
+| `Model/IncidentSnapshot.php` | Scalar view of an incident and its monitor for host ACLs (1.25) | FR-EVENT-001 |
 
 ## Application services
 
@@ -219,6 +220,10 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Event/MonitorWentDownEvent.php` | Dispatched when an incident opens | FR-EVENT-001 |
 | `Event/StatusPageMonitorsEvent.php` | The monitors a public status page shows (host filter) | FR-EVENT-002 |
 | `Event/UptimeEvents.php` | Event names a host listens to (`MONITOR_QUOTA_CHECK`, 1.21) | FR-EVENT-002 |
+| `Event/MonitorCreatedEvent.php` | After-commit, id-only: monitor created from the admin UI (1.25) | FR-EVENT-002 |
+| `Event/MonitorUpdatedEvent.php` | After-commit, id-only: admin UI edit with changed field names (1.25) | FR-EVENT-002 |
+| `Event/MonitorDeletedEvent.php` | After-commit, id-only: admin UI delete (1.25) | FR-EVENT-002 |
+| `Event/MonitorPausedEvent.php` | After-commit, id-only: admin UI pause / resume (1.25) | FR-EVENT-002 |
 | `Event/UptimePageEvent.php` | Host header actions and sections of the dashboard and monitor pages | FR-EVENT-002 |
 
 ## Routing & tenants
@@ -230,6 +235,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `EventSubscriber/TenantPathGuardSubscriber.php` | `web_ui.strict_tenant_paths`: 404 for a tenant under another path copy (1.21) | FR-ROUTE-002 |
 | `Routing/UptimeMonitorRouteLoader.php` | Route import `type: nowo_uptime_monitor` (prefix with `{tenantSlug}`, tenant path copies) | FR-ROUTE-001 |
 | `Service/TenantProvisioner.php` | Host-owned tenants: ensure / enable / disable | FR-TENANT-001 |
+| `Service/TenantProvisionerInterface.php` | Port of the host-owned tenant provisioning (1.25) | FR-TENANT-001 |
 
 ## UI page contract
 
@@ -377,6 +383,7 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | `Apply/TokenSourceSystem.php` | System calls behind the token intake (test seam) | FR-APPLY-003 |
 | `Apply/NativeTokenSourceSystem.php` | Native lstat / open / fstat / isatty / euid | FR-APPLY-003 |
 | `Apply/MonitorApplier.php` | Plan + write under tenant locks in one transaction; create / update / unchanged / prune; UI monitors untouched | FR-APPLY-004 |
+| `Apply/MonitorApplierInterface.php` | Port of the apply engine for host code (1.25) | FR-APPLY-004 |
 | `Apply/ApplyResult.php` | Output lists (no field can hold a secret) | FR-APPLY-001 |
 | `Apply/ApplyError.php` | One refusal: path, code, exit class | FR-APPLY-001 |
 | `Apply/ApplyRefusedException.php` | Refusal carrying codes only, no previous | FR-APPLY-006 |
@@ -414,6 +421,6 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Twig views | 32 | 32 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **238** | **238** |
+| **Total production sources** | **245** | **245** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.
