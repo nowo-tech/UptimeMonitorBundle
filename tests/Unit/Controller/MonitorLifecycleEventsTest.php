@@ -41,6 +41,8 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\InMemoryUser;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_intersect;
+use function array_values;
 use function json_encode;
 
 /**
@@ -194,6 +196,98 @@ final class MonitorLifecycleEventsTest extends TestCase
         self::assertStringNotContainsString('new-value', (string) json_encode($event));
     }
 
+    /**
+     * Since 1.25.1 (KE-U-I5): the edit form (page, dialog, re-render after an error) never renders the stored URL /
+     * proxy userinfo, token values or header values; unchanged masks keep them, and a change is reported by name.
+     */
+    public function testUrlProxyAndHeaderSecretsAreWriteOnlyOnEveryEditPath(): void
+    {
+        $monitor = $this->persisted('Secrets');
+        $monitor->setConfig([
+            'url'     => 'https://url-user:url-pass@p.test/h?token=url-token',
+            'method'  => 'GET',
+            'proxy'   => 'http://proxy-user:proxy-pass@proxy.test:3128',
+            'headers' => ['Authorization' => 'Bearer header-secret', 'X-Api-Key' => 'key-secret'],
+        ]);
+        $this->em->flush();
+        $id         = (int) $monitor->getId();
+        $controller = $this->controller();
+        $secrets    = ['url-user', 'url-pass', 'url-token', 'proxy-user', 'proxy-pass', 'header-secret', 'key-secret'];
+        $masked     = [
+            'url'         => 'https://***@p.test/h?token=***',
+            'proxy'       => 'http://***@proxy.test:3128',
+            'httpHeaders' => "Authorization: ***\nX-Api-Key: ***",
+        ];
+
+        // The page and the dialog.
+        foreach ([[], ['X-Uptime-Modal' => '1']] as $headers) {
+            $get = Request::create('/main/monitors/' . $id . '/edit');
+            $get->headers->add($headers);
+            $this->bindController($controller, true, $get);
+            $controller->edit('main', $id, $get);
+            $this->assertRenderedMasks($masked, $secrets);
+        }
+
+        // A validation error re-renders the submitted masks, not the stored values.
+        $invalid = $this->submit('/main/monitors/' . $id . '/edit', ['name' => ''] + $masked, ['X-Uptime-Modal' => '1']);
+        $this->bindController($controller, true, $invalid);
+        self::assertSame(422, $controller->edit('main', $id, $invalid)->getStatusCode());
+        $this->assertRenderedMasks($masked, $secrets);
+        self::assertSame([], $this->events);
+
+        // Saved with the masks: every secret is kept, nothing is reported.
+        $keep = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Secrets'] + $masked, ['X-Uptime-Modal' => '1']);
+        $this->bindController($controller, true, $keep);
+        $response = $controller->edit('main', $id, $keep);
+        self::assertStringNotContainsString('secret', (string) $response->getContent());
+        self::assertSame('https://url-user:url-pass@p.test/h?token=url-token', $monitor->getConfig()['url']);
+        self::assertSame('http://proxy-user:proxy-pass@proxy.test:3128', $monitor->getConfig()['proxy']);
+        self::assertSame(['Authorization' => 'Bearer header-secret', 'X-Api-Key' => 'key-secret'], $monitor->getConfig()['headers']);
+        $event = $this->events[0] ?? null;
+        self::assertInstanceOf(MonitorUpdatedEvent::class, $event);
+        self::assertSame([], array_values(array_intersect(['url', 'proxy', 'httpHeaders'], $event->changedFields)));
+
+        // Typed values replace them; the change is reported by name only.
+        $this->events = [];
+        $replace      = $this->submit('/main/monitors/' . $id . '/edit', [
+            'name'        => 'Secrets',
+            'url'         => 'https://***@p.test/h?token=new-token',
+            'proxy'       => 'http://new-proxy@proxy.test:3128',
+            'httpHeaders' => "Authorization: ***\nX-Api-Key: new-key",
+        ]);
+        $this->bindController($controller, true, $replace);
+        $controller->edit('main', $id, $replace);
+        self::assertSame('https://url-user:url-pass@p.test/h?token=new-token', $monitor->getConfig()['url']);
+        self::assertSame('http://new-proxy@proxy.test:3128', $monitor->getConfig()['proxy']);
+        self::assertSame(['Authorization' => 'Bearer header-secret', 'X-Api-Key' => 'new-key'], $monitor->getConfig()['headers']);
+        $event = $this->events[0] ?? null;
+        self::assertInstanceOf(MonitorUpdatedEvent::class, $event);
+        foreach (['url', 'proxy', 'httpHeaders'] as $field) {
+            self::assertContains($field, $event->changedFields);
+        }
+        $json = (string) json_encode($event);
+        foreach (['new-token', 'new-proxy', 'new-key', 'header-secret', 'url-pass'] as $value) {
+            self::assertStringNotContainsString($value, $json);
+        }
+    }
+
+    /**
+     * @param array<string, string> $masked
+     * @param list<string> $secrets
+     */
+    private function assertRenderedMasks(array $masked, array $secrets): void
+    {
+        $form = $this->renderedContext['form'] ?? null;
+        self::assertInstanceOf(FormView::class, $form);
+        foreach ($masked as $field => $value) {
+            $rendered = (string) $form[$field]->vars['value'];
+            self::assertSame($value, $rendered);
+            foreach ($secrets as $secret) {
+                self::assertStringNotContainsString($secret, $rendered);
+            }
+        }
+    }
+
     public function testDeleteDispatchesTheIdOfTheRemovedMonitor(): void
     {
         $monitor    = $this->persisted('Doomed');
@@ -273,8 +367,9 @@ final class MonitorLifecycleEventsTest extends TestCase
 
     /**
      * @param array<string, string> $override
+     * @param array<string, string> $headers
      */
-    private function submit(string $path, array $override = []): Request
+    private function submit(string $path, array $override = [], array $headers = []): Request
     {
         $fields = $override + [
             'type'                        => 'https',
@@ -309,6 +404,9 @@ final class MonitorLifecycleEventsTest extends TestCase
             '_token'                      => 'valid',
         ];
 
-        return Request::create($path, 'POST', [StringUtil::fqcnToBlockPrefix(MonitorFormType::class) => $fields]);
+        $request = Request::create($path, 'POST', [StringUtil::fqcnToBlockPrefix(MonitorFormType::class) => $fields]);
+        $request->headers->add($headers);
+
+        return $request;
     }
 }

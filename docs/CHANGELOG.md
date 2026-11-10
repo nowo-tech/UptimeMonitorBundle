@@ -80,6 +80,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target **1.25.1** (patch, security).
+
+### Security
+
+- **Monitor form: URL / proxy credentials and header values are write-only (KE-U-I5).** The edit form rendered the
+  stored URL userinfo (`https://user:pass@host`), the stored values of credential-like query parameters (`?token=`,
+  `api_key=`…), the proxy URL with its userinfo, and every custom header value (`Authorization`, `X-Api-Key`,
+  cookies…) back to the browser (page, dialog and re-render after an error). They are shown masked now, with the same
+  rules as the monitor page and backups (`SecretRedactor`): `https://***@host/path?token=***`, `Name: ***`. A
+  submitted value that still holds the mask keeps the stored one (headers matched by name, case-insensitive); a typed
+  value replaces it; removing the userinfo, the parameter or the header line removes it. `MonitorUpdatedEvent` reports
+  `url`, `proxy` and `httpHeaders` by name only, comparing the stored values. Pre-existing, limited to users who may
+  manage the tenant; no GHSA.
+- Backups and the monitor page also mask the userinfo of a proxy written without a scheme (`user:pass@proxy:3128`).
+
+### Added
+
+- `SecretRedactor::maskEditableUrl()`, `restoreEditableUrl()`, `maskEditableHeaders()`, `restoreEditableHeaders()`.
+
 ## [1.25.0] - 2026-11-10
 
 Target **1.25.0** (minor, additive; one documented event timing change).

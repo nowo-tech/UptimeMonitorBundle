@@ -133,7 +133,10 @@ This bundle provides:
 - **Credentials in targets**: URL userinfo (`https://user:pass@host`, up to the last `@` of the authority) is masked as
   `***@`, and the values of credential-like query parameters (`token`, `key`, `secret`, `pass`, `sig`, `auth`,
   `credential`, `session`, `code` — case-insensitive substrings of the name) as `***`, in the dashboard, the monitor
-  page, alert e-mails and webhook payloads (`SecretRedactor`); only the monitor edit form shows the real values.
+  page, alert e-mails and webhook payloads (`SecretRedactor`). Since 1.25.1 the monitor edit form shows them masked
+  too, with every header value, and keeps the stored value where the mask is submitted unchanged.
+  A kept value follows an edited URL, as the basic-auth password does: retype or remove the credentials when you
+  point a monitor at another host.
   Secrets elsewhere in a URL (path segments, unusual parameter names) are not detected: put them in headers or basic
   auth instead.
 - **Bundle backups** (Settings → Backup): exports mask URL / proxy credentials and credential-like query parameters,

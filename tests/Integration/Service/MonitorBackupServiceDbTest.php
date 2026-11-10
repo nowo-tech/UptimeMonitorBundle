@@ -338,6 +338,12 @@ final class MonitorBackupServiceDbTest extends TestCase
         foreach ([$password, 'Bearer abc', 'user:pw', 'p:q'] as $secret) {
             self::assertStringNotContainsString($secret, $json);
         }
+
+        // Since 1.25.1: overwriting the monitor with its own export keeps the stored userinfo behind the mask.
+        $result = $this->service->import($this->tenant, ['monitors' => [$row]], MonitorBackupService::IMPORT_OVERWRITE);
+        self::assertSame(1, $result['overwritten']);
+        self::assertSame('https://user:pw@api.test/health', $api->getConfig()['url']);
+        self::assertSame('https://user:pw@api.test/health', $api->getTarget());
     }
 
     public function testImportSkipsRowsThatFailTheMonitorConstraintsAndLogs(): void

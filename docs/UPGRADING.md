@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.25.1](#to-1251)
 - [To 1.25.0](#to-1250)
 - [To 1.25.0](#to-1250-1)
 - [To 1.24.1](#to-1241)
@@ -123,6 +124,30 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.25.1
+
+Target **1.25.1** (security patch), from **1.25.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+- **Security: URL / proxy credentials and header values are write-only in the monitor form.** The edit form shows the
+  stored secrets masked, as the monitor page and backups do: URL and proxy userinfo as `***@`, the values of
+  credential-like query parameters as `***`, every header value as `Name: ***`. Leave a mask as it is to keep the
+  stored value, type a new value to replace it, or delete the userinfo, the parameter or the header line to remove
+  it. A header keeps its value when its line still reads `Name: ***` (the name is matched case-insensitively). To
+  read a stored value, look in the database: the UI no longer shows it.
+- `MonitorFactory::toFormData()` now returns the masked `url`, `proxy` and `httpHeaders`, and `applyFormData()` puts
+  the stored values back where the submitted ones still hold the mask. Code that read the real secrets from
+  `toFormData()` should read `Monitor::getConfig()` instead. A literal `***` (as a whole userinfo, credential-like
+  query value or header value) is only kept as typed when nothing is stored behind it.
+- **Backup import in overwrite mode**: an exported URL holds the mask (`https://***@host`). Overwriting an existing
+  monitor with it now keeps that monitor's stored userinfo and token values instead of saving the literal mask.
+- `MonitorUpdatedEvent` reports `url`, `proxy` and `httpHeaders` when the stored value changed (names only), not when
+  only the masked text did.
+- No configuration, schema or route change.
 
 ## To 1.25.0
 

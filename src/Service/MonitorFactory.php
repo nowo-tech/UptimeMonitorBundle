@@ -14,6 +14,7 @@ use Nowo\UptimeMonitorBundle\Monitor\StatusCodeMatcher;
 use Nowo\UptimeMonitorBundle\Push\PushCredentials;
 use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 
 use function implode;
 use function is_array;
@@ -41,8 +42,13 @@ final readonly class MonitorFactory
      */
     public function applyFormData(Monitor $monitor, MonitorFormData $data): void
     {
-        $previousConfig    = $monitor->getConfig();
-        [$target, $config] = $this->buildTargetAndConfig($data);
+        $previousConfig = $monitor->getConfig();
+        // The stored secrets the edit form shows masked (since 1.25.1); an HTTP monitor saved without `url` uses its target.
+        $stored = $previousConfig;
+        if (!isset($stored['url']) || !is_string($stored['url'])) {
+            $stored['url'] = $monitor->getTarget();
+        }
+        [$target, $config] = $this->buildTargetAndConfig($data, $stored);
         $config            = $this->preserveInternalConfig($previousConfig, $config, $data);
 
         $monitor
@@ -169,9 +175,11 @@ final readonly class MonitorFactory
     }
 
     /**
+     * @param array<string, mixed> $stored The config of the monitor being edited (empty for a new one)
+     *
      * @return array{0: string, 1: array<string, mixed>}
      */
-    private function buildTargetAndConfig(MonitorFormData $data): array
+    private function buildTargetAndConfig(MonitorFormData $data, array $stored = []): array
     {
         return match ($data->type) {
             MonitorType::Group => [
@@ -203,7 +211,7 @@ final readonly class MonitorFactory
                 ] + $this->timeoutConfig($data) + $this->spkiPinsConfig($data),
             ],
             MonitorType::Push => ['push', $this->buildPushConfig($data)],
-            default           => $this->buildHttpTargetAndConfig($data),
+            default           => $this->buildHttpTargetAndConfig($data, $stored),
         };
     }
 
@@ -273,14 +281,21 @@ final readonly class MonitorFactory
     }
 
     /**
+     * Where the submitted URL, proxy or header values still hold the mask of the edit form, the stored secrets are
+     * kept (since 1.25.1, {@see SecretRedactor::restoreEditableUrl()}).
+     *
+     * @param array<string, mixed> $stored
+     *
      * @return array{0: string, 1: array<string, mixed>}
      */
-    private function buildHttpTargetAndConfig(MonitorFormData $data): array
+    private function buildHttpTargetAndConfig(MonitorFormData $data, array $stored): array
     {
         $codes = StatusCodeMatcher::parse($data->expectedStatusCodes);
+        $url   = SecretRedactor::restoreEditableUrl($data->url, is_string($stored['url'] ?? null) ? $stored['url'] : '');
+        $proxy = SecretRedactor::restoreEditableUrl($data->proxy, is_string($stored['proxy'] ?? null) ? $stored['proxy'] : '');
 
         $config = [
-            'url'                            => $data->url,
+            'url'                            => $url,
             'method'                         => $data->method,
             'expected_status_codes'          => $codes,
             'request_timeout_seconds'        => max(1, $data->requestTimeoutSeconds),
@@ -316,13 +331,13 @@ final readonly class MonitorFactory
             $config['body'] = $data->httpBody;
         }
 
-        $headers = HttpHeaderParser::parseLines($data->httpHeaders);
+        $headers = SecretRedactor::restoreEditableHeaders(HttpHeaderParser::parseLines($data->httpHeaders), $stored['headers'] ?? null);
         if ($headers !== []) {
             $config['headers'] = $headers;
         }
 
-        if ($data->proxy !== '') {
-            $config['proxy'] = $data->proxy;
+        if ($proxy !== '') {
+            $config['proxy'] = $proxy;
         }
 
         if ($data->authMethod === 'basic' && $data->authUsername !== '') {
@@ -339,7 +354,7 @@ final readonly class MonitorFactory
             )));
         }
 
-        return [$data->url, $config];
+        return [$url, $config];
     }
 
     /**
@@ -347,7 +362,9 @@ final readonly class MonitorFactory
      */
     private function mapHttpForm(MonitorFormData $data, Monitor $monitor, array $config): MonitorFormData
     {
-        $data->url    = isset($config['url']) && is_string($config['url']) ? $config['url'] : $monitor->getTarget();
+        // Write-only secrets (since 1.25.1): the URL / proxy userinfo, credential-like query values and every header
+        // value are shown as the mask; a submitted mask keeps the stored value (buildHttpTargetAndConfig()).
+        $data->url    = SecretRedactor::maskEditableUrl(isset($config['url']) && is_string($config['url']) ? $config['url'] : $monitor->getTarget());
         $data->method = isset($config['method']) && is_string($config['method']) ? $config['method'] : 'GET';
         $codes        = $config['expected_status_codes'] ?? [200];
         if (is_array($codes)) {
@@ -366,8 +383,8 @@ final readonly class MonitorFactory
             ? $config['body_encoding']
             : 'json';
         $headers            = $config['headers'] ?? [];
-        $data->httpHeaders  = is_array($headers) ? HttpHeaderParser::format($headers) : '';
-        $data->proxy        = isset($config['proxy']) && is_string($config['proxy']) ? $config['proxy'] : '';
+        $data->httpHeaders  = is_array($headers) ? HttpHeaderParser::format(SecretRedactor::maskEditableHeaders($headers)) : '';
+        $data->proxy        = isset($config['proxy']) && is_string($config['proxy']) ? SecretRedactor::maskEditableUrl($config['proxy']) : '';
         $data->authMethod   = isset($config['auth_method']) && is_string($config['auth_method']) ? $config['auth_method'] : 'none';
         $data->authUsername = isset($config['auth_username']) && is_string($config['auth_username'])
             ? $config['auth_username']
