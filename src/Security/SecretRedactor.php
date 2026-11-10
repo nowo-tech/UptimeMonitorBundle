@@ -9,6 +9,7 @@ use function array_map;
 use function array_shift;
 use function is_array;
 use function is_string;
+use function parse_url;
 use function preg_match;
 use function preg_match_all;
 use function preg_replace;
@@ -39,6 +40,9 @@ final class SecretRedactor
 
     /** The userinfo of a URL, with or without a scheme (`http://user:pass@` or `user:pass@`), up to its last `@`. */
     private const EDITABLE_USERINFO = '#^((?:[a-z][a-z0-9+.\-]*://)?)([^/?\#]*)@#i';
+
+    /** Default port by scheme, so `https://host` and `https://host:443` are one destination. */
+    private const DEFAULT_PORTS = ['http' => 80, 'https' => 443];
 
     /** One `name=value` pair of a query string. */
     private const QUERY_PAIR = '#([?&])([^=&\#]*)=([^&\#]*)#';
@@ -220,6 +224,34 @@ final class SecretRedactor
         }
 
         return $submitted;
+    }
+
+    /**
+     * Whether two URLs (or proxies, a missing scheme read as `http://`) reach the same destination: same scheme, host
+     * and port, the default port of http / https filled in, case-insensitive (since 1.25.1). A kept secret is only put
+     * back for the same destination. A value that does not parse matches only the identical value.
+     */
+    public static function sameOrigin(string $a, string $b): bool
+    {
+        return self::origin($a) === self::origin($b);
+    }
+
+    private static function origin(string $value): string
+    {
+        $url = self::maskUserinfo($value);
+        if (preg_match('#^[a-z][a-z0-9+.\-]*://#i', $url) !== 1) {
+            $url = 'http://' . $url;
+        }
+
+        $parts = parse_url($url);
+        if (!is_array($parts) || !isset($parts['host']) || $parts['host'] === '') {
+            return "\0" . $value;
+        }
+
+        $scheme = strtolower($parts['scheme'] ?? 'http');
+        $port   = $parts['port'] ?? self::DEFAULT_PORTS[$scheme] ?? 0;
+
+        return $scheme . '://' . strtolower($parts['host']) . ':' . $port;
     }
 
     private static function maskUserinfo(string $value): string

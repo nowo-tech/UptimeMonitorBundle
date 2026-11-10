@@ -344,6 +344,12 @@ final class MonitorBackupServiceDbTest extends TestCase
         self::assertSame(1, $result['overwritten']);
         self::assertSame('https://user:pw@api.test/health', $api->getConfig()['url']);
         self::assertSame('https://user:pw@api.test/health', $api->getTarget());
+
+        // ...but not for another host: the row is refused and the monitor is left as it was.
+        $row['form']['url'] = 'https://***@other.test/health';
+        $result             = $this->service->import($this->tenant, ['monitors' => [$row]], MonitorBackupService::IMPORT_OVERWRITE);
+        self::assertSame([1, 0], [$result['invalid'], $result['overwritten']]);
+        self::assertSame('https://user:pw@api.test/health', $api->getConfig()['url']);
     }
 
     public function testImportSkipsRowsThatFailTheMonitorConstraintsAndLogs(): void

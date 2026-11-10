@@ -272,6 +272,62 @@ final class MonitorLifecycleEventsTest extends TestCase
     }
 
     /**
+     * Since 1.25.1: masks submitted with another host (or proxy host) are refused on their fields; nothing is saved.
+     */
+    public function testMasksForAnotherDestinationAskForTheSecretsAgainAndSaveNothing(): void
+    {
+        $monitor = $this->persisted('Moved');
+        $config  = [
+            'url'           => 'https://u:pw@p.test/h',
+            'method'        => 'GET',
+            'proxy'         => 'http://pu:pp@proxy.test:3128',
+            'headers'       => ['Authorization' => 'Bearer abc'],
+            'auth_method'   => 'basic',
+            'auth_username' => 'user',
+            'auth_password' => 'stored',
+        ];
+        $monitor->setConfig($config);
+        $this->em->flush();
+        $id         = (int) $monitor->getId();
+        $controller = $this->controller();
+
+        $post = $this->submit('/main/monitors/' . $id . '/edit', [
+            'name'         => 'Moved',
+            'url'          => 'https://***@evil.test/h',
+            'proxy'        => 'http://***@evil-proxy.test:3128',
+            'httpHeaders'  => 'Authorization: ***',
+            'authMethod'   => 'basic',
+            'authUsername' => 'user',
+        ], ['X-Uptime-Modal' => '1']);
+        $this->bindController($controller, true, $post);
+
+        self::assertSame(422, $controller->edit('main', $id, $post)->getStatusCode());
+        $form = $this->renderedContext['form'] ?? null;
+        self::assertInstanceOf(FormView::class, $form);
+        foreach (['url', 'proxy', 'httpHeaders', 'authPassword'] as $field) {
+            self::assertCount(1, $form[$field]->vars['errors'], $field);
+            self::assertSame('form.monitor.secret_retype', $form[$field]->vars['errors'][0]->getMessage());
+        }
+        self::assertSame(json_encode($config), json_encode($monitor->getConfig()), 'nothing saved');
+        self::assertSame([], $this->events);
+
+        // Typed again (the password too): saved.
+        $retyped = $this->submit('/main/monitors/' . $id . '/edit', [
+            'name'         => 'Moved',
+            'url'          => 'https://n:new@evil.test/h',
+            'proxy'        => 'http://evil-proxy.test:3128',
+            'httpHeaders'  => 'Authorization: Bearer new',
+            'authMethod'   => 'basic',
+            'authUsername' => 'user',
+            'authPassword' => 'retyped',
+        ]);
+        $this->bindController($controller, true, $retyped);
+        self::assertTrue($controller->edit('main', $id, $retyped)->isRedirect());
+        self::assertSame('https://n:new@evil.test/h', $monitor->getConfig()['url']);
+        self::assertSame('retyped', $monitor->getConfig()['auth_password']);
+    }
+
+    /**
      * @param array<string, string> $masked
      * @param list<string> $secrets
      */

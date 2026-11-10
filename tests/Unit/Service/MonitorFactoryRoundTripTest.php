@@ -12,7 +12,13 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+
+use function array_merge;
+use function in_array;
+use function json_encode;
+use function str_replace;
 
 #[CoversClass(MonitorFactory::class)]
 final class MonitorFactoryRoundTripTest extends TestCase
@@ -210,6 +216,81 @@ final class MonitorFactoryRoundTripTest extends TestCase
         $monitor = $this->factory()->createFromFormData($this->tenant, $data);
         self::assertSame('https://***@api.test/', $monitor->getConfig()['url']);
         self::assertSame(['X-Key' => '***'], $monitor->getConfig()['headers']);
+    }
+
+    /**
+     * @return iterable<string, array{string, string, list<string>}>
+     */
+    public static function destinationProvider(): iterable
+    {
+        yield 'host changed' => ['https://***@evil.test/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
+        yield 'port changed' => ['https://***@api.test:8443/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
+        yield 'scheme changed' => ['http://***@api.test/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
+        yield 'proxy host changed' => ['https://***@api.test/h?token=***', 'http://***@evil-proxy.test:3128', ['proxy']];
+        yield 'proxy port changed' => ['https://***@api.test/other', 'http://***@proxy.test:8080', ['proxy']];
+        yield 'same origins' => ['https://***@API.test:443/v2?token=***', 'http://***@proxy.test:3128', []];
+    }
+
+    /**
+     * Since 1.25.1: a mask (or the blank password) never carries a stored secret to another scheme, host or port; the
+     * form asks for those fields again, and applyFormData() called without that check does not restore them.
+     *
+     * @param list<string> $expected
+     */
+    #[DataProvider('destinationProvider')]
+    public function testStoredSecretsAreNotCarriedToAnotherDestination(string $url, string $proxy, array $expected): void
+    {
+        $stored = [
+            'url'           => 'https://u:pw@api.test/h?token=t1',
+            'proxy'         => 'http://pu:pp@proxy.test:3128',
+            'headers'       => ['Authorization' => 'Bearer abc'],
+            'auth_method'   => 'basic',
+            'auth_username' => 'user',
+            'auth_password' => 'stored',
+        ];
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, $stored['url']);
+        $monitor->setConfig($stored);
+
+        $data        = $this->factory()->toFormData($monitor);
+        $data->url   = $url;
+        $data->proxy = $proxy;
+        self::assertSame($expected, $this->factory()->secretsNeedingRetype($monitor, $data));
+
+        $this->factory()->applyFormData($monitor, $data);
+        $config     = $monitor->getConfig();
+        $urlMoved   = in_array('url', $expected, true);
+        $proxyMoved = in_array('proxy', $expected, true);
+        self::assertSame($urlMoved ? $url : str_replace(['***@', 'token=***'], ['u:pw@', 'token=t1'], $url), $config['url']);
+        self::assertSame($urlMoved ? ['Authorization' => '***'] : ['Authorization' => 'Bearer abc'], $config['headers']);
+        self::assertSame($urlMoved ? null : 'stored', $config['auth_password'] ?? null);
+        self::assertSame($proxyMoved ? $proxy : str_replace('***@', 'pu:pp@', $proxy), $config['proxy']);
+        $json = (string) json_encode($config);
+        foreach (array_merge($urlMoved ? ['u:pw', 't1', 'Bearer abc', 'stored'] : [], $proxyMoved ? ['pu:pp'] : []) as $secret) {
+            self::assertStringNotContainsString($secret, $json);
+        }
+    }
+
+    /** A typed secret or a removed one needs no retyping after a destination change; other types are never asked. */
+    public function testRetypedOrRemovedSecretsAndOtherTypesAreNotAskedAgain(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://u:pw@api.test/');
+        $monitor->setConfig(['url' => 'https://u:pw@api.test/', 'headers' => ['X-Key' => 'k'], 'auth_method' => 'basic', 'auth_password' => 'stored']);
+
+        $data               = $this->factory()->toFormData($monitor);
+        $data->url          = 'https://new:creds@other.test/';
+        $data->httpHeaders  = 'X-Key: typed';
+        $data->authPassword = 'typed';
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+
+        $data->authPassword      = '';
+        $data->authPasswordClear = true;
+        $data->httpHeaders       = '';
+        $data->url               = 'https://other.test/';
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+
+        $data->type = MonitorType::Tcp;
+        $data->url  = 'https://***@other.test/';
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
     }
 
     public function testParentMustBeAGroupAndGroupsHaveNoParentOrProject(): void

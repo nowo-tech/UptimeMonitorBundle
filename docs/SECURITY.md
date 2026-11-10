@@ -135,8 +135,10 @@ This bundle provides:
   `credential`, `session`, `code` — case-insensitive substrings of the name) as `***`, in the dashboard, the monitor
   page, alert e-mails and webhook payloads (`SecretRedactor`). Since 1.25.1 the monitor edit form shows them masked
   too, with every header value, and keeps the stored value where the mask is submitted unchanged.
-  A kept value follows an edited URL, as the basic-auth password does: retype or remove the credentials when you
-  point a monitor at another host.
+  A kept value never follows a new destination: when the scheme, host or port of the URL changes, the masked URL
+  credentials, header values and the blank basic-auth password must be typed again (or removed), and the same for the
+  proxy credentials when the proxy's changes; the form refuses the save until then
+  (`MonitorFactory::secretsNeedingRetype()`).
   Secrets elsewhere in a URL (path segments, unusual parameter names) are not detected: put them in headers or basic
   auth instead.
 - **Bundle backups** (Settings → Backup): exports mask URL / proxy credentials and credential-like query parameters,

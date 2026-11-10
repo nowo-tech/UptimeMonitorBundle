@@ -374,7 +374,19 @@ final class MonitorController extends AbstractUptimeController
             $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota->max($tenantSlug)])));
         }
 
+        // Since 1.25.1: a stored secret is not carried to another scheme, host or port; its field asks for it again.
+        $retype = false;
         if ($form->isSubmitted() && $form->isValid()) {
+            foreach ($this->monitorFactory->secretsNeedingRetype($monitor, $data) as $field) {
+                // A field the host hid (`form.hidden_fields`) cannot be typed: that secret is dropped instead.
+                if ($form->has($field)) {
+                    $form->get($field)->addError(new FormError($this->transMessage('form.monitor.secret_retype')));
+                    $retype = true;
+                }
+            }
+        }
+
+        if (!$retype && $form->isSubmitted() && $form->isValid()) {
             // Since 1.21: the same host quota as a new monitor or the pause action (GU-M1).
             $checks = MonitorQuotaCheckEvent::forChange($tenantSlug, $monitor, $data->type, $data->paused);
             if (!$this->saveUnderQuota($monitor->getTenant(), fn () => $this->monitorFactory->applyFormData($monitor, $data), $takesSlot, $checks)) {

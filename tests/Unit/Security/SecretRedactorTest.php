@@ -108,6 +108,31 @@ final class SecretRedactorTest extends TestCase
         self::assertSame($expected, SecretRedactor::restoreEditableUrl($submitted, $stored));
     }
 
+    /**
+     * @return iterable<string, array{string, string, bool}>
+     */
+    public static function originProvider(): iterable
+    {
+        yield 'same origin, other path and userinfo' => ['https://***@Api.Test/a?x=1', 'https://u:p@api.test/b', true];
+        yield 'default port spelled out' => ['https://api.test:443/', 'https://api.test/', true];
+        yield 'http default port' => ['http://api.test', 'http://api.test:80', true];
+        yield 'host changed' => ['https://***@evil.test/', 'https://u:p@api.test/', false];
+        yield 'port changed' => ['https://api.test:8443/', 'https://api.test/', false];
+        yield 'scheme changed' => ['http://api.test/', 'https://api.test/', false];
+        yield 'proxy without scheme, same' => ['***@proxy.test:3128', 'p:q@proxy.test:3128', true];
+        yield 'proxy host changed' => ['***@other.test:3128', 'p:q@proxy.test:3128', false];
+        yield 'other scheme, no default port' => ['socks5://proxy.test', 'socks5://proxy.test:1080', false];
+        yield 'both empty' => ['', '', true];
+        yield 'unparsable, identical' => ['http://', 'http://', true];
+        yield 'unparsable, different' => ['http://', 'https://', false];
+    }
+
+    #[DataProvider('originProvider')]
+    public function testSameOrigin(string $a, string $b, bool $expected): void
+    {
+        self::assertSame($expected, SecretRedactor::sameOrigin($a, $b));
+    }
+
     public function testEditableHeadersAreMaskedAndRestoredByName(): void
     {
         self::assertSame(
