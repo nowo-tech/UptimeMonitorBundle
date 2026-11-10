@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle;
 
 use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\CsrfProtectionPass;
+use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -25,6 +26,8 @@ final class UptimeMonitorBundle extends Bundle
     {
         $container->addCompilerPass(new TwigPathsPass());
         $container->addCompilerPass(new CsrfProtectionPass());
+        // 1.26.0 (audit LD-UM-M1): the named manager must exist and map the bundle entities.
+        $container->addCompilerPass(new EntityManagerOptionPass());
     }
 
     /**

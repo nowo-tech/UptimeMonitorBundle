@@ -84,11 +84,27 @@ final class ClosedEntityManagerSubscriberTest extends TestCase
     public function testConfiguredManagerThatIsNotAnOrmManagerIsIgnored(): void
     {
         $registry = $this->createMock(ManagerRegistry::class);
-        $registry->expects(self::never())->method('getManagerForClass');
+        $registry->method('getManagerForClass')->willReturn(null);
         $registry->method('getManager')->with('odm')->willReturn($this->createMock(ObjectManager::class));
         $registry->expects(self::never())->method('resetManager');
 
         (new ClosedEntityManagerSubscriber($registry, 'odm'))->onKernelRequest($this->event('nowo_uptime_dashboard'));
+    }
+
+    public function testManagerOfTheEntitiesIsResetEvenWhenTheOptionNamesAnother(): void
+    {
+        $default = $this->createMock(EntityManagerInterface::class);
+        $default->method('isOpen')->willReturn(false);
+        $extra = $this->createMock(EntityManagerInterface::class);
+        $extra->method('isOpen')->willReturn(true);
+
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->method('getManagerForClass')->willReturn($default);
+        $registry->method('getManagers')->willReturn(['default' => $default, 'extra' => $extra]);
+        $registry->method('getManager')->willReturnCallback(static fn (string $name): EntityManagerInterface => $name === 'default' ? $default : $extra);
+        $registry->expects(self::once())->method('resetManager')->with('default');
+
+        (new ClosedEntityManagerSubscriber($registry, 'extra'))->onKernelRequest($this->event('nowo_uptime_dashboard'));
     }
 
     private function event(?string $route, int $type = HttpKernelInterface::MAIN_REQUEST): RequestEvent

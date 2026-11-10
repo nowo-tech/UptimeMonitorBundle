@@ -13,6 +13,7 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 use function array_search;
+use function in_array;
 use function is_string;
 use function str_starts_with;
 
@@ -21,9 +22,9 @@ use function str_starts_with;
  *
  * When the kernel is not reset between requests (long-running workers without `services_resetter`),
  * a failed flush in a previous request leaves the manager closed for every later request of that worker.
- * Only the bundle's manager is reset (1.25.3), and only when closed: the manager of the bundle entities
- * (`doctrine.entity_manager`, else resolved with getManagerForClass()). Host managers, closed or open, are never
- * touched.
+ * Only the bundle's managers are reset (1.26.0), and only when closed: the manager of the bundle entities
+ * (getManagerForClass(), always included) and `doctrine.entity_manager` when set. Host managers, closed or open, are
+ * never touched.
  */
 final readonly class ClosedEntityManagerSubscriber implements EventSubscriberInterface
 {
@@ -68,25 +69,29 @@ final readonly class ClosedEntityManagerSubscriber implements EventSubscriberInt
             return;
         }
 
-        $name    = $this->bundleManagerName();
-        $manager = $name !== null ? $this->registry->getManager($name) : null;
-        if ($name !== null && $manager instanceof EntityManagerInterface && !$manager->isOpen()) {
-            $this->registry->resetManager($name);
+        foreach ($this->bundleManagerNames() as $name) {
+            $manager = $this->registry->getManager($name);
+            if ($manager instanceof EntityManagerInterface && !$manager->isOpen()) {
+                $this->registry->resetManager($name);
+            }
         }
     }
 
     /**
-     * The manager of the bundle entities: `doctrine.entity_manager`, else resolved with getManagerForClass(Monitor).
+     * The bundle's managers (1.26.0, audit LD-UM-M1): the manager of the bundle entities (getManagerForClass(Monitor),
+     * always included: the bundle maps and writes them there) plus `doctrine.entity_manager` when set.
+     *
+     * @return list<string>
      */
-    private function bundleManagerName(): ?string
+    private function bundleManagerNames(): array
     {
-        if ($this->entityManagerName !== null) {
-            return $this->entityManagerName;
-        }
-
+        $names   = $this->entityManagerName !== null ? [$this->entityManagerName] : [];
         $manager = $this->registry->getManagerForClass(Monitor::class);
         $name    = $manager instanceof ObjectManager ? array_search($manager, $this->registry->getManagers(), true) : false;
+        if (is_string($name) && !in_array($name, $names, true)) {
+            $names[] = $name;
+        }
 
-        return is_string($name) ? $name : null;
+        return $names;
     }
 }

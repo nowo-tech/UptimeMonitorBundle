@@ -36,16 +36,23 @@ final class ClosedEntityManagerSubscriberHostManagerTest extends TestCase
         self::assertTrue($this->manager($registry, 'uptime')->isOpen());
     }
 
-    public function testConfiguredEntityManagerIsTheOnlyOneReset(): void
+    public function testConfiguredManagerIsResetTooAndTheEntityManagerIsAlwaysIncluded(): void
     {
-        $registry = new SqliteManagerRegistry(['default' => self::BUNDLE, 'uptime' => self::BUNDLE]);
-        $host     = $this->closed($registry, 'default');
+        $registry = new SqliteManagerRegistry([
+            'default' => ['App\\Entity' => dirname(__DIR__, 2)],
+            'uptime'  => self::BUNDLE,
+            'extra'   => self::BUNDLE,
+        ]);
+        $host = $this->closed($registry, 'default');
         $this->closed($registry, 'uptime');
+        $this->closed($registry, 'extra');
 
-        (new ClosedEntityManagerSubscriber($registry, 'uptime'))->onKernelRequest($this->event());
+        // Audit LD-UM-M1: the manager of the bundle entities is always reset; the option only adds one.
+        (new ClosedEntityManagerSubscriber($registry, 'extra'))->onKernelRequest($this->event());
 
         self::assertSame($host, $registry->getManager('default'));
         self::assertTrue($this->manager($registry, 'uptime')->isOpen());
+        self::assertTrue($this->manager($registry, 'extra')->isOpen());
     }
 
     public function testDefaultOnlyHostKeepsTheRecovery(): void

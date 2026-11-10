@@ -292,7 +292,7 @@ final readonly class MonitorBackupService
     }
 
     /**
-     * Resets the manager the import wrote through (1.25.3: only that one, never another closed manager of the host).
+     * Resets the manager the import wrote through (1.26.0: only that one, never another closed manager of the host).
      */
     private function resetClosedManagers(ManagerRegistry $registry): void
     {
