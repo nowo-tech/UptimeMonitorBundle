@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.25.2] - 2026-11-10](#1252---2026-11-10)
 - [[1.25.1] - 2026-11-10](#1251---2026-11-10)
 - [[1.25.0] - 2026-11-10](#1250---2026-11-10)
 - [[1.24.1] - 2026-11-09](#1241---2026-11-09)
@@ -80,6 +81,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.25.2] - 2026-11-10
 
 Target **1.25.2** (patch, security).
 
@@ -1521,7 +1524,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.25.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.25.2...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
