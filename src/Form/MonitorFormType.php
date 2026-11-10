@@ -205,9 +205,11 @@ final class MonitorFormType extends AbstractUptimeFormType
             'required' => false,
             'attr'     => ['rows' => 4, 'placeholder' => '{"key": "value"}'],
         ]);
+        // Write-only values (since 1.25.1): the edit form shows `Name: ***`; a line still holding *** keeps the value.
         $this->addTextarea($builder, 'httpHeaders', [
             'label'    => 'form.monitor.headers',
             'required' => false,
+            'help'     => 'form.monitor.headers_help',
             'attr'     => ['rows' => 4, 'placeholder' => "Authorization: Bearer token\nX-Custom: value"],
         ]);
         $this->addText($builder, 'proxy', [

@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.25.1](#to-1251)
 - [To 1.25.0](#to-1250)
 - [To 1.25.0](#to-1250-1)
 - [To 1.24.1](#to-1241)
@@ -123,6 +124,41 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.25.1
+
+Target **1.25.1** (security patch), from **1.25.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+- **Security: URL / proxy credentials and header values are write-only in the monitor form.** The edit form shows the
+  stored secrets masked, as the monitor page and backups do: URL and proxy userinfo as `***@`, the values of
+  credential-like query parameters as `***`, every header value as `Name: ***`. Leave a mask as it is to keep the
+  stored value, type a new value to replace it, or delete the userinfo, the parameter or the header line to remove
+  it. A header keeps its value when its line still reads `Name: ***` (the name is matched case-insensitively). To
+  read a stored value, look in the database: the UI no longer shows it.
+- **A stored secret never follows a new destination.** When the scheme, host or port of the URL changes (`https://a`
+  to `https://b`, `:443` to `:8443`, `https` to `http`), the form refuses the masked URL credentials, the masked
+  header values and a blank basic-auth password with "type this secret again or remove it", and saves nothing;
+  likewise the masked proxy credentials when the proxy's scheme, host or port changes. Type the values again (or
+  remove them, or tick "Remove the stored password") and save. In 1.25.0 a blank password was kept when the host
+  changed. If the host hides a field with `form.hidden_fields` (e.g. `authPassword`), that secret is dropped on such a
+  change instead. Code that calls `MonitorFactory::applyFormData()` itself should call `secretsNeedingRetype()` first:
+  `applyFormData()` leaves those masks as typed and drops the password.
+- **Backup import (overwrite)**: a row whose masked URL points at another host than the monitor it overwrites is
+  refused (counted in `invalid`).
+- `MonitorFactory::toFormData()` now returns the masked `url`, `proxy` and `httpHeaders`, and `applyFormData()` puts
+  the stored values back where the submitted ones still hold the mask. Code that read the real secrets from
+  `toFormData()` should read `Monitor::getConfig()` instead. A literal `***` (as a whole userinfo, credential-like
+  query value or header value) is only kept as typed when nothing is stored behind it.
+- **Backup import in overwrite mode**: an exported URL holds the mask (`https://***@host`). Overwriting an existing
+  monitor with the same scheme, host and port now keeps that monitor's stored userinfo and token values instead of
+  saving the literal mask.
+- `MonitorUpdatedEvent` reports `url`, `proxy` and `httpHeaders` when the stored value changed (names only), not when
+  only the masked text did.
+- No configuration, schema or route change.
 
 ## To 1.25.0
 

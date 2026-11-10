@@ -125,7 +125,8 @@ For hosts that own their tenants (e.g. one tenant per project of the host applic
   tenant slug, monitor id, actor (`getUserIdentifier()` of the security token, often the login email, or null) and
   `occurredAt`. Pausing or resuming through the **edit form** sends `MonitorUpdatedEvent` with `paused` in
   `changedFields`, not `MonitorPausedEvent`: listen to both to audit pauses. A password change is reported as
-  `authPassword` (the name only).
+  `authPassword` (the name only); since 1.25.1 a change of the URL, proxy or headers is reported as `url`, `proxy` or
+  `httpHeaders`, also names only (the form shows those secrets masked).
 
 ```php
 #[AsEventListener]

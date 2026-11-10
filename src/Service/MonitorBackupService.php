@@ -206,6 +206,11 @@ final readonly class MonitorBackupService
             if ($existing instanceof Monitor) {
                 // A file-managed monitor (1.18) belongs to its monitors file: never overwritten by an import.
                 if ($mode === self::IMPORT_OVERWRITE && !$existing->isFileManaged()) {
+                    // Since 1.25.1: a masked secret of the export is not put back for another scheme, host or port.
+                    if ($this->monitorFactory->secretsNeedingRetype($existing, $data) !== []) {
+                        ++$invalid;
+                        continue;
+                    }
                     if ($checked && $this->isDenied(MonitorQuotaCheckEvent::forChange($tenant->getSlug(), $existing, $data->type, $data->paused), $reason)) {
                         ++$denied;
                         continue;

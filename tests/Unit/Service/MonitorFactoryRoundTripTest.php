@@ -12,7 +12,13 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\EntityIdTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+
+use function array_merge;
+use function in_array;
+use function json_encode;
+use function str_replace;
 
 #[CoversClass(MonitorFactory::class)]
 final class MonitorFactoryRoundTripTest extends TestCase
@@ -81,7 +87,7 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame('ok', $back->keyword);
         self::assertSame('{"ping":1}', $back->httpBody);
         self::assertSame('xml', $back->bodyEncoding);
-        self::assertSame("X-One: 1\nX-Two: 2", $back->httpHeaders);
+        self::assertSame("X-One: ***\nX-Two: ***", $back->httpHeaders, 'write-only (1.25.1): header values are masked');
         self::assertSame('http://proxy.test:3128', $back->proxy);
         self::assertSame('basic', $back->authMethod);
         self::assertSame('user', $back->authUsername);
@@ -127,6 +133,164 @@ final class MonitorFactoryRoundTripTest extends TestCase
         $data->authPasswordClear = true;
         $this->factory()->applyFormData($monitor, $data);
         self::assertSame('fresh', $monitor->getConfig()['auth_password']);
+    }
+
+    /** Since 1.25.1: URL / proxy userinfo, credential-like query values and header values are write-only. */
+    public function testUrlProxyAndHeaderSecretsAreMaskedAndAnUnchangedMaskKeepsThem(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://u:pw@api.test/health?token=t1&page=2');
+        $monitor->setConfig([
+            'url'     => 'https://u:pw@api.test/health?token=t1&page=2',
+            'proxy'   => 'http://pu:pp@proxy.test:3128',
+            'headers' => ['Authorization' => 'Bearer abc', 'X-Empty' => ''],
+        ]);
+
+        $data = $this->factory()->toFormData($monitor);
+        self::assertSame('https://***@api.test/health?token=***&page=2', $data->url);
+        self::assertSame('http://***@proxy.test:3128', $data->proxy);
+        self::assertSame("Authorization: ***\nX-Empty: ", $data->httpHeaders);
+
+        // Saved unchanged (and with the header name in another case): every stored secret is kept.
+        $data->httpHeaders = "authorization: ***\nX-Empty: \nX-New: ***";
+        $data->url         = 'https://***@api.test/v2?token=***&page=3';
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        self::assertSame('https://u:pw@api.test/v2?token=t1&page=3', $config['url']);
+        self::assertSame('https://u:pw@api.test/v2?token=t1&page=3', $monitor->getTarget());
+        self::assertSame('http://pu:pp@proxy.test:3128', $config['proxy']);
+        self::assertSame(['authorization' => 'Bearer abc', 'X-Empty' => '', 'X-New' => '***'], $config['headers'], 'a mask with no stored header stays as typed');
+    }
+
+    /** Since 1.25.1: a typed secret replaces the stored one; removing it from the form removes it. */
+    public function testTypedSecretsReplaceAndRemovedOnesAreDropped(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://api.test');
+        $monitor->setConfig([
+            'url'     => 'https://u:pw@api.test/?token=t1',
+            'proxy'   => 'pu:pp@proxy.test:3128',
+            'headers' => ['Authorization' => 'Bearer abc', 'X-Api-Key' => 'k1'],
+        ]);
+
+        $data = $this->factory()->toFormData($monitor);
+        self::assertSame('***@proxy.test:3128', $data->proxy, 'a proxy without a scheme is masked too');
+        $data->url         = 'https://other:new@api.test/?token=t2';
+        $data->proxy       = '***@proxy.test:3128';
+        $data->httpHeaders = 'Authorization: Bearer fresh';
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        self::assertSame('https://other:new@api.test/?token=t2', $config['url']);
+        self::assertSame('pu:pp@proxy.test:3128', $config['proxy']);
+        self::assertSame(['Authorization' => 'Bearer fresh'], $config['headers']);
+
+        $data              = $this->factory()->toFormData($monitor);
+        $data->url         = 'https://api.test/';
+        $data->proxy       = '';
+        $data->httpHeaders = '';
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        self::assertSame('https://api.test/', $config['url']);
+        self::assertArrayNotHasKey('proxy', $config);
+        self::assertArrayNotHasKey('headers', $config);
+    }
+
+    /** Since 1.25.1: a monitor saved without `url` in its config keeps the userinfo of its target. */
+    public function testALegacyMonitorWithoutAStoredUrlKeepsTheUserinfoOfItsTarget(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Http, 'http://u:pw@legacy.test/');
+
+        $data = $this->factory()->toFormData($monitor);
+        self::assertSame('http://***@legacy.test/', $data->url);
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertSame('http://u:pw@legacy.test/', $monitor->getConfig()['url']);
+    }
+
+    /** A new monitor has nothing stored: a typed mask is saved as typed. */
+    public function testANewMonitorSavesATypedMaskAsIs(): void
+    {
+        $data              = new MonitorFormData();
+        $data->name        = 'API';
+        $data->type        = MonitorType::Https;
+        $data->url         = 'https://***@api.test/';
+        $data->httpHeaders = 'X-Key: ***';
+
+        $monitor = $this->factory()->createFromFormData($this->tenant, $data);
+        self::assertSame('https://***@api.test/', $monitor->getConfig()['url']);
+        self::assertSame(['X-Key' => '***'], $monitor->getConfig()['headers']);
+    }
+
+    /**
+     * @return iterable<string, array{string, string, list<string>}>
+     */
+    public static function destinationProvider(): iterable
+    {
+        yield 'host changed' => ['https://***@evil.test/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
+        yield 'port changed' => ['https://***@api.test:8443/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
+        yield 'scheme changed' => ['http://***@api.test/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
+        yield 'proxy host changed' => ['https://***@api.test/h?token=***', 'http://***@evil-proxy.test:3128', ['proxy']];
+        yield 'proxy port changed' => ['https://***@api.test/other', 'http://***@proxy.test:8080', ['proxy']];
+        yield 'same origins' => ['https://***@API.test:443/v2?token=***', 'http://***@proxy.test:3128', []];
+    }
+
+    /**
+     * Since 1.25.1: a mask (or the blank password) never carries a stored secret to another scheme, host or port; the
+     * form asks for those fields again, and applyFormData() called without that check does not restore them.
+     *
+     * @param list<string> $expected
+     */
+    #[DataProvider('destinationProvider')]
+    public function testStoredSecretsAreNotCarriedToAnotherDestination(string $url, string $proxy, array $expected): void
+    {
+        $stored = [
+            'url'           => 'https://u:pw@api.test/h?token=t1',
+            'proxy'         => 'http://pu:pp@proxy.test:3128',
+            'headers'       => ['Authorization' => 'Bearer abc'],
+            'auth_method'   => 'basic',
+            'auth_username' => 'user',
+            'auth_password' => 'stored',
+        ];
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, $stored['url']);
+        $monitor->setConfig($stored);
+
+        $data        = $this->factory()->toFormData($monitor);
+        $data->url   = $url;
+        $data->proxy = $proxy;
+        self::assertSame($expected, $this->factory()->secretsNeedingRetype($monitor, $data));
+
+        $this->factory()->applyFormData($monitor, $data);
+        $config     = $monitor->getConfig();
+        $urlMoved   = in_array('url', $expected, true);
+        $proxyMoved = in_array('proxy', $expected, true);
+        self::assertSame($urlMoved ? $url : str_replace(['***@', 'token=***'], ['u:pw@', 'token=t1'], $url), $config['url']);
+        self::assertSame($urlMoved ? ['Authorization' => '***'] : ['Authorization' => 'Bearer abc'], $config['headers']);
+        self::assertSame($urlMoved ? null : 'stored', $config['auth_password'] ?? null);
+        self::assertSame($proxyMoved ? $proxy : str_replace('***@', 'pu:pp@', $proxy), $config['proxy']);
+        $json = (string) json_encode($config);
+        foreach (array_merge($urlMoved ? ['u:pw', 't1', 'Bearer abc', 'stored'] : [], $proxyMoved ? ['pu:pp'] : []) as $secret) {
+            self::assertStringNotContainsString($secret, $json);
+        }
+    }
+
+    /** A typed secret or a removed one needs no retyping after a destination change; other types are never asked. */
+    public function testRetypedOrRemovedSecretsAndOtherTypesAreNotAskedAgain(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://u:pw@api.test/');
+        $monitor->setConfig(['url' => 'https://u:pw@api.test/', 'headers' => ['X-Key' => 'k'], 'auth_method' => 'basic', 'auth_password' => 'stored']);
+
+        $data               = $this->factory()->toFormData($monitor);
+        $data->url          = 'https://new:creds@other.test/';
+        $data->httpHeaders  = 'X-Key: typed';
+        $data->authPassword = 'typed';
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+
+        $data->authPassword      = '';
+        $data->authPasswordClear = true;
+        $data->httpHeaders       = '';
+        $data->url               = 'https://other.test/';
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+
+        $data->type = MonitorType::Tcp;
+        $data->url  = 'https://***@other.test/';
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
     }
 
     public function testParentMustBeAGroupAndGroupsHaveNoParentOrProject(): void

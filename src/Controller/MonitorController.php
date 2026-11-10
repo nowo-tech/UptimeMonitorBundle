@@ -360,10 +360,9 @@ final class MonitorController extends AbstractUptimeController
         }
         $monitor = $this->requireUiManaged($monitor);
         $data    = $this->monitorFactory->toFormData($monitor);
-        $before  = get_object_vars($data);
-        // The password is write-only (blank in the form data): compare the stored values instead (names only leave).
-        $before['authPassword'] = $monitor->getConfig()['auth_password'] ?? null;
-        $form                   = $this->createForm(MonitorFormType::class, $data, [
+        // The secrets are write-only (blank or masked in the form data): compare the stored values (names only leave).
+        $before = $this->storedSecrets($monitor) + get_object_vars($data);
+        $form   = $this->createForm(MonitorFormType::class, $data, [
             'group_choices'        => $this->buildGroupChoices($tenantSlug, $monitor),
             'min_interval_seconds' => $this->minIntervalSeconds($tenantSlug),
         ]);
@@ -375,7 +374,19 @@ final class MonitorController extends AbstractUptimeController
             $form->addError(new FormError($this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota->max($tenantSlug)])));
         }
 
+        // Since 1.25.1: a stored secret is not carried to another scheme, host or port; its field asks for it again.
+        $retype = false;
         if ($form->isSubmitted() && $form->isValid()) {
+            foreach ($this->monitorFactory->secretsNeedingRetype($monitor, $data) as $field) {
+                // A field the host hid (`form.hidden_fields`) cannot be typed: that secret is dropped instead.
+                if ($form->has($field)) {
+                    $form->get($field)->addError(new FormError($this->transMessage('form.monitor.secret_retype')));
+                    $retype = true;
+                }
+            }
+        }
+
+        if (!$retype && $form->isSubmitted() && $form->isValid()) {
             // Since 1.21: the same host quota as a new monitor or the pause action (GU-M1).
             $checks = MonitorQuotaCheckEvent::forChange($tenantSlug, $monitor, $data->type, $data->paused);
             if (!$this->saveUnderQuota($monitor->getTenant(), fn () => $this->monitorFactory->applyFormData($monitor, $data), $takesSlot, $checks)) {
@@ -386,7 +397,7 @@ final class MonitorController extends AbstractUptimeController
             $this->eventDispatcher?->dispatch(new MonitorUpdatedEvent(
                 $tenantSlug,
                 (int) $monitor->getId(),
-                $this->changedFields($before, ['authPassword' => $monitor->getConfig()['auth_password'] ?? null] + get_object_vars($this->monitorFactory->toFormData($monitor))),
+                $this->changedFields($before, $this->storedSecrets($monitor) + get_object_vars($this->monitorFactory->toFormData($monitor))),
                 $this->actorId(),
                 $this->clock->now(),
             ));
@@ -642,6 +653,24 @@ final class MonitorController extends AbstractUptimeController
     private function actorId(): ?string
     {
         return $this->tokenStorage?->getToken()?->getUserIdentifier();
+    }
+
+    /**
+     * The stored values of the write-only form fields (the password since 1.25, the URL, proxy and headers since
+     * 1.25.1), compared in memory so a change is reported by name although the form only holds blanks or masks.
+     *
+     * @return array<string, mixed>
+     */
+    private function storedSecrets(Monitor $monitor): array
+    {
+        $config = $monitor->getConfig();
+
+        return [
+            'authPassword' => $config['auth_password'] ?? null,
+            'url'          => $config['url'] ?? null,
+            'proxy'        => $config['proxy'] ?? null,
+            'httpHeaders'  => $config['headers'] ?? null,
+        ];
     }
 
     /**
