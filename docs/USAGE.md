@@ -260,7 +260,7 @@ Every form in the bundle views is a PHP Symfony Form Type (Form Kit `uptime_moni
 {% endblock %}
 ```
 
-Template overrides and the demo **must not** reintroduce raw `<form>`, `<input>`, `<textarea>` or `<select>` markup; `make check-no-raw-html-form` (part of `release-check`) fails when they do. The form variables each view receives are listed in [UPGRADING](UPGRADING.md#unreleased).
+Template overrides and the demo **must not** reintroduce raw `<form>`, `<input>`, `<textarea>` or `<select>` markup; `make check-no-raw-html-form` (part of `release-check`) fails when they do. The form variables each view receives are listed in [UPGRADING](UPGRADING.md#to-1250).
 
 ### Layout and CSS stack (REQ-UI-001 / REQ-UI-003)
 
