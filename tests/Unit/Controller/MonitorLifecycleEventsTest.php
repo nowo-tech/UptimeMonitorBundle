@@ -33,6 +33,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\Form\Util\StringUtil;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
@@ -163,6 +164,34 @@ final class MonitorLifecycleEventsTest extends TestCase
         self::assertNotContains('method', $event->changedFields);
         self::assertNull($event->actorId, 'no security token');
         self::assertStringNotContainsString('placeholder', (string) json_encode($event));
+    }
+
+    /** Since 1.25: the edit form never renders the stored password; a replaced password is reported by name. */
+    public function testTheStoredPasswordIsNotRenderedAndAChangeIsReportedByName(): void
+    {
+        $monitor = $this->persisted('Basic');
+        $monitor->setConfig(['url' => 'https://p.test', 'method' => 'GET', 'auth_method' => 'basic', 'auth_username' => 'user', 'auth_password' => 'stored-value']);
+        $this->em->flush();
+        $id         = (int) $monitor->getId();
+        $controller = $this->controller();
+        $get        = Request::create('/main/monitors/' . $id . '/edit');
+        $this->bindController($controller, true, $get);
+
+        $controller->edit('main', $id, $get);
+        $form = $this->renderedContext['form'] ?? null;
+        self::assertInstanceOf(FormView::class, $form);
+        self::assertSame('', $form['authPassword']->vars['value']);
+        self::assertStringNotContainsString('stored-value', (string) json_encode($form['authPassword']->vars['value']));
+
+        $post = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Basic', 'url' => 'https://p.test', 'authMethod' => 'basic', 'authUsername' => 'user', 'authPassword' => 'new-value']);
+        $this->bindController($controller, true, $post);
+        $controller->edit('main', $id, $post);
+
+        self::assertSame('new-value', $monitor->getConfig()['auth_password']);
+        $event = $this->events[0] ?? null;
+        self::assertInstanceOf(MonitorUpdatedEvent::class, $event);
+        self::assertContains('authPassword', $event->changedFields);
+        self::assertStringNotContainsString('new-value', (string) json_encode($event));
     }
 
     public function testDeleteDispatchesTheIdOfTheRemovedMonitor(): void

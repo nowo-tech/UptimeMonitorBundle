@@ -228,10 +228,16 @@ final class MonitorFormType extends AbstractUptimeFormType
             'label'    => 'form.monitor.auth_user',
             'required' => false,
         ]);
+        // Write-only (since 1.25): the stored password is never rendered; blank keeps it, the checkbox removes it.
         $this->addPassword($builder, 'authPassword', [
             'label'        => 'form.monitor.auth_password',
             'required'     => false,
-            'always_empty' => false,
+            'always_empty' => true,
+            'help'         => 'form.monitor.auth_password_help',
+        ]);
+        $this->addCheckbox($builder, 'authPasswordClear', [
+            'label'    => 'form.monitor.auth_password_clear',
+            'required' => false,
         ]);
         $this->addText($builder, 'tags', [
             'label'    => 'form.monitor.tags',
@@ -317,6 +323,9 @@ final class MonitorFormType extends AbstractUptimeFormType
         ]);
         foreach ($this->hiddenFields as $field) {
             $builder->remove($field);
+            if ($field === 'authPassword') {
+                $builder->remove('authPasswordClear');
+            }
         }
     }
 

@@ -122,7 +122,10 @@ For hosts that own their tenants (e.g. one tenant per project of the host applic
   flush as the check).
 - **Admin UI lifecycle events** (since 1.25): `MonitorCreatedEvent`, `MonitorUpdatedEvent` (with the changed field
   names), `MonitorDeletedEvent` and `MonitorPausedEvent` (`paused` true or false), dispatched after the commit with the
-  tenant slug, monitor id, actor (`getUserIdentifier()` of the security token, or null) and `occurredAt`.
+  tenant slug, monitor id, actor (`getUserIdentifier()` of the security token, often the login email, or null) and
+  `occurredAt`. Pausing or resuming through the **edit form** sends `MonitorUpdatedEvent` with `paused` in
+  `changedFields`, not `MonitorPausedEvent`: listen to both to audit pauses. A password change is reported as
+  `authPassword` (the name only).
 
 ```php
 #[AsEventListener]
@@ -160,7 +163,9 @@ superclass or trait to extend. The current user is passed to the access checker 
   `getTenantSlug()` / `getMonitorId()` / `getIncidentId()` getters instead of the entities.
 - `Event\MonitorCreatedEvent` / `MonitorUpdatedEvent` / `MonitorDeletedEvent` / `MonitorPausedEvent` (since 1.25):
   admin UI writes, after the commit. Scalars only: tenant slug, monitor id, actor id, `occurredAt`; the update carries
-  the changed field names (never values), the pause its new `paused` state.
+  the changed field names (never values), the pause its new `paused` state. An edit-form pause is a
+  `MonitorUpdatedEvent` with `paused` in `changedFields`. A listener that throws after a check's commit is logged and
+  does not stop the check.
 - `Event\MonitorsAppliedEvent`: `nowo:uptime:apply-monitors` committed a tenant's monitors. Scalars only, dispatched
   after the commit.
 - `Event\MonitorQuotaCheckEvent` (`UptimeEvents::MONITOR_QUOTA_CHECK`): cancellable check before an admin-UI create

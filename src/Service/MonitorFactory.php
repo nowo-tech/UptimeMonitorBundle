@@ -134,6 +134,7 @@ final readonly class MonitorFactory
         if (
             $data->authMethod === 'basic'
             && $data->authPassword === ''
+            && !$data->authPasswordClear
             && isset($previous['auth_password'])
             && is_string($previous['auth_password'])
         ) {
@@ -371,10 +372,9 @@ final readonly class MonitorFactory
         $data->authUsername = isset($config['auth_username']) && is_string($config['auth_username'])
             ? $config['auth_username']
             : '';
-        $data->authPassword = isset($config['auth_password']) && is_string($config['auth_password'])
-            ? $config['auth_password']
-            : '';
-        $tags = $config['tags'] ?? [];
+        // Write-only (since 1.25): the stored password never goes back to the browser.
+        $data->authPassword = '';
+        $tags               = $config['tags'] ?? [];
         if (is_array($tags)) {
             $data->tags = implode(', ', array_map(strval(...), $tags));
         }

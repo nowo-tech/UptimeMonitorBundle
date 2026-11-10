@@ -96,11 +96,20 @@ Target **1.25.0** (minor, additive; one documented event timing change).
   `$clock` arguments (last, with defaults).
 - `StatusTransitionService::handleAfterCheckDeferred()` / `dispatchCommitted()`.
 
+### Security
+
+- **Monitor form: the basic-auth password is write-only.** The edit form rendered the stored password back to the
+  browser (`always_empty: false`, prefilled by `MonitorFactory::toFormData()`). It is never rendered now: blank keeps
+  the stored password, a typed one replaces it, and the new `authPasswordClear` checkbox removes it. Limited to users
+  who may manage the tenant; no GHSA.
+
 ### Changed
 
 - **Incident events after the commit**: `CheckExecutorService` dispatches `MonitorWentDownEvent` /
   `MonitorRecoveredEvent` after the check's flush instead of before it. The new incident's id is set; a failed flush
-  dispatches nothing. What a listener persists is flushed right after the dispatch. Same event classes and payload.
+  dispatches nothing. What a listener persists is flushed right after the dispatch. A listener that throws is logged
+  (class only) and the dashboard sync and parent group refresh still run (`StatusTransitionService` takes an optional
+  logger, last argument). Same event classes and payload.
   `StatusTransitionService::handleAfterCheck()` (when called directly) keeps dispatching immediately.
 
 ### Documentation

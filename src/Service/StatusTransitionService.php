@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Service;
 
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\UptimeMonitorBundle\Apply\MonitorApplier;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -16,9 +17,12 @@ use Nowo\UptimeMonitorBundle\Monitor\MonitorSettings;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Nowo\UptimeMonitorBundle\Repository\IncidentRepository;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Throwable;
 
 use function in_array;
 use function sprintf;
@@ -30,6 +34,7 @@ final readonly class StatusTransitionService
 {
     /**
      * @param array<string, mixed> $notificationsConfig
+     * @param LoggerInterface $logger Receives the class of a listener failure after the commit (since 1.25)
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -39,6 +44,7 @@ final readonly class StatusTransitionService
         private array $notificationsConfig,
         private ?EventDispatcherInterface $eventDispatcher = null,
         private ClockInterface $clock = new NativeClock(),
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -74,7 +80,8 @@ final readonly class StatusTransitionService
     /**
      * Dispatches the incident events of {@see self::handleAfterCheckDeferred()} once the check is committed (since
      * 1.25), then flushes what the listeners persisted (before 1.25 they shared the check's flush). Nothing to do
-     * without events.
+     * without events. The check is already stored: a listener that throws is logged (its class only) and the other
+     * events, the flush and the caller's dashboard sync / group refresh still run, like {@see MonitorApplier}.
      *
      * @param list<MonitorRecoveredEvent|MonitorWentDownEvent> $events
      */
@@ -85,7 +92,16 @@ final readonly class StatusTransitionService
         }
 
         foreach ($events as $event) {
-            $this->eventDispatcher?->dispatch($event);
+            try {
+                $this->eventDispatcher?->dispatch($event);
+            } catch (Throwable $failure) {
+                $this->logger->error('Uptime incident event listener failed after the commit: {error}', [
+                    'bundle'     => 'NowoUptimeMonitorBundle',
+                    'event'      => $event::class,
+                    'monitor_id' => $event->getMonitorId(),
+                    'error'      => $failure::class,
+                ]);
+            }
         }
 
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {

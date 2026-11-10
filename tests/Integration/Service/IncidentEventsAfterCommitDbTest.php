@@ -30,6 +30,8 @@ use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use RuntimeException;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
@@ -110,6 +112,32 @@ final class IncidentEventsAfterCommitDbTest extends TestCase
         self::assertCount(1, $this->em->getRepository(Tag::class)->findAll());
     }
 
+    /** KE-U-L1: a throwing listener is logged; what earlier listeners persisted is flushed and the check completes. */
+    public function testAThrowingListenerIsLoggedAndTheCheckCompletes(): void
+    {
+        $this->dispatcher->addListener(MonitorWentDownEvent::class, static function (): never {
+            throw new RuntimeException('host listener broke');
+        }, -10);
+        $this->dispatcher->addListener(MonitorWentDownEvent::class, function (MonitorWentDownEvent $event): void {
+            $this->em->persist(new Tag($this->tenant, 'after-' . $event->getIncidentId()));
+        });
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(self::anything(), self::callback(
+            static fn (array $context): bool => $context['error'] === RuntimeException::class && $context['event'] === MonitorWentDownEvent::class,
+        ));
+        $group = new Monitor($this->tenant, 'Group', MonitorType::Group, 'Group');
+        $this->em->persist($group);
+        $child = $this->monitor()->setParent($group);
+        $this->em->flush();
+
+        $result = $this->executor($this->em, $logger)->execute($child);
+
+        self::assertSame(CheckStatus::Down, $result->getStatus());
+        $this->em->clear();
+        self::assertCount(1, $this->em->getRepository(Tag::class)->findAll(), 'the earlier listener\'s write is still flushed');
+        self::assertNotNull($this->em->find(Monitor::class, $group->getId())?->getLastKnownStatus(), 'the parent group was refreshed');
+    }
+
     public function testAFailedFlushDispatchesNothing(): void
     {
         $dispatched = false;
@@ -150,19 +178,21 @@ final class IncidentEventsAfterCommitDbTest extends TestCase
         return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM ' . $this->em->getClassMetadata(Incident::class)->getTableName() . ' WHERE ended_at IS NULL');
     }
 
-    private function executor(EntityManagerInterface $entityManager): CheckExecutorService
+    private function executor(EntityManagerInterface $entityManager, ?LoggerInterface $logger = null): CheckExecutorService
     {
         $registry = $this->createStub(ManagerRegistry::class);
         $registry->method('getManagerForClass')->willReturn($this->em);
         $runner = $this->createStub(CheckRunnerInterface::class);
         $runner->method('supports')->willReturn(true);
-        $runner->method('run')->willReturnCallback(fn (): CheckResultDto => new CheckResultDto($this->next, 5, null, $this->next === CheckStatus::Up ? null : 'timeout'));
+        $runner->method('run')->willReturnCallback(fn (Monitor $monitor): CheckResultDto => $monitor->isGroup()
+            ? new CheckResultDto(CheckStatus::Up, 1)
+            : new CheckResultDto($this->next, 5, null, $this->next === CheckStatus::Up ? null : 'timeout'));
 
         return new CheckExecutorService(
             [$runner],
             $entityManager,
             new AggregateService($entityManager, new CheckAggregateRepository($registry), ['periods' => []]),
-            new StatusTransitionService($entityManager, new IncidentRepository($registry), new NotificationService([], ['enabled' => false]), [], $this->dispatcher),
+            new StatusTransitionService($entityManager, new IncidentRepository($registry), new NotificationService([], ['enabled' => false]), [], $this->dispatcher, logger: $logger ?? new NullLogger()),
             $this->pollingSyncDispatcher(),
             new CheckLatencyNormalizer(['min_latency_ms' => 0]),
             new MonitorRetryService(),

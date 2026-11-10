@@ -361,7 +361,9 @@ final class MonitorController extends AbstractUptimeController
         $monitor = $this->requireUiManaged($monitor);
         $data    = $this->monitorFactory->toFormData($monitor);
         $before  = get_object_vars($data);
-        $form    = $this->createForm(MonitorFormType::class, $data, [
+        // The password is write-only (blank in the form data): compare the stored values instead (names only leave).
+        $before['authPassword'] = $monitor->getConfig()['auth_password'] ?? null;
+        $form                   = $this->createForm(MonitorFormType::class, $data, [
             'group_choices'        => $this->buildGroupChoices($tenantSlug, $monitor),
             'min_interval_seconds' => $this->minIntervalSeconds($tenantSlug),
         ]);
@@ -384,7 +386,7 @@ final class MonitorController extends AbstractUptimeController
             $this->eventDispatcher?->dispatch(new MonitorUpdatedEvent(
                 $tenantSlug,
                 (int) $monitor->getId(),
-                $this->changedFields($before, get_object_vars($this->monitorFactory->toFormData($monitor))),
+                $this->changedFields($before, ['authPassword' => $monitor->getConfig()['auth_password'] ?? null] + get_object_vars($this->monitorFactory->toFormData($monitor))),
                 $this->actorId(),
                 $this->clock->now(),
             ));
