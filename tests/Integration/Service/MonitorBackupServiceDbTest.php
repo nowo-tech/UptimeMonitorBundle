@@ -350,6 +350,17 @@ final class MonitorBackupServiceDbTest extends TestCase
         $result             = $this->service->import($this->tenant, ['monitors' => [$row]], MonitorBackupService::IMPORT_OVERWRITE);
         self::assertSame([1, 0], [$result['invalid'], $result['overwritten']]);
         self::assertSame('https://user:pw@api.test/health', $api->getConfig()['url']);
+
+        // Since 1.25.2 (KE-U151-L1): imported as a new monitor, the masks have nothing behind them and are dropped.
+        $row['name']        = 'API copy';
+        $row['form']['url'] = 'https://***@api.test/health?token=***&page=2';
+        $result             = $this->service->import($this->tenant, ['monitors' => [$row]]);
+        self::assertSame(1, $result['imported']);
+        $copy = $this->em->getRepository(Monitor::class)->findOneBy(['name' => 'API copy']);
+        self::assertInstanceOf(Monitor::class, $copy);
+        self::assertSame('https://api.test/health?page=2', $copy->getConfig()['url']);
+        self::assertSame('https://api.test/health?page=2', $copy->getTarget());
+        self::assertStringNotContainsString('***', (string) json_encode($copy->getConfig()));
     }
 
     public function testImportSkipsRowsThatFailTheMonitorConstraintsAndLogs(): void

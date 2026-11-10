@@ -148,6 +148,57 @@ final class SecretRedactorTest extends TestCase
         self::assertSame(['A' => '***'], SecretRedactor::restoreEditableHeaders(['A' => '***'], null));
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function stripProvider(): iterable
+    {
+        yield 'no mask' => ['https://u:p@example.test/?token=t', 'https://u:p@example.test/?token=t'];
+        yield 'masked userinfo' => ['https://***@example.test/h', 'https://example.test/h'];
+        yield 'masked userinfo, no scheme' => ['***@proxy.test:3128', 'proxy.test:3128'];
+        yield 'typed userinfo with *** inside kept' => ['https://a***@example.test/', 'https://a***@example.test/'];
+        yield 'only parameter' => ['https://example.test/?token=***', 'https://example.test/'];
+        yield 'first parameter' => ['https://example.test/?token=***&page=2', 'https://example.test/?page=2'];
+        yield 'last parameter' => ['https://example.test/?page=2&tokenx=***', 'https://example.test/?page=2'];
+        yield 'several, with a fragment' => ['https://***@example.test/?a=***&b=***&c=1&d=***#f', 'https://example.test/?c=1#f'];
+        yield 'all parameters, with a fragment' => ['https://example.test/?a=***&b=***#f', 'https://example.test/#f'];
+        yield 'partial mask kept' => ['https://example.test/?token=a***', 'https://example.test/?token=a***'];
+    }
+
+    /** Since 1.25.2 (KE-U151-L1): a mask left with nothing behind it is dropped, never sent as `***`. */
+    #[DataProvider('stripProvider')]
+    public function testStripMaskedUrl(string $value, string $expected): void
+    {
+        self::assertSame($expected, SecretRedactor::stripMaskedUrl($value));
+    }
+
+    public function testStripMaskedHeaders(): void
+    {
+        self::assertSame(
+            ['Authorization' => 'Bearer x', 'X-Empty' => '', 'X-Part' => 'a***'],
+            SecretRedactor::stripMaskedHeaders(['Authorization' => 'Bearer x', 'X-Other' => '***', 'X-Empty' => '', 'X-Part' => 'a***']),
+        );
+    }
+
+    /** Since 1.25.2 (KE-U151-I1): `jwt`, `bearer`, `hash` and `signature` values are masked too; path secrets are not. */
+    public function testMoreCredentialLikeNamesAreMasked(): void
+    {
+        self::assertSame(
+            'https://example.test/?jwt=***&bearer=***&hash=***&signature=***&q=x',
+            SecretRedactor::maskUrl('https://example.test/?jwt=a&bearer=b&hash=c&signature=d&q=x'),
+        );
+        self::assertSame(
+            'https://example.test/?access_jwt=***&Hash=***',
+            SecretRedactor::maskEditableUrl('https://example.test/?access_jwt=a&Hash=b'),
+        );
+        self::assertSame(
+            'https://example.test/?jwt=a&page=2',
+            SecretRedactor::restoreEditableUrl('https://example.test/?jwt=***&page=2', 'https://example.test/?jwt=a&page=1'),
+        );
+        $path = 'https://hooks.slack.test/services/T000/B000/XXXX';
+        self::assertSame($path, SecretRedactor::maskUrl($path), 'documented: a secret in the path is not masked');
+    }
+
     public function testUrlsInsideFreeTextAreMasked(): void
     {
         // Obvious placeholder credentials, joined into the URL at runtime.

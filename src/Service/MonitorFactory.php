@@ -16,6 +16,8 @@ use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 
+use function array_diff;
+use function array_values;
 use function implode;
 use function in_array;
 use function is_array;
@@ -28,6 +30,9 @@ use function sprintf;
  */
 final readonly class MonitorFactory
 {
+    /** The stored secrets of a monitor that has none (a new one). */
+    private const NOTHING_STORED = ['url' => '', 'proxy' => '', 'headers' => null];
+
     /**
      * Creates the factory.
      *
@@ -80,10 +85,11 @@ final readonly class MonitorFactory
     /**
      * The write-only fields whose stored secret a submitted mask (or blank password) would carry to another
      * destination (since 1.25.1): the URL userinfo / token values, the header values and the basic-auth password when
-     * the scheme, host or port of the URL changed, the proxy userinfo / token values when the proxy's changed. They
-     * must be typed again (or removed): {@see self::applyFormData()} never restores them across destinations.
+     * the scheme, host or port of the URL changed (the request body too, since 1.25.2), the proxy userinfo / token
+     * values when the proxy's changed. They must be typed again (or removed): {@see self::applyFormData()} never
+     * restores them across destinations.
      *
-     * @return list<'authPassword'|'httpHeaders'|'proxy'|'url'>
+     * @return list<'authPassword'|'httpBody'|'httpHeaders'|'proxy'|'url'>
      */
     public function secretsNeedingRetype(Monitor $monitor, MonitorFormData $data): array
     {
@@ -101,6 +107,9 @@ final readonly class MonitorFactory
             if (SecretRedactor::restoreEditableHeaders($headers, $stored['headers']) !== $headers) {
                 $fields[] = 'httpHeaders';
             }
+            if ($this->keepsStoredBody($monitor->getConfig(), $data)) {
+                $fields[] = 'httpBody';
+            }
             if ($this->keepsStoredPassword($monitor->getConfig(), $data)) {
                 $fields[] = 'authPassword';
             }
@@ -112,6 +121,44 @@ final readonly class MonitorFactory
         }
 
         return $fields;
+    }
+
+    /**
+     * The write-only fields that still hold the mask with nothing stored behind it (since 1.25.2): a renamed header
+     * (`X-Other: ***`), a new or surplus credential-like parameter (`tokenx=***`), a masked userinfo or body of a new
+     * monitor. The form asks for the value (or its removal); {@see self::applyFormData()} drops such a mask instead of
+     * saving the literal `***`. Fields {@see self::secretsNeedingRetype()} already reports are left out.
+     *
+     * @param Monitor|null $monitor The monitor being edited; null for a new one
+     *
+     * @return list<'httpBody'|'httpHeaders'|'proxy'|'url'>
+     */
+    public function unresolvedMasks(?Monitor $monitor, MonitorFormData $data): array
+    {
+        if (!in_array($data->type, [MonitorType::Http, MonitorType::Https], true)) {
+            return [];
+        }
+
+        $stored                  = $monitor instanceof Monitor ? $this->storedSecrets($monitor) : self::NOTHING_STORED;
+        [$url, $proxy, $headers] = $this->restoredHttpSecrets($data, $stored);
+        $fields                  = [];
+        if (SecretRedactor::stripMaskedUrl($url) !== $url) {
+            $fields[] = 'url';
+        }
+        if (SecretRedactor::stripMaskedHeaders($headers) !== $headers) {
+            $fields[] = 'httpHeaders';
+        }
+        // With the clear box ticked the mask means "remove", not a value.
+        if ($data->httpBody === SecretRedactor::MASK && !$data->httpBodyClear && !$this->keepsStoredBody($monitor?->getConfig() ?? [], $data)) {
+            $fields[] = 'httpBody';
+        }
+        if (SecretRedactor::stripMaskedUrl($proxy) !== $proxy) {
+            $fields[] = 'proxy';
+        }
+
+        $retype = $monitor instanceof Monitor ? $this->secretsNeedingRetype($monitor, $data) : [];
+
+        return array_values(array_diff($fields, $retype));
     }
 
     /**
@@ -128,6 +175,21 @@ final readonly class MonitorFactory
             'proxy'   => isset($config['proxy']) && is_string($config['proxy']) ? $config['proxy'] : '',
             'headers' => $config['headers'] ?? null,
         ];
+    }
+
+    /**
+     * Whether a submitted body keeps the stored one (since 1.25.2): blank or the mask, the clear box not ticked, and a
+     * non-empty body stored.
+     *
+     * @param array<string, mixed> $previous
+     */
+    private function keepsStoredBody(array $previous, MonitorFormData $data): bool
+    {
+        return ($data->httpBody === '' || $data->httpBody === SecretRedactor::MASK)
+            && !$data->httpBodyClear
+            && isset($previous['body'])
+            && is_string($previous['body'])
+            && $previous['body'] !== '';
     }
 
     /**
@@ -204,6 +266,11 @@ final readonly class MonitorFactory
             $config['auth_password'] = $previous['auth_password'];
         }
 
+        // Since 1.25.2 the request body is write-only too, under the same rule.
+        if ($sameUrlOrigin && $this->keepsStoredBody($previous, $data)) {
+            $config['body'] = $previous['body'];
+        }
+
         return $config;
     }
 
@@ -236,7 +303,7 @@ final readonly class MonitorFactory
      *
      * @return array{0: string, 1: array<string, mixed>}
      */
-    private function buildTargetAndConfig(MonitorFormData $data, array $stored = ['url' => '', 'proxy' => '', 'headers' => null]): array
+    private function buildTargetAndConfig(MonitorFormData $data, array $stored = self::NOTHING_STORED): array
     {
         return match ($data->type) {
             MonitorType::Group => [
@@ -340,8 +407,8 @@ final readonly class MonitorFactory
     /**
      * Where the submitted URL, proxy or header values still hold the mask of the edit form, the stored secrets are
      * kept (since 1.25.1, {@see SecretRedactor::restoreEditableUrl()}), only for the same scheme, host and port: the URL
-     * one for its userinfo, token values and the headers, the proxy one for the proxy's. Across destinations a mask
-     * stays as typed.
+     * one for its userinfo, token values and the headers, the proxy one for the proxy's. A mask left with nothing
+     * behind it (across destinations, or never stored) is dropped, never saved as `***` (since 1.25.2).
      *
      * @param array{url: string, proxy: string, headers: mixed} $stored
      *
@@ -349,10 +416,11 @@ final readonly class MonitorFactory
      */
     private function buildHttpTargetAndConfig(MonitorFormData $data, array $stored): array
     {
-        $codes   = StatusCodeMatcher::parse($data->expectedStatusCodes);
-        $sameUrl = SecretRedactor::sameOrigin($data->url, $stored['url']);
-        $url     = $sameUrl ? SecretRedactor::restoreEditableUrl($data->url, $stored['url']) : $data->url;
-        $proxy   = SecretRedactor::sameOrigin($data->proxy, $stored['proxy']) ? SecretRedactor::restoreEditableUrl($data->proxy, $stored['proxy']) : $data->proxy;
+        $codes                   = StatusCodeMatcher::parse($data->expectedStatusCodes);
+        [$url, $proxy, $headers] = $this->restoredHttpSecrets($data, $stored);
+        $url                     = SecretRedactor::stripMaskedUrl($url);
+        $proxy                   = SecretRedactor::stripMaskedUrl($proxy);
+        $headers                 = SecretRedactor::stripMaskedHeaders($headers);
 
         $config = [
             'url'                            => $url,
@@ -387,14 +455,11 @@ final readonly class MonitorFactory
             $config['keyword'] = $data->keyword;
         }
 
-        if ($data->httpBody !== '') {
+        // Blank or the mask: preserveInternalConfig() keeps the stored body (same origin only).
+        if ($data->httpBody !== '' && $data->httpBody !== SecretRedactor::MASK) {
             $config['body'] = $data->httpBody;
         }
 
-        $headers = HttpHeaderParser::parseLines($data->httpHeaders);
-        if ($sameUrl) {
-            $headers = SecretRedactor::restoreEditableHeaders($headers, $stored['headers']);
-        }
         if ($headers !== []) {
             $config['headers'] = $headers;
         }
@@ -421,6 +486,27 @@ final readonly class MonitorFactory
     }
 
     /**
+     * The URL, proxy and headers with the stored secrets put back where the submitted values still hold the mask, only
+     * for the same origin (the URL's for its userinfo, token values and headers, the proxy's for the proxy).
+     *
+     * @param array{url: string, proxy: string, headers: mixed} $stored
+     *
+     * @return array{0: string, 1: string, 2: array<string, string>}
+     */
+    private function restoredHttpSecrets(MonitorFormData $data, array $stored): array
+    {
+        $sameUrl = SecretRedactor::sameOrigin($data->url, $stored['url']);
+        $url     = $sameUrl ? SecretRedactor::restoreEditableUrl($data->url, $stored['url']) : $data->url;
+        $proxy   = SecretRedactor::sameOrigin($data->proxy, $stored['proxy']) ? SecretRedactor::restoreEditableUrl($data->proxy, $stored['proxy']) : $data->proxy;
+        $headers = HttpHeaderParser::parseLines($data->httpHeaders);
+        if ($sameUrl) {
+            $headers = SecretRedactor::restoreEditableHeaders($headers, $stored['headers']);
+        }
+
+        return [$url, $proxy, $headers];
+    }
+
+    /**
      * @param array<string, mixed> $config
      */
     private function mapHttpForm(MonitorFormData $data, Monitor $monitor, array $config): MonitorFormData
@@ -441,8 +527,9 @@ final readonly class MonitorFactory
         $data->ignoreTls       = ($config['verify_ssl'] ?? true) === false || ($config['ignore_tls'] ?? false) === true;
         $data->upsideDown      = ($config['upside_down'] ?? false) === true;
         $data->checkCertExpiry = ($config['check_cert_expiry'] ?? false) === true;
-        $data->httpBody        = isset($config['body']) && is_string($config['body']) ? $config['body'] : '';
-        $data->bodyEncoding    = isset($config['body_encoding']) && is_string($config['body_encoding'])
+        // Write-only (since 1.25.2): a stored body shows as the mask; blank or the mask keeps it, the clear box removes it.
+        $data->httpBody     = isset($config['body']) && is_string($config['body']) && $config['body'] !== '' ? SecretRedactor::MASK : '';
+        $data->bodyEncoding = isset($config['body_encoding']) && is_string($config['body_encoding'])
             ? $config['body_encoding']
             : 'json';
         $headers            = $config['headers'] ?? [];

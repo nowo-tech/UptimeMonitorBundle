@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.25.2](#to-1252)
 - [To 1.25.1](#to-1251)
 - [To 1.25.1](#to-1251-1)
 - [To 1.25.0](#to-1250)
@@ -125,6 +126,42 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.25.2
+
+Target **1.25.2** (security patch), from **1.25.1**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+- **A mask with nothing stored behind it is refused, not saved.** A `***` the form cannot replace with a stored value
+  (a header renamed to `X-Other: ***`, a new parameter `tokenx=***`, more `token=***` than stored, a masked userinfo in
+  a new monitor, a request body `***` with no stored body) is refused on its field with "type the value or remove
+  it", and nothing is saved. In 1.25.1 it was stored and sent as the literal `***`. Type the real value or delete it.
+- **Correction to the 1.25.1 notes on hidden fields.** They said that a secret of a field hidden with
+  `form.hidden_fields` was "dropped" when the URL moved to another scheme, host or port. That was true of the
+  basic-auth password only: hidden headers were stored as `Name: ***`. Since 1.25.2 they are dropped (the header line
+  is removed), as is a hidden request body. A hidden field is never refused (it cannot be typed).
+- **`MonitorFactory::applyFormData()` never stores a mask.** Where a mask is left with nothing behind it (another
+  origin, or nothing stored), the userinfo, the query parameter or the header is removed. Code that calls
+  `applyFormData()` itself should still call `secretsNeedingRetype()` and `unresolvedMasks()` first if it wants to ask
+  the user instead. A backup import does the same: a monitor created from a redacted export gets its URL without the
+  masked userinfo and parameters (in 1.25.1 they were imported as `***`), and an overwrite keeps the stored values of
+  the same origin as before. Re-enter those secrets after the import.
+- **Security: the request body is write-only.** The edit form shows a stored body as `***`. Leave it (or blank) to keep
+  it, type a new one to replace it, or tick "Remove the stored body" (`httpBodyClear`). **Behaviour change:** in 1.25.1
+  emptying the field removed the body; now it keeps it, use the box. When the URL's scheme, host or port changes, the
+  form asks for the body again, like the other secrets. A host template that renders the form fields one by one should
+  add `httpBodyClear`; with `form.hidden_fields: [httpBody]` both fields are left out. `MonitorFactory::toFormData()`
+  now returns `***` as `httpBody` when a body is stored. `MonitorUpdatedEvent` reports `httpBody` by name when the
+  stored body changed.
+- **More masked query names:** the values of parameters whose name contains `jwt`, `bearer` or `hash` are masked like
+  `token` or `key` (dashboard, monitor page, alerts, webhooks, backups, edit form); an unchanged mask keeps the stored
+  value as before. Masking is by name only: put secrets in headers, basic auth or a credential-named parameter, not in
+  the URL path.
+- A literal value of exactly `***` (a whole userinfo, query value, header value or body) can no longer be saved.
+- No configuration, schema or route change.
 
 ## To 1.25.1
 

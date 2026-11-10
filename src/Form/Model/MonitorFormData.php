@@ -66,12 +66,15 @@ final class MonitorFormData
     public bool $ignoreTls       = false;
     public bool $upsideDown      = false;
     public bool $checkCertExpiry = false;
-    public string $httpBody      = '';
-    public string $bodyEncoding  = 'json';
-    public string $httpHeaders   = '';
-    public string $proxy         = '';
-    public string $authMethod    = 'none';
-    public string $authUsername  = '';
+    /** Write-only (since 1.25.2): a stored body is shown as `***`; blank or `***` keeps it. */
+    public string $httpBody = '';
+    /** Since 1.25.2: removes the stored request body (a typed body still replaces it). */
+    public bool $httpBodyClear  = false;
+    public string $bodyEncoding = 'json';
+    public string $httpHeaders  = '';
+    public string $proxy        = '';
+    public string $authMethod   = 'none';
+    public string $authUsername = '';
     /** Write-only (since 1.25): never filled from the stored password; blank keeps it. */
     public string $authPassword = '';
     /** Since 1.25: removes the stored basic-auth password (a typed password still replaces it). */

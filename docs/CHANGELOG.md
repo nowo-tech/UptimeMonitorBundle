@@ -81,6 +81,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target **1.25.2** (patch, security).
+
+### Security
+
+- **A mask with nothing stored behind it is never saved or sent as `***` (KE-U151-L1).** In 1.25.1 a mask that had no
+  stored value to put back was stored and sent literally: a renamed header (`X-Other: ***`), a new or surplus
+  credential-like parameter (`tokenx=***`, a third `token=***`), a masked userinfo typed into a new monitor, and, with
+  `form.hidden_fields: [httpHeaders]` and a URL moved to another host, every hidden header (`Name: ***`). The monitor
+  form (new and edit) now refuses such a value on its field with "type the value or remove it"
+  (`form.monitor.secret_mask_unresolved`, 422 in the dialog) and saves nothing. Where it cannot be typed (a field
+  hidden with `form.hidden_fields`, a backup import, a host that calls `MonitorFactory::applyFormData()` itself) the
+  header, the query parameter or the userinfo is dropped instead (`SecretRedactor::stripMaskedUrl()`,
+  `stripMaskedHeaders()`). New `MonitorFactory::unresolvedMasks()`.
+- **The request body is write-only in the monitor form (KE-U151-L2).** The edit form rendered the stored `httpBody`
+  (for example a login JSON of a keyword check), although exports already blank it. A stored body is shown as `***`
+  now: leave it (or blank) to keep it, type a new body to replace it, or tick "Remove the stored body"
+  (`httpBodyClear`) to delete it. Like the other secrets it is only kept for the same scheme, host and port: when the
+  URL's changed the form asks for it again (`form.monitor.secret_retype`), and a hidden body is dropped.
+  `MonitorUpdatedEvent` reports `httpBody` by name only, comparing the stored body. Tenant managers only; no GHSA.
+- **More credential-like query names are masked (KE-U151-I1):** `jwt`, `bearer` and `hash` join `token`, `key`,
+  `secret`, `pass`, `pwd`, `sig` (also `signature`), `auth`, `credential`, `session` and `code` in the dashboard, the
+  monitor page, alerts, webhooks, backups and the edit form. Masking stays name-based: a secret in the URL path (a
+  Slack webhook `/services/T…/B…/…`, a Telegram `/bot<token>/`) or under another parameter name is not masked
+  (documented in SECURITY.md and USAGE.md).
+
+### Added
+
+- `SecretRedactor::stripMaskedUrl()`, `SecretRedactor::stripMaskedHeaders()`, `MonitorFactory::unresolvedMasks()`,
+  `MonitorFormData::$httpBodyClear` and the `httpBodyClear` form field.
+
 ## [1.25.1] - 2026-11-10
 
 Target **1.25.1** (patch, security).

@@ -78,6 +78,13 @@ Create monitors via Twig UI (`/uptime/{tenant}/monitors/new`) or programmaticall
 
 HTTP/HTTPS monitors support Uptime Kuma–compatible options (retries, `200-299`, request timeout, proxy, Basic auth, upside-down mode). See [MONITOR-CONFIGURATION.md](MONITOR-CONFIGURATION.md).
 
+**Secrets in HTTP monitors.** The edit form, the monitor page and exports mask the URL / proxy userinfo and the values
+of credential-like query parameters (`token`, `key`, `secret`, `pass`, `sig`, `auth`, `jwt`, `bearer`, `hash`…); the
+form also masks every header value and (since 1.25.2) the request body. Leave `***` to keep a stored value, type to
+replace it. Masking is by name: a secret in the URL path (a Slack webhook `/services/…`, a Telegram `/bot<token>/`) or
+under another parameter name stays visible, so put secrets in headers, basic auth or a credential-named parameter. A
+`***` with nothing stored behind it is refused by the form (since 1.25.2).
+
 ## Commands
 
 | Command | Purpose |
@@ -126,7 +133,8 @@ For hosts that own their tenants (e.g. one tenant per project of the host applic
   `occurredAt`. Pausing or resuming through the **edit form** sends `MonitorUpdatedEvent` with `paused` in
   `changedFields`, not `MonitorPausedEvent`: listen to both to audit pauses. A password change is reported as
   `authPassword` (the name only); since 1.25.1 a change of the URL, proxy or headers is reported as `url`, `proxy` or
-  `httpHeaders`, also names only (the form shows those secrets masked).
+  `httpHeaders`, also names only (the form shows those secrets masked), and since 1.25.2 a change of the request body
+  as `httpBody`.
 
 ```php
 #[AsEventListener]
