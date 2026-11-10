@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.25.0](#to-1250)
 - [To 1.24.1](#to-1241)
 - [To 1.24.0](#to-1240)
 - [To 1.23.0](#to-1230)
@@ -121,6 +122,36 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.25.0
+
+Target **1.25.0**, from **1.24.1**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+- **Timing change: incident events follow the commit.** `MonitorWentDownEvent` and `MonitorRecoveredEvent` are now
+  dispatched after the check is flushed (before 1.25 they were dispatched before that flush). Listeners now get the
+  persisted incident (`$event->incident->getId()` / `$event->getIncidentId()` is set), and a failed flush dispatches
+  nothing. A listener that persisted entities without flushing still works: the bundle flushes once more after the
+  dispatch, but those rows are no longer written in the same flush as the check result. A listener that flushes or
+  opens its own transaction (as Symfony Beacon's) needs no change. An exception thrown by a listener is now caught
+  and logged (its class only) after the check is stored, and the dashboard sync and the parent group refresh still
+  run. In 1.24 it escaped before the check's flush: that check was not stored by its own flush, and what was pending in
+  the unit of work could be written by a later flush of the same scan.
+- **Security: the basic-auth password is write-only in the monitor form.** The edit form no longer renders the stored
+  password (it was sent back to the browser). Leave it blank to keep it, type a new one to replace it, or tick
+  "Remove the stored password" (`authPasswordClear`) to delete it. A host template that renders the form fields one by
+  one should add `authPasswordClear`; with `form.hidden_fields: [authPassword]` both fields are left out.
+  `MonitorFactory::toFormData()` now returns an empty `authPassword`.
+- **Optional, recommended**: type-hint `Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface` and
+  `Nowo\UptimeMonitorBundle\Apply\MonitorApplierInterface` instead of the final classes; read the incident events
+  through `snapshot()` / `getTenantSlug()` / `getMonitorId()` / `getIncidentId()`.
+- **New events** for the admin UI: `MonitorCreatedEvent`, `MonitorUpdatedEvent`, `MonitorDeletedEvent`,
+  `MonitorPausedEvent` (after the commit). Nothing to do unless you want to listen to them.
+- A host that builds `MonitorController` by hand needs no change (the new `$tokenStorage` / `$clock` arguments are
+  last and optional).
 
 ## To 1.24.1
 

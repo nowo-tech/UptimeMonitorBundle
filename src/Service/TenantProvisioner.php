@@ -15,9 +15,10 @@ use function sprintf;
 
 /**
  * Host-managed tenants (since 1.9): a multi-tenant host creates, renames and disables its tenants itself — e.g. one per
- * project, slug = the project id — instead of the `/tenants` UI (set `tenants.list_enabled: false`).
+ * project, slug = the project id — instead of the `/tenants` UI (set `tenants.list_enabled: false`). Since 1.25 host code
+ * type-hints {@see TenantProvisionerInterface}.
  */
-final readonly class TenantProvisioner
+final readonly class TenantProvisioner implements TenantProvisionerInterface
 {
     /**
      * Creates the provisioner.

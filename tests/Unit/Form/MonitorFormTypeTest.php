@@ -80,6 +80,24 @@ final class MonitorFormTypeTest extends TypeTestCase
         self::assertSame('legacy', $data->project);
     }
 
+    /** Since 1.25: hiding the password also hides its clear box; the password field never renders a value. */
+    public function testThePasswordIsWriteOnlyAndHidesWithItsClearBox(): void
+    {
+        $factory = Forms::createFormFactoryBuilder()
+            ->addExtensions($this->getExtensions())
+            ->addTypes([FormKitTestSupport::withMerger(new MonitorFormType(['authPassword']))])
+            ->getFormFactory();
+        $hidden = $factory->create(MonitorFormType::class, new MonitorFormData());
+        self::assertFalse($hidden->has('authPassword'));
+        self::assertFalse($hidden->has('authPasswordClear'));
+
+        $data               = new MonitorFormData();
+        $data->authPassword = 'typed';
+        $form               = $this->factory->create(MonitorFormType::class, $data);
+        self::assertTrue($form->has('authPasswordClear'));
+        self::assertSame('', $form->createView()['authPassword']->vars['value']);
+    }
+
     public function testSubmitValidData(): void
     {
         $data                  = new MonitorFormData();

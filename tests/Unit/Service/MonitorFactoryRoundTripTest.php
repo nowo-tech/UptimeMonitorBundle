@@ -85,7 +85,7 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame('http://proxy.test:3128', $back->proxy);
         self::assertSame('basic', $back->authMethod);
         self::assertSame('user', $back->authUsername);
-        self::assertSame('secret', $back->authPassword);
+        self::assertSame('', $back->authPassword, 'write-only: the stored password is never sent back');
         self::assertSame('prod, eu', $back->tags);
     }
 
@@ -106,6 +106,27 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame(3, $monitor->getConfig()['failure_streak']);
         self::assertSame(1, $monitor->getConfig()['down_notify_streak']);
         self::assertSame('stored', $monitor->getConfig()['auth_password']);
+    }
+
+    /** Since 1.25: the stored password is write-only; the clear box removes it, a typed one replaces it. */
+    public function testThePasswordIsWriteOnlyAndCanBeClearedOrReplaced(): void
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Http, 'https://api.test');
+        $monitor->setConfig(['auth_method' => 'basic', 'auth_username' => 'user', 'auth_password' => 'stored']);
+
+        $data = $this->factory()->toFormData($monitor);
+        self::assertSame('', $data->authPassword);
+        self::assertFalse($data->authPasswordClear);
+
+        $data->authPasswordClear = true;
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertArrayNotHasKey('auth_password', $monitor->getConfig());
+
+        $data                    = $this->factory()->toFormData($monitor);
+        $data->authPassword      = 'fresh';
+        $data->authPasswordClear = true;
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertSame('fresh', $monitor->getConfig()['auth_password']);
     }
 
     public function testParentMustBeAGroupAndGroupsHaveNoParentOrProject(): void

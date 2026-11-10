@@ -72,8 +72,11 @@ final class MonitorFormData
     public string $proxy         = '';
     public string $authMethod    = 'none';
     public string $authUsername  = '';
-    public string $authPassword  = '';
-    public string $tags          = '';
+    /** Write-only (since 1.25): never filled from the stored password; blank keeps it. */
+    public string $authPassword = '';
+    /** Since 1.25: removes the stored basic-auth password (a typed password still replaces it). */
+    public bool $authPasswordClear = false;
+    public string $tags            = '';
 
     // TCP / SSL
     public string $host = '';

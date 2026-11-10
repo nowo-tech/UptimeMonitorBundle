@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Integration;
 
+use Nowo\UptimeMonitorBundle\Apply\MonitorApplier;
+use Nowo\UptimeMonitorBundle\Apply\MonitorApplierInterface;
 use Nowo\UptimeMonitorBundle\Check\HttpCheckRunner;
+use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
+use Nowo\UptimeMonitorBundle\Service\TenantProvisioner;
+use Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
@@ -57,5 +62,13 @@ final class BundleConfigurationTest extends TestCase
         self::assertEquals(new Reference('security.token_storage', ContainerInterface::IGNORE_ON_INVALID_REFERENCE), $actions['$tokenStorage']);
         self::assertEquals(new Reference('security.csrf.token_manager', ContainerInterface::IGNORE_ON_INVALID_REFERENCE), $actions['$csrf']);
         self::assertEquals(new Reference('twig', ContainerInterface::IGNORE_ON_INVALID_REFERENCE), $container->getDefinition(UptimePages::class)->getArguments()['$twig']);
+
+        // DDD ports (1.25): the write entry points behind interfaces, the monitor controller gets the actor's token.
+        self::assertSame(MonitorApplier::class, (string) $container->getAlias(MonitorApplierInterface::class));
+        self::assertSame(TenantProvisioner::class, (string) $container->getAlias(TenantProvisionerInterface::class));
+        $controller = $container->getDefinition(MonitorController::class);
+        self::assertEquals(new Reference('security.token_storage', ContainerInterface::IGNORE_ON_INVALID_REFERENCE), $controller->getArguments()['$tokenStorage']);
+        self::assertTrue($controller->hasTag('controller.service_arguments'));
+        self::assertTrue($controller->hasTag('container.service_subscriber'));
     }
 }

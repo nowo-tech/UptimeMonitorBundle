@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Service;
 
+use ArrayObject;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
@@ -69,6 +70,51 @@ final class StatusTransitionServiceTest extends TestCase
         self::assertSame($monitor, $events[0]->monitor);
         self::assertInstanceOf(MonitorRecoveredEvent::class, $events[1]);
         self::assertFalse($events[1]->incident->isOpen());
+    }
+
+    /** Since 1.25: the deferred variant returns the events; dispatchCommitted() sends them, then flushes the listeners' writes. */
+    public function testDeferredEventsAreDispatchedOnlyWhenCommitted(): void
+    {
+        $monitor = $this->createMonitor();
+        $monitor->setLastKnownStatus(CheckStatus::Up);
+        /** @var ArrayObject<int, object> $events */
+        $events     = new ArrayObject();
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event) use ($events): object {
+            $events[] = $event;
+
+            return $event;
+        });
+        $incidents = $this->createMock(IncidentRepository::class);
+        $incidents->method('findOpenForMonitor')->willReturn(null);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::once())->method('persist')->with(self::isInstanceOf(Incident::class));
+        $em->expects(self::once())->method('flush');
+        $service = $this->createService($incidents, $this->createMock(NotificationService::class), entityManager: $em, eventDispatcher: $dispatcher);
+
+        $deferred = $service->handleAfterCheckDeferred($monitor, new CheckResult($monitor, CheckStatus::Down, 100, 503, 'down'));
+
+        self::assertCount(0, $events, 'nothing dispatched before the commit');
+        self::assertCount(1, $deferred);
+        self::assertInstanceOf(MonitorWentDownEvent::class, $deferred[0]);
+        self::assertSame('main', $deferred[0]->getTenantSlug());
+        self::assertNull($deferred[0]->getMonitorId());
+
+        $service->dispatchCommitted($deferred);
+        $service->dispatchCommitted([]);
+
+        self::assertSame($deferred, $events->getArrayCopy());
+    }
+
+    /** Since 1.25: without a dispatcher there is nothing to send and nothing extra to flush. */
+    public function testDispatchCommittedWithoutDispatcherDoesNotFlush(): void
+    {
+        $monitor = $this->createMonitor();
+        $em      = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('flush');
+        $service = $this->createService($this->createMock(IncidentRepository::class), $this->createMock(NotificationService::class), entityManager: $em);
+
+        $service->dispatchCommitted([new MonitorRecoveredEvent($monitor, new Incident($monitor, CheckStatus::Down))]);
     }
 
     private function createMonitor(): Monitor

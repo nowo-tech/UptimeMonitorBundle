@@ -90,6 +90,10 @@ services:
     Nowo\UptimeMonitorBundle\Check\PushCheckRunner:
         tags: ['nowo.uptime_monitor.check_runner']
 
+    # DDD ports (1.25): the documented write entry points behind interfaces (host code type-hints these).
+    Nowo\UptimeMonitorBundle\Apply\MonitorApplierInterface: '@Nowo\UptimeMonitorBundle\Apply\MonitorApplier'
+    Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface: '@Nowo\UptimeMonitorBundle\Service\TenantProvisioner'
+
     # apply-monitors (1.18): the token intake's system calls.
     Nowo\UptimeMonitorBundle\Apply\TokenSourceSystem: '@Nowo\UptimeMonitorBundle\Apply\NativeTokenSourceSystem'
 
@@ -119,6 +123,13 @@ services:
         arguments:
             $mercureHub: '@?mercure.hub.default'
             $mercureAuthorization: '@?Symfony\Component\Mercure\Authorization'
+
+    # Lifecycle events (1.25): the actor comes from the security token when SecurityBundle is installed.
+    Nowo\UptimeMonitorBundle\Controller\MonitorController:
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
+        arguments:
+            $tokenStorage: '@?security.token_storage'
 
     Nowo\UptimeMonitorBundle\EventSubscriber\UptimeMonitorAccessSubscriber:
         arguments:

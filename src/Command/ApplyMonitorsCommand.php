@@ -8,7 +8,7 @@ use Nowo\UptimeMonitorBundle\Apply\ApplyError;
 use Nowo\UptimeMonitorBundle\Apply\ApplyFailedException;
 use Nowo\UptimeMonitorBundle\Apply\ApplyRefusedException;
 use Nowo\UptimeMonitorBundle\Apply\ExternalPushTokens;
-use Nowo\UptimeMonitorBundle\Apply\MonitorApplier;
+use Nowo\UptimeMonitorBundle\Apply\MonitorApplierInterface;
 use Nowo\UptimeMonitorBundle\Apply\MonitorFileParser;
 use Nowo\UptimeMonitorBundle\Apply\MonitorFileSpec;
 use Nowo\UptimeMonitorBundle\Apply\PushTokenFileReader;
@@ -64,7 +64,7 @@ final class ApplyMonitorsCommand extends Command
     public function __construct(
         private readonly MonitorFileParser $parser,
         private readonly PushTokenFileReader $tokenReader,
-        private readonly MonitorApplier $applier,
+        private readonly MonitorApplierInterface $applier,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         parent::__construct();
