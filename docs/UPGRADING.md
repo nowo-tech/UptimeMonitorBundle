@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+  - [To 1.27.0](#to-1270)
 - [To 1.26.0](#to-1260)
 - [To 1.25.2](#to-1252)
 - [To 1.25.2](#to-1252-1)
@@ -128,6 +129,40 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+### To 1.27.0
+
+From **1.26.0**: `composer update nowo-tech/uptime-monitor-bundle`. No configuration change is needed and **no schema
+or data change**: the `uptime_*` tables stay where they are (the connection of the entity manager that maps the bundle
+entities, the default one of a standard application), nothing is moved, renamed or dropped. Do not run a migration for
+this release.
+
+- **Own entity manager (rule 6).** The bundle reads and writes through a private entity manager on that connection.
+  A port call (`TenantProvisionerInterface::ensure()` / `setEnabled()`, `MonitorApplierInterface::apply()`), a backup
+  import, a check or an admin page flushes only the bundle rows: changes your code left pending in your entity
+  managers stay pending (before 1.27 they were flushed with the bundle's). A transaction you open around a bundle call
+  still includes the bundle rows (same connection). The bundle never resets one of your managers.
+- **What you may notice.**
+  - Entities loaded by bundle services (event entities such as `MonitorWentDownEvent::$monitor`, `UptimePageEvent`)
+    belong to the bundle's manager. Read them; do not persist them in yours. The repository services you inject and
+    `TenantProvisionerInterface::ensure()` still hand you entities of your manager.
+  - An incident listener that persists in your manager without flushing: by default (`doctrine.flush_listener_changes:
+    true`) the bundle still flushes your manager after the listeners **when nothing was pending there before them**,
+    and triggers a deprecation. Flush in the listener and set the option to `false` (the only behaviour in 2.0).
+  - A host listener of `onFlush` / `postPersist` on bundle entities still runs (the event manager is shared), but
+    `$args->getObjectManager()` is the bundle's manager.
+- **Deprecated.** The root `connection` key: use `doctrine.connection`. Until 2.0 a value other than `default` still
+  selects the manager of `nowo:uptime:sync-schema` as before; `default` now means the bundle's own connection.
+- **New options** (all optional): `doctrine.connection` (rule 8; moving it moves where the bundle reads and writes:
+  create the tables there with `nowo:uptime:sync-schema` and copy the rows yourself before switching),
+  `doctrine.register_mapping` (false for a DDD host that maps the bundle itself), `doctrine.mapping_type` (`xml` uses the
+  shipped `src/Resources/config/doctrine/*.orm.xml`, same tables, columns, indexes and constraints as the attributes;
+  switching produces no schema difference), `doctrine.flush_listener_changes`.
+- **`doctrine.entity_manager`** (1.26.0) now names the manager whose mapping configuration and event manager the
+  private manager shares. It never moves the tables: the connection stays the one of the manager that maps the bundle
+  entities unless `doctrine.connection` is set.
+- **Removal in 2.0:** the root `connection` key, the application-manager flush after incident listeners
+  (`flush_listener_changes`).
 
 ## To 1.26.0
 

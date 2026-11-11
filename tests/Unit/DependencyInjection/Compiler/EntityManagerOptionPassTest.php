@@ -74,6 +74,28 @@ final class EntityManagerOptionPassTest extends TestCase
         self::assertCount(2, $container->getDefinition('doctrine.orm.bundle_metadata_driver')->getMethodCalls());
     }
 
+    public function testKnownConnectionPasses(): void
+    {
+        $container = $this->container(null, ['default' => [self::ENTITIES]]);
+        $container->setParameter(EntityManagerOptionPass::CONNECTION_PARAMETER, 'uptime');
+        $container->setParameter('doctrine.connections', ['default' => 'doctrine.dbal.default_connection', 'uptime' => 'doctrine.dbal.uptime_connection']);
+
+        (new EntityManagerOptionPass())->process($container);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testUnknownConnectionFailsTheBuild(): void
+    {
+        $container = $this->container(null, ['default' => [self::ENTITIES]]);
+        $container->setParameter(EntityManagerOptionPass::CONNECTION_PARAMETER, 'missing');
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('nowo_uptime_monitor.doctrine.connection is "missing", but no such Doctrine connection is configured');
+
+        (new EntityManagerOptionPass())->process($container);
+    }
+
     /**
      * @param array<string, list<string>> $managers manager => mapped namespaces
      */

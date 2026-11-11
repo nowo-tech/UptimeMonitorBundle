@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Check\CheckRunnerInterface;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
@@ -46,6 +47,10 @@ final readonly class CheckExecutorService
      */
     public function execute(Monitor $monitor): CheckResult
     {
+        // 1.27.0: a monitor the application loaded through its own manager is checked as the bundle manager's copy.
+        if ($this->entityManager instanceof UptimeEntityManager) {
+            $monitor = $this->entityManager->adopt($monitor);
+        }
         // Remote data (DNS records, transport errors) is scrubbed to valid, bounded UTF-8 before anything stores it.
         $raw = $this->runCheck($monitor)->sanitized();
         $dto = $this->latencyNormalizer->normalizeDto(

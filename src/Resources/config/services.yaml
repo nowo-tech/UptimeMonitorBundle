@@ -2,6 +2,18 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+        # 1.27.0 (REQ-ARCH-001 rule 6): every bundle service reads and writes through the bundle's private entity
+        # manager (Doctrine\UptimeEntityManager, defined by the extension) and the bundle's repositories on it; no bundle
+        # service ever receives, flushes or resets an application manager.
+        bind:
+            Doctrine\ORM\EntityManagerInterface: '@Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager'
+            Doctrine\Persistence\ManagerRegistry: '@Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry'
+            Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository: '@nowo_uptime_monitor.repository.check_aggregate'
+            Nowo\UptimeMonitorBundle\Repository\CheckResultRepository: '@nowo_uptime_monitor.repository.check_result'
+            Nowo\UptimeMonitorBundle\Repository\IncidentRepository: '@nowo_uptime_monitor.repository.incident'
+            Nowo\UptimeMonitorBundle\Repository\MonitorRepository: '@nowo_uptime_monitor.repository.monitor'
+            Nowo\UptimeMonitorBundle\Repository\TagRepository: '@nowo_uptime_monitor.repository.tag'
+            Nowo\UptimeMonitorBundle\Repository\TenantRepository: '@nowo_uptime_monitor.repository.tenant'
 
     Nowo\UptimeMonitorBundle\:
         resource: '../../'
@@ -49,8 +61,42 @@ services:
     Nowo\UptimeMonitorBundle\Routing\UptimeMonitorRouteLoader:
         tags: ['routing.loader']
 
+    # The repository services by class name stay on the application registry (unchanged since 1.0): an application
+    # that loads bundle entities through them gets entities of its own manager, which it can relate to its own entities
+    # and flush. The bundle's own copies below work on the bundle's private manager.
     Nowo\UptimeMonitorBundle\Repository\:
         resource: '../../Repository/'
+        arguments: ['@doctrine']
+
+    nowo_uptime_monitor.repository.check_aggregate:
+        class: Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository
+        autoconfigure: false
+        arguments: ['@Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry']
+
+    nowo_uptime_monitor.repository.check_result:
+        class: Nowo\UptimeMonitorBundle\Repository\CheckResultRepository
+        autoconfigure: false
+        arguments: ['@Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry']
+
+    nowo_uptime_monitor.repository.incident:
+        class: Nowo\UptimeMonitorBundle\Repository\IncidentRepository
+        autoconfigure: false
+        arguments: ['@Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry']
+
+    nowo_uptime_monitor.repository.monitor:
+        class: Nowo\UptimeMonitorBundle\Repository\MonitorRepository
+        autoconfigure: false
+        arguments: ['@Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry']
+
+    nowo_uptime_monitor.repository.tag:
+        class: Nowo\UptimeMonitorBundle\Repository\TagRepository
+        autoconfigure: false
+        arguments: ['@Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry']
+
+    nowo_uptime_monitor.repository.tenant:
+        class: Nowo\UptimeMonitorBundle\Repository\TenantRepository
+        autoconfigure: false
+        arguments: ['@Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry']
 
     # Global caps of every check (SEC-004 M1): checks.max_timeout_seconds / max_body_bytes / max_redirects.
     Nowo\UptimeMonitorBundle\Check\CheckLimits:
@@ -164,7 +210,8 @@ services:
         exclude: '../../Form/DataTransformer/'
         tags: ['form.type']
 
-    # 1.26.0: resets only the bundle's own entity managers (rule 6), never a host one.
+    # 1.26.0: resets only the bundle's own entity manager (rule 6), never a host one; since 1.27.0 that is the private
+    # manager, reached through the bundle registry (bound above).
     Nowo\UptimeMonitorBundle\EventSubscriber\ClosedEntityManagerSubscriber:
         arguments:
-            $entityManagerName: '%nowo_uptime_monitor.doctrine.entity_manager%'
+            $entityManagerName: null

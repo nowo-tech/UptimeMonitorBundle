@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\EventSubscriber;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -23,8 +24,10 @@ use function str_starts_with;
  * When the kernel is not reset between requests (long-running workers without `services_resetter`),
  * a failed flush in a previous request leaves the manager closed for every later request of that worker.
  * Only the bundle's managers are reset (1.26.0), and only when closed: the manager of the bundle entities
- * (getManagerForClass(), always included) and `doctrine.entity_manager` when set. Host managers, closed or open, are
- * never touched.
+ * (getManagerForClass(), always included) and `entityManagerName` when set. Host managers, closed or open, are
+ * never touched. Since 1.27.0 the registry is the bundle's ({@see UptimeManagerRegistry}),
+ * so the manager of the bundle entities is the bundle's private manager and `entityManagerName` is null: no application
+ * manager is ever reset.
  */
 final readonly class ClosedEntityManagerSubscriber implements EventSubscriberInterface
 {

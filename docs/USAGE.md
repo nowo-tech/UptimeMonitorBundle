@@ -10,6 +10,9 @@
 - [Commands](#commands)
 - [Notifications](#notifications)
 - [Host integration (tenants, access, events)](#host-integration-tenants-access-events)
+- [Database and entity manager](#database-and-entity-manager)
+  - [Standard host](#standard-host)
+  - [DDD host](#ddd-host)
 - [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 - [Overriding templates](#overriding-templates)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
@@ -144,6 +147,88 @@ public function onDown(MonitorWentDownEvent $event): void
 }
 ```
 
+## Database and entity manager
+
+Since 1.27.0 the bundle reads and writes through **its own private entity manager** (`Doctrine\UptimeEntityManager`,
+REQ-ARCH-001 rule 6). It is created on the connection of the bundle tables and shares the mapping configuration and
+the event manager of the application manager that maps the bundle entities. Its unit of work holds only bundle rows:
+
+- a bundle write (a port call such as `TenantProvisionerInterface::ensure()`, `MonitorApplierInterface::apply()`, a
+  backup import, a check, an admin page) flushes **only** the bundle rows. A change your code left pending in your
+  entity managers stays pending; the bundle never flushes, clears, closes or resets an application manager;
+- the connection is shared: a transaction you open around a bundle call includes the bundle rows (your rollback
+  removes them, your commit keeps them);
+- a failed bundle flush closes only the bundle manager; the next call gets a fresh one, and committed rows are kept;
+- worker mode (REQ-RUNTIME-002): the private manager is dropped at every boundary (main `kernel.request` and
+  `kernel.terminate`, Messenger received / handled / failed, `console.command` / `console.terminate`) and by
+  `kernel.reset`, so no request, message or command sees the entities of the previous one, with or without the
+  services resetter.
+
+The repository services (`Repository\MonitorRepository`, `TenantRepository`, ...) you inject keep working on **your**
+manager, as before: entities you load through them can be related to your entities and flushed by you.
+`TenantProvisionerInterface::ensure()` returns the tenant of that manager too. The services that take an entity
+(`CheckExecutorService::execute()`, `MonitorBackupService::import()`) accept one of your manager and work on the bundle
+copy of the same row.
+
+**Incident listeners.** Since 1.25 `MonitorWentDownEvent` / `MonitorRecoveredEvent` are dispatched after the check
+commit and the bundle flushed what the listeners persisted. With `doctrine.flush_listener_changes: true` (the default in
+1.x) the bundle still flushes the application manager that maps the bundle entities after those listeners, **only when
+nothing was pending there before they ran** (so a change your code left pending is never flushed), and triggers a
+deprecation when it does. Flush your listener's own changes and set the option to `false`; 2.0 never flushes an
+application manager.
+
+### Standard host
+
+Nothing to configure. The bundle registers its attribute mapping on your default entity manager; the `uptime_*`
+tables stay on that manager's connection (no data moves on upgrade). Optional:
+
+```yaml
+nowo_uptime_monitor:
+    doctrine:
+        connection: uptime          # rule 8: another DBAL connection for the bundle tables (null = default manager's)
+        mapping_type: xml           # register the shipped XML mapping instead of the attributes (same schema)
+        flush_listener_changes: false
+```
+
+`doctrine.connection` moves where the bundle reads and writes; create the tables there first
+(`nowo:uptime:sync-schema` targets the same connection) and copy the rows yourself if you had data on the old one.
+
+### DDD host
+
+Keep the bundle out of your domain's entity manager and map it on a dedicated one, from the shipped XML:
+
+```yaml
+doctrine:
+    dbal:
+        connections:
+            default: { url: '%env(DATABASE_URL)%' }
+            uptime:  { url: '%env(UPTIME_DATABASE_URL)%' }   # or the same URL: a separate connection object is enough
+    orm:
+        default_entity_manager: default
+        entity_managers:
+            default:
+                connection: default
+                mappings:
+                    App: { type: xml, is_bundle: false, dir: '%kernel.project_dir%/config/doctrine', prefix: 'App\Domain' }
+            uptime:
+                connection: uptime
+                mappings:
+                    Uptime:
+                        type: xml
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/vendor/nowo-tech/uptime-monitor-bundle/src/Resources/config/doctrine'
+                        prefix: 'Nowo\UptimeMonitorBundle\Entity'
+
+nowo_uptime_monitor:
+    doctrine:
+        register_mapping: false       # the bundle does not map itself on your default manager
+        flush_listener_changes: false # the bundle never flushes one of your managers
+```
+
+Do not enable `auto_mapping` on your default manager: it would map the bundle entities there again. The bundle then
+reads and writes on the `uptime` connection with that manager's configuration; your default manager and connection
+are never touched. Reach the bundle only through its ports and scalar events (next section).
+
 ## Using it from a DDD / hexagonal application
 
 **Layer.** The bundle is a bounded context of its own: it owns the `Tenant`, `Monitor`, `CheckResult`,
@@ -216,7 +301,8 @@ final readonly class UptimeIncidentTranslator
 - There is no fine-grained programmatic API for single monitors yet (upsert / remove one monitor). Use the apply
   file or `MonitorApplierInterface`.
 - The settings backup import (`MonitorBackupService::import()`) dispatches no per-monitor lifecycle events.
-- `TenantProvisionerInterface::ensure()` returns the `Tenant` entity; read `getSlug()` and drop it.
+- `TenantProvisionerInterface::ensure()` returns the `Tenant` entity (of the application manager that maps the bundle
+  entities, since 1.27.0); read `getSlug()` and drop it.
 - `MissingTenantProvisionerInterface` returns a `Tenant` entity, and `canViewMonitor()` receives a `Monitor` entity.
 - Custom notification channels must be tagged by hand.
 

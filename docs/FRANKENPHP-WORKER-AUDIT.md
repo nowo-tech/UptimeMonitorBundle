@@ -55,6 +55,8 @@ A worker demo exists: `demo/symfony8/docker/frankenphp/Caddyfile` declares a `wo
 | Service | Shared | Mutable state | Scenario A | Scenario B |
 |---------|--------|---------------|------------|------------|
 | `Twig\UptimeUiExtension` (globals + functions) | yes | `WeakMap<Request, …>` memo of the tenant theme / framework; globals are static config | ✅ | ✅ W-01 resolved |
+| `Doctrine\UptimeEntityManager` (1.27.0) | yes | the inner private entity manager (bundle rows only); replaced when closed, dropped by `WorkerBoundaryResetListener` and `kernel.reset` | ✅ | ✅ (`tests/Integration/BothHosts/StandardHostKernelTest.php`: 1,000 kept-alive requests, two tenants renamed by another process between requests, memory bound, every boundary) |
+| `EventSubscriber\WorkerBoundaryResetListener` (1.27.0) | yes | none (`readonly`); drops the private manager at the main `kernel.request` / `kernel.terminate`, Messenger received / handled / failed, `console.command` / `console.terminate`; injected as ignore-on-uninitialized | ✅ | ✅ |
 | `EventSubscriber\ClosedEntityManagerSubscriber` | yes | none (`readonly`); resets only the bundle's managers (`getManagerForClass(Monitor)`, plus `doctrine.entity_manager` when set) when closed, on main requests of bundle routes; never a host manager (1.26.0, kept-alive kernel tests `tests/Integration/Worker/WorkerClosedManagerRecoveryTest.php`, `DddEntityManagerKernelTest.php`) | ✅ | ✅ |
 | `EventSubscriber\UptimeMonitorAccessSubscriber` | yes | none (`readonly`); token read per event | ✅ | ✅ |
 | `Security\ConfigurableUptimeMonitorAccessChecker` / `AllowAllUptimeMonitorAccessChecker` | yes | none (`readonly` role lists) | ✅ | ✅ |
@@ -85,6 +87,12 @@ Value objects (`CheckResultDto`, `UptimeAlert`, `MonitorSettings`, `TenantSettin
 - **Worker impact:** under **A**, DoctrineBundle's `doctrine` registry is reset through `kernel.reset`, which clears the EntityManager and replaces it if it is closed. Under **B**: (1) `find()` returns the already-managed instance without a query, so monitors updated by the scheduler / Messenger consumer (status, `nextCheckAt`, settings) or by another worker stay stale in this worker; (2) the identity map grows with every tenant, monitor and check result loaded (unbounded memory); (3) a failed flush (e.g. constraint violation during import) closes the EntityManager and every later request on that worker fails with "EntityManager is closed".
 - **Recommendation:** keep `services_resetter` enabled (default in Symfony runtime for FrankenPHP). If a no-reset setup is unavoidable, add a `kernel.terminate` listener in the host app that calls `ManagerRegistry::resetManager()` when the manager is closed and `clear()` otherwise.
 - **Status:** Resolved (closed manager) / Accepted (identity map). (3) New `src/EventSubscriber/ClosedEntityManagerSubscriber.php` (`kernel.request`, priority 31, main requests on `nowo_uptime_*` routes only) calls `ManagerRegistry::resetManager()` for every closed `EntityManagerInterface`; open managers are never touched. `src/Service/MonitorBackupService.php` resets a closed manager when the import flush fails, then rethrows (new optional `?ManagerRegistry` constructor argument, BC). (1) and (2) are **accepted**: the bundle must not `clear()` the application's EntityManager from a listener (it would detach entities the app still holds). Under scenario B, clearing the identity map between requests (e.g. a `kernel.terminate` listener calling `clear()`) remains the application's responsibility; the data involved is dashboard / settings display data, not security decisions.
+
+- **Update 1.27.0:** (1) and (2) are **resolved** for the bundle's own data: the bundle reads and writes through its
+  private entity manager (`Doctrine\UptimeEntityManager`), which `WorkerBoundaryResetListener` drops at every request,
+  message and command boundary and `kernel.reset` drops too, so a kept-alive worker re-reads its rows on the next
+  unit and the identity map does not grow across units. The application's managers are never cleared or reset by the
+  bundle (their freshness stays the application's business).
 
 ### W-03 — DNS and ICMP checks rely on system timeouts (Low)
 

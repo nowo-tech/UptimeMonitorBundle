@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -24,7 +25,8 @@ final readonly class TenantProvisioner implements TenantProvisionerInterface
      * Creates the provisioner.
      *
      * @param TenantRepository $tenants Tenant lookup by slug
-     * @param EntityManagerInterface $entityManager Persists created and changed tenants
+     * @param EntityManagerInterface $entityManager Persists created and changed tenants (the bundle's private manager
+     *                                              since 1.27.0: an application manager is never flushed)
      */
     public function __construct(
         private TenantRepository $tenants,
@@ -48,10 +50,12 @@ final readonly class TenantProvisioner implements TenantProvisionerInterface
         if (!$tenant instanceof Tenant) {
             $tenant = new Tenant($slug, $name);
             $this->entityManager->persist($tenant);
+            // 1.27.0: the bundle's private manager, so only this tenant is flushed (never the application's changes).
             $this->entityManager->flush();
         }
 
-        return $tenant;
+        // The application gets the tenant of its own manager (it may relate its entities to it and flush them).
+        return $this->entityManager instanceof UptimeEntityManager ? $this->entityManager->forApplication($tenant) : $tenant;
     }
 
     /** Enables or disables a tenant (a disabled tenant's checks stop); false when the slug is unknown. */

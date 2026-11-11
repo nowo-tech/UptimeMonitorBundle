@@ -6,7 +6,10 @@ namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use LogicException;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
 use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
+use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
@@ -15,14 +18,18 @@ use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\HttpKernel\KernelEvents;
 
 use function array_key_exists;
+use function in_array;
 use function is_array;
+use function is_bool;
 use function is_string;
 use function rtrim;
 
@@ -53,24 +60,46 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         }
 
         if ($container->hasExtension('doctrine')) {
-            $container->prependExtensionConfig('doctrine', [
-                'orm' => [
-                    'mappings' => [
-                        'UptimeMonitorBundle' => [
-                            'type'      => 'attribute',
-                            'is_bundle' => true,
+            [$registerMapping, $mappingType] = $this->rawMappingOptions($container);
+            if ($registerMapping) {
+                $container->prependExtensionConfig('doctrine', [
+                    'orm' => [
+                        'mappings' => [
+                            'UptimeMonitorBundle' => [
+                                'type'      => $mappingType,
+                                'is_bundle' => true,
+                            ],
                         ],
                     ],
-                ],
-            ]);
+                ]);
+            }
         }
 
         $this->prependUiKitDefaults($container);
     }
 
     /**
-     * Seed nowo_ui_kit.css_framework from ui.framework when the host has not set UiKit (REQ-UI-001-kit).
+     * `doctrine.register_mapping` and `doctrine.mapping_type` from the raw configuration (prepend() runs before the
+     * configuration is processed; the last file that sets a key wins, invalid values are rejected later by load()).
+     *
+     * @return array{0: bool, 1: string}
      */
+    private function rawMappingOptions(ContainerBuilder $container): array
+    {
+        $register = true;
+        $type     = 'attribute';
+        foreach ($container->getExtensionConfig(Configuration::ALIAS) as $config) {
+            $doctrine = is_array($config['doctrine'] ?? null) ? $config['doctrine'] : [];
+            if (is_bool($doctrine['register_mapping'] ?? null)) {
+                $register = $doctrine['register_mapping'];
+            }
+            if (in_array($doctrine['mapping_type'] ?? null, ['attribute', 'xml'], true)) {
+                $type = $doctrine['mapping_type'];
+            }
+        }
+
+        return [$register, $type];
+    }
 
     /**
      * When FormKit is installed, register the uptime_monitor profile. Forms select it via #[FormKitConfig].
@@ -176,6 +205,8 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.connection', $config['connection']);
         $container->setParameter(Configuration::ALIAS . '.doctrine.table_prefix', $config['doctrine']['table_prefix']);
         $container->setParameter(Configuration::ALIAS . '.doctrine.entity_manager', $config['doctrine']['entity_manager']);
+        $container->setParameter(Configuration::ALIAS . '.doctrine.connection', $config['doctrine']['connection']);
+        $container->setParameter(Configuration::ALIAS . '.doctrine.flush_listener_changes', $config['doctrine']['flush_listener_changes']);
         // enabled: false pauses monitoring: no scheduled checks, and DueChecksRunner is a no-op.
         $container->setParameter(Configuration::ALIAS . '.scheduler', $config['enabled'] ? $config['scheduler'] : ['enabled' => false] + $config['scheduler']);
         $container->setParameter(Configuration::ALIAS . '.checks', $config['checks']);
@@ -214,6 +245,37 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $this->registerTenantLimits($container, $config['limits']);
         $this->registerHostHooks($container, $config['multi_tenant']['provisioner'], $config['web_ui']['settings']['sections_resolver']);
         $this->registerTablePrefixListener($container);
+        $this->registerBundleEntityManager($container);
+    }
+
+    /**
+     * 1.27.0 (REQ-ARCH-001 rules 6 and 8): the bundle's private entity manager, the bundle's view of the registry and
+     * the worker-boundary listener that drops the private manager (REQ-RUNTIME-002). services.yaml binds
+     * EntityManagerInterface, ManagerRegistry and the bundle repositories of every bundle service to them.
+     */
+    private function registerBundleEntityManager(ContainerBuilder $container): void
+    {
+        $container->setDefinition(UptimeEntityManager::class, (new Definition(UptimeEntityManager::class, [
+            new Reference('doctrine'),
+            '%' . Configuration::ALIAS . '.doctrine.entity_manager%',
+            '%' . Configuration::ALIAS . '.doctrine.connection%',
+        ]))->addTag('kernel.reset', ['method' => 'reset'])->setPublic(false));
+
+        $container->setDefinition(UptimeManagerRegistry::class, (new Definition(UptimeManagerRegistry::class, [
+            new Reference('doctrine'),
+            new Reference(UptimeEntityManager::class),
+        ]))->setPublic(false));
+
+        $boundary = (new Definition(WorkerBoundaryResetListener::class, [
+            new Reference(UptimeEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE),
+        ]))->addTag('kernel.event_listener', ['event' => KernelEvents::REQUEST, 'method' => 'onKernelRequest', 'priority' => WorkerBoundaryResetListener::START_PRIORITY]);
+        foreach (WorkerBoundaryResetListener::START_EVENTS as $event) {
+            $boundary->addTag('kernel.event_listener', ['event' => $event, 'method' => 'onBoundary', 'priority' => WorkerBoundaryResetListener::START_PRIORITY]);
+        }
+        foreach (WorkerBoundaryResetListener::END_EVENTS as $event) {
+            $boundary->addTag('kernel.event_listener', ['event' => $event, 'method' => 'onBoundary', 'priority' => WorkerBoundaryResetListener::END_PRIORITY]);
+        }
+        $container->setDefinition(WorkerBoundaryResetListener::class, $boundary);
     }
 
     /**

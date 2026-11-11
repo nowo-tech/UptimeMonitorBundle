@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Service;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Apply\MonitorApplier;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -26,6 +27,9 @@ use Throwable;
 
 use function in_array;
 use function sprintf;
+use function trigger_error;
+
+use const E_USER_DEPRECATED;
 
 /**
  * Handles status changes, incidents, and notification cooldown.
@@ -35,6 +39,8 @@ final readonly class StatusTransitionService
     /**
      * @param array<string, mixed> $notificationsConfig
      * @param LoggerInterface $logger Receives the class of a listener failure after the commit (since 1.25)
+     * @param bool $flushListenerChanges `doctrine.flush_listener_changes` (since 1.27.0): also flush what the incident
+     *                                   listeners left in the application manager that maps the bundle entities
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -45,6 +51,8 @@ final readonly class StatusTransitionService
         private ?EventDispatcherInterface $eventDispatcher = null,
         private ClockInterface $clock = new NativeClock(),
         private LoggerInterface $logger = new NullLogger(),
+        #[Autowire('%nowo_uptime_monitor.doctrine.flush_listener_changes%')]
+        private bool $flushListenerChanges = true,
     ) {
     }
 
@@ -79,7 +87,9 @@ final readonly class StatusTransitionService
 
     /**
      * Dispatches the incident events of {@see self::handleAfterCheckDeferred()} once the check is committed (since
-     * 1.25), then flushes what the listeners persisted (before 1.25 they shared the check's flush). Nothing to do
+     * 1.25), then flushes what the listeners persisted (before 1.25 they shared the check's flush): the bundle manager,
+     * and since 1.27.0 the application manager that maps the bundle entities only with `doctrine.flush_listener_changes`
+     * and only when nothing was pending there before the listeners ran (see {@see self::flushListenerChanges()}). Nothing to do
      * without events. The check is already stored: a listener that throws is logged (its class only) and the other
      * events, the flush and the caller's dashboard sync / group refresh still run, like {@see MonitorApplier}.
      *
@@ -90,6 +100,10 @@ final readonly class StatusTransitionService
         if ($events === []) {
             return;
         }
+
+        // 1.27.0: the application manager is flushed after the listeners only when nothing was pending there before
+        // them (rule 6: a change the application left pending is never flushed by the bundle).
+        $applicationManager = $this->applicationManagerForListeners();
 
         foreach ($events as $event) {
             try {
@@ -106,7 +120,63 @@ final readonly class StatusTransitionService
 
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {
             $this->entityManager->flush();
+            if ($applicationManager instanceof EntityManagerInterface) {
+                $this->flushListenerChanges($applicationManager, $events);
+            }
         }
+    }
+
+    /**
+     * The application manager whose listener changes {@see self::dispatchCommitted()} may flush: the one that maps the
+     * bundle entities, when `doctrine.flush_listener_changes` is on, the bundle works on its private manager, and that
+     * application manager is open with no change pending yet. Null otherwise.
+     */
+    private function applicationManagerForListeners(): ?EntityManagerInterface
+    {
+        if (!$this->flushListenerChanges || !$this->eventDispatcher instanceof EventDispatcherInterface || !$this->entityManager instanceof UptimeEntityManager) {
+            return null;
+        }
+
+        $manager = $this->entityManager->mappingManager();
+
+        return $manager->isOpen() && !$this->hasPendingChanges($manager) ? $manager : null;
+    }
+
+    /**
+     * Flushes what the incident listeners left in the application manager (1.25 to 1.26 behaviour, kept for BC with a
+     * deprecation; 2.0 never flushes an application manager).
+     *
+     * @param list<MonitorRecoveredEvent|MonitorWentDownEvent> $events
+     */
+    private function flushListenerChanges(EntityManagerInterface $manager, array $events): void
+    {
+        if (!$manager->isOpen() || !$this->hasPendingChanges($manager)) {
+            return;
+        }
+
+        @trigger_error(sprintf('Since nowo-tech/uptime-monitor-bundle 1.27.0: a listener of %s left changes in an application entity manager; the bundle flushes them for backward compatibility. Flush them in the listener and set nowo_uptime_monitor.doctrine.flush_listener_changes to false: 2.0 never flushes an application entity manager.', $events[0]::class), E_USER_DEPRECATED);
+
+        try {
+            $manager->flush();
+        } catch (Throwable $failure) {
+            $this->logger->error('Uptime incident listener changes could not be flushed: {error}', [
+                'bundle'     => 'NowoUptimeMonitorBundle',
+                'monitor_id' => $events[0]->getMonitorId(),
+                'error'      => $failure::class,
+            ]);
+        }
+    }
+
+    private function hasPendingChanges(EntityManagerInterface $manager): bool
+    {
+        $unitOfWork = $manager->getUnitOfWork();
+        $unitOfWork->computeChangeSets();
+
+        return $unitOfWork->getScheduledEntityInsertions() !== []
+            || $unitOfWork->getScheduledEntityUpdates() !== []
+            || $unitOfWork->getScheduledEntityDeletions() !== []
+            || $unitOfWork->getScheduledCollectionUpdates() !== []
+            || $unitOfWork->getScheduledCollectionDeletions() !== [];
     }
 
     /**

@@ -8,7 +8,10 @@ use LogicException;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
 use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
+use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
@@ -122,6 +125,39 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         ]], $container);
 
         self::assertSame('app.uptime_checker', (string) $container->getAlias(UptimeMonitorAccessCheckerInterface::class));
+    }
+
+    public function testPrependRegistersTheXmlMappingOrNoneOnRequest(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension(new FakeDoctrineExtension());
+        $container->prependExtensionConfig('nowo_uptime_monitor', ['doctrine' => ['mapping_type' => 'xml']]);
+
+        (new UptimeMonitorExtension())->prepend($container);
+
+        self::assertSame('xml', $container->getExtensionConfig('doctrine')[0]['orm']['mappings']['UptimeMonitorBundle']['type']);
+
+        $ddd = new ContainerBuilder();
+        $ddd->registerExtension(new FakeDoctrineExtension());
+        $ddd->prependExtensionConfig('nowo_uptime_monitor', ['doctrine' => ['register_mapping' => false, 'mapping_type' => 'bogus']]);
+
+        (new UptimeMonitorExtension())->prepend($ddd);
+
+        self::assertSame([], $ddd->getExtensionConfig('doctrine'), 'the DDD host maps the bundle entities itself');
+    }
+
+    public function testLoadRegistersTheBundleEntityManager(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+
+        (new UptimeMonitorExtension())->load([['doctrine' => ['connection' => 'uptime', 'flush_listener_changes' => false]]], $container);
+
+        self::assertSame('uptime', $container->getParameter('nowo_uptime_monitor.doctrine.connection'));
+        self::assertFalse($container->getParameter('nowo_uptime_monitor.doctrine.flush_listener_changes'));
+        self::assertTrue($container->getDefinition(UptimeEntityManager::class)->hasTag('kernel.reset'));
+        self::assertTrue($container->hasDefinition(UptimeManagerRegistry::class));
+        $boundary = $container->getDefinition(WorkerBoundaryResetListener::class)->getTag('kernel.event_listener');
+        self::assertCount(7, $boundary, 'kernel.request + 2 start + 4 end boundaries');
     }
 
     public function testPrependRegistersDoctrineAndFrameworkConfig(): void

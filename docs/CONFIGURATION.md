@@ -3,11 +3,15 @@
 ```yaml
 nowo_uptime_monitor:
     enabled: true          # false = pause monitoring (no checks run); UI and data stay available
-    connection: default
+    # connection: default    # deprecated (1.27.0): use doctrine.connection
     # table_prefix: uptime_   # deprecated (1.5), no effect: use doctrine.table_prefix
     doctrine:
         table_prefix: ''      # prepended to every bundle table/index name; 'app_' => app_uptime_monitor
-        entity_manager: null  # 1.26.0+: extra manager that also maps the bundle entities, reset too (getManagerForClass() always included)
+        entity_manager: null  # 1.26.0+: manager whose mapping config + event manager the bundle's private manager shares (null = the one that maps the entities)
+        connection: null      # 1.27.0+: DBAL connection of the bundle tables (null = the connection of the manager that maps the entities)
+        register_mapping: true          # 1.27.0+: false = the host maps the bundle entities itself (DDD host)
+        mapping_type: attribute         # 1.27.0+: attribute | xml (src/Resources/config/doctrine, same schema)
+        flush_listener_changes: true    # 1.27.0+: BC flush of what incident listeners left in the host manager (deprecated; false in 2.0)
     checks:
         min_latency_ms: 0   # floor for stored latency (ms); use e.g. 1 for localhost
         block_private_urls: true   # SSRF guard for HTTP/TCP/SSL/ping/DNS monitors; false to monitor private networks
@@ -259,6 +263,7 @@ These keys were never read by the bundle. Since **1.5** setting them triggers a 
 | Key | Replacement |
 |-----|-------------|
 | `environments` | `enabled` per environment, or register the bundle only where needed in `config/bundles.php` |
+| `connection` (since 1.27.0) | `doctrine.connection`. The old key only chose the manager of `nowo:uptime:sync-schema` when it was not `default`; it still does until 2.0 |
 | `table_prefix` | `doctrine.table_prefix` — prepended to the `uptime_*` names (see [Doctrine table prefix](#doctrine-table-prefix)) |
 | `aggregates.keep_forever` | none — aggregates are always kept; remove them with `nowo:uptime:clear-data` |
 | `multi_tenant.enabled` | none — tenants are resolved from the URL slug; for single-tenant apps use `tenants.list_enabled` / `tenants.redirect_when_single` |
@@ -439,3 +444,10 @@ Set `retention.detail_days` to `0` to disable automatic purge (Uptime Kuma: “0
 The detail purge (`nowo:uptime:purge-detail`, **Settings → Monitor history → Purge**) and `nowo:uptime:clear-data` delete in keyset batches instead of one unbounded `DELETE`: each batch selects up to `retention.purge_batch_size` ids (`id > last id`, ordered by id, platform `LIMIT`) and deletes them by id list in a short autocommit statement, until a short batch. This avoids long table locks and huge binlog/undo entries on large `uptime_check_result` tables. Default `1000`; lower it for busier tables, raise it to reduce round-trips.
 
 See also [SCHEDULING.md](SCHEDULING.md), [MERCURE.md](MERCURE.md), [SETTINGS.md](SETTINGS.md), and [MONITOR-CONFIGURATION.md](MONITOR-CONFIGURATION.md).
+
+## Database and entity manager
+
+Since 1.27.0 the bundle reads and writes through its own private entity manager and never flushes, clears or resets an
+application manager (REQ-ARCH-001 rule 6). See [USAGE: Database and entity manager](USAGE.md#database-and-entity-manager)
+for the standard-host (zero configuration) and DDD-host setups and for `doctrine.connection`,
+`doctrine.register_mapping`, `doctrine.mapping_type` and `doctrine.flush_listener_changes`.

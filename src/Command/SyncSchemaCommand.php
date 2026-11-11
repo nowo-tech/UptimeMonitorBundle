@@ -6,6 +6,8 @@ namespace Nowo\UptimeMonitorBundle\Command;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
 use Nowo\UptimeMonitorBundle\Service\SchemaSyncService;
 use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -31,8 +33,9 @@ final class SyncSchemaCommand extends Command
     /**
      * Creates the command for the configured entity manager.
      *
-     * @param ManagerRegistry $registry Doctrine registry
-     * @param string $connectionName Entity manager holding the bundle tables (`nowo_uptime_monitor.connection`)
+     * @param ManagerRegistry $registry Doctrine registry (the bundle registry since 1.27.0)
+     * @param string $connectionName Deprecated `nowo_uptime_monitor.connection`: "default" = the bundle manager (since
+     *                               1.27.0, the connection of the bundle tables), else that application manager
      */
     public function __construct(
         private readonly ManagerRegistry $registry,
@@ -63,8 +66,11 @@ HELP
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io      = new SymfonyStyle($input, $output);
-        $manager = $this->registry->getManager($this->connectionName);
+        $io = new SymfonyStyle($input, $output);
+        // 1.27.0: the bundle manager (the connection the bundle reads and writes, doctrine.connection) unless the
+        // deprecated `connection` option still names another application manager.
+        $name    = $this->connectionName === 'default' && $this->registry instanceof UptimeManagerRegistry ? UptimeEntityManager::NAME : $this->connectionName;
+        $manager = $this->registry->getManager($name);
         if (!$manager instanceof EntityManagerInterface) {
             throw new RuntimeException(sprintf('Connection "%s" is not an ORM entity manager.', $this->connectionName));
         }

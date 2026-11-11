@@ -50,6 +50,34 @@ final class ConfigurationTest extends TestCase
         self::assertSame(['ROLE_ADMIN'], $config['security']['settings_roles']);
     }
 
+    public function testDoctrineDefaultsAreZeroConfig(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), []);
+
+        self::assertNull($config['doctrine']['connection']);
+        self::assertTrue($config['doctrine']['register_mapping']);
+        self::assertSame('attribute', $config['doctrine']['mapping_type']);
+        self::assertTrue($config['doctrine']['flush_listener_changes']);
+    }
+
+    public function testAnEmptyDoctrineConnectionIsRejected(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('must be a connection name or null');
+
+        (new Processor())->processConfiguration(new Configuration(), [['doctrine' => ['connection' => '']]]);
+    }
+
+    #[IgnoreDeprecations]
+    public function testTheTopLevelConnectionIsDeprecated(): void
+    {
+        $this->expectUserDeprecationMessageMatches('#"nowo_uptime_monitor\.connection" option is deprecated#');
+
+        $config = (new Processor())->processConfiguration(new Configuration(), [['connection' => 'default']]);
+
+        self::assertSame('default', $config['connection']);
+    }
+
     #[IgnoreDeprecations]
     public function testLayoutTemplateAliasMapsToLayout(): void
     {
