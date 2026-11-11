@@ -9,10 +9,15 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use Nowo\UptimeMonitorBundle\Command\SyncSchemaCommand;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
+use Nowo\UptimeMonitorBundle\Tests\Support\SqliteManagerRegistry;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Console\Tester\CommandTester;
+
+use function dirname;
 
 #[CoversClass(SyncSchemaCommand::class)]
 final class SyncSchemaCommandTest extends TestCase
@@ -45,6 +50,23 @@ final class SyncSchemaCommandTest extends TestCase
 
         self::assertSame(0, $tester->getStatusCode());
         self::assertStringContainsString('up to date', $tester->getDisplay());
+    }
+
+    public function testDefaultTargetsTheBundleManagerOfTheBundleRegistry(): void
+    {
+        $doctrine = new SqliteManagerRegistry([
+            'default' => [],
+            'tables'  => ['Nowo\\UptimeMonitorBundle\\Entity' => dirname(__DIR__, 3) . '/src/Entity'],
+        ]);
+        $bundle = new UptimeEntityManager($doctrine);
+        $tester = new CommandTester(new SyncSchemaCommand(new UptimeManagerRegistry($doctrine, $bundle), 'default'));
+
+        $tester->execute([]);
+
+        self::assertSame(0, $tester->getStatusCode());
+        $tables = $doctrine->getConnection('tables');
+        self::assertInstanceOf(Connection::class, $tables);
+        self::assertTrue($tables->createSchemaManager()->tablesExist(['uptime_tenant']), 'created on the bundle connection, not the default one');
     }
 
     public function testExecuteRunsStatementsWithForceOption(): void

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.27.0: XML mapping of the bundle entity (same tables, columns, indexes and constraints as its attributes).
+     Used with nowo_uptime_monitor.doctrine.mapping_type: xml, or by a host that maps the bundle entities itself. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\UptimeMonitorBundle\Entity\Monitor" table="uptime_monitor">
+        <indexes>
+            <index name="idx_uptime_monitor_tenant_next" columns="tenant_id,next_check_at"/>
+        </indexes>
+        <unique-constraints>
+            <unique-constraint name="uniq_uptime_monitor_push_key" columns="push_key"/>
+            <unique-constraint name="uniq_uptime_monitor_origin_key" columns="tenant_id,origin_key"/>
+        </unique-constraints>
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="project" type="string" length="128" nullable="true"/>
+        <field name="config" type="json"/>
+        <field name="intervalSeconds" type="integer"/>
+        <field name="paused" type="boolean"/>
+        <field name="nextCheckAt" column="next_check_at" type="datetime_immutable" nullable="true"/>
+        <field name="lastKnownStatus" column="last_known_status" type="string" length="16" nullable="true" enum-type="Nowo\UptimeMonitorBundle\Enum\CheckStatus"/>
+        <field name="lastAlertAt" column="last_alert_at" type="datetime_immutable" nullable="true"/>
+        <field name="createdAt" type="datetime_immutable"/>
+        <field name="pushKey" column="push_key" type="string" length="32" nullable="true"/>
+        <field name="pushTokenHash" column="push_token_hash" type="string" length="64" nullable="true"/>
+        <field name="pushLastAt" column="push_last_at" type="datetime_immutable" nullable="true"/>
+        <field name="pushSample" column="push_sample" type="json" nullable="true"/>
+        <field name="origin" column="origin" type="string" length="8">
+            <options>
+                <option name="default">ui</option>
+            </options>
+        </field>
+        <field name="originKey" column="origin_key" type="string" length="64" nullable="true"/>
+        <field name="name" type="string" length="255"/>
+        <field name="type" type="string" length="16" enum-type="Nowo\UptimeMonitorBundle\Enum\MonitorType"/>
+        <field name="target" type="string" length="2048"/>
+        <many-to-one field="parent" target-entity="Nowo\UptimeMonitorBundle\Entity\Monitor">
+            <join-column name="parent_id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+        <many-to-one field="tenant" target-entity="Nowo\UptimeMonitorBundle\Entity\Tenant">
+            <join-column nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+    </entity>
+</doctrine-mapping>

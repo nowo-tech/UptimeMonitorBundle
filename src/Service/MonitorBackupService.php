@@ -8,6 +8,7 @@ use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -119,6 +120,10 @@ final readonly class MonitorBackupService
      */
     public function import(Tenant $tenant, array $payload, string $mode = self::IMPORT_SKIP): array
     {
+        // 1.27.0: a tenant the application loaded through its own manager is written as the bundle manager's copy.
+        if ($this->entityManager instanceof UptimeEntityManager) {
+            $tenant = $this->entityManager->adopt($tenant);
+        }
         $context = ['bundle' => 'NowoUptimeMonitorBundle', 'tenant' => $tenant->getSlug(), 'mode' => $mode];
         $rows    = $payload['monitors'] ?? [];
         if (!is_array($rows)) {

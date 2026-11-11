@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.27.0: XML mapping of the bundle entity (same tables, columns, indexes and constraints as its attributes).
+     Used with nowo_uptime_monitor.doctrine.mapping_type: xml, or by a host that maps the bundle entities itself. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\UptimeMonitorBundle\Entity\Tag" table="uptime_tag">
+        <unique-constraints>
+            <unique-constraint name="uniq_uptime_tag_tenant_name" columns="tenant_id,name"/>
+        </unique-constraints>
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="name" type="string" length="64"/>
+        <field name="color" type="string" length="16" nullable="true"/>
+        <many-to-one field="tenant" target-entity="Nowo\UptimeMonitorBundle\Entity\Tenant">
+            <join-column nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+    </entity>
+</doctrine-mapping>

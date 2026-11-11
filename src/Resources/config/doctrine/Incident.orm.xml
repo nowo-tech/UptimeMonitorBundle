@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.27.0: XML mapping of the bundle entity (same tables, columns, indexes and constraints as its attributes).
+     Used with nowo_uptime_monitor.doctrine.mapping_type: xml, or by a host that maps the bundle entities itself. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\UptimeMonitorBundle\Entity\Incident" table="uptime_incident">
+        <indexes>
+            <index name="idx_uptime_incident_monitor" columns="monitor_id,started_at"/>
+        </indexes>
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="startedAt" column="started_at" type="datetime_immutable"/>
+        <field name="endedAt" column="ended_at" type="datetime_immutable" nullable="true"/>
+        <field name="triggerStatus" type="string" length="16" enum-type="Nowo\UptimeMonitorBundle\Enum\CheckStatus"/>
+        <field name="message" type="text" nullable="true"/>
+        <many-to-one field="monitor" target-entity="Nowo\UptimeMonitorBundle\Entity\Monitor">
+            <join-column nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+    </entity>
+</doctrine-mapping>

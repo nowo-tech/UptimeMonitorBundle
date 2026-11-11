@@ -83,6 +83,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target: **1.27.0** (minor). REQ-ARCH-001 rules 2, 6 and 8: the bundle works on its own entity manager; XML mapping;
+standard-host and DDD-host kernel tests. No schema or data change. See [UPGRADING](UPGRADING.md#to-1270).
+
+### Changed
+
+- **Rule 6:** every bundle service and the bundle's internal repositories read and write through a private entity
+  manager (`Doctrine\UptimeEntityManager`) created on the connection of the manager that maps the bundle entities, with
+  that manager's mapping configuration and event manager. A bundle write flushes only bundle rows; an application
+  manager is never flushed, cleared, closed or reset by the bundle (`TenantProvisioner` used to flush the host default
+  manager, with whatever the host had pending). A failed bundle flush closes only the private manager, which the next
+  call replaces. `ClosedEntityManagerSubscriber` and the failed-import recovery reset only that manager.
+- `TenantProvisionerInterface::ensure()` returns the tenant of the application manager that maps the bundle entities;
+  `CheckExecutorService::execute()` and `MonitorBackupService::import()` accept an entity of that manager and work on
+  the bundle copy. The repository services by class name stay on the application registry (unchanged).
+- After the incident listeners, the application manager is flushed only with `doctrine.flush_listener_changes` and
+  only when nothing was pending there before the listeners (BC, with a deprecation). Listener changes left unflushed
+  otherwise are reported with a warning (event class) and a deprecation: listeners must flush their own changes
+  (audit MQ-U-M1). The pending-change check runs only when the events have listeners, and a failure to compute it
+  counts as pending (MQ-U-L1).
+- `CheckExecutorService::execute()` / `MonitorBackupService::import()` work on the bundle copy of an application
+  entity, which is not updated (MQ-U-I4). `doctrine.connection` requires the application to map the bundle entities on
+  a manager using the same connection for repository reads (documented, MQ-U-L2). SQL filters of the application
+  manager are not copied to the bundle manager (documented).
+- `nowo:uptime:sync-schema` targets the bundle's connection.
+
+### Added
+
+- `doctrine.connection` (rule 8, validated at build time), `doctrine.register_mapping`, `doctrine.mapping_type`
+  (`attribute` | `xml`) and `doctrine.flush_listener_changes`.
+- XML mapping of the six entities in `src/Resources/config/doctrine/*.orm.xml` (same tables, columns, indexes,
+  constraints and PHP types as the attributes; a parity test compares the metadata and the schema).
+- `EventSubscriber\WorkerBoundaryResetListener` (REQ-RUNTIME-002): drops the private manager at the main request,
+  `kernel.terminate`, Messenger received / handled / failed and console command / terminate; the manager is also tagged
+  `kernel.reset`.
+- Kernel tests for a standard host (zero config, 1,000 kept-alive requests alternating two tenants with rows changed by
+  another process, memory bound, every boundary) and a DDD host (XML-only mapping, bundle on a dedicated manager and
+  connection); a DB test proving that host pending changes are untouched, host transactions include the bundle rows
+  and a failed bundle flush loses no committed row.
+
+### Deprecated
+
+- The root `connection` key: use `doctrine.connection` (removed in 2.0).
+- `doctrine.flush_listener_changes: true` (the 1.x default): 2.0 never flushes an application manager.
+
+### Fixed
+
+- `specs/001-baseline/code-inventory.md` lacked `EntityManagerOptionPass` (1.26.0).
+
 ## [1.26.0] - 2026-11-11
 
 Closed-manager recovery and backup import reset only Uptime's own entity manager, never a host one; new validated doctrine.entity_manager option. See [UPGRADING](https://github.com/nowo-tech/UptimeMonitorBundle/blob/v1.26.0/docs/UPGRADING.md#to-1260).

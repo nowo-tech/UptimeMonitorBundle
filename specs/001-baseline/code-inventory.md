@@ -11,6 +11,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `DependencyInjection/Compiler/CsrfProtectionPass.php` | Fail-closed CSRF requirement | FR-DI-002, FR-SEC-005 |
+| `DependencyInjection/Compiler/EntityManagerOptionPass.php` | Validates `doctrine.entity_manager` (1.26.0) and `doctrine.connection` (1.27.0) | FR-DI-002, FR-ENTITY-001 |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | Compiler pass | FR-DI-002 |
 | `DependencyInjection/Configuration.php` | Config tree | FR-CFG-001 |
 | `DependencyInjection/UptimeMonitorExtension.php` | DI extension | FR-CFG-002 |
@@ -74,6 +75,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | --- | --- |
 | `Doctrine/KeysetBatchDelete.php` | Keyset batch delete (retention purge, clear-data) | FR-RET-001, FR-RET-002 |
 | `Doctrine/TablePrefixListener.php` | `doctrine.table_prefix` metadata listener (REQ-ORM-002) | FR-ENTITY-001, FR-CFG-001 |
+| `Doctrine/UptimeEntityManager.php` | The bundle's private entity manager (1.27.0, REQ-ARCH-001 rules 6 and 8) | FR-ENTITY-001, FR-WORKER-001 |
+| `Doctrine/UptimeManagerRegistry.php` | The bundle's view of the Doctrine registry (bundle classes → private manager) | FR-ENTITY-001 |
 | `Entity/CheckAggregate.php` | Persistence model | FR-ENTITY-001 |
 | `Entity/CheckResult.php` | Persistence model | FR-ENTITY-001 |
 | `Entity/Incident.php` | Persistence model | FR-ENTITY-001 |
@@ -186,6 +189,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | --- | --- |
 | `Service/SchemaSyncService.php` | Schema sync | FR-CLI-003 |
 | `EventSubscriber/ClosedEntityManagerSubscriber.php` | Replaces a closed EntityManager before a bundle route runs (workers without kernel reset) | FR-ENTITY-001, FR-WORKER-001 |
+| `EventSubscriber/WorkerBoundaryResetListener.php` | Drops the bundle's private entity manager at every worker boundary (REQ-RUNTIME-002) | FR-ENTITY-001, FR-WORKER-001 |
 
 ## Async messaging
 
@@ -300,6 +304,12 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
+| `Resources/config/doctrine/CheckAggregate.orm.xml` | XML mapping (1.27.0, `doctrine.mapping_type: xml`) | FR-ENTITY-001 |
+| `Resources/config/doctrine/CheckResult.orm.xml` | XML mapping (1.27.0, `doctrine.mapping_type: xml`) | FR-ENTITY-001 |
+| `Resources/config/doctrine/Incident.orm.xml` | XML mapping (1.27.0, `doctrine.mapping_type: xml`) | FR-ENTITY-001 |
+| `Resources/config/doctrine/Monitor.orm.xml` | XML mapping (1.27.0, `doctrine.mapping_type: xml`) | FR-ENTITY-001 |
+| `Resources/config/doctrine/Tag.orm.xml` | XML mapping (1.27.0, `doctrine.mapping_type: xml`) | FR-ENTITY-001 |
+| `Resources/config/doctrine/Tenant.orm.xml` | XML mapping (1.27.0, `doctrine.mapping_type: xml`) | FR-ENTITY-001 |
 | `Resources/config/routes.yaml` | Service wiring | FR-DI-001 |
 | `Resources/config/services.yaml` | Service wiring | FR-DI-001 |
 
@@ -421,6 +431,6 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Twig views | 32 | 32 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **245** | **245** |
+| **Total production sources** | **255** | **255** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.

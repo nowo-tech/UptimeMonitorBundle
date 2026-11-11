@@ -16,13 +16,16 @@ use function sprintf;
 use function str_starts_with;
 
 /**
- * Validates `nowo_uptime_monitor.doctrine.entity_manager` (1.26.0, audit LD).
+ * Validates `nowo_uptime_monitor.doctrine.entity_manager` (1.26.0, audit LD) and `doctrine.connection` (1.27.0).
  *
- * The build fails when the configured entity manager does not exist or does not map the bundle entities.
+ * The build fails when the configured entity manager does not exist or does not map the bundle entities, or when the
+ * configured connection does not exist.
  */
 final class EntityManagerOptionPass implements CompilerPassInterface
 {
     public const PARAMETER = 'nowo_uptime_monitor.doctrine.entity_manager';
+
+    public const CONNECTION_PARAMETER = 'nowo_uptime_monitor.doctrine.connection';
 
     /** @var list<string> */
     private const ENTITY_NAMESPACES = ['Nowo\\UptimeMonitorBundle\\Entity'];
@@ -32,6 +35,8 @@ final class EntityManagerOptionPass implements CompilerPassInterface
      */
     public function process(ContainerBuilder $container): void
     {
+        $this->validateConnection($container);
+
         $name = $container->hasParameter(self::PARAMETER) ? $container->getParameter(self::PARAMETER) : null;
         if (!is_string($name) || $name === '') {
             return;
@@ -62,6 +67,23 @@ final class EntityManagerOptionPass implements CompilerPassInterface
             if ($manager === $name && !$maps) {
                 throw new InvalidConfigurationException(sprintf('The Doctrine entity manager "%s" (nowo_uptime_monitor.doctrine.entity_manager) does not map %s.', $name, implode(', ', self::ENTITY_NAMESPACES)));
             }
+        }
+    }
+
+    /**
+     * Since 1.27.0: fails the build when `doctrine.connection` names no configured DBAL connection.
+     */
+    private function validateConnection(ContainerBuilder $container): void
+    {
+        $name = $container->hasParameter(self::CONNECTION_PARAMETER) ? $container->getParameter(self::CONNECTION_PARAMETER) : null;
+        if (!is_string($name) || $name === '') {
+            return;
+        }
+
+        $connections = $container->hasParameter('doctrine.connections') ? $container->getParameter('doctrine.connections') : [];
+        $connections = is_array($connections) ? $connections : [];
+        if (!isset($connections[$name])) {
+            throw new InvalidConfigurationException(sprintf('nowo_uptime_monitor.doctrine.connection is "%s", but no such Doctrine connection is configured (known: "%s"). Add it under doctrine.dbal.connections or remove the option.', $name, implode('", "', array_keys($connections))));
         }
     }
 
