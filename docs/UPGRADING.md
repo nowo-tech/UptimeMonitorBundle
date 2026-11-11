@@ -146,15 +146,29 @@ this release.
   - Entities loaded by bundle services (event entities such as `MonitorWentDownEvent::$monitor`, `UptimePageEvent`)
     belong to the bundle's manager. Read them; do not persist them in yours. The repository services you inject and
     `TenantProvisionerInterface::ensure()` still hand you entities of your manager.
-  - An incident listener that persists in your manager without flushing: by default (`doctrine.flush_listener_changes:
-    true`) the bundle still flushes your manager after the listeners **when nothing was pending there before them**,
-    and triggers a deprecation. Flush in the listener and set the option to `false` (the only behaviour in 2.0).
+  - **Incident listeners must flush their own changes.** In 1.25 and 1.26, whatever a `MonitorWentDownEvent` /
+    `MonitorRecoveredEvent` listener persisted or changed in your manager was always flushed by the bundle right after
+    the dispatch (it was the bundle's manager too). In 1.27 the bundle flushes your manager after the listeners only
+    when `doctrine.flush_listener_changes` is `true` (the 1.x default) **and** nothing was pending there before the
+    listeners ran (the bundle must never commit a change your code left pending). In every other case (the option is
+    `false`, or your manager was already dirty, e.g. a host code path calling `CheckExecutorService::execute()` with
+    unflushed work) the listener's changes stay pending: the bundle logs a warning naming the event class and triggers a
+    deprecation. Flush in the listener (and then set the option to `false`, the only behaviour in 2.0). A listener that
+    changes an entity and returns without flushing, such as a recovery listener that only resolves an issue, would
+    otherwise lose that write.
+  - `CheckExecutorService::execute()` and `MonitorBackupService::import()` given an entity of your manager work on the
+    bundle manager's copy of the same row: the object you passed is not updated (reload it, or read the returned
+    `CheckResult` / import result).
+  - SQL filters enabled on your manager are not applied to the bundle's manager (it never copied them: the bundle
+    tables are tenant-scoped by slug, not by your filters).
   - A host listener of `onFlush` / `postPersist` on bundle entities still runs (the event manager is shared), but
     `$args->getObjectManager()` is the bundle's manager.
 - **Deprecated.** The root `connection` key: use `doctrine.connection`. Until 2.0 a value other than `default` still
   selects the manager of `nowo:uptime:sync-schema` as before; `default` now means the bundle's own connection.
 - **New options** (all optional): `doctrine.connection` (rule 8; moving it moves where the bundle reads and writes:
-  create the tables there with `nowo:uptime:sync-schema` and copy the rows yourself before switching),
+  create the tables there with `nowo:uptime:sync-schema` and copy the rows yourself before switching. The repository
+  services and `ensure()` still read through your manager that maps the bundle entities, so map them on a manager that
+  uses the **same** connection, e.g. the DDD-host setup, or those reads see another database),
   `doctrine.register_mapping` (false for a DDD host that maps the bundle itself), `doctrine.mapping_type` (`xml` uses the
   shipped `src/Resources/config/doctrine/*.orm.xml`, same tables, columns, indexes and constraints as the attributes;
   switching produces no schema difference), `doctrine.flush_listener_changes`.

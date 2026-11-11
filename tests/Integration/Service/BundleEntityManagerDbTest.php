@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Service;
 
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\Decorator\EntityManagerDecorator;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Doctrine\ORM\UnitOfWork;
 use Nowo\UptimeMonitorBundle\Check\CheckRunnerInterface;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
@@ -31,11 +33,13 @@ use Nowo\UptimeMonitorBundle\Service\StatusTransitionService;
 use Nowo\UptimeMonitorBundle\Service\TenantProvisioner;
 use Nowo\UptimeMonitorBundle\Tests\Fixtures\Host\Entity\HostNote;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteManagerRegistry;
+use Nowo\UptimeMonitorBundle\Tests\Support\StubManagerRegistry;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface as PsrEventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use RuntimeException;
@@ -168,19 +172,22 @@ final class BundleEntityManagerDbTest extends TestCase
         self::assertSame(1, $this->rows('host_note'), 'BC: what the listener persisted is flushed');
     }
 
-    public function testListenerChangesStayPendingWithTheOptionOff(): void
+    #[IgnoreDeprecations]
+    public function testListenerChangesStayPendingWithTheOptionOffAndAreReported(): void
     {
         $this->dispatcher->addListener(MonitorWentDownEvent::class, function (): void {
             $this->application->persist(new HostNote('from the listener'));
         });
 
-        $this->executor(false)->execute($this->monitor());
+        $this->expectUserDeprecationMessageMatches('/left changes in an application entity manager that the bundle does not flush \(doctrine\.flush_listener_changes is false\)/');
+        $this->executor(false, $this->expectWarning(false))->execute($this->monitor());
 
         self::assertSame(0, $this->rows('host_note'));
         self::assertNotSame([], $this->application->getUnitOfWork()->getScheduledEntityInsertions());
     }
 
-    public function testAnApplicationThatAlreadyHadPendingChangesIsNeverFlushed(): void
+    #[IgnoreDeprecations]
+    public function testAnApplicationThatAlreadyHadPendingChangesIsNeverFlushedAndIsReported(): void
     {
         $this->dispatcher->addListener(MonitorWentDownEvent::class, function (): void {
             $this->application->persist(new HostNote('from the listener'));
@@ -188,9 +195,54 @@ final class BundleEntityManagerDbTest extends TestCase
         $monitor = $this->monitor();
         $this->application->persist(new HostNote('left pending by the application'));
 
-        $this->executor(true)->execute($monitor);
+        $this->expectUserDeprecationMessageMatches('/the manager already had pending changes of the application/');
+        $this->executor(true, $this->expectWarning(true))->execute($monitor);
 
         self::assertSame(0, $this->rows('host_note'), 'a host-called check never flushes the application');
+    }
+
+    #[IgnoreDeprecations]
+    public function testAnApplicationManagerThatCannotComputeItsChangesCountsAsPending(): void
+    {
+        $this->dispatcher->addListener(MonitorWentDownEvent::class, function (): void {
+            $this->application->persist(new HostNote('from the listener'));
+        });
+        $monitor = $this->monitor();
+        $this->withUnreadableApplicationChanges();
+
+        $this->expectUserDeprecationMessageMatches('/the manager already had pending changes of the application/');
+        $result = $this->executor(true, $this->expectWarning(true))->execute($monitor);
+        self::assertSame(1, $this->rows('uptime_incident'));
+
+        self::assertSame(CheckStatus::Down, $result->getStatus(), 'the check is stored');
+        self::assertSame(0, $this->rows('host_note'));
+    }
+
+    #[IgnoreDeprecations]
+    public function testAPlainPsrDispatcherIsAssumedToHaveListeners(): void
+    {
+        $this->dispatcher->addListener(MonitorWentDownEvent::class, function (): void {
+            $this->application->persist(new HostNote('from the listener'));
+        });
+
+        $this->expectUserDeprecationMessageMatches('/the bundle flushes them for backward compatibility/');
+        $this->executor(true, psrDispatcher: true)->execute($this->monitor());
+
+        self::assertSame(1, $this->rows('host_note'));
+    }
+
+    public function testWithoutListenersTheApplicationManagerIsNeverInspected(): void
+    {
+        $monitor = $this->monitor();
+        // Computing the change sets would throw: the bundle must not even try without listeners.
+        $this->withUnreadableApplicationChanges();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::never())->method('warning');
+
+        $result = $this->executor(true, $logger)->execute($monitor);
+
+        self::assertSame(CheckStatus::Down, $result->getStatus());
+        self::assertSame(1, $this->rows('uptime_incident'));
     }
 
     public function testNothingToFlushWhenTheListenersLeftNoChange(): void
@@ -308,7 +360,7 @@ final class BundleEntityManagerDbTest extends TestCase
         return $monitor;
     }
 
-    private function executor(bool $flushListenerChanges, ?LoggerInterface $logger = null, CheckStatus $status = CheckStatus::Down, bool $withDispatcher = true): CheckExecutorService
+    private function executor(bool $flushListenerChanges, ?LoggerInterface $logger = null, CheckStatus $status = CheckStatus::Down, bool $withDispatcher = true, bool $psrDispatcher = false): CheckExecutorService
     {
         $runner = $this->createStub(CheckRunnerInterface::class);
         $runner->method('supports')->willReturn(true);
@@ -323,7 +375,7 @@ final class BundleEntityManagerDbTest extends TestCase
                 new IncidentRepository($this->registry),
                 new NotificationService([], ['enabled' => false]),
                 [],
-                $withDispatcher ? $this->dispatcher : null,
+                $withDispatcher ? ($psrDispatcher ? $this->psrDispatcher() : $this->dispatcher) : null,
                 logger: $logger ?? new NullLogger(),
                 flushListenerChanges: $flushListenerChanges,
             ),
@@ -331,6 +383,49 @@ final class BundleEntityManagerDbTest extends TestCase
             new CheckLatencyNormalizer(['min_latency_ms' => 0]),
             new MonitorRetryService(),
         );
+    }
+
+    /**
+     * The bundle now sees the application manager through a decorator whose unit of work cannot be read (computing the
+     * change sets fails); the listeners still write through the real application manager.
+     */
+    private function withUnreadableApplicationChanges(): void
+    {
+        $unreadable = new class($this->application) extends EntityManagerDecorator {
+            public function getUnitOfWork(): UnitOfWork
+            {
+                throw new RuntimeException('change sets unavailable');
+            }
+        };
+        $doctrine       = new StubManagerRegistry(['default' => $unreadable], ['default' => $this->application->getConnection()], $unreadable);
+        $this->bundle   = new UptimeEntityManager($doctrine);
+        $this->registry = new UptimeManagerRegistry($doctrine, $this->bundle);
+    }
+
+    /** A plain PSR-14 dispatcher (no hasListeners()) over the test dispatcher. */
+    private function psrDispatcher(): PsrEventDispatcherInterface
+    {
+        return new class($this->dispatcher) implements PsrEventDispatcherInterface {
+            public function __construct(private readonly EventDispatcher $inner)
+            {
+            }
+
+            public function dispatch(object $event): object
+            {
+                return $this->inner->dispatch($event);
+            }
+        };
+    }
+
+    private function expectWarning(bool $pendingBefore): LoggerInterface
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('does not flush'),
+            self::callback(static fn (array $context): bool => $context['event'] === MonitorWentDownEvent::class && $context['pending_before'] === $pendingBefore),
+        );
+
+        return $logger;
     }
 
     private function rows(string $from): int

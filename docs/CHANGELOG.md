@@ -98,7 +98,14 @@ standard-host and DDD-host kernel tests. No schema or data change. See [UPGRADIN
   `CheckExecutorService::execute()` and `MonitorBackupService::import()` accept an entity of that manager and work on
   the bundle copy. The repository services by class name stay on the application registry (unchanged).
 - After the incident listeners, the application manager is flushed only with `doctrine.flush_listener_changes` and
-  only when nothing was pending there before the listeners (BC, with a deprecation).
+  only when nothing was pending there before the listeners (BC, with a deprecation). Listener changes left unflushed
+  otherwise are reported with a warning (event class) and a deprecation: listeners must flush their own changes
+  (audit MQ-U-M1). The pending-change check runs only when the events have listeners, and a failure to compute it
+  counts as pending (MQ-U-L1).
+- `CheckExecutorService::execute()` / `MonitorBackupService::import()` work on the bundle copy of an application
+  entity, which is not updated (MQ-U-I4). `doctrine.connection` requires the application to map the bundle entities on
+  a manager using the same connection for repository reads (documented, MQ-U-L2). SQL filters of the application
+  manager are not copied to the bundle manager (documented).
 - `nowo:uptime:sync-schema` targets the bundle's connection.
 
 ### Added

@@ -23,6 +23,7 @@ use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface as SymfonyEventDispatcherInterface;
 use Throwable;
 
 use function in_array;
@@ -89,7 +90,8 @@ final readonly class StatusTransitionService
      * Dispatches the incident events of {@see self::handleAfterCheckDeferred()} once the check is committed (since
      * 1.25), then flushes what the listeners persisted (before 1.25 they shared the check's flush): the bundle manager,
      * and since 1.27.0 the application manager that maps the bundle entities only with `doctrine.flush_listener_changes`
-     * and only when nothing was pending there before the listeners ran (see {@see self::flushListenerChanges()}). Nothing to do
+     * and only when nothing was pending there before the listeners ran; changes they leave unflushed otherwise are
+     * reported with a warning and a deprecation (see {@see self::afterListeners()}). Nothing to do
      * without events. The check is already stored: a listener that throws is logged (its class only) and the other
      * events, the flush and the caller's dashboard sync / group refresh still run, like {@see MonitorApplier}.
      *
@@ -102,8 +104,9 @@ final readonly class StatusTransitionService
         }
 
         // 1.27.0: the application manager is flushed after the listeners only when nothing was pending there before
-        // them (rule 6: a change the application left pending is never flushed by the bundle).
-        $applicationManager = $this->applicationManagerForListeners();
+        // them (rule 6: a change the application left pending is never flushed by the bundle); what they leave unflushed
+        // otherwise is reported (MQ-U-M1).
+        $watch = $this->watchApplicationManager($events);
 
         foreach ($events as $event) {
             try {
@@ -120,37 +123,56 @@ final readonly class StatusTransitionService
 
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {
             $this->entityManager->flush();
-            if ($applicationManager instanceof EntityManagerInterface) {
-                $this->flushListenerChanges($applicationManager, $events);
+            if ($watch !== null) {
+                $this->afterListeners($watch[0], $watch[1], $events);
             }
         }
     }
 
     /**
-     * The application manager whose listener changes {@see self::dispatchCommitted()} may flush: the one that maps the
-     * bundle entities, when `doctrine.flush_listener_changes` is on, the bundle works on its private manager, and that
-     * application manager is open with no change pending yet. Null otherwise.
+     * The application manager that maps the bundle entities and whether it already had pending changes before the
+     * incident listeners ran. Null (nothing to watch) without a dispatcher, without the bundle's private manager, when
+     * no listener is registered for these events, or when that manager is closed.
+     *
+     * @param list<MonitorRecoveredEvent|MonitorWentDownEvent> $events
+     *
+     * @return array{0: EntityManagerInterface, 1: bool}|null
      */
-    private function applicationManagerForListeners(): ?EntityManagerInterface
+    private function watchApplicationManager(array $events): ?array
     {
-        if (!$this->flushListenerChanges || !$this->eventDispatcher instanceof EventDispatcherInterface || !$this->entityManager instanceof UptimeEntityManager) {
+        if (!$this->eventDispatcher instanceof EventDispatcherInterface || !$this->entityManager instanceof UptimeEntityManager || !$this->hasListeners($events)) {
             return null;
         }
 
         $manager = $this->entityManager->mappingManager();
 
-        return $manager->isOpen() && !$this->hasPendingChanges($manager) ? $manager : null;
+        return $manager->isOpen() ? [$manager, $this->hasPendingChanges($manager)] : null;
     }
 
     /**
-     * Flushes what the incident listeners left in the application manager (1.25 to 1.26 behaviour, kept for BC with a
-     * deprecation; 2.0 never flushes an application manager).
+     * After the incident listeners: what they left in the application manager is flushed only with
+     * `doctrine.flush_listener_changes` and only when nothing was pending there before them (1.25 to 1.26 behaviour,
+     * kept for BC with a deprecation). Any other change left there is not flushed by the bundle (a change the
+     * application left pending must never be committed by it, rule 6) and is reported with a warning and a
+     * deprecation: listeners must flush their own changes (MQ-U-M1).
      *
      * @param list<MonitorRecoveredEvent|MonitorWentDownEvent> $events
      */
-    private function flushListenerChanges(EntityManagerInterface $manager, array $events): void
+    private function afterListeners(EntityManagerInterface $manager, bool $pendingBefore, array $events): void
     {
         if (!$manager->isOpen() || !$this->hasPendingChanges($manager)) {
+            return;
+        }
+
+        if (!$this->flushListenerChanges || $pendingBefore) {
+            $this->logger->warning('Uptime incident listeners left changes in an application entity manager that the bundle does not flush: {event}', [
+                'bundle'         => 'NowoUptimeMonitorBundle',
+                'event'          => $events[0]::class,
+                'monitor_id'     => $events[0]->getMonitorId(),
+                'pending_before' => $pendingBefore,
+            ]);
+            @trigger_error(sprintf('Since nowo-tech/uptime-monitor-bundle 1.27.0: a listener of %s left changes in an application entity manager that the bundle does not flush (%s). Before 1.27 the bundle flushed them; flush them in the listener.', $events[0]::class, $pendingBefore ? 'the manager already had pending changes of the application' : 'doctrine.flush_listener_changes is false'), E_USER_DEPRECATED);
+
             return;
         }
 
@@ -167,10 +189,38 @@ final readonly class StatusTransitionService
         }
     }
 
+    /**
+     * Whether a listener is registered for one of the events (any PSR-14 dispatcher other than Symfony's: assumed yes).
+     *
+     * @param list<MonitorRecoveredEvent|MonitorWentDownEvent> $events
+     */
+    private function hasListeners(array $events): bool
+    {
+        if (!$this->eventDispatcher instanceof SymfonyEventDispatcherInterface) {
+            return true;
+        }
+
+        foreach ($events as $event) {
+            if ($this->eventDispatcher->hasListeners($event::class)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the application manager has pending changes. Computing them reads every managed entity; a failure (an
+     * entity the application left half-built) counts as pending, so it is never flushed by the bundle (MQ-U-L1).
+     */
     private function hasPendingChanges(EntityManagerInterface $manager): bool
     {
-        $unitOfWork = $manager->getUnitOfWork();
-        $unitOfWork->computeChangeSets();
+        try {
+            $unitOfWork = $manager->getUnitOfWork();
+            $unitOfWork->computeChangeSets();
+        } catch (Throwable) {
+            return true;
+        }
 
         return $unitOfWork->getScheduledEntityInsertions() !== []
             || $unitOfWork->getScheduledEntityUpdates() !== []

@@ -170,12 +170,17 @@ manager, as before: entities you load through them can be related to your entiti
 (`CheckExecutorService::execute()`, `MonitorBackupService::import()`) accept one of your manager and work on the bundle
 copy of the same row.
 
+**Copies.** `CheckExecutorService::execute()` / `MonitorBackupService::import()` given one of your entities work on the
+bundle copy: the object you passed is not updated. SQL filters enabled on your manager are not copied to the bundle's
+manager.
+
 **Incident listeners.** Since 1.25 `MonitorWentDownEvent` / `MonitorRecoveredEvent` are dispatched after the check
 commit and the bundle flushed what the listeners persisted. With `doctrine.flush_listener_changes: true` (the default in
 1.x) the bundle still flushes the application manager that maps the bundle entities after those listeners, **only when
 nothing was pending there before they ran** (so a change your code left pending is never flushed), and triggers a
-deprecation when it does. Flush your listener's own changes and set the option to `false`; 2.0 never flushes an
-application manager.
+deprecation when it does. Otherwise (option `false`, or your manager already dirty) the listener's changes are **not
+flushed**: the bundle logs a warning with the event class and triggers a deprecation. Before 1.27 they were always
+flushed. Flush your listener's own changes and set the option to `false`; 2.0 never flushes an application manager.
 
 ### Standard host
 
@@ -191,7 +196,10 @@ nowo_uptime_monitor:
 ```
 
 `doctrine.connection` moves where the bundle reads and writes; create the tables there first
-(`nowo:uptime:sync-schema` targets the same connection) and copy the rows yourself if you had data on the old one.
+(`nowo:uptime:sync-schema` targets the same connection) and copy the rows yourself if you had data on the old one. The
+repository services and `TenantProvisionerInterface::ensure()` read through your manager that maps the bundle
+entities: map them on a manager that uses that same connection (see the DDD host below), or those reads see the other
+database.
 
 ### DDD host
 
