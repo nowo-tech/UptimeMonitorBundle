@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.27.0] - 2026-11-11](#1270---2026-11-11)
 - [[1.26.0] - 2026-11-11](#1260---2026-11-11)
 - [[1.25.2] - 2026-11-10](#1252---2026-11-10)
 - [[1.25.1] - 2026-11-10](#1251---2026-11-10)
@@ -83,6 +84,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.27.0] - 2026-11-11
+
 Target: **1.27.0** (minor). REQ-ARCH-001 rules 2, 6 and 8: the bundle works on its own entity manager; XML mapping;
 standard-host and DDD-host kernel tests. No schema or data change. See [UPGRADING](UPGRADING.md#to-1270).
 
@@ -134,7 +137,6 @@ standard-host and DDD-host kernel tests. No schema or data change. See [UPGRADIN
 ## [1.26.0] - 2026-11-11
 
 Closed-manager recovery and backup import reset only Uptime's own entity manager, never a host one; new validated doctrine.entity_manager option. See [UPGRADING](https://github.com/nowo-tech/UptimeMonitorBundle/blob/v1.26.0/docs/UPGRADING.md#to-1260).
-
 
 ### Fixed
 
@@ -1593,7 +1595,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.27.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
