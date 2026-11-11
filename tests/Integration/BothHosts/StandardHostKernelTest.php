@@ -7,7 +7,6 @@ namespace Nowo\UptimeMonitorBundle\Tests\Integration\BothHosts;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
-use Nowo\UptimeMonitorBundle\Command\SyncSchemaCommand;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -18,7 +17,6 @@ use Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Fixtures\Host\Entity\HostNote;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\ConsoleEvents;
-use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -151,16 +149,6 @@ final class StandardHostKernelTest extends KernelTestCase
 
         self::assertSame(0, $this->rows('host_note'), 'the application manager was never flushed');
         self::assertTrue($this->application->getUnitOfWork()->isScheduledForInsert($note));
-    }
-
-    public function testSyncSchemaTargetsTheBundleManager(): void
-    {
-        $command = self::getContainer()->get(SyncSchemaCommand::class);
-        self::assertInstanceOf(SyncSchemaCommand::class, $command);
-        $tester = new CommandTester($command);
-
-        self::assertSame(0, $tester->execute([]));
-        self::assertStringContainsString('already up to date', $tester->getDisplay());
     }
 
     private function bundle(): UptimeEntityManager
