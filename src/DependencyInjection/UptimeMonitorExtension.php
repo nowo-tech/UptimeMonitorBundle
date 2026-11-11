@@ -175,6 +175,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setParameter(Configuration::ALIAS . '.environments', $config['environments']);
         $container->setParameter(Configuration::ALIAS . '.connection', $config['connection']);
         $container->setParameter(Configuration::ALIAS . '.doctrine.table_prefix', $config['doctrine']['table_prefix']);
+        $container->setParameter(Configuration::ALIAS . '.doctrine.entity_manager', $config['doctrine']['entity_manager']);
         // enabled: false pauses monitoring: no scheduled checks, and DueChecksRunner is a no-op.
         $container->setParameter(Configuration::ALIAS . '.scheduler', $config['enabled'] ? $config['scheduler'] : ['enabled' => false] + $config['scheduler']);
         $container->setParameter(Configuration::ALIAS . '.checks', $config['checks']);

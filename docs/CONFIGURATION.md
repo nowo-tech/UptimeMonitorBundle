@@ -7,6 +7,7 @@ nowo_uptime_monitor:
     # table_prefix: uptime_   # deprecated (1.5), no effect: use doctrine.table_prefix
     doctrine:
         table_prefix: ''      # prepended to every bundle table/index name; 'app_' => app_uptime_monitor
+        entity_manager: null  # 1.26.0+: extra manager that also maps the bundle entities, reset too (getManagerForClass() always included)
     checks:
         min_latency_ms: 0   # floor for stored latency (ms); use e.g. 1 for localhost
         block_private_urls: true   # SSRF guard for HTTP/TCP/SSL/ping/DNS monitors; false to monitor private networks

@@ -36,6 +36,22 @@ final class MonitorBackupServiceTest extends TestCase
         $service->import(new Tenant('main', 'Main'), ['monitors' => []]);
     }
 
+    public function testFailedFlushNeverResetsAClosedHostManager(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('flush')->willThrowException(new RuntimeException('constraint violation'));
+        $em->method('isOpen')->willReturn(false);
+        $host = $this->createMock(EntityManagerInterface::class);
+        $host->method('isOpen')->willReturn(false);
+
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->method('getManagers')->willReturn(['reporting' => $host, 'uptime' => $em]);
+        $registry->expects(self::once())->method('resetManager')->with('uptime');
+
+        $this->expectException(RuntimeException::class);
+        $this->service($em, $registry)->import(new Tenant('main', 'Main'), ['monitors' => []]);
+    }
+
     public function testFailedFlushWithOpenManagerDoesNotReset(): void
     {
         $em = $this->createMock(EntityManagerInterface::class);

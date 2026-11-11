@@ -55,7 +55,7 @@ A worker demo exists: `demo/symfony8/docker/frankenphp/Caddyfile` declares a `wo
 | Service | Shared | Mutable state | Scenario A | Scenario B |
 |---------|--------|---------------|------------|------------|
 | `Twig\UptimeUiExtension` (globals + functions) | yes | `WeakMap<Request, …>` memo of the tenant theme / framework; globals are static config | ✅ | ✅ W-01 resolved |
-| `EventSubscriber\ClosedEntityManagerSubscriber` | yes | none (`readonly`); resets only closed managers on main requests of bundle routes | ✅ | ✅ |
+| `EventSubscriber\ClosedEntityManagerSubscriber` | yes | none (`readonly`); resets only the bundle's managers (`getManagerForClass(Monitor)`, plus `doctrine.entity_manager` when set) when closed, on main requests of bundle routes; never a host manager (1.26.0, kept-alive kernel tests `tests/Integration/Worker/WorkerClosedManagerRecoveryTest.php`, `DddEntityManagerKernelTest.php`) | ✅ | ✅ |
 | `EventSubscriber\UptimeMonitorAccessSubscriber` | yes | none (`readonly`); token read per event | ✅ | ✅ |
 | `Security\ConfigurableUptimeMonitorAccessChecker` / `AllowAllUptimeMonitorAccessChecker` | yes | none (`readonly` role lists) | ✅ | ✅ |
 | Controllers (`Dashboard`, `Monitor`, `Settings`, `Tenant`, `StatusPage`, 3 API controllers) | yes | none (`readonly` deps + config arrays) | ✅ | ✅ (identity map: app, W-02) |

@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+  - [To 1.26.0](#to-1260)
 - [To 1.25.2](#to-1252)
 - [To 1.25.2](#to-1252-1)
 - [To 1.25.1](#to-1251)
@@ -127,6 +128,18 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+### To 1.26.0
+
+From **1.25.2**: `composer update nowo-tech/uptime-monitor-bundle`. No configuration change is needed.
+
+- A closed host entity manager is no longer reset by the bundle (before bundle routes, or after a failed backup
+  import). Only the bundle's managers are reset.
+- Optional: `nowo_uptime_monitor.doctrine.entity_manager: <name>` names an additional manager that maps the bundle
+  entities (the host maps them there), which the bundle resets too; the manager of the entities
+  (`getManagerForClass()`) is always included. The build fails when the named manager does not exist or does not map
+  `Nowo\UptimeMonitorBundle\Entity`. The bundle mapping and writes stay on the default manager in 1.26; a dedicated
+  manager is not supported yet.
 
 ## To 1.25.2
 

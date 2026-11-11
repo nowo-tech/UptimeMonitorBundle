@@ -82,6 +82,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target 1.26.0 (minor: a new public configuration key and a behaviour change on hosts with several entity managers).
+
+### Fixed
+
+- `ClosedEntityManagerSubscriber` reset **every** closed entity manager of the registry before a bundle route, host
+  managers included, and `MonitorBackupService::import()` did the same after a failed import flush. Both now reset only
+  the bundle's managers: the manager of the bundle entities (`getManagerForClass(Monitor)`, always included) and, for
+  the import, the manager it wrote through. Rule 6 of the bundle architecture bar; standard hosts with one default
+  manager see no change.
+
+### Added
+
+- `nowo_uptime_monitor.doctrine.entity_manager` (default `null`): an additional entity manager that maps the bundle
+  entities (the host maps them there itself), reset by the bundle too. It only adds to the manager above (audit
+  LD-UM-M1). The build fails when the manager does not exist or does not map `Nowo\UptimeMonitorBundle\Entity`. The
+  bundle mapping and writes stay on the default manager; a dedicated manager is not supported yet.
+
 ## [1.25.2] - 2026-11-10
 
 Target **1.25.2** (patch, security).

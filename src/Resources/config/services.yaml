@@ -163,3 +163,8 @@ services:
         resource: '../../Form/'
         exclude: '../../Form/DataTransformer/'
         tags: ['form.type']
+
+    # 1.26.0: resets only the bundle's own entity managers (rule 6), never a host one.
+    Nowo\UptimeMonitorBundle\EventSubscriber\ClosedEntityManagerSubscriber:
+        arguments:
+            $entityManagerName: '%nowo_uptime_monitor.doctrine.entity_manager%'
