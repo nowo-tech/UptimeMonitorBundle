@@ -27,6 +27,9 @@ final class EntityManagerOptionPass implements CompilerPassInterface
     /** @var list<string> */
     private const ENTITY_NAMESPACES = ['Nowo\\UptimeMonitorBundle\\Entity'];
 
+    /**
+     * Fails the build when the configured entity manager does not exist or does not map the bundle entities.
+     */
     public function process(ContainerBuilder $container): void
     {
         $name = $container->hasParameter(self::PARAMETER) ? $container->getParameter(self::PARAMETER) : null;
