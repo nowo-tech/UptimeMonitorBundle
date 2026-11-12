@@ -84,6 +84,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target: **1.28.0** (minor). REQ-RUNTIME-002 rule 4 (FrankenPHP worker mode, kernel reset false): the private entity
+manager is dropped only at the OUTERMOST unit-of-work boundaries. No configuration, schema or data change. See
+[UPGRADING](UPGRADING.md#to-1280).
+
+### Fixed
+
+- **Nested units no longer drop the outer unit's private manager.** Up to 1.27.0 `WorkerBoundaryResetListener` dropped
+  the bundle's private entity manager at every `console.command` / `console.terminate` and every `kernel.terminate`,
+  including those of a command run in-process by another command, a Messenger handler or a controller, and of a
+  request handled in-process by a command or a handler. Every bundle entity the outer unit still held became detached
+  (later changes to it were silently not written). The drop now happens only at the outermost request, message or
+  command, judged by the new `Doctrine\UnitOfWorkBoundaries` tracker (copy of the audited PageBuilderKitBundle 1.15.1
+  tracker: frames keyed by command and input, saved/restored message and request state, `PHP_INT_MAX` bookkeeping,
+  failing frames dropped first, request counter reset at a top-level `kernel.terminate`, `WorkerMessageSkipEvent`).
+  Throwing `console.terminate` / `console.error` / `kernel.exception` / `WorkerMessageReceived` listeners never leave
+  the process "inside a unit": the next request, message or command drops the manager again.
+
+### Changed
+
+- `UptimeEntityManager::reset()` discards the manager first, then logs a warning with the entity classes and counts
+  (never a value) of changes it still had pending, then clears it; a failing change-set computation, a throwing
+  `onClear` listener or a failing logger never aborts the boundary. The manager receives the `logger` service
+  (`nowo_uptime_monitor` Monolog channel).
+- Bulk DQL statements of the bundle (retention / clear-data batch deletes, the closed-manager reschedule of
+  `DueChecksRunner`) run inside a savepoint when the shared connection is already in a transaction of the application
+  (`Doctrine\UptimeSavepoint`): on PostgreSQL a failing bundle statement no longer aborts the application's
+  transaction. Autocommit behaviour is unchanged.
+
+### Tests
+
+- `tests/Integration/Worker/WorkerOutermostBoundaryKernelTest.php`: one kept-alive kernel (`http_kernel`, services
+  resetter never called), 1,000 requests alternating two tenants (fresh rows, the other tenant's monitor is 404, memory
+  growth under 4 MB), and the NM / NL2-v / NR-b probes (nested and unknown commands, self-recursive command with a
+  throwing error listener, throwing listeners at `PHP_INT_MIN` / `PHP_INT_MAX`, message or request left open inside a
+  command, failed command inside a failed message with and without `WorkerStoppedEvent`, throwing top-level
+  `kernel.exception` listener, error listener running a command). Unit tests for the tracker, the listener, the
+  savepoint helper and the reset warning.
+
 ## [1.27.0] - 2026-11-11
 
 Target: **1.27.0** (minor). REQ-ARCH-001 rules 2, 6 and 8: the bundle works on its own entity manager; XML mapping;

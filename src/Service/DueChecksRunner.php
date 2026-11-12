@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Service;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeSavepoint;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Psr\Log\LoggerInterface;
@@ -124,14 +125,14 @@ final readonly class DueChecksRunner
 
         $fresh = $this->registry->getManagerForClass(Monitor::class);
         if ($fresh instanceof EntityManagerInterface && $monitor->getId() !== null) {
-            $fresh->createQueryBuilder()
+            UptimeSavepoint::run($fresh->getConnection(), fn (): mixed => $fresh->createQueryBuilder()
                 ->update(Monitor::class, 'm')
                 ->set('m.nextCheckAt', ':next')
                 ->where('m.id = :id')
                 ->setParameter('next', $this->clock->now()->modify(sprintf('+%d seconds', max(1, $monitor->getIntervalSeconds()))))
                 ->setParameter('id', $monitor->getId())
                 ->getQuery()
-                ->execute();
+                ->execute());
         }
 
         $this->logger->warning('Uptime entity manager closed by monitor {monitor_id}: reset and monitor rescheduled', [

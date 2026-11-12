@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.28.0](#to-1280)
 - [To 1.27.0](#to-1270)
   - [To 1.27.0](#to-1270-1)
 - [To 1.26.0](#to-1260)
@@ -130,6 +131,23 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.28.0
+
+From **1.27.0**: `composer update nowo-tech/uptime-monitor-bundle`. No configuration, schema or data change.
+
+- The bundle's private entity manager is now dropped only at the **outermost** request, Messenger message or console
+  command (REQ-RUNTIME-002). A command you run in-process from another command, a message handler or a controller (or
+  a request you handle in-process from a command) no longer detaches the bundle entities of the unit that runs it.
+  Top-level requests, messages and commands behave as in 1.27.0.
+- A boundary that drops bundle changes never written through the bundle services now logs a warning
+  (`Uptime monitor: N pending change(s) of the bundle's private entity manager were dropped …`, entity classes and
+  counts only). Write bundle rows through the bundle services; the application's `flush()` does not write them.
+- Inside a transaction you opened, the bundle's bulk deletes / reschedule statements run in a savepoint: a failing
+  bundle statement is rethrown as before but leaves your transaction usable (PostgreSQL).
+- Internal classes: `Doctrine\UnitOfWorkBoundaries`, `Doctrine\UptimeSavepoint` (both `@internal`).
+  `WorkerBoundaryResetListener` gains an optional second constructor argument and the `METHODS` map; its constructor
+  is not a public API.
 
 ## To 1.27.0
 

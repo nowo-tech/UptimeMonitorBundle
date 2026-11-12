@@ -8,6 +8,7 @@ use LogicException;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
+use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
 use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
@@ -158,6 +159,8 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertTrue($container->hasDefinition(UptimeManagerRegistry::class));
         $boundary = $container->getDefinition(WorkerBoundaryResetListener::class)->getTag('kernel.event_listener');
         self::assertCount(7, $boundary, 'kernel.request + 2 start + 4 end boundaries');
+        self::assertTrue($container->getDefinition(UnitOfWorkBoundaries::class)->hasTag('kernel.event_subscriber'), 'outermost boundaries (1.28.0)');
+        self::assertFalse($container->getDefinition(UnitOfWorkBoundaries::class)->hasTag('kernel.reset'), 'process-lifetime state');
     }
 
     public function testPrependRegistersDoctrineAndFrameworkConfig(): void

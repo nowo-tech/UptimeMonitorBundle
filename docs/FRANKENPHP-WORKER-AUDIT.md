@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | Package | `nowo-tech/uptime-monitor-bundle` (`symfony-bundle`) |
-| Audited revision | `v1.3.8` / `07c131b` |
-| Audit date | 2026-09-23 |
+| Audited revision | `v1.3.8` / `07c131b`; re-audited for `1.28.0` (REQ-RUNTIME-002, kernel reset false) |
+| Audit date | 2026-09-23; update 2026-11-12 |
 | Method | Manual review of every PHP file under `src/` (services, controllers, subscriber, Twig extension, form types, check runners, notification channels, repositories, Messenger handler, commands, DI extension, compiler pass, `Resources/config/services.yaml`) |
 | **Verdict** | ✅ **Viable under scenario B** — bundle services are stateless or self-invalidating per request; tenant UI values are Twig functions, closed Doctrine managers are recovered. Clearing the Doctrine identity map between requests remains the application's responsibility (W-02) |
 | Remediation (2026-09-23) | W-01 resolved (Twig functions `uptime_theme()` / `uptime_ui_framework()`, request-independent globals); W-02 resolved for closed managers (`ClosedEntityManagerSubscriber`, `MonitorBackupService`), identity-map staleness accepted as app responsibility; W-03 / W-04 accepted. Regression tests: `tests/Unit/Twig/UptimeUiExtensionTest.php`, `tests/Unit/EventSubscriber/ClosedEntityManagerSubscriberTest.php`, `tests/Unit/Service/MonitorBackupServiceTest.php` |
@@ -56,7 +56,9 @@ A worker demo exists: `demo/symfony8/docker/frankenphp/Caddyfile` declares a `wo
 |---------|--------|---------------|------------|------------|
 | `Twig\UptimeUiExtension` (globals + functions) | yes | `WeakMap<Request, …>` memo of the tenant theme / framework; globals are static config | ✅ | ✅ W-01 resolved |
 | `Doctrine\UptimeEntityManager` (1.27.0) | yes | the inner private entity manager (bundle rows only); replaced when closed, dropped by `WorkerBoundaryResetListener` and `kernel.reset` | ✅ | ✅ (`tests/Integration/BothHosts/StandardHostKernelTest.php`: 1,000 kept-alive requests, two tenants renamed by another process between requests, memory bound, every boundary) |
-| `EventSubscriber\WorkerBoundaryResetListener` (1.27.0) | yes | none (`readonly`); drops the private manager at the main `kernel.request` / `kernel.terminate`, Messenger received / handled / failed, `console.command` / `console.terminate`; injected as ignore-on-uninitialized | ✅ | ✅ |
+| `EventSubscriber\WorkerBoundaryResetListener` (1.27.0; outermost only since 1.28.0) | yes | none (`readonly`); drops the private manager at the main `kernel.request` / `kernel.terminate` outside a command and a message, Messenger received / handled / failed, and `console.command` / `console.terminate` of the outermost command only; injected as ignore-on-uninitialized | ✅ | ✅ |
+| `Doctrine\UnitOfWorkBoundaries` (1.28.0) | yes | process-lifetime bookkeeping of the running units (command frames keyed by command and input with the saved message / request state, message flag, main-request counter, per-event verdicts in a `WeakMap`); no request or user data; changed at `PHP_INT_MAX`, self-healing after throwing listeners; deliberately not `kernel.reset` | ✅ | ✅ (`tests/Unit/Doctrine/UnitOfWorkBoundariesTest.php`, probes in `tests/Integration/Worker/WorkerOutermostBoundaryKernelTest.php`) |
+| `Doctrine\UptimeSavepoint` (1.28.0) | static helper | none (savepoint name from the transaction nesting level) | ✅ | ✅ |
 | `EventSubscriber\ClosedEntityManagerSubscriber` | yes | none (`readonly`); resets only the bundle's managers (`getManagerForClass(Monitor)`, plus `doctrine.entity_manager` when set) when closed, on main requests of bundle routes; never a host manager (1.26.0, kept-alive kernel tests `tests/Integration/Worker/WorkerClosedManagerRecoveryTest.php`, `DddEntityManagerKernelTest.php`) | ✅ | ✅ |
 | `EventSubscriber\UptimeMonitorAccessSubscriber` | yes | none (`readonly`); token read per event | ✅ | ✅ |
 | `Security\ConfigurableUptimeMonitorAccessChecker` / `AllowAllUptimeMonitorAccessChecker` | yes | none (`readonly` role lists) | ✅ | ✅ |
@@ -94,6 +96,21 @@ Value objects (`CheckResultDto`, `UptimeAlert`, `MonitorSettings`, `TenantSettin
   unit and the identity map does not grow across units. The application's managers are never cleared or reset by the
   bundle (their freshness stays the application's business).
 
+- **Update 1.28.0 (REQ-RUNTIME-002 rule 4, kernel reset false):** the private manager is dropped only at the
+  **outermost** unit-of-work boundaries, judged by `Doctrine\UnitOfWorkBoundaries` (copy of the audited
+  PageBuilderKitBundle 1.15.1 tracker, audits NM / NL2-v / NR-b). Up to 1.27.0 a nested `console.terminate` or an
+  in-process `kernel.terminate` inside a command or a message handler detached the entities of the unit that ran it.
+  Throwing `console.terminate`, `console.error` (also at `PHP_INT_MIN`), `kernel.exception` or `WorkerMessageReceived`
+  listeners do not leave the process inside a unit: failing frames are dropped first at the next request, message,
+  command or worker stop, and the main-request counter is reset at a top-level `kernel.terminate`. A drop logs the
+  changes still pending in the private manager (classes and counts) and never fails the boundary.
+  **Worker test:** `tests/Integration/Worker/WorkerOutermostBoundaryKernelTest.php` — one kernel, `http_kernel` only
+  (the services resetter is never called), N = 1,000 requests alternating two tenants (each sees its own monitor with
+  the name another process saved just before; every 10th request asks for the other tenant's monitor and gets 404),
+  memory growth after warm-up < 4 MB; plus the NM / NL2-v / NR-b probes through a real in-process console
+  `Application`. `tests/Integration/BothHosts/StandardHostKernelTest.php` keeps its 1,000-request two-tenant loop.
+  **Igor:** `composer igor` (igor-php 0.10.1) — 173 service files, 0 KO, 0 WARN (2026-11-12).
+
 ### W-03 — DNS and ICMP checks rely on system timeouts (Low)
 
 - **Where:** `src/Check/DnsCheckRunner.php:53` (`dns_get_record()`), `src/Security/MonitorUrlSsrfGuard.php:52` (`gethostbyname()`), `src/Check/PingCheckRunner.php:66` (`exec()` of `ping`, bounded by `-W`/`-t` at lines 85-107).
@@ -106,7 +123,9 @@ Value objects (`CheckResultDto`, `UptimeAlert`, `MonitorSettings`, `TenantSettin
 - **Where:** `src/Service/DueChecksRunner.php:21-31` executes every due monitor and `CheckExecutorService::execute()` flushes per monitor (`src/Service/CheckExecutorService.php:61`) without `clear()`.
 - **Worker impact:** none for the HTTP worker. In the Messenger consumer the identity map grows during one message; Symfony Messenger's Doctrine clear-EM listener clears it between messages.
 - **Recommendation:** keep the default Messenger Doctrine middleware / listeners enabled on the consumer.
-- **Status:** Accepted — Messenger / CLI only; no HTTP worker impact.
+- **Status:** Accepted — Messenger / CLI only; no HTTP worker impact. Since 1.27.0 the bundle's private manager is
+  dropped when each message is received and handled / failed, and since 1.28.0 at the outermost command boundaries
+  only, so a consumer started with `--no-reset` does not keep the previous message's bundle entities.
 
 No other findings. No static state, superglobals, native output functions or long-lived resources were found in `src/`.
 

@@ -13,8 +13,12 @@ use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\ResetInterface;
+use Throwable;
 
+use function array_sum;
+use function ksort;
 use function sprintf;
 
 /**
@@ -34,8 +38,11 @@ use function sprintf;
  * around a bundle call includes the bundle rows.
  *
  * Worker-safe without `kernel.reset` (REQ-RUNTIME-002): a closed inner manager is replaced on the next call, and the
- * worker boundaries ({@see WorkerBoundaryResetListener}) and `kernel.reset`
- * drop it ({@see self::reset()}), so no request, message or command sees the entities of the previous one.
+ * worker boundaries ({@see WorkerBoundaryResetListener}: since 1.28.0 only the OUTERMOST request, message or command)
+ * and `kernel.reset` drop it ({@see self::reset()}), so no request, message or command sees the entities of the
+ * previous one. A drop discards the manager first, then logs the changes it still had pending (entity classes and
+ * counts, never a value) and clears it; a failing change-set computation or `onClear` listener never aborts the
+ * boundary (1.28.0).
  *
  * The object itself is stable: services and repositories keep it for the life of the container; only the inner
  * manager behind it is replaced. Every method of {@see EntityManagerDecorator} reaches the inner manager through the
@@ -54,11 +61,13 @@ final class UptimeEntityManager extends EntityManagerDecorator implements ResetI
      *                                       are shared (null = the manager that maps the bundle entities)
      * @param string|null $connectionName `doctrine.connection`: the DBAL connection of the bundle tables (null = the
      *                                    connection of the manager that maps the bundle entities)
+     * @param LoggerInterface|null $logger warns when a boundary drops changes still pending in the private manager
      */
     public function __construct(
         private readonly ManagerRegistry $registry,
         private readonly ?string $entityManagerName = null,
         private readonly ?string $connectionName = null,
+        private readonly ?LoggerInterface $logger = null,
     ) {
         // Every decorator method reads $this->wrapped: left unset, it is answered by __get() with the live manager.
         unset($this->wrapped);
@@ -111,12 +120,32 @@ final class UptimeEntityManager extends EntityManagerDecorator implements ResetI
     /**
      * Drops the inner manager (worker boundaries, kernel.reset): its entities are detached, the next call creates a
      * fresh one. Never touches an application manager or the connection.
+     *
+     * The manager is discarded FIRST, so nothing below can keep it across the boundary. Changes still pending in it
+     * (a bundle entity changed and never flushed by the bundle) are lost: they are logged as a warning with their
+     * entity classes and counts (1.28.0). Neither a failing change-set computation nor a throwing `onClear` listener
+     * aborts the boundary.
      */
     public function reset(): void
     {
-        $inner       = $this->inner;
+        $inner = $this->inner;
+        // @igor-ignore - Boundary drop of the bundle's own manager (no state kept).
         $this->inner = null;
-        $inner?->clear();
+        if (!$inner instanceof EntityManagerInterface || !$inner->isOpen()) {
+            return;
+        }
+
+        try {
+            $this->warnAboutDroppedChanges($inner);
+        } catch (Throwable $exception) {
+            $this->logGenericWarning($exception);
+        }
+
+        try {
+            $inner->clear();
+        } catch (Throwable $exception) {
+            $this->logGenericWarning($exception);
+        }
     }
 
     /**
@@ -197,6 +226,51 @@ final class UptimeEntityManager extends EntityManagerDecorator implements ResetI
         }
 
         return $manager;
+    }
+
+    /**
+     * Logs the inserts, updates and deletes still pending in a manager a boundary drops, per entity class.
+     */
+    private function warnAboutDroppedChanges(EntityManagerInterface $manager): void
+    {
+        if (!$this->logger instanceof LoggerInterface) {
+            return;
+        }
+
+        $unitOfWork = $manager->getUnitOfWork();
+        $unitOfWork->computeChangeSets();
+        $changes = [];
+        foreach ([$unitOfWork->getScheduledEntityInsertions(), $unitOfWork->getScheduledEntityUpdates(), $unitOfWork->getScheduledEntityDeletions()] as $entities) {
+            foreach ($entities as $entity) {
+                $class           = $manager->getClassMetadata($entity::class)->getName();
+                $changes[$class] = ($changes[$class] ?? 0) + 1;
+            }
+        }
+        if ($changes === []) {
+            return;
+        }
+
+        ksort($changes);
+        $this->logger->warning('Uptime monitor: {count} pending change(s) of the bundle\'s private entity manager were dropped at a unit-of-work boundary. Write bundle rows through the bundle services; the application\'s flush() does not write them.', [
+            'bundle'  => 'NowoUptimeMonitorBundle',
+            'count'   => array_sum($changes),
+            'changes' => $changes,
+        ]);
+    }
+
+    /**
+     * Fallback warning of {@see self::reset()}; a failing logger never breaks the boundary.
+     */
+    private function logGenericWarning(Throwable $exception): void
+    {
+        try {
+            $this->logger?->warning('Uptime monitor: the bundle\'s private entity manager was dropped at a unit-of-work boundary; its pending changes could not be inspected or cleared ({exception}).', [
+                'bundle'    => 'NowoUptimeMonitorBundle',
+                'exception' => $exception::class,
+            ]);
+        } catch (Throwable) {
+            // Nothing else to report to: the manager is dropped anyway.
+        }
     }
 
     /**
