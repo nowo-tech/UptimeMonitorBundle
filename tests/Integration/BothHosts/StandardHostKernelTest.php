@@ -15,6 +15,7 @@ use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Fixtures\Host\Entity\HostNote;
+use stdClass;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -139,7 +140,8 @@ final class StandardHostKernelTest extends KernelTestCase
             $called = 0;
             foreach ($dispatcher->getListeners($boundary) as $listener) {
                 if (is_array($listener) && $listener[0] instanceof WorkerBoundaryResetListener) {
-                    $listener[0]->{$listener[1]}();
+                    // A console event the tracker never saw is judged on the idle state: the outermost unit.
+                    $listener[0]->{$listener[1]}(new stdClass());
                     ++$called;
                 }
             }

@@ -82,12 +82,13 @@ final class KeysetBatchDelete
             }
 
             $afterId = $ids[count($ids) - 1];
-            $deleted += (int) $entityManager->createQueryBuilder()
+            // Inside a transaction of the application: a savepoint, so a failing batch never aborts it (1.28.0).
+            $deleted += (int) UptimeSavepoint::run($entityManager->getConnection(), static fn (): mixed => $entityManager->createQueryBuilder()
                 ->delete($entityClass, $alias)
                 ->where($alias . '.id IN (:keysetIds)')
                 ->setParameter('keysetIds', $ids)
                 ->getQuery()
-                ->execute();
+                ->execute());
         } while (count($ids) === $batchSize);
 
         return $deleted;

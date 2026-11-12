@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use LogicException;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
+use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
 use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
@@ -259,21 +260,29 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             new Reference('doctrine'),
             '%' . Configuration::ALIAS . '.doctrine.entity_manager%',
             '%' . Configuration::ALIAS . '.doctrine.connection%',
-        ]))->addTag('kernel.reset', ['method' => 'reset'])->setPublic(false));
+            new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+        ]))->addTag('kernel.reset', ['method' => 'reset'])->addTag('monolog.logger', ['channel' => 'nowo_uptime_monitor'])->setPublic(false));
 
         $container->setDefinition(UptimeManagerRegistry::class, (new Definition(UptimeManagerRegistry::class, [
             new Reference('doctrine'),
             new Reference(UptimeEntityManager::class),
         ]))->setPublic(false));
 
+        // Tracks the running units at the extreme priorities, so the private manager is dropped only at the outermost
+        // boundaries (1.28.0). Process-lifetime state, never reset by kernel.reset.
+        $container->setDefinition(UnitOfWorkBoundaries::class, (new Definition(UnitOfWorkBoundaries::class))
+            ->addTag('kernel.event_subscriber')
+            ->setPublic(false));
+
         $boundary = (new Definition(WorkerBoundaryResetListener::class, [
             new Reference(UptimeEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE),
+            new Reference(UnitOfWorkBoundaries::class),
         ]))->addTag('kernel.event_listener', ['event' => KernelEvents::REQUEST, 'method' => 'onKernelRequest', 'priority' => WorkerBoundaryResetListener::START_PRIORITY]);
         foreach (WorkerBoundaryResetListener::START_EVENTS as $event) {
-            $boundary->addTag('kernel.event_listener', ['event' => $event, 'method' => 'onBoundary', 'priority' => WorkerBoundaryResetListener::START_PRIORITY]);
+            $boundary->addTag('kernel.event_listener', ['event' => $event, 'method' => WorkerBoundaryResetListener::METHODS[$event], 'priority' => WorkerBoundaryResetListener::START_PRIORITY]);
         }
         foreach (WorkerBoundaryResetListener::END_EVENTS as $event) {
-            $boundary->addTag('kernel.event_listener', ['event' => $event, 'method' => 'onBoundary', 'priority' => WorkerBoundaryResetListener::END_PRIORITY]);
+            $boundary->addTag('kernel.event_listener', ['event' => $event, 'method' => WorkerBoundaryResetListener::METHODS[$event], 'priority' => WorkerBoundaryResetListener::END_PRIORITY]);
         }
         $container->setDefinition(WorkerBoundaryResetListener::class, $boundary);
     }
