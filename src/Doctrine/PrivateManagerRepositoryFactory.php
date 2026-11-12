@@ -58,6 +58,7 @@ final class PrivateManagerRepositoryFactory implements RepositoryFactory
         }
 
         /** @var EntityRepository<T> $repository */
+        // @igor-ignore - Per-manager cache: this factory belongs to one private manager and is collected with it.
         $repository = $this->repositories[$metadata->getName()] ??= $this->create($entityManager, $metadata, $class ?? $entityManager->getConfiguration()->getDefaultRepositoryClassName());
 
         return $repository;
