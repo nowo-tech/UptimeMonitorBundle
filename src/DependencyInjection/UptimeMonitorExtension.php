@@ -270,7 +270,9 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
 
         // Tracks the running units at the extreme priorities, so the private manager is dropped only at the outermost
         // boundaries (1.28.0). Process-lifetime state, never reset by kernel.reset.
-        $container->setDefinition(UnitOfWorkBoundaries::class, (new Definition(UnitOfWorkBoundaries::class))
+        $container->setDefinition(UnitOfWorkBoundaries::class, (new Definition(UnitOfWorkBoundaries::class, [
+            new Reference('request_stack', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
+        ]))
             ->addTag('kernel.event_subscriber')
             ->setPublic(false));
 

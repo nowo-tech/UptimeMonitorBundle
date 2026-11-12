@@ -15,9 +15,15 @@ use Symfony\Component\Console\Event\ConsoleCommandEvent;
 use Symfony\Component\Console\Event\ConsoleTerminateEvent;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\Messenger\Event\WorkerStartedEvent;
+use Symfony\Component\Messenger\Event\WorkerStoppedEvent;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Worker;
 
 use const PHP_INT_MAX;
+use const PHP_INT_MIN;
 
 /**
  * 1.28.0 (copy of PageBuilderKitBundle 1.15.1, audit NL2): the unit-of-work tracker changes state before any other listener can throw, remembers each command's
@@ -39,7 +45,10 @@ final class UnitOfWorkBoundariesTest extends TestCase
         self::assertSame(['onTerminate', PHP_INT_MAX], $events[UnitOfWorkBoundaries::CONSOLE_TERMINATE]);
         self::assertSame(['onMessageFinished', PHP_INT_MAX], $events[UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_SKIPPED]);
         self::assertSame(['onWorkerStopped', PHP_INT_MAX], $events[UnitOfWorkBoundaries::MESSENGER_WORKER_STOPPED]);
-        self::assertCount(11, $events);
+        self::assertSame(['onWorkerStarted', PHP_INT_MAX], $events[UnitOfWorkBoundaries::MESSENGER_WORKER_STARTED]);
+        self::assertSame(['onWorkerRunning', PHP_INT_MAX], $events[UnitOfWorkBoundaries::MESSENGER_WORKER_RUNNING]);
+        self::assertSame([['onMessageReceived', PHP_INT_MAX], ['onMessageReceivedDecided', PHP_INT_MIN]], $events[UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_RECEIVED]);
+        self::assertCount(13, $events);
     }
 
     #[Test]
@@ -223,11 +232,11 @@ final class UnitOfWorkBoundariesTest extends TestCase
             self::assertSame(0, $boundaries->runningCommands());
         }
 
-        $failInside(static fn () => $events->request());
+        $failInside(static fn (): Request => $events->request());
         $events->finishRequest();
         self::assertTrue($boundaries->isOutermost(new stdClass()), 'finish_request ends the request');
 
-        $failInside(static fn () => $events->request());
+        $failInside(static fn (): Request => $events->request());
         $events->kernelTerminate();
         self::assertTrue($boundaries->isOutermost(new stdClass()), 'a top-level terminate ends the request');
     }
@@ -248,5 +257,31 @@ final class UnitOfWorkBoundariesTest extends TestCase
         $events->request();
         $events->finishRequest();
         self::assertSame(1, $boundaries->runningCommands());
+    }
+
+    /**
+     * Audit NX: a started event without a worker changes nothing; a worker started again (its stop never came) keeps one
+     * entry; an outer message that ends while a nested worker never stopped drops that worker.
+     */
+    #[Test]
+    public function workerEntriesSurviveLostStopEvents(): void
+    {
+        $boundaries = new UnitOfWorkBoundaries();
+        $events     = new BoundaryEvents($boundaries);
+        $outer      = new Worker([], $this->createStub(MessageBusInterface::class));
+        $nested     = new Worker([], $this->createStub(MessageBusInterface::class));
+
+        $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_STARTED);
+        $events->dispatcher->dispatch(new WorkerStartedEvent($outer));
+        $events->dispatcher->dispatch(new WorkerStartedEvent($outer));
+        $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_RECEIVED);
+        $events->dispatcher->dispatch(new WorkerStartedEvent($nested));
+        self::assertTrue($boundaries->isMessageInFlight());
+        $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_HANDLED);
+        self::assertFalse($boundaries->isMessageInFlight(), 'the outer message ended, the nested worker is gone');
+
+        $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_RECEIVED);
+        $events->dispatcher->dispatch(new WorkerStoppedEvent($outer));
+        self::assertFalse($boundaries->isMessageInFlight(), 'one entry per worker: its stop ends everything it ran');
     }
 }

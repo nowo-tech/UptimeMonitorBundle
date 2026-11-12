@@ -8,6 +8,7 @@ use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Event\TerminateEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
@@ -24,10 +25,12 @@ use Symfony\Component\Messenger\Event\WorkerMessageReceivedEvent;
  * private identity map and never saw a change saved by another process.
  *
  * Boundaries, judged by {@see UnitOfWorkBoundaries} (which tracks the running units at the extreme priorities):
- * - HTTP: the main `kernel.request` and `kernel.terminate`, only outside a console command and a Messenger message.
- *   A request handled in-process by a command or a message handler does not drop the manager of the unit that runs
- *   it; sub-requests share their main request's unit of work;
- * - Messenger: `WorkerMessageReceived` / `Handled` / `Failed`;
+ * - HTTP: the main `kernel.request` and `kernel.terminate`, only outside a console command and a Messenger message,
+ *   and a main request only outside another main request (audit NX CR2). A request handled in-process by a command, a
+ *   message handler or a controller does not drop the manager of the unit that runs it; sub-requests share their main
+ *   request's unit of work;
+ * - Messenger: `WorkerMessageReceived` / `Handled` / `Failed`, only outside another message (a worker run in-process
+ *   by a handler does not drop the outer message's manager, audit NX CR1);
  * - console: `console.command` / `console.terminate` of the OUTERMOST command only. A command run in-process from
  *   another command, a message handler or a controller does not drop the outer unit's manager (up to 1.27.0 it did,
  *   detaching every bundle entity the outer unit still held).
@@ -59,11 +62,11 @@ final readonly class WorkerBoundaryResetListener
 
     /** Listener method per boundary event (1.28.0). */
     public const METHODS = [
-        self::MESSENGER_RECEIVED => 'onBoundary',
-        self::MESSENGER_HANDLED  => 'onBoundary',
-        self::MESSENGER_FAILED   => 'onBoundary',
-        ConsoleEvents::COMMAND   => 'onConsoleBoundary',
-        ConsoleEvents::TERMINATE => 'onConsoleBoundary',
+        self::MESSENGER_RECEIVED => 'onUnitBoundary',
+        self::MESSENGER_HANDLED  => 'onUnitBoundary',
+        self::MESSENGER_FAILED   => 'onUnitBoundary',
+        ConsoleEvents::COMMAND   => 'onUnitBoundary',
+        ConsoleEvents::TERMINATE => 'onUnitBoundary',
         KernelEvents::TERMINATE  => 'onKernelTerminate',
     ];
 
@@ -78,29 +81,30 @@ final readonly class WorkerBoundaryResetListener
     }
 
     /**
-     * Main request start, outside a command and a message; sub-requests share the main request's unit of work.
+     * Main request start, outside a command, a message and another main request (audit NX CR2); sub-requests share the
+     * main request's unit of work.
      */
     public function onKernelRequest(RequestEvent $event): void
     {
-        if ($event->isMainRequest() && $this->isHttpOutermost()) {
-            $this->onBoundary();
+        if ($event->isMainRequest()) {
+            $this->onUnitBoundary($event);
         }
     }
 
     /**
      * End of a request, outside a command and a message (an in-process `HttpKernel::handle()` keeps the outer unit).
      */
-    public function onKernelTerminate(): void
+    public function onKernelTerminate(TerminateEvent $event): void
     {
-        if ($this->isHttpOutermost()) {
-            $this->onBoundary();
-        }
+        $this->onUnitBoundary($event);
     }
 
     /**
-     * Start or end of a command: drops the manager only for the outermost command.
+     * Start or end of a command or a Messenger message: drops the manager only for the outermost one (a command
+     * outside a message and a main request; a message outside another message, e.g. a worker run in-process by a
+     * handler, audit NX CR1).
      */
-    public function onConsoleBoundary(object $event): void
+    public function onUnitBoundary(object $event): void
     {
         if (!$this->boundaries instanceof UnitOfWorkBoundaries || $this->boundaries->isOutermost($event)) {
             $this->onBoundary();
@@ -113,10 +117,5 @@ final readonly class WorkerBoundaryResetListener
     public function onBoundary(): void
     {
         $this->entityManager?->reset();
-    }
-
-    private function isHttpOutermost(): bool
-    {
-        return !$this->boundaries instanceof UnitOfWorkBoundaries || $this->boundaries->isHttpOutermost();
     }
 }
