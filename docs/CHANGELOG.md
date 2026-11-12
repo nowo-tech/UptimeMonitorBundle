@@ -86,6 +86,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Private manager repository factory (audit NX):** `UptimeEntityManager` now gives its private entity manager its own
+  `Doctrine\ORM\Repository\DefaultRepositoryFactory` on a clone of the source configuration. The shared factory
+  (DoctrineBundle's `ContainerRepositoryFactory`) kept one repository per manager instance for the life of the process,
+  so every replaced private manager (after a failed flush or rollback) stayed in memory, about 58 KB each, in
+  FrankenPHP worker mode (kernel reset false). Regression test `PrivateManagerRepositoryFactoryTest`.
+
 ## [1.28.1] - 2026-11-12
 
 Target: **1.28.1** (patch). No configuration, schema or data change. See [UPGRADING](UPGRADING.md#to-1281).

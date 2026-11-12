@@ -41,7 +41,7 @@ final class DddEntityManagerKernelTest extends KernelTestCase
         (new SchemaTool($default))->createSchema($default->getMetadataFactory()->getAllMetadata());
         $bundle = $container->get(UptimeEntityManager::class);
         self::assertInstanceOf(UptimeEntityManager::class, $bundle);
-        self::assertSame($option->getConfiguration(), $bundle->getConfiguration());
+        self::assertSame($option->getConfiguration()->getMetadataDriverImpl(), $bundle->getConfiguration()->getMetadataDriverImpl());
         self::assertSame($default->getConnection(), $bundle->getConnection(), 'the tables stay on the connection they are on');
         $http = $container->get('http_kernel');
         self::assertInstanceOf(HttpKernelInterface::class, $http);

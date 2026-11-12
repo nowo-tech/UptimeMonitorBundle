@@ -133,6 +133,9 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- A `repository_factory` you configured on the Doctrine entity manager is not used for the bundle's private manager:
+  it has its own `DefaultRepositoryFactory` (your `default_repository_class` is still honoured). Nothing else changes.
+
 ## To 1.28.1
 
 From **1.28.0**: `composer update nowo-tech/uptime-monitor-bundle`. No configuration, schema or data change.

@@ -54,7 +54,7 @@ final class UptimeEntityManagerTest extends TestCase
         self::assertNotSame($default, $inner);
         self::assertSame($inner, $bundle->live(), 'kept while open');
         self::assertSame($default->getConnection(), $bundle->getConnection());
-        self::assertSame($default->getConfiguration(), $bundle->getConfiguration());
+        self::assertSame($default->getConfiguration()->getMetadataDriverImpl(), $bundle->getConfiguration()->getMetadataDriverImpl(), 'same mapping, on a configuration copy');
         self::assertSame($default, $bundle->mappingManager());
         self::assertTrue($bundle->isInitialized());
     }
@@ -63,7 +63,7 @@ final class UptimeEntityManagerTest extends TestCase
     {
         $bundle = new UptimeEntityManager($this->doctrine, 'other', 'other');
 
-        self::assertSame($this->manager('other')->getConfiguration(), $bundle->getConfiguration());
+        self::assertSame($this->manager('other')->getConfiguration()->getMetadataDriverImpl(), $bundle->getConfiguration()->getMetadataDriverImpl());
         self::assertSame($this->doctrine->getConnection('other'), $bundle->getConnection());
     }
 
