@@ -98,10 +98,17 @@ final class UptimeEntityManager extends EntityManagerDecorator implements ResetI
         $source       = $this->configurationSource();
         $eventManager = $source->getEventManager();
 
+        // Same mapping, caches and proxies, but a repository factory owned by this manager (audit NX): the shared
+        // factory (DoctrineBundle's ContainerRepositoryFactory) keeps one repository per manager instance for the
+        // life of the process, so every replaced private manager would stay in memory in worker mode.
+        // Service repositories (ServiceEntityRepositoryInterface) still come from the source factory (audit NZ-M1).
+        $configuration = clone $source->getConfiguration();
+        $configuration->setRepositoryFactory(new PrivateManagerRepositoryFactory($configuration->getRepositoryFactory()));
+
         // @igor-ignore - Bundle-owned unit of work: dropped at every worker boundary and by kernel.reset, replaced when closed.
         return $this->inner = new EntityManager(
             $this->connection(),
-            $source->getConfiguration(),
+            $configuration,
             // DoctrineBundle's ContainerAwareEventManager extends EventManager; any other implementation gets a fresh one.
             $eventManager instanceof EventManager ? $eventManager : null,
         );

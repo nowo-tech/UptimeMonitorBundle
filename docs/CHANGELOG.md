@@ -86,6 +86,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Private manager repository factory (audit NX, NZ-M1):** `UptimeEntityManager` no longer builds its private entity manager on
+  DoctrineBundle's shared `ContainerRepositoryFactory`, which keeps one repository per manager instance for the life
+  of the process: every replaced private manager (closed, stale, on another connection, or dropped at a worker
+  boundary) stayed in memory, about 58 KB each, in FrankenPHP worker mode (kernel reset false). It uses a
+  bundle-owned `PrivateManagerRepositoryFactory` on a clone of the source configuration: service repositories
+  (`ServiceEntityRepositoryInterface`, for example the ones a host listener on the shared event manager loads) still
+  come from the source factory (the container service, not keyed by manager), every other repository is built and
+  kept per manager. Regression test `PrivateManagerRepositoryFactoryTest`.
+
 ## [1.28.1] - 2026-11-12
 
 Target: **1.28.1** (patch). No configuration, schema or data change. See [UPGRADING](UPGRADING.md#to-1281).
