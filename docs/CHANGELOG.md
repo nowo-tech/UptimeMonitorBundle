@@ -85,6 +85,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Target: **1.28.1** (patch). No configuration, schema or data change. See [UPGRADING](UPGRADING.md#to-1281).
+
+### Fixed
+
+- **A failing savepoint rollback no longer hides the bundle statement's error** (audit NX U2). When a bulk bundle
+  statement failed inside the application's transaction and rolling back to the savepoint failed too (connection
+  lost, transaction already aborted), `UptimeSavepoint::run()` threw the rollback error instead of the statement's
+  own exception. The rollback error is now ignored and the original exception is rethrown unchanged.
+
+### Documentation
+
+- `docs/FRANKENPHP-WORKER-AUDIT.md`: W-05 (audit NX U1) documents that the private manager has no rollback
+  middleware: after the application rolls back a transaction that contained bundle writes, the private manager can
+  hold stale entities until the next outermost unit-of-work boundary.
+
 ## [1.28.0] - 2026-11-12
 
 Target: **1.28.0** (minor). REQ-RUNTIME-002 rule 4 (FrankenPHP worker mode, kernel reset false): the private entity

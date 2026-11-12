@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Doctrine;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeSavepoint;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -20,6 +21,8 @@ final class UptimeSavepointTest extends TestCase
     private Connection $connection;
 
     private bool $failNext = false;
+
+    private ?RuntimeException $toThrow = null;
 
     protected function setUp(): void
     {
@@ -52,6 +55,42 @@ final class UptimeSavepointTest extends TestCase
         self::assertTrue($this->connection->isTransactionActive());
         $this->connection->commit();
         self::assertSame(['host'], $this->connection->fetchFirstColumn('SELECT v FROM t'));
+    }
+
+    /**
+     * 1.28.1 (audit NX U2): when the savepoint rollback fails too, the statement's own exception reaches the caller.
+     */
+    public function testAFailingSavepointRollbackNeverHidesTheStatementFailure(): void
+    {
+        $platform = $this->createStub(AbstractPlatform::class);
+        $platform->method('supportsSavepoints')->willReturn(true);
+        $connection = $this->createMock(Connection::class);
+        $connection->method('isTransactionActive')->willReturn(true);
+        $connection->method('getDatabasePlatform')->willReturn($platform);
+        $connection->method('getTransactionNestingLevel')->willReturn(1);
+        $connection->expects(self::once())->method('createSavepoint')->with('nowo_uptime_1');
+        $connection->expects(self::once())->method('rollbackSavepoint')->with('nowo_uptime_1')
+            ->willThrowException(new RuntimeException('savepoint rollback failed'));
+        $connection->expects(self::never())->method('releaseSavepoint');
+
+        $original      = new RuntimeException('bundle statement failed');
+        $this->toThrow = $original;
+        $caught        = null;
+        try {
+            UptimeSavepoint::run($connection, $this->statement(...));
+        } catch (RuntimeException $exception) {
+            $caught = $exception;
+        }
+        self::assertSame($original, $caught, 'the statement failure is rethrown, not the rollback error');
+    }
+
+    private function statement(): int
+    {
+        if ($this->toThrow instanceof RuntimeException) {
+            throw $this->toThrow;
+        }
+
+        return 1;
     }
 
     private function bundleInsert(): int

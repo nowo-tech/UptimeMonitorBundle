@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.28.1](#to-1281)
 - [To 1.28.0](#to-1280)
 - [To 1.27.0](#to-1270)
   - [To 1.27.0](#to-1270-1)
@@ -131,6 +132,17 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.28.1
+
+From **1.28.0**: `composer update nowo-tech/uptime-monitor-bundle`. No configuration, schema or data change.
+
+- When a bundle bulk statement fails inside your transaction and the rollback to its savepoint fails too, you now get
+  the statement's own exception (as when the rollback succeeds), not the rollback error.
+- Known limitation, documented in `docs/FRANKENPHP-WORKER-AUDIT.md` (W-05): if you roll back a transaction that
+  contained bundle writes, the bundle's private entity manager can keep the rolled-back state of those entities until
+  the end of the current outermost request, message or command. Do not reuse bundle entities after such a rollback in
+  the same unit; load them again in the next one.
 
 ## To 1.28.0
 

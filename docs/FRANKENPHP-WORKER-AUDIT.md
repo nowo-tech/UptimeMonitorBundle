@@ -19,6 +19,7 @@
   - [W-02 — Doctrine EntityManager state survives between requests without the Doctrine resetter (Medium)](#w-02--doctrine-entitymanager-state-survives-between-requests-without-the-doctrine-resetter-medium)
   - [W-03 — DNS and ICMP checks rely on system timeouts (Low)](#w-03--dns-and-icmp-checks-rely-on-system-timeouts-low)
   - [W-04 — Check loop does not clear the EntityManager (Info)](#w-04--check-loop-does-not-clear-the-entitymanager-info)
+  - [W-05 — No rollback middleware on the private manager (Low)](#w-05--no-rollback-middleware-on-the-private-manager-low)
 - [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
 - [Re-audit triggers](#re-audit-triggers)
 
@@ -126,6 +127,22 @@ Value objects (`CheckResultDto`, `UptimeAlert`, `MonitorSettings`, `TenantSettin
 - **Status:** Accepted — Messenger / CLI only; no HTTP worker impact. Since 1.27.0 the bundle's private manager is
   dropped when each message is received and handled / failed, and since 1.28.0 at the outermost command boundaries
   only, so a consumer started with `--no-reset` does not keep the previous message's bundle entities.
+
+### W-05 — No rollback middleware on the private manager (Low)
+
+- **Where:** `src/Doctrine/UptimeEntityManager.php` (private manager on the application's connection) and
+  `src/Doctrine/UptimeSavepoint.php` (bulk statements in a savepoint inside the application's transaction). Audit NX
+  U1 (2026-11-12).
+- **Worker impact:** the bundle does not register a DBAL middleware that watches rollbacks on the shared connection
+  (unlike YopassBundle / VaultBundle): adding one would change the application's connection by default. When the
+  application rolls back a transaction that contained bundle writes made through the private manager, the rows are
+  gone but the private manager's identity map still holds those entities with the rolled-back state (ids of inserted
+  rows, changed fields). They stay stale until the next **outermost** request, message or command boundary drops the
+  manager; nothing crosses into the next unit, other tenants or other users.
+- **Recommendation:** after rolling back a transaction that called bundle services, do not reuse bundle entities (or
+  call bundle services that read them) in the same unit of work; the next unit reads fresh rows.
+- **Status (1.28.1):** Accepted and documented. Since 1.28.1 a failing savepoint rollback never hides the bundle
+  statement's own exception (U2). A rollback middleware may come with 2.0, opt-in.
 
 No other findings. No static state, superglobals, native output functions or long-lived resources were found in `src/`.
 
