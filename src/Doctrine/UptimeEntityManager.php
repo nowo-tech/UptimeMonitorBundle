@@ -9,7 +9,6 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\Decorator\EntityManagerDecorator;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Repository\DefaultRepositoryFactory;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -102,8 +101,9 @@ final class UptimeEntityManager extends EntityManagerDecorator implements ResetI
         // Same mapping, caches and proxies, but a repository factory owned by this manager (audit NX): the shared
         // factory (DoctrineBundle's ContainerRepositoryFactory) keeps one repository per manager instance for the
         // life of the process, so every replaced private manager would stay in memory in worker mode.
+        // Service repositories (ServiceEntityRepositoryInterface) still come from the source factory (audit NZ-M1).
         $configuration = clone $source->getConfiguration();
-        $configuration->setRepositoryFactory(new DefaultRepositoryFactory());
+        $configuration->setRepositoryFactory(new PrivateManagerRepositoryFactory($configuration->getRepositoryFactory()));
 
         // @igor-ignore - Bundle-owned unit of work: dropped at every worker boundary and by kernel.reset, replaced when closed.
         return $this->inner = new EntityManager(
