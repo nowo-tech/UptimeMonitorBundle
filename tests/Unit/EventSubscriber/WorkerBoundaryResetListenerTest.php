@@ -47,6 +47,18 @@ final class WorkerBoundaryResetListenerTest extends TestCase
         self::assertFalse($bundle->isInitialized(), 'onKernelTerminate');
 
         $bundle->live();
+        $listener->onKernelTerminate();
+        self::assertFalse($bundle->isInitialized(), 'onKernelTerminate without its event (1.28.x callers)');
+
+        $bundle->live();
+        (new WorkerBoundaryResetListener($bundle, new UnitOfWorkBoundaries()))->onKernelTerminate();
+        self::assertFalse($bundle->isInitialized(), 'without its event, judged on the current state');
+
+        $bundle->live();
+        $listener->onConsoleBoundary(new stdClass());
+        self::assertFalse($bundle->isInitialized(), 'onConsoleBoundary (1.28.x callers)');
+
+        $bundle->live();
         $listener->onUnitBoundary(new stdClass());
         self::assertFalse($bundle->isInitialized(), 'without a tracker every console boundary drops (1.27 behaviour)');
     }

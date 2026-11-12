@@ -94,9 +94,18 @@ final readonly class WorkerBoundaryResetListener
     /**
      * End of a request, outside a command and a message (an in-process `HttpKernel::handle()` keeps the outer unit).
      */
-    public function onKernelTerminate(TerminateEvent $event): void
+    public function onKernelTerminate(?TerminateEvent $event = null): void
     {
-        $this->onUnitBoundary($event);
+        if ($event instanceof TerminateEvent) {
+            $this->onUnitBoundary($event);
+
+            return;
+        }
+
+        // Called without its event (before 1.28.3): judged on the current state.
+        if (!$this->boundaries instanceof UnitOfWorkBoundaries || $this->boundaries->isHttpOutermost()) {
+            $this->onBoundary();
+        }
     }
 
     /**
@@ -109,6 +118,14 @@ final readonly class WorkerBoundaryResetListener
         if (!$this->boundaries instanceof UnitOfWorkBoundaries || $this->boundaries->isOutermost($event)) {
             $this->onBoundary();
         }
+    }
+
+    /**
+     * Start or end of a command (kept for callers of 1.28.x; same as {@see onUnitBoundary()}).
+     */
+    public function onConsoleBoundary(object $event): void
+    {
+        $this->onUnitBoundary($event);
     }
 
     /**
