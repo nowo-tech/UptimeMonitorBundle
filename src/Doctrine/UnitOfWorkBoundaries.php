@@ -159,6 +159,9 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
         $this->requests[] = $request;
     }
 
+    /**
+     * Main `kernel.finish_request`: pops the request and the nested requests above it.
+     */
     public function onFinishRequest(FinishRequestEvent $event): void
     {
         if ($event->isMainRequest()) {
@@ -185,6 +188,9 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
         }
     }
 
+    /**
+     * `console.command`: pushes the command's frame and records whether it is the outermost unit.
+     */
     public function onCommand(ConsoleCommandEvent $event): void
     {
         $this->dropFailedFrames();
@@ -222,6 +228,9 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
         $this->frames[$index]['failing'] = true;
     }
 
+    /**
+     * `console.terminate`: removes the command's frame (and nested frames that never terminated).
+     */
     public function onTerminate(ConsoleTerminateEvent $event): void
     {
         $index = $this->indexOf($event->getCommand(), $event->getInput());
@@ -324,6 +333,9 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
         $this->workers[$index]['message'] = false;
     }
 
+    /**
+     * `WorkerStoppedEvent`: removes the worker's entry and the workers started above it.
+     */
     public function onWorkerStopped(object $event): void
     {
         $this->dropFailedFrames();
@@ -356,16 +368,25 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
         return $this->frames === [] && !$this->messageInFlight();
     }
 
+    /**
+     * Number of console commands running (tests and diagnostics).
+     */
     public function runningCommands(): int
     {
         return count($this->frames);
     }
 
+    /**
+     * Number of main requests in flight (tests and diagnostics).
+     */
     public function requestsInFlight(): int
     {
         return count($this->requests);
     }
 
+    /**
+     * Whether a Messenger message is in flight in any worker (tests and diagnostics).
+     */
     public function isMessageInFlight(): bool
     {
         return $this->messageInFlight();
