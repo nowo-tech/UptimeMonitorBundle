@@ -22,6 +22,7 @@ use Symfony\Component\Messenger\Event\WorkerRunningEvent;
 use Symfony\Component\Messenger\Event\WorkerStartedEvent;
 use Symfony\Component\Messenger\Event\WorkerStoppedEvent;
 use WeakMap;
+use WeakReference;
 
 use function array_key_last;
 use function array_pop;
@@ -55,15 +56,17 @@ use const PHP_INT_MIN;
  *   clears the outer one. `kernel.finish_request` / `kernel.terminate` pop their request and the requests above it
  *   (nested requests whose end never came); an unknown request pops nothing. A main request that is the HTTP
  *   kernel's own main request (its `RequestStack`, popped in a `finally`) drops the requests left on the stack by a
- *   request whose end never came (a throwing `kernel.exception` listener). A top-level `kernel.terminate` (no
- *   command) resets the request and worker stacks: the response went out, nothing started before it still runs;
+ *   request whose end never came (a throwing `kernel.exception` listener). `kernel.terminate` is the outermost unit
+ *   only when nothing runs any more (the terminate of a nested main request keeps the outer one, audit OB-L3);
  * - Messenger: a STACK of the running workers (`WorkerStartedEvent` → `WorkerStoppedEvent`), each with its message in
  *   flight (audit NX CR1). A worker run in-process inside a message handler gets its own entry, so its events never
  *   end the outer message. A message ends at handled / failed / `WorkerMessageSkipEvent` (dispatched only by
  *   `messenger:failed:retry`), at its worker's next `WorkerRunningEvent` (also dispatched after a message a listener
  *   skipped with `shouldHandle(false)`, audit NX CR3) or its worker's stop; a received event whose final
  *   `shouldHandle()` is false (read at `PHP_INT_MIN`) ends it too. A message received outside any worker the tracker
- *   saw start gets an entry without a worker.
+ *   saw start gets an entry without a worker. A run that aborted (an exception thrown out of `Worker::run()`: no
+ *   handled, running or stopped event) is dropped as soon as its worker or its in-flight received event is gone
+ *   (weak references, audit OB-M1 / OB-L1).
  *
  * Rule for every handler: failed frames are dropped FIRST (which restores the state saved with them), THEN the
  * handler applies its own change, so a restored state never overrides the event being handled.
@@ -91,10 +94,16 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
     public const CONSOLE_ERROR     = 'console.error';
     public const CONSOLE_TERMINATE = 'console.terminate';
 
-    /** @var list<array{command: object, input: object|null, outermost: bool, failing: bool, workers: list<array{worker: object|null, message: bool}>, requests: list<object>}> running commands, outermost first */
+    /** @var list<array{command: object, input: object|null, outermost: bool, failing: bool, workers: list<array{worker: WeakReference<object>|null, message: bool, event: WeakReference<object>|null}>, requests: list<object>}> running commands, outermost first */
     private array $frames = [];
 
-    /** @var list<array{worker: object|null, message: bool}> running Messenger workers and their message in flight, outermost first */
+    /**
+     * Running Messenger workers and their message in flight, outermost first. The worker and the received event are
+     * weak references: `Worker::handleMessage()` keeps its received event alive until it returns, so a dead event with
+     * the message still in flight (or a dead worker) means the run aborted (audit OB-M1).
+     *
+     * @var list<array{worker: WeakReference<object>|null, message: bool, event: WeakReference<object>|null}>
+     */
     private array $workers = [];
 
     /** @var list<object> main requests in flight (main `kernel.request` → `kernel.finish_request`), outermost first */
@@ -144,7 +153,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
             return;
         }
 
-        $this->dropFailedFrames();
+        $this->dropStaleUnits();
         $request = $event->getRequest();
         if ($this->requests !== [] && $this->requestStack?->getMainRequest() === $request) {
             // The HTTP kernel runs no other request (it pops its own stack in a `finally`): the requests left here never
@@ -165,27 +174,23 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
     public function onFinishRequest(FinishRequestEvent $event): void
     {
         if ($event->isMainRequest()) {
-            $this->dropFailedFrames();
+            $this->dropStaleUnits();
             $this->endRequest($event->getRequest());
         }
     }
 
     /**
-     * End of a request. Without a command, it is a top-level request end (the response went out): no main request and
-     * no worker started before it can still run, even one whose closing event never came.
+     * End of a request: pops it (and the requests above it whose end never came). The outermost unit only when nothing
+     * runs any more, so the `kernel.terminate` of a main request handled in-process inside another one never clears the
+     * outer request (audit OB-L3). Requests left below by a request whose end never came are dropped at the next main
+     * request of the HTTP kernel ({@see onRequest()}).
      */
     public function onKernelTerminate(TerminateEvent $event): void
     {
-        $this->dropFailedFrames();
+        $this->dropStaleUnits();
         $this->endRequest($event->getRequest());
         // @igor-ignore - Per-event verdict; the WeakMap entry dies with the event.
-        $this->verdicts[$event] = $this->isHttpOutermost();
-        if ($this->frames === []) {
-            // @igor-ignore - Stack of the main requests in flight (no request data kept), reset at the top-level end.
-            $this->requests = [];
-            // @igor-ignore - Stack of the running workers (no message data kept), reset at the top-level end.
-            $this->workers = [];
-        }
+        $this->verdicts[$event] = $this->isIdle();
     }
 
     /**
@@ -193,7 +198,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
      */
     public function onCommand(ConsoleCommandEvent $event): void
     {
-        $this->dropFailedFrames();
+        $this->dropStaleUnits();
         $outermost = $this->isIdle();
         // @igor-ignore - Per-event verdict; the WeakMap entry dies with the event.
         $this->verdicts[$event] = $outermost;
@@ -235,7 +240,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
     {
         $index = $this->indexOf($event->getCommand(), $event->getInput());
         if ($index === null) {
-            $this->dropFailedFrames();
+            $this->dropStaleUnits();
             // @igor-ignore - Per-event verdict; the WeakMap entry dies with the event.
             $this->verdicts[$event] = $this->isIdle();
 
@@ -253,7 +258,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
      */
     public function onWorkerStarted(object $event): void
     {
-        $this->dropFailedFrames();
+        $this->dropStaleUnits();
         if (!$event instanceof WorkerStartedEvent) {
             return;
         }
@@ -267,7 +272,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
         }
 
         // @igor-ignore - Stack of the running workers (no message data), popped by their own stop.
-        $this->workers[] = ['worker' => $worker, 'message' => false];
+        $this->workers[] = ['worker' => WeakReference::create($worker), 'message' => false, 'event' => null];
     }
 
     /**
@@ -275,30 +280,43 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
      */
     public function onMessageReceived(object $event): void
     {
-        $this->dropFailedFrames();
+        $this->dropStaleUnits();
         // @igor-ignore - Per-event verdict; the WeakMap entry dies with the event.
         $this->verdicts[$event] = !$this->messageInFlight();
+        $received               = $event instanceof WorkerMessageReceivedEvent ? WeakReference::create($event) : null;
         $top                    = array_key_last($this->workers);
         if ($top === null || $this->workers[$top]['message']) {
             // @igor-ignore - A message received outside any worker the tracker saw start (no message data).
-            $this->workers[] = ['worker' => null, 'message' => true];
+            $this->workers[] = ['worker' => null, 'message' => true, 'event' => $received];
 
             return;
         }
 
         // @igor-ignore - Unit-of-work flag of the worker, set and unset at the Messenger boundaries.
         $this->workers[$top]['message'] = true;
+        // @igor-ignore - Weak reference to the received event of the message in flight (liveness of the run).
+        $this->workers[$top]['event'] = $received;
     }
 
     /**
      * End of the received event: a listener that called `shouldHandle(false)` skipped the message, which the Worker then
-     * never reports as handled or failed (audit NX CR3). Reads the final decision; marks nothing.
+     * never reports as handled or failed (audit NX CR3). Reads the final decision; marks nothing. Only THIS event's
+     * message ends, and only while it is still in flight: a listener that already ended it (a `WorkerMessageSkipEvent`
+     * dispatched by `messenger:failed:retry`) never makes it end an outer message (audit OB-L2).
      */
     public function onMessageReceivedDecided(object $event): void
     {
-        if ($event instanceof WorkerMessageReceivedEvent && !$event->shouldHandle()) {
-            $this->dropFailedFrames();
-            $this->endMessage();
+        if (!$event instanceof WorkerMessageReceivedEvent || $event->shouldHandle()) {
+            return;
+        }
+
+        $this->dropStaleUnits();
+        for ($i = count($this->workers) - 1; $i >= 0; --$i) {
+            if ($this->workers[$i]['message'] && $this->workers[$i]['event']?->get() === $event) {
+                $this->endMessageAt($i);
+
+                return;
+            }
         }
     }
 
@@ -307,7 +325,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
      */
     public function onMessageFinished(object $event): void
     {
-        $this->dropFailedFrames();
+        $this->dropStaleUnits();
         $this->endMessage();
         // @igor-ignore - Per-event verdict; the WeakMap entry dies with the event.
         $this->verdicts[$event] = !$this->messageInFlight();
@@ -319,7 +337,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
      */
     public function onWorkerRunning(object $event): void
     {
-        $this->dropFailedFrames();
+        $this->dropStaleUnits();
         $index = $this->indexOfWorker($event instanceof WorkerRunningEvent ? $event->getWorker() : null);
         if ($index === null) {
             $this->popWorkerlessMessages();
@@ -327,10 +345,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
             return;
         }
 
-        // @igor-ignore - Stack of the running workers (no message data).
-        array_splice($this->workers, $index + 1);
-        // @igor-ignore - Unit-of-work flag of the worker, set and unset at the Messenger boundaries.
-        $this->workers[$index]['message'] = false;
+        $this->endMessageAt($index);
     }
 
     /**
@@ -338,7 +353,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
      */
     public function onWorkerStopped(object $event): void
     {
-        $this->dropFailedFrames();
+        $this->dropStaleUnits();
         $index = $this->indexOfWorker($event instanceof WorkerStoppedEvent ? $event->getWorker() : null);
         if ($index === null) {
             $this->popWorkerlessMessages();
@@ -365,7 +380,19 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
      */
     public function isHttpOutermost(): bool
     {
+        $this->dropAbortedRuns();
+
         return $this->frames === [] && !$this->messageInFlight();
+    }
+
+    /**
+     * Number of Messenger workers (and messages received outside a known worker) the tracker holds.
+     */
+    public function workerEntries(): int
+    {
+        $this->dropAbortedRuns();
+
+        return count($this->workers);
     }
 
     /**
@@ -389,6 +416,8 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
      */
     public function isMessageInFlight(): bool
     {
+        $this->dropAbortedRuns();
+
         return $this->messageInFlight();
     }
 
@@ -430,7 +459,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
         }
 
         for ($i = count($this->workers) - 1; $i >= 0; --$i) {
-            if ($this->workers[$i]['worker'] === $worker) {
+            if ($this->workers[$i]['worker']?->get() === $worker) {
                 return $i;
             }
         }
@@ -454,30 +483,66 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
     }
 
     /**
-     * Ends the innermost message in flight: the workers started above it (never stopped) are gone, an entry without a
-     * worker is removed, a worker keeps running without a message.
+     * Ends the innermost message in flight.
      */
     private function endMessage(): void
     {
         for ($i = count($this->workers) - 1; $i >= 0; --$i) {
-            if (!$this->workers[$i]['message']) {
+            if ($this->workers[$i]['message']) {
+                $this->endMessageAt($i);
+
+                return;
+            }
+        }
+    }
+
+    /**
+     * Ends the message of the entry at $index: the workers started above it (never stopped) are gone, an entry without a
+     * worker is removed, a worker keeps running without a message.
+     */
+    private function endMessageAt(int $index): void
+    {
+        $worker = $this->workers[$index]['worker'];
+        // @igor-ignore - Stack of the running workers (no message data).
+        array_splice($this->workers, $index);
+        if ($worker !== null) {
+            // The worker keeps running, without a message.
+            // @igor-ignore - Stack of the running workers (no message data).
+            $this->workers[] = ['worker' => $worker, 'message' => false, 'event' => null];
+        }
+    }
+
+    /**
+     * Drops the runs that aborted (audit OB-M1): an exception thrown out of `Worker::run()` (a throwing received,
+     * handled or running listener, a transport failure) leaves no handled, running or stopped event. Such a run is over
+     * once its worker is gone or, with a message in flight, once the received event of that message is gone (the Worker
+     * keeps it alive until `handleMessage()` returns). The entries above it ran inside it and are dropped with it, so the
+     * stack never grows with aborted runs (audit OB-L1).
+     */
+    private function dropAbortedRuns(): void
+    {
+        foreach ($this->workers as $i => $entry) {
+            if ($entry['worker'] === null) {
                 continue;
             }
 
-            if ($this->workers[$i]['worker'] === null) {
+            if ($entry['worker']->get() === null || ($entry['message'] && $entry['event'] !== null && $entry['event']->get() === null)) {
                 // @igor-ignore - Stack of the running workers (no message data).
                 array_splice($this->workers, $i);
 
                 return;
             }
-
-            // @igor-ignore - Stack of the running workers (no message data).
-            array_splice($this->workers, $i + 1);
-            // @igor-ignore - Unit-of-work flag of the worker, set and unset at the Messenger boundaries.
-            $this->workers[$i]['message'] = false;
-
-            return;
         }
+    }
+
+    /**
+     * Every handler first drops the failed command frames (restoring the state they saved), then the aborted worker
+     * runs, and only then applies its own change.
+     */
+    private function dropStaleUnits(): void
+    {
+        $this->dropFailedFrames();
+        $this->dropAbortedRuns();
     }
 
     /**
