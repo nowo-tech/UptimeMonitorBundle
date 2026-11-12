@@ -14,7 +14,7 @@ use Throwable;
  * The private manager shares the application's connection, so a transaction the application opened around a bundle
  * call includes the bundle statements. On PostgreSQL a failing statement aborts the whole transaction ("current
  * transaction is aborted"); rolling back to the savepoint undoes only the bundle statement and leaves the application's
- * transaction usable. The exception is rethrown unchanged. Outside a transaction (autocommit), or on a platform without
+ * transaction usable. The exception is rethrown unchanged, also when the savepoint rollback itself fails (1.28.1). Outside a transaction (autocommit), or on a platform without
  * savepoints, the statement runs as before.
  *
  * @internal
@@ -42,7 +42,12 @@ final class UptimeSavepoint
         try {
             $result = $statement();
         } catch (Throwable $exception) {
-            $connection->rollbackSavepoint($name);
+            try {
+                $connection->rollbackSavepoint($name);
+            } catch (Throwable) {
+                // The statement's own failure is what the caller must see (1.28.1, audit NX U2): a savepoint rollback
+                // that fails too (connection lost, transaction already aborted) never hides it.
+            }
 
             throw $exception;
         }
