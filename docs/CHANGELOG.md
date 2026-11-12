@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.28.0] - 2026-11-12](#1280---2026-11-12)
 - [[1.27.0] - 2026-11-11](#1270---2026-11-11)
 - [[1.26.0] - 2026-11-11](#1260---2026-11-11)
 - [[1.25.2] - 2026-11-10](#1252---2026-11-10)
@@ -83,6 +84,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - [[1.0.0] - 2026-07-06](#100---2026-07-06)
 
 ## [Unreleased]
+
+## [1.28.0] - 2026-11-12
 
 Target: **1.28.0** (minor). REQ-RUNTIME-002 rule 4 (FrankenPHP worker mode, kernel reset false): the private entity
 manager is dropped only at the OUTERMOST unit-of-work boundaries. No configuration, schema or data change. See
@@ -1633,7 +1636,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.27.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.28.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
