@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.28.2](#to-1282)
 - [To 1.28.1](#to-1281)
 - [To 1.28.0](#to-1280)
 - [To 1.27.0](#to-1270)
@@ -132,6 +133,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.28.2
+
+From **1.28.1**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 - The bundle's private entity manager has its own repository factory. A `repository_factory` you configured on the
   Doctrine entity manager is used by it only for service repositories (repositories implementing
