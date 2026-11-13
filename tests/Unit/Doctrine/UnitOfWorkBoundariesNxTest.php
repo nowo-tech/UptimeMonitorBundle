@@ -59,15 +59,18 @@ final class UnitOfWorkBoundariesNxTest extends TestCase
 
     private HttpKernel $kernel;
 
+    /** The HTTP kernel's request stack, shared with the tracker under test. */
+    private RequestStack $requestStack;
+
     private UptimeEntityManager $bundle;
 
     protected function setUp(): void
     {
-        $this->dispatcher = new EventDispatcher();
-        $requestStack     = new RequestStack();
-        $this->boundaries = new UnitOfWorkBoundaries($requestStack);
-        $this->bundle     = new UptimeEntityManager(new SqliteManagerRegistry(['default' => ['Nowo\\UptimeMonitorBundle\\Entity' => dirname(__DIR__, 3) . '/src/Entity']]));
-        $listener         = new WorkerBoundaryResetListener($this->bundle, $this->boundaries);
+        $this->dispatcher   = new EventDispatcher();
+        $this->requestStack = new RequestStack();
+        $this->boundaries   = new UnitOfWorkBoundaries($this->requestStack);
+        $this->bundle       = new UptimeEntityManager(new SqliteManagerRegistry(['default' => ['Nowo\\UptimeMonitorBundle\\Entity' => dirname(__DIR__, 3) . '/src/Entity']]));
+        $listener           = new WorkerBoundaryResetListener($this->bundle, $this->boundaries);
         $this->dispatcher->addSubscriber($this->boundaries);
         $this->dispatcher->addListener(KernelEvents::REQUEST, $listener->onKernelRequest(...), WorkerBoundaryResetListener::START_PRIORITY);
         foreach (WorkerBoundaryResetListener::START_EVENTS as $event) {
@@ -76,7 +79,7 @@ final class UnitOfWorkBoundariesNxTest extends TestCase
         foreach (WorkerBoundaryResetListener::END_EVENTS as $event) {
             $this->dispatcher->addListener($event, [$listener, WorkerBoundaryResetListener::METHODS[$event]], WorkerBoundaryResetListener::END_PRIORITY);
         }
-        $this->kernel = new HttpKernel($this->dispatcher, new ControllerResolver(), $requestStack, new ArgumentResolver());
+        $this->kernel = new HttpKernel($this->dispatcher, new ControllerResolver(), $this->requestStack, new ArgumentResolver());
     }
 
     /**
@@ -422,6 +425,37 @@ final class UnitOfWorkBoundariesNxTest extends TestCase
         self::assertTrue($kept);
         self::assertFalse($this->bundle->isInitialized());
         $this->assertRequestDrops();
+    }
+
+    /**
+     * Audit OB2-L1 (S14): host code leaves the kernel's request stack unbalanced (a push without a pop), then a request
+     * throws out of `handle()` (no finish_request, no terminate). The kernel's main request is stuck from then on, yet
+     * the next top-level requests still drop the manager at their start and at their terminate.
+     */
+    public function testAnUnbalancedRequestStackNeverStopsTheNextRequestsFromDropping(): void
+    {
+        $this->request(function (): void {
+            $this->requestStack->push(Request::create('/pushed-never-popped'));
+        });
+        $throw = static function (): never {
+            throw new RuntimeException('exception listener failed');
+        };
+        $this->dispatcher->addListener(KernelEvents::EXCEPTION, $throw);
+        try {
+            $this->request(static function (): never {
+                throw new RuntimeException('controller failed');
+            }, true, true);
+            self::fail('the kernel.exception listener throws');
+        } catch (RuntimeException) {
+        } finally {
+            $this->dispatcher->removeListener(KernelEvents::EXCEPTION, $throw);
+        }
+        self::assertNotNull($this->requestStack->getMainRequest(), 'the host left a request on the kernel stack');
+
+        $this->assertRequestDrops();
+        self::assertSame(0, $this->boundaries->requestsInFlight());
+        $this->assertRequestDrops();
+        self::assertSame(0, $this->boundaries->requestsInFlight());
     }
 
     /**
