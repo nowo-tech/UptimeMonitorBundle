@@ -156,7 +156,7 @@ final class UnitOfWorkBoundaries implements EventSubscriberInterface
         $this->dropStaleUnits();
         $request = $event->getRequest();
         $main    = $this->requestStack?->getMainRequest();
-        if ($this->requests !== [] && $this->requestStack !== null && ($main === $request || $main !== $this->requests[0])) {
+        if ($this->requests !== [] && $this->requestStack instanceof RequestStack && ($main === $request || $main !== $this->requests[0])) {
             // The HTTP kernel runs no other request (it pops its own stack in a `finally`): the requests left here never
             // reached their finish_request / terminate (a throwing `kernel.exception` listener). Audit OB2-L1: also
             // when the bottom request here is not the kernel's main request (host code left the request stack
