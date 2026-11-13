@@ -14,7 +14,9 @@ use PHPUnit\Framework\TestCase;
 use stdClass;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Event\TerminateEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 
@@ -36,14 +38,28 @@ final class WorkerBoundaryResetListenerTest extends TestCase
         $listener->onKernelRequest(new RequestEvent($kernel, Request::create('/'), HttpKernelInterface::MAIN_REQUEST));
         self::assertFalse($bundle->isInitialized());
 
-        foreach (['onBoundary', 'onKernelTerminate'] as $method) {
-            $bundle->live();
-            $listener->{$method}();
-            self::assertFalse($bundle->isInitialized(), $method);
-        }
+        $bundle->live();
+        $listener->onBoundary();
+        self::assertFalse($bundle->isInitialized(), 'onBoundary');
+
+        $bundle->live();
+        $listener->onKernelTerminate(new TerminateEvent($kernel, Request::create('/'), new Response()));
+        self::assertFalse($bundle->isInitialized(), 'onKernelTerminate');
+
+        $bundle->live();
+        $listener->onKernelTerminate();
+        self::assertFalse($bundle->isInitialized(), 'onKernelTerminate without its event (1.28.x callers)');
+
+        $bundle->live();
+        (new WorkerBoundaryResetListener($bundle, new UnitOfWorkBoundaries()))->onKernelTerminate();
+        self::assertFalse($bundle->isInitialized(), 'without its event, judged on the current state');
 
         $bundle->live();
         $listener->onConsoleBoundary(new stdClass());
+        self::assertFalse($bundle->isInitialized(), 'onConsoleBoundary (1.28.x callers)');
+
+        $bundle->live();
+        $listener->onUnitBoundary(new stdClass());
         self::assertFalse($bundle->isInitialized(), 'without a tracker every console boundary drops (1.27 behaviour)');
     }
 

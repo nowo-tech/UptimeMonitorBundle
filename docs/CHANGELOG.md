@@ -89,6 +89,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Unit boundary tracker: per-worker message depth, request stack (audit NX CR1–CR3).** The tracker kept one
+  process-wide "message in flight" flag and judged a main request outermost without looking at other main requests.
+  A Messenger worker run in-process inside a message handler ended the outer message, so the inner worker's messages
+  and a main request handled later by the outer handler cleared the outer unit (CR1); a main request handled
+  in-process inside another main request cleared the outer one (CR2); a message skipped by a
+  `WorkerMessageReceivedEvent` listener (`shouldHandle(false)`) stayed in flight until the worker stopped (CR3). It now
+  keeps a stack of the running workers (`WorkerStartedEvent` / `WorkerRunningEvent` / `WorkerStoppedEvent`), each with
+  its own message, and a stack of the main requests in flight, popped by their own `kernel.finish_request` /
+  `kernel.terminate` (unbalanced events heal); a skipped message ends with its received event or at its worker's next
+  `WorkerRunningEvent`. Message boundaries clear only outside another message. No configuration change.
+- **Unit boundary tracker: aborted worker runs, skip read, nested terminate (audit OB).** A Messenger run aborted by an
+  exception thrown out of `Worker::run()` (a throwing received, handled or running listener) left its worker "in
+  flight", so inside a long-running command every later worker's messages stopped clearing (OB-M1) and the worker stack
+  grew with every aborted run (OB-L1); the tracker now holds weak references to the worker and to the received event of
+  the message in flight, and drops a run as soon as either is gone. The `shouldHandle(false)` read at the end of a
+  received event no longer ends an outer message when a listener already ended the skipped one (OB-L2). The
+  `kernel.terminate` of a main request handled in-process inside another one no longer clears the outer request nor
+  resets the tracker (OB-L3). Note: in hosts with Messenger, DoctrineBundle's own subscriber clears every manager after
+  each message, so a worker run inside a handler keeps the bundle's pending events and memos, not the identity map.
+  Audit OB2-L1: a main request also drops the requests left in flight when the oldest one is not the kernel's main
+  request (host code left the `RequestStack` unbalanced, then a request threw out of `HttpKernel::handle()`), so the
+  next requests keep clearing instead of never clearing again for the rest of the worker's life.
 - DoctrineBundle 3.4: bundle entities resolved to the default manager when a dedicated manager is configured.
   DoctrineBundle 3.4 `auto_discover_entities` (on by default for a manager without `mappings` and `auto_mapping`, with
   Symfony 7.3+ and doctrine/orm 3.6+) gives that manager's metadata driver chain a default attribute driver, which

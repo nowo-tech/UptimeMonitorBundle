@@ -73,6 +73,8 @@ A worker demo exists: `demo/symfony8/docker/frankenphp/Caddyfile` declares a `wo
 | 7 form types (`AbstractUptimeFormType` + `FormOptionsTrait`) | yes | trait holds the injected merger and a profile name resolved once per class; `withBuilder()` restores the bound builder in `finally` | ✅ | ✅ |
 | `Schedule\UptimeMonitorScheduleProvider`, `MessageHandler\RunDueChecksMessageHandler`, 6 commands | yes | none | ✅ | ✅ (CLI / Messenger only) |
 
+Note (audit OB2): with a custom asynchronous Messenger `MessageExecutionStrategyInterface` the tracker loses its nested-worker protection (a worker run inside a handler may clear the outer message's unit); the boundary clears still happen.
+
 Value objects (`CheckResultDto`, `UptimeAlert`, `MonitorSettings`, `TenantSettings`, form models) are created per call and never stored in a service. `SchemaSyncService` is instantiated with `new` inside `SyncSchemaCommand` (`src/Command/SyncSchemaCommand.php:62`) and never runs in HTTP.
 
 ## Findings
