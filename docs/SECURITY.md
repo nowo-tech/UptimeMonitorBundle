@@ -275,7 +275,7 @@ Before tagging a release, confirm:
 | **No-secret logs** | [Logging policy](#logging-policy) still holds: no webhook URLs, credentials, recipients or payloads in log calls (`grep -rn 'logger' src/`). |
 | **Cryptography** | No custom cryptography; TLS verification stays on for SSL checks (only the per-monitor "ignore TLS errors" option disables it, for that HTTP check). |
 | **Limits / DoS** | Every outbound call keeps an explicit deadline ([Timeouts](CONFIGURATION.md#timeouts-frankenphp-safe-req-runtime-001)); purge stays batched. |
-| **AI security audit (REQ-SEC-004)** | Package **passes** the latest AI security audit: grade **Pass (good)** / risk **Low** (re-audit 2026-10-27, PR #121; 1.12.x delta `af6692d`, findings fixed on `sec-quota`), recorded in the Nowo monorepo `BUNDLES_SECURITY_ANALYSIS.md`. Re-run the audit when outbound checks, notifications or access control change, and do not release on a failing grade. |
+| **AI security audit (REQ-SEC-004)** | Package **passes** the latest AI security audit: grade **Pass (good)** / risk **Low** (full re-audit 2026-10-27, PR #121; later deltas through 1.28.x, latest Appendix NX 2026-11-12, see [AI security audit](#ai-security-audit)), recorded in the Nowo monorepo `BUNDLES_SECURITY_ANALYSIS.md`. Re-run the audit when outbound checks, notifications or access control change, and do not release on a failing grade. |
 
 Record confirmation in the release PR or tag notes.
 
@@ -290,11 +290,12 @@ make release-check
 
 | Field | Value |
 | ----- | ----- |
-| Latest audit | 2026-10-27 (re-audit + 1.12.x delta `af6692d`; delta findings P1, Q1–Q3, I1–I3 fixed on branch `sec-quota`) |
+| Latest audit | 2026-11-12 (Appendix NX batch audit, 1.28.x worker boundaries: 1.28.0 approved and released, 1.28.1 / 1.28.2 / 1.28.3 follow-ups); full re-audit 2026-10-27 (1.12.x delta `af6692d`, findings fixed in PR #121) |
 | Method | Claude Code security review (static: `src/`, config defaults, Twig, TypeScript, security docs), cross-checked against Symfony HttpClient 7.4 and Doctrine ORM 3 |
 | Grade | **Pass (good)** |
 | Risk | Low |
 | Record | `BUNDLES_SECURITY_ANALYSIS.md` (Nowo bundles monorepo), REQ-SEC-004 table, Appendix AH (+ 1.12.x delta) |
+| 1.25.0 to 1.27.0 | Appendix KE (2026-11-10): 1.25.0, 1.25.1 and 1.25.2 OK to tag (stored basic-auth password, header values and request body are write-only; KE-U151-L1 and L2 closed in 1.25.2). Appendix LD (1.26.0, entity-manager scoping): LD-UM-M1 resolved at `416219b`. Appendix MQ (2026-11-11, 1.27.0, bundle-owned entity manager): MQ-U-M1 Medium handled with a warning and a deprecation, MQ-U-L1, L2 and I4 fixed or documented. No GHSA |
 | 1.23.0 `denied_tenant_status` (UM-7) | Appendix IQ (2026-11-08, PR #151 at `2e0e814`): **Pass / Low**. IQ-L1 (API 404 shape, unknown-slug contract), IQ-L2 (UPGRADING precondition), IQ-I3 (anonymous users) and IQ-I4 (text) addressed on the same PR (`abc0ad9`); Delta IQ: **Pass** (IQ-I7, IQ-I8 Info) |
 | 1.21.0 host hooks | Appendix GU (2026-11-06, PR #149): audited at `04cce18` as Pass (conditional) / Medium; fixes re-verified at `80747e4`: **Pass (good) / Low**, no open Critical, High or Medium. Open residual (Low): the tenant row lock does not serialise a host limit spanning several tenants |
 | Residual | Host firewall for the admin prefix, every `web_ui.tenant_paths` path and `/api/uptime`; `block_private_urls: false` re-opens SSRF to private networks by design; `status_page.default_public: true` keeps tenant status pages public unless a tenant opts out; URL secrets outside userinfo / credential-like query names are not masked (also in stored check messages); `limits.max_monitors` defaults to 0 (no quota; the scan stays bounded by `max_scan_seconds`); a host `security.access_checker` or `TenantLimitsInterface` is trusted as written; `StatusPageMonitorsEvent` listeners can still hide monitors (only narrowing is enforced) |

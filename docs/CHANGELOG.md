@@ -88,6 +88,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Documentation
+
+- `docs/SECURITY.md`: record the audits since 1.23.0 (Appendices KE, LD, MQ, NX) and refresh the latest audit date (REQ-SEC-004).
+
 ## [1.28.3] - 2026-11-13
 
 ### Fixed
