@@ -111,6 +111,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Audit OB2-L1: a main request also drops the requests left in flight when the oldest one is not the kernel's main
   request (host code left the `RequestStack` unbalanced, then a request threw out of `HttpKernel::handle()`), so the
   next requests keep clearing instead of never clearing again for the rest of the worker's life.
+- DoctrineBundle 3.4: bundle entities resolved to the default manager when a dedicated manager is configured.
+  DoctrineBundle 3.4 `auto_discover_entities` (on by default for a manager without `mappings` and `auto_mapping`, with
+  Symfony 7.3+ and doctrine/orm 3.6+) gives that manager's metadata driver chain a default attribute driver, which
+  claims every `#[ORM\Entity]` class. With `doctrine.entity_manager` naming a dedicated manager that maps the bundle
+  entities (`register_mapping: false`) and a default manager without mappings first in the registry,
+  `getManagerForClass(Monitor)` answered the default manager: the bundle's private manager ran on the default
+  connection ("no such table") and the ports handed back entities of the wrong manager. `EntityManagerOptionPass` now
+  also registers a driver that maps nothing for the bundle entity namespace, first in the chain of every manager that
+  does not map that namespace itself (`ExcludedEntityNamespaceDriver`, only the public `addDriver()` of the
+  `doctrine.orm.<manager>_metadata_driver` chain); a manager that maps it (`register_mapping`, `auto_mapping`, a host
+  mapping) is unchanged, so the tables never move. Nothing changes without the option: a DDD host whose default manager
+  has no mappings sets `doctrine.entity_manager` to its bundle manager. Affected in practice: 1.26.0 to 1.28.2 (every
+  release with `doctrine.entity_manager`; all allow `doctrine/doctrine-bundle` `^3.0`; the `register_mapping: false`
+  layout exists since 1.27.0) with DoctrineBundle 3.4.0 or later.
 
 ## [1.28.2] - 2026-11-12
 

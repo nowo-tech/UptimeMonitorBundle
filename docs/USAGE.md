@@ -233,7 +233,10 @@ nowo_uptime_monitor:
         flush_listener_changes: false # the bundle never flushes one of your managers
 ```
 
-Do not enable `auto_mapping` on your default manager: it would map the bundle entities there again. The bundle then
+Do not enable `auto_mapping` on your default manager: it would map the bundle entities there again. When your
+default manager has neither `mappings` nor `auto_mapping` (DoctrineBundle 3.4 `auto_discover_entities` then claims
+every entity class for it), also set `nowo_uptime_monitor.doctrine.entity_manager: uptime`: the bundle then keeps its
+entities off the other managers (fixed in Unreleased). The bundle then
 reads and writes on the `uptime` connection with that manager's configuration; your default manager and connection
 are never touched. Reach the bundle only through its ports and scalar events (next section).
 
