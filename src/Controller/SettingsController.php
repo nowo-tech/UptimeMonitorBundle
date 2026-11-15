@@ -33,6 +33,7 @@ use Nowo\UptimeMonitorBundle\Service\DetailRetentionService;
 use Nowo\UptimeMonitorBundle\Service\MonitorBackupService;
 use Nowo\UptimeMonitorBundle\Service\TenantSettingsMapper;
 use Nowo\UptimeMonitorBundle\Service\UptimeDataClearService;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
@@ -75,6 +76,7 @@ final class SettingsController extends AbstractUptimeController
      * @param LoggerInterface $logger Receives rejected backup imports (exception class only)
      * @param SettingsSections $sections The settings screens the host keeps (`web_ui.settings.sections`, since 1.13)
      * @param MonitorRepository|null $monitorRepository The tenant's monitors (Settings → Status page, since 1.13)
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -98,6 +100,7 @@ final class SettingsController extends AbstractUptimeController
         /** @var array<string, mixed> $statusPageConfig */
         #[Autowire('%nowo_uptime_monitor.status_page%')]
         private readonly array $statusPageConfig = [],
+        private readonly ?UptimeTransactionRunner $transactionRunner = null,
     ) {
         parent::__construct($translator);
     }
@@ -138,8 +141,9 @@ final class SettingsController extends AbstractUptimeController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->settingsMapper->applyGeneral($tenant, $data);
-            $this->entityManager->flush();
+            $this->saveTenant($tenant, function (Tenant $locked) use ($data): void {
+                $this->settingsMapper->applyGeneral($locked, $data);
+            });
             $this->addFlash('success', $this->transMessage('flash.settings.general_saved'));
 
             return $this->redirectToRoute('nowo_uptime_settings_general', ['tenantSlug' => $tenantSlug]);
@@ -168,8 +172,9 @@ final class SettingsController extends AbstractUptimeController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->settingsMapper->applyAppearance($tenant, $data);
-            $this->entityManager->flush();
+            $this->saveTenant($tenant, function (Tenant $locked) use ($data): void {
+                $this->settingsMapper->applyAppearance($locked, $data);
+            });
             $this->addFlash('success', $this->transMessage('flash.settings.appearance_saved'));
 
             return $this->redirectToRoute('nowo_uptime_settings_appearance', ['tenantSlug' => $tenantSlug]);
@@ -217,8 +222,9 @@ final class SettingsController extends AbstractUptimeController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->settingsMapper->applyReverseProxy($tenant, $data);
-            $this->entityManager->flush();
+            $this->saveTenant($tenant, function (Tenant $locked) use ($data): void {
+                $this->settingsMapper->applyReverseProxy($locked, $data);
+            });
             $this->addFlash('success', $this->transMessage('flash.settings.reverse_proxy_saved'));
 
             return $this->redirectToRoute('nowo_uptime_settings_reverse_proxy', ['tenantSlug' => $tenantSlug]);
@@ -253,8 +259,9 @@ final class SettingsController extends AbstractUptimeController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->settingsMapper->applyStatusPage($tenant, $data);
-            $this->entityManager->flush();
+            $this->saveTenant($tenant, function (Tenant $locked) use ($data): void {
+                $this->settingsMapper->applyStatusPage($locked, $data);
+            });
             $this->addFlash('success', $this->transMessage('flash.settings.status_page_saved'));
 
             return $this->redirectToRoute('nowo_uptime_settings_status_page', ['tenantSlug' => $tenantSlug]);
@@ -323,8 +330,9 @@ final class SettingsController extends AbstractUptimeController
         }
 
         if ($this->isCsrfActionSubmitted($this->createTagDeleteForm($tenantSlug, $id), $request)) {
-            $this->entityManager->remove($tag);
-            $this->entityManager->flush();
+            $this->runner()->run(function () use ($tag): void {
+                $this->entityManager->remove($tag);
+            });
             $this->addFlash('success', $this->transMessage('flash.settings.tag_deleted'));
         }
 
@@ -352,8 +360,9 @@ final class SettingsController extends AbstractUptimeController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->settingsMapper->applyHistory($tenant, $data);
-            $this->entityManager->flush();
+            $this->saveTenant($tenant, function (Tenant $locked) use ($data): void {
+                $this->settingsMapper->applyHistory($locked, $data);
+            });
             $this->addFlash('success', $this->transMessage('flash.settings.history_saved'));
 
             return $this->redirectToRoute('nowo_uptime_settings_history', ['tenantSlug' => $tenantSlug]);
@@ -739,10 +748,11 @@ final class SettingsController extends AbstractUptimeController
             $tag->setName($tagData->name);
             // @igor-ignore - Doctrine entity loaded for this request; not a shared service.
             $tag->setColor($tagData->color !== '' ? $tagData->color : null);
-            if ($editing === null) {
-                $this->entityManager->persist($tag);
-            }
-            $this->entityManager->flush();
+            $this->runner()->run(function () use ($tag, $editing): void {
+                if ($editing === null) {
+                    $this->entityManager->persist($tag);
+                }
+            });
             $this->addFlash('success', $this->transMessage($editing === null ? 'flash.settings.tag_created' : 'flash.settings.tag_updated'));
 
             return $this->redirectToRoute('nowo_uptime_settings_tags', ['tenantSlug' => $tenantSlug]);
@@ -825,5 +835,27 @@ final class SettingsController extends AbstractUptimeController
         }
 
         return $tenant;
+    }
+
+    /**
+     * Saves a settings screen (since 1.29, Beacon spec 239): one unit of work of the bundle's runner that locks the tenant
+     * row and reads it again before the change applies, so two screens saved at the same time each keep their own
+     * settings instead of the later one writing back what the earlier page loaded.
+     *
+     * @param callable(Tenant): void $apply Applies the screen's data to the locked tenant
+     */
+    private function saveTenant(Tenant $tenant, callable $apply): void
+    {
+        $this->runner()->run(function () use ($tenant, $apply): void {
+            $apply($this->tenantRepository->lockForWrite((int) $tenant->getId()) ?? throw $this->createNotFoundException());
+        });
+    }
+
+    /**
+     * The bundle's runner of every write (since 1.29).
+     */
+    private function runner(): UptimeTransactionRunner
+    {
+        return $this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager);
     }
 }

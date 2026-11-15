@@ -361,6 +361,7 @@ final class MonitorControllerSubmitTest extends TestCase
         $id       = 4;
         $repo     = $this->createStub(MonitorRepository::class);
         $repo->method('find')->willReturn($monitor);
+        $repo->method('lockForWrite')->willReturn($monitor);
         $this->monitors = $repo;
         $controller     = $this->controller(null, new TenantQuota(new ConfigurableTenantLimits(0, 30), $repo));
 

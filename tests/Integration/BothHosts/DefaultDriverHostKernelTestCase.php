@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\BothHosts;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestSchemaTool;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 use function array_keys;
@@ -40,7 +40,7 @@ abstract class DefaultDriverHostKernelTestCase extends KernelTestCase
 
         $application = $doctrine->getManager('default');
         self::assertInstanceOf(EntityManagerInterface::class, $application);
-        (new SchemaTool($uptime))->createSchema($uptime->getMetadataFactory()->getAllMetadata());
+        TestSchemaTool::of($uptime)->createSchema($uptime->getMetadataFactory()->getAllMetadata());
         self::assertTrue($application->getMetadataFactory()->isTransient(Monitor::class), 'not mapped on the default manager');
         self::assertSame($uptime, $doctrine->getManagerForClass(Monitor::class));
 

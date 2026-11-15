@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 
 use DateTimeImmutable;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UiKitBundle\View\Action;
 use Nowo\UiKitBundle\View\DashboardPage;
@@ -115,6 +116,7 @@ final class HostEmbeddingControllersTest extends TestCase
         $tenantRepo->method('findOneBySlug')->willReturn($monitor->getTenant());
         $monitorRepo = $this->createStub(MonitorRepository::class);
         $monitorRepo->method('find')->willReturn($monitor);
+        $monitorRepo->method('lockForWrite')->willReturn($monitor);
         $aggregates = $this->createStub(CheckAggregateRepository::class);
         $aggregates->method('findForMonitorInRange')->willReturn([]);
 
@@ -235,15 +237,20 @@ final class HostEmbeddingControllersTest extends TestCase
     }
 
     /**
-     * Entity manager whose transaction runs the write (and counts lock / persist / flush calls).
+     * Entity manager whose connection runs the write in one transaction of the bundle's runner (since 1.29), counting
+     * the lock and persist calls: one begin, one flush (by the runner, also when the refused write changed nothing),
+     * one commit.
      */
-    private function transactionalEm(int $persists, int $flushes): EntityManagerInterface
+    private function transactionalEm(int $persists): EntityManagerInterface
     {
+        $connection = $this->createMock(Connection::class);
+        $connection->expects(self::once())->method('beginTransaction');
+        $connection->expects(self::once())->method('commit');
         $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects(self::once())->method('wrapInTransaction')->willReturnCallback(static fn (callable $write): mixed => $write($em));
+        $em->method('getConnection')->willReturn($connection);
         $em->expects(self::once())->method('lock');
         $em->expects(self::exactly($persists))->method('persist');
-        $em->expects(self::exactly($flushes))->method('flush');
+        $em->expects(self::once())->method('flush');
 
         return $em;
     }
@@ -258,7 +265,7 @@ final class HostEmbeddingControllersTest extends TestCase
 
     public function testNewMonitorIsSavedUnderTheTenantLock(): void
     {
-        $controller = $this->monitorController($this->monitor(), $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1), em: $this->transactionalEm(1, 1));
+        $controller = $this->monitorController($this->monitor(), $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1), em: $this->transactionalEm(1));
         $request    = $this->post('/main/monitors/new', '60');
         $this->bindController($controller, true, $request);
 
@@ -267,7 +274,7 @@ final class HostEmbeddingControllersTest extends TestCase
 
     public function testNewMonitorIsRefusedWhenAConcurrentWriterFilledTheTenant(): void
     {
-        $controller = $this->monitorController($this->monitor(), $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1, countUnderLock: 2), em: $this->transactionalEm(0, 0));
+        $controller = $this->monitorController($this->monitor(), $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1, countUnderLock: 2), em: $this->transactionalEm(0));
         $request    = $this->post('/main/monitors/new', '60');
         $this->bindController($controller, true, $request);
 
@@ -293,7 +300,7 @@ final class HostEmbeddingControllersTest extends TestCase
     public function testAGroupBecomesACheckUnderTheTenantLock(): void
     {
         $group      = $this->group();
-        $controller = $this->monitorController($group, $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1), em: $this->transactionalEm(0, 1));
+        $controller = $this->monitorController($group, $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1), em: $this->transactionalEm(0));
         $request    = $this->post('/main/monitors/4/edit', '60');
         $this->bindController($controller, true, $request);
 
@@ -304,7 +311,7 @@ final class HostEmbeddingControllersTest extends TestCase
     public function testAGroupChangeIsRefusedWhenAConcurrentWriterFilledTheTenant(): void
     {
         $group      = $this->group();
-        $controller = $this->monitorController($group, $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1, countUnderLock: 2), em: $this->transactionalEm(0, 0));
+        $controller = $this->monitorController($group, $this->createStub(CheckResultRepository::class), $this->actions(true), $this->quota(2, 1, countUnderLock: 2), em: $this->transactionalEm(0));
         $request    = $this->post('/main/monitors/4/edit', '60');
         $this->bindController($controller, true, $request);
 

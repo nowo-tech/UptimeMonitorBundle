@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Controller\SettingsController;
@@ -62,8 +63,13 @@ final class SettingsControllerTest extends TestCase
 
     public function testBackupImportBeyondTheTenantQuotaWarns(): void
     {
+        // Since 1.29: one transaction of the bundle's runner, the tenant row locked first.
+        $connection = $this->createMock(Connection::class);
+        $connection->expects(self::once())->method('beginTransaction');
+        $connection->expects(self::once())->method('commit');
         $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects(self::once())->method('wrapInTransaction')->willReturnCallback(static fn (callable $write): mixed => $write($em));
+        $em->method('getConnection')->willReturn($connection);
+        $em->expects(self::once())->method('lock');
         $em->expects(self::never())->method('persist');
         $monitors = $this->createStub(MonitorRepository::class);
         $monitors->method('countChecksByTenantSlug')->willReturn(1);

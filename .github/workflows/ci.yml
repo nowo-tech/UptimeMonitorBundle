@@ -271,6 +271,77 @@ jobs:
           git diff --exit-code -- src/Resources/public
           test -z "$(git status --porcelain --untracked-files=all -- src/Resources/public)"
 
+  # 1.29 (Beacon spec 239): lock waits, deadlocks and concurrent processes on real servers (tests/Database, run with
+  # fail-on-skipped), the deterministic race replays and, on DBAL 4, every `db` integration test. Passwordless services.
+  load:
+    name: Load readiness (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'MySQL 8.4', url: 'mysql://root@127.0.0.1:3306/uptime?serverVersion=8.4.0&charset=utf8mb4', dbal: '' }
+          - { name: 'PostgreSQL 16', url: 'postgresql://postgres@127.0.0.1:5432/uptime?serverVersion=16&charset=utf8', dbal: '' }
+          - { name: 'MySQL 8.4, DBAL 3', url: 'mysql://root@127.0.0.1:3306/uptime?serverVersion=8.4.0&charset=utf8mb4', dbal: '^3.8.2' }
+          - { name: 'PostgreSQL 16, DBAL 3', url: 'postgresql://postgres@127.0.0.1:5432/uptime?serverVersion=16&charset=utf8', dbal: '^3.8.2' }
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: uptime
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mysqladmin ping -h127.0.0.1 -uroot --silent"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: uptime
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: json, pdo_mysql, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Use DBAL 3
+        if: ${{ matrix.dbal != '' }}
+        run: composer require --no-interaction --no-progress --with-all-dependencies "doctrine/dbal:${{ matrix.dbal }}"
+
+      - name: Lock wait, deadlock and multi-process tests
+        timeout-minutes: 10
+        env:
+          UPTIME_TEST_DATABASE_URL: ${{ matrix.url }}
+        run: vendor/bin/phpunit --no-coverage --fail-on-skipped --testsuite database
+
+      - name: Race replays
+        timeout-minutes: 5
+        env:
+          UPTIME_TEST_DATABASE_URL: ${{ matrix.url }}
+        run: vendor/bin/phpunit --no-coverage tests/Integration/Service/LoadReadinessDbTest.php
+
+      - name: Integration tests on the real server (DBAL 4)
+        if: ${{ matrix.dbal == '' }}
+        timeout-minutes: 10
+        env:
+          UPTIME_TEST_DATABASE_URL: ${{ matrix.url }}
+        run: vendor/bin/phpunit --no-coverage --group db
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest

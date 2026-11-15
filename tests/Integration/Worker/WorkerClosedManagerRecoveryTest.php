@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Worker;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestSchemaTool;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -37,7 +37,7 @@ final class WorkerClosedManagerRecoveryTest extends KernelTestCase
         self::assertInstanceOf(ManagerRegistry::class, $doctrine);
         $default = $this->manager($doctrine, 'default');
         $host    = $this->manager($doctrine, 'reporting');
-        (new SchemaTool($default))->createSchema($default->getMetadataFactory()->getAllMetadata());
+        TestSchemaTool::of($default)->createSchema($default->getMetadataFactory()->getAllMetadata());
         $default->persist(new Tenant('acme', 'Acme Worker'));
         $default->flush();
         $bundle = $container->get(UptimeEntityManager::class);

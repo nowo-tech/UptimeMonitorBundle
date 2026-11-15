@@ -16,6 +16,7 @@ use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -267,6 +268,13 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             new Reference('doctrine'),
             new Reference(UptimeEntityManager::class),
         ]))->setPublic(false));
+
+        // 1.29 (Beacon spec 239): the runner of every bundle write, on the private manager (bound in services.yaml).
+        $container->setDefinition(UptimeTransactionRunner::SERVICE_ID, (new Definition(UptimeTransactionRunner::class, [
+            new Reference(UptimeEntityManager::class),
+            new Reference(UptimeManagerRegistry::class),
+        ]))->setFactory([UptimeTransactionRunner::class, 'forBundle'])->setPublic(false));
+        $container->setAlias(UptimeTransactionRunner::class, UptimeTransactionRunner::SERVICE_ID)->setPublic(false);
 
         // Tracks the running units at the extreme priorities, so the private manager is dropped only at the outermost
         // boundaries (1.28.0). Process-lifetime state, never reset by kernel.reset.

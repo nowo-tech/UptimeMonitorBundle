@@ -77,6 +77,8 @@ final class SettingsControllerScreensTest extends TestCase
     {
         $tenantRepo = $this->createStub(TenantRepository::class);
         $tenantRepo->method('findOneBySlug')->willReturnCallback(fn (string $slug): ?Tenant => $slug === 'main' ? ($tenant ?? $this->tenant) : null);
+        // Since 1.29 a settings screen saves on the tenant row locked and read again inside the runner's unit of work.
+        $tenantRepo->method('lockForWrite')->willReturnCallback(fn (): Tenant => $tenant ?? $this->tenant);
         $monitorRepo = $this->createStub(MonitorRepository::class);
         $monitorRepo->method('findByTenantSlug')->willReturn($monitors);
         $registry = $this->createStub(ManagerRegistry::class);

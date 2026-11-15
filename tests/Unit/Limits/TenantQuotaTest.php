@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Limits;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -53,13 +54,18 @@ final class TenantQuotaTest extends TestCase
     {
         $tenant = new Tenant('main', 'Main');
         $calls  = [];
-        $em     = $this->createMock(EntityManagerInterface::class);
-        $em->expects(self::once())->method('wrapInTransaction')->willReturnCallback(static function (callable $func) use ($em, &$calls): mixed {
+        // Since 1.29 the bundle's runner opens the transaction, flushes once and commits (no wrapInTransaction()).
+        $connection = $this->createMock(Connection::class);
+        $connection->expects(self::once())->method('beginTransaction')->willReturnCallback(static function () use (&$calls): void {
             $calls[] = 'begin';
-            $result  = $func($em);
+        });
+        $connection->expects(self::once())->method('commit')->willReturnCallback(static function () use (&$calls): void {
             $calls[] = 'commit';
-
-            return $result;
+        });
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getConnection')->willReturn($connection);
+        $em->expects(self::once())->method('flush')->willReturnCallback(static function () use (&$calls): void {
+            $calls[] = 'flush';
         });
         $em->expects(self::once())->method('lock')->with($tenant, LockMode::PESSIMISTIC_WRITE)->willReturnCallback(static function () use (&$calls): void {
             $calls[] = 'lock';
@@ -72,6 +78,6 @@ final class TenantQuotaTest extends TestCase
         });
 
         self::assertSame(2, $result);
-        self::assertSame(['begin', 'lock', 'write:2', 'commit'], $calls);
+        self::assertSame(['begin', 'lock', 'write:2', 'flush', 'commit'], $calls);
     }
 }

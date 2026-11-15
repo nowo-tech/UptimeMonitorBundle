@@ -6,7 +6,6 @@ namespace Nowo\UptimeMonitorBundle\Tests\Integration\Worker;
 
 use Closure;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
@@ -14,6 +13,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Tests\Integration\BothHosts\StandardHostTestKernel;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestSchemaTool;
 use RuntimeException;
 use stdClass;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -87,7 +87,7 @@ final class WorkerOutermostBoundaryKernelTest extends KernelTestCase
         $application = $doctrine->getManager();
         self::assertInstanceOf(EntityManagerInterface::class, $application);
         $this->application = $application;
-        (new SchemaTool($application))->createSchema($application->getMetadataFactory()->getAllMetadata());
+        TestSchemaTool::of($application)->createSchema($application->getMetadataFactory()->getAllMetadata());
         $bundle = $container->get(UptimeEntityManager::class);
         self::assertInstanceOf(UptimeEntityManager::class, $bundle);
         $this->bundle = $bundle;

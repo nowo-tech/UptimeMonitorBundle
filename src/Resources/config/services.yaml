@@ -14,6 +14,9 @@ services:
             Nowo\UptimeMonitorBundle\Repository\MonitorRepository: '@nowo_uptime_monitor.repository.monitor'
             Nowo\UptimeMonitorBundle\Repository\TagRepository: '@nowo_uptime_monitor.repository.tag'
             Nowo\UptimeMonitorBundle\Repository\TenantRepository: '@nowo_uptime_monitor.repository.tenant'
+            # 1.29 (Beacon spec 239): every bundle write runs on the bundle's own runner (never on a runner the
+            # application binds to nowo-tech/transaction-contract's TransactionRunnerInterface).
+            Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner: '@nowo_uptime_monitor.transaction_runner'
 
     Nowo\UptimeMonitorBundle\:
         resource: '../../'
@@ -22,6 +25,8 @@ services:
             - '../../DependencyInjection/'
             - '../../Doctrine/'
             - '../../Entity/'
+            - '../../Transaction/'
+            - '../../Service/MonitorGoneException.php'
             - '../../Event/'
             - '../../Notification/Channel/'
             - '../../UptimeMonitorBundle.php'

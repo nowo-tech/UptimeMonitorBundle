@@ -20,6 +20,7 @@ use Nowo\UptimeMonitorBundle\Monitor\SpkiPins;
 use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
@@ -71,6 +72,7 @@ final readonly class MonitorBackupService
      * @param LoggerInterface $logger Receives export / import start, success (counts) and failure (exception class)
      * @param TenantQuota|null $quota Tenant limits (max monitors, minimum interval) applied to imported rows
      * @param EventDispatcherInterface|null $eventDispatcher Dispatches the host quota check of each row (since 1.21)
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         private MonitorRepository $monitorRepository,
@@ -82,6 +84,7 @@ final readonly class MonitorBackupService
         private LoggerInterface $logger = new NullLogger(),
         private ?TenantQuota $quota = null,
         private ?EventDispatcherInterface $eventDispatcher = null,
+        private ?UptimeTransactionRunner $transactionRunner = null,
     ) {
     }
 
@@ -137,10 +140,11 @@ final readonly class MonitorBackupService
 
         try {
             // SEC-004 Q3: with a quota the rows are written under the tenant row lock, the remaining quota counted
-            // once after the lock (null = no monitor limit); without one, a plain flush.
+            // once after the lock (null = no monitor limit). Since 1.29 the import is one unit of work of the bundle's
+            // runner either way (all rows or none; a transient failure leaves no transaction open and answers 503).
             $result = $this->quota instanceof TenantQuota
                 ? $this->quota->withTenantLock($this->entityManager, $tenant, fn (?int $remaining): array => $this->importRows($tenant, $rows, $mode, $remaining))
-                : $this->importRows($tenant, $rows, $mode, null);
+                : ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->run(fn (): array => $this->importRows($tenant, $rows, $mode, null));
         } catch (Throwable $e) {
             if ($this->registry instanceof ManagerRegistry && !$this->entityManager->isOpen()) {
                 $this->resetClosedManagers($this->registry);
@@ -157,7 +161,7 @@ final readonly class MonitorBackupService
     }
 
     /**
-     * Creates / overwrites the monitors of the backup rows and flushes them.
+     * Creates / overwrites the monitors of the backup rows (inside the import's unit of work, which flushes them).
      *
      * @param array<mixed> $rows
      * @param int|null $remaining Monitors the tenant may still add (null = no limit)
@@ -256,8 +260,7 @@ final readonly class MonitorBackupService
             }
         }
 
-        $this->entityManager->flush();
-
+        // Since 1.29 the runner the import runs in flushes the rows and commits them.
         return ['imported' => $imported, 'skipped' => $skipped, 'overwritten' => $overwritten, 'invalid' => $invalid, 'over_quota' => $overQuota, 'quota_denied' => $denied, 'quota_denied_reason' => $reason];
     }
 

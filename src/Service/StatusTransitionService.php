@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Apply\MonitorApplier;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeRowLock;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -17,6 +18,7 @@ use Nowo\UptimeMonitorBundle\Event\MonitorWentDownEvent;
 use Nowo\UptimeMonitorBundle\Monitor\MonitorSettings;
 use Nowo\UptimeMonitorBundle\Notification\UptimeAlert;
 use Nowo\UptimeMonitorBundle\Repository\IncidentRepository;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -42,6 +44,7 @@ final readonly class StatusTransitionService
      * @param LoggerInterface $logger Receives the class of a listener failure after the commit (since 1.25)
      * @param bool $flushListenerChanges `doctrine.flush_listener_changes` (since 1.27.0): also flush what the incident
      *                                   listeners left in the application manager that maps the bundle entities
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -54,6 +57,7 @@ final readonly class StatusTransitionService
         private LoggerInterface $logger = new NullLogger(),
         #[Autowire('%nowo_uptime_monitor.doctrine.flush_listener_changes%')]
         private bool $flushListenerChanges = true,
+        private ?UptimeTransactionRunner $transactionRunner = null,
     ) {
     }
 
@@ -66,7 +70,7 @@ final readonly class StatusTransitionService
     {
         $this->transition($monitor, $result, function (object $event): void {
             $this->eventDispatcher?->dispatch($event);
-        });
+        }, $this->deliverNow(...));
     }
 
     /**
@@ -81,9 +85,67 @@ final readonly class StatusTransitionService
         $events = [];
         $this->transition($monitor, $result, static function (MonitorWentDownEvent|MonitorRecoveredEvent $event) use (&$events): void {
             $events[] = $event;
-        });
+        }, $this->deliverNow(...));
 
         return $events;
+    }
+
+    /**
+     * Same as {@see self::handleAfterCheckDeferred()}, but the notifications wait too (since 1.29, Beacon spec 239):
+     * the incident events AND the alerts are returned, so the check's unit of work holds no side effect and can be
+     * replayed after a deadlock. The caller commits, then hands the events to {@see self::dispatchCommitted()} and the
+     * alerts to {@see self::sendCommitted()}. The cooldown is judged on the state the unit locked.
+     *
+     * @return array{0: list<MonitorRecoveredEvent|MonitorWentDownEvent>, 1: list<UptimeAlert>} Events and alerts, in order
+     */
+    public function handleAfterCheckInUnit(Monitor $monitor, CheckResult $result): array
+    {
+        $events = [];
+        $alerts = [];
+        $this->transition($monitor, $result, static function (MonitorWentDownEvent|MonitorRecoveredEvent $event) use (&$events): void {
+            $events[] = $event;
+        }, static function (UptimeAlert $alert) use (&$alerts): void {
+            $alerts[] = $alert;
+        });
+
+        return [$events, $alerts];
+    }
+
+    /**
+     * Sends the alerts of {@see self::handleAfterCheckInUnit()} once the check is committed (since 1.29), then stores
+     * the time of the last delivered one on the monitor in a unit of work of its own. A notification already went out
+     * when that write fails: the failure is logged (its class only) and the next alert may come before the cooldown.
+     *
+     * @param list<UptimeAlert> $alerts
+     */
+    public function sendCommitted(array $alerts): void
+    {
+        foreach ($alerts as $alert) {
+            if ($this->notificationService->notify($alert) === 0) {
+                continue;
+            }
+            $monitor = $alert->getMonitor();
+            $at      = $this->clock->now();
+            $id      = $monitor->getId();
+            try {
+                $this->runner()->runRetrying(function () use ($monitor, $id, $at): void {
+                    // The row locked and read again by id (a replay runs on a fresh manager, audit QK-L2), and never
+                    // moved back: a later alert of another unit keeps its time.
+                    $locked = $id === null ? $monitor : UptimeRowLock::lock($this->entityManager, Monitor::class, $id);
+                    $stored = $locked?->getLastAlertAt();
+                    if ($locked instanceof Monitor && (!$stored instanceof DateTimeImmutable || $stored < $at)) {
+                        // @igor-ignore - Doctrine entity locked for this unit of work; not a shared service.
+                        $locked->setLastAlertAt($at);
+                    }
+                });
+            } catch (Throwable $failure) {
+                $this->logger->warning('Uptime alert of monitor {monitor_id} was sent, but its time could not be stored: {error}', [
+                    'bundle'     => 'NowoUptimeMonitorBundle',
+                    'monitor_id' => $monitor->getId(),
+                    'error'      => $failure::class,
+                ]);
+            }
+        }
     }
 
     /**
@@ -122,7 +184,19 @@ final readonly class StatusTransitionService
         }
 
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {
-            $this->entityManager->flush();
+            // Since 1.29: what the listeners left in the bundle's manager is written in a unit of work of the runner. The
+            // check is committed already: a failure here is logged (its class only), never thrown, so the alerts that
+            // follow are still sent (audit QK-L1).
+            try {
+                $this->runner()->run(static fn (): mixed => null);
+            } catch (Throwable $failure) {
+                $this->logger->error('Uptime incident listener changes could not be written after the commit: {error}', [
+                    'bundle'     => 'NowoUptimeMonitorBundle',
+                    'event'      => $events[0]::class,
+                    'monitor_id' => $events[0]->getMonitorId(),
+                    'error'      => $failure::class,
+                ]);
+            }
             if ($watch !== null) {
                 $this->afterListeners($watch[0], $watch[1], $events);
             }
@@ -230,9 +304,29 @@ final readonly class StatusTransitionService
     }
 
     /**
-     * @param callable(MonitorRecoveredEvent|MonitorWentDownEvent): void $emit Receives the incident events in order
+     * The bundle's runner of every write (since 1.29).
      */
-    private function transition(Monitor $monitor, CheckResult $result, callable $emit): void
+    private function runner(): UptimeTransactionRunner
+    {
+        return $this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager);
+    }
+
+    /**
+     * Sends an alert right away and stores its time on the monitor when a channel delivered it (before 1.29, and
+     * still {@see self::handleAfterCheck()} / {@see self::handleAfterCheckDeferred()}).
+     */
+    private function deliverNow(UptimeAlert $alert): void
+    {
+        if ($this->notificationService->notify($alert) > 0) {
+            $alert->getMonitor()->setLastAlertAt($this->clock->now());
+        }
+    }
+
+    /**
+     * @param callable(MonitorRecoveredEvent|MonitorWentDownEvent): void $emit Receives the incident events in order
+     * @param callable(UptimeAlert): void $alert Receives the notifications to send
+     */
+    private function transition(Monitor $monitor, CheckResult $result, callable $emit, callable $alert): void
     {
         $current  = $result->getStatus();
         $previous = $monitor->getLastKnownStatus();
@@ -245,7 +339,7 @@ final readonly class StatusTransitionService
         }
 
         if ($previous === $current) {
-            $this->maybeResendDownNotification($monitor, $current, $result);
+            $this->maybeResendDownNotification($monitor, $current, $result, $alert);
 
             return;
         }
@@ -253,10 +347,13 @@ final readonly class StatusTransitionService
         $monitor->setLastKnownStatus($current);
         $this->updateIncidentState($monitor, $current, $result->getMessage(), $emit);
         $this->resetDownNotifyStreak($monitor, $current);
-        $this->sendTransitionNotification($monitor, $current, $previous, $result->getMessage());
+        $this->sendTransitionNotification($monitor, $current, $previous, $result->getMessage(), $alert);
     }
 
-    private function maybeResendDownNotification(Monitor $monitor, CheckStatus $current, CheckResult $result): void
+    /**
+     * @param callable(UptimeAlert): void $send
+     */
+    private function maybeResendDownNotification(Monitor $monitor, CheckStatus $current, CheckResult $result, callable $send): void
     {
         if (!in_array($current, [CheckStatus::Down, CheckStatus::Degraded], true)) {
             return;
@@ -276,24 +373,24 @@ final readonly class StatusTransitionService
             return;
         }
 
-        $alert = new UptimeAlert(
+        $send(new UptimeAlert(
             $monitor,
             UptimeAlert::TRANSITION_DOWN,
             $current,
             $current,
             $result->getMessage() ?? sprintf('Still down (%d consecutive checks)', $streak),
-        );
-
-        if ($this->notificationService->notify($alert) > 0) {
-            $monitor->setLastAlertAt($this->clock->now());
-        }
+        ));
     }
 
+    /**
+     * @param callable(UptimeAlert): void $send
+     */
     private function sendTransitionNotification(
         Monitor $monitor,
         CheckStatus $current,
         CheckStatus $previous,
         ?string $message,
+        callable $send,
     ): void {
         if (!$this->shouldNotify($monitor)) {
             return;
@@ -303,11 +400,7 @@ final readonly class StatusTransitionService
             ? UptimeAlert::TRANSITION_UP
             : UptimeAlert::TRANSITION_DOWN;
 
-        $alert = new UptimeAlert($monitor, $transition, $current, $previous, $message);
-
-        if ($this->notificationService->notify($alert) > 0) {
-            $monitor->setLastAlertAt($this->clock->now());
-        }
+        $send(new UptimeAlert($monitor, $transition, $current, $previous, $message));
     }
 
     private function resetDownNotifyStreak(Monitor $monitor, CheckStatus $current): void

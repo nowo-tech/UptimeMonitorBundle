@@ -135,6 +135,35 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Target 1.29.0 (minor, no BC break). High load readiness (Beacon spec 239), see [HIGH-LOAD.md](HIGH-LOAD.md).
+
+- **New requires:** `nowo-tech/transaction-contract` ^1.0 and `nowo-tech/transaction-doctrine` ^1.1 (DBAL `^3.8.2 || ^4`).
+- **DBAL 3:** set `doctrine.dbal.use_savepoints: true`. Without it a bundle failure inside a transaction your code opened
+  marks that whole transaction rollback-only.
+- **503 / 409 instead of 500** on the bundle's routes: a deadlock or lock wait answers `503` with `Retry-After: 1`, a
+  unique-key conflict `409` (push endpoint and API: `{"error": "unavailable" | "conflict"}`). Push agents should retry
+  after `Retry-After`. Keep your server's lock wait timeout below the request timeout.
+- **Scheduler:** a due monitor is claimed before its check, only while it is still due (its `next_check_at` moves to
+  now + the interval, at least twice the request timeout + 30 s). Running several scheduler consumers is now safe; keep
+  their clocks synchronised (NTP). A monitor whose check fails keeps that next time.
+- **Alerts follow the commit.** A notification is sent after the check is stored, and `last_alert_at` is stored in a
+  unit of its own after a channel delivered it. `StatusTransitionService::handleAfterCheck()` and
+  `handleAfterCheckDeferred()` keep sending right away.
+- **Writes you call yourself:** `TenantQuota::withTenantLock()`, `TenantProvisioner`, `MonitorApplier`,
+  `MonitorBackupService::import()` and the data clear now run on the bundle's runner. Inside a transaction of yours they
+  nest as a savepoint; a transient failure reaches you as `Nowo\TransactionContract\TransientStorageFailure` and is
+  not replayed (retry your transaction). The write callback of `withTenantLock()` must not flush (the runner does; a
+  flush there still works).
+- **Your entity manager:** `TenantQuota::withTenantLock()` called with **your** manager now runs on a runner of that
+  manager: it flushes and commits it, and after a failure clears or detaches what the unit loaded (1.28 closed it). The
+  `doctrine.flush_listener_changes` (deprecated) is unchanged.
+- **Monitors edited while failing (≤ 1.28.3):** a running check could revert an edit, credentials included; re-check
+  the edits saved while a monitor was failing (see CHANGELOG).
+- **Constructors:** the writing services and controllers take an optional last argument
+  `?UptimeTransactionRunner $transactionRunner = null` (autowired). Code that builds them with `new` keeps working.
+- **`nowo:uptime:rollup`** works one monitor at a time under the monitor row lock; its output counts are unchanged.
+- **Tests on real servers:** `tests/Database` (suite `database`) runs with `UPTIME_TEST_DATABASE_URL`.
+
 ## To 1.28.3
 
 From **1.28.2**:

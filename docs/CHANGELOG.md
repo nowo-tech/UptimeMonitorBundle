@@ -88,6 +88,75 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+High load readiness (Beacon spec 239). See [HIGH-LOAD.md](HIGH-LOAD.md) and [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- Requires `nowo-tech/transaction-contract` ^1.0 and `nowo-tech/transaction-doctrine` ^1.1 (DBAL 3 and 4).
+- `Transaction\UptimeTransactionRunner` (`nowo_uptime_monitor.transaction_runner`): the runner of every bundle write,
+  on the bundle's private entity manager. `run()` makes one attempt; `runRetrying()` replays a deadlock or lock wait of
+  the outermost transaction up to three attempts with full-jitter backoff.
+- `EventSubscriber\StorageFailureSubscriber`: on the bundle's routes a transient storage failure answers `503` with
+  `Retry-After`, and a unique-key conflict `409` (JSON on the push endpoint and the API).
+- `MonitorRepository::claimDue()` and `lockForWrite()`, `TenantRepository::lockForWrite()`.
+- `StatusTransitionService::handleAfterCheckInUnit()` and `sendCommitted()`; `Service\MonitorGoneException`.
+- Optional `?UptimeTransactionRunner $transactionRunner` last constructor argument of the services and controllers that
+  write (autowired; null builds a runner on the given manager).
+- `docs/HIGH-LOAD.md`; CI job `Load readiness` (MySQL 8.4 and PostgreSQL 16, DBAL 4 and DBAL 3); `tests/Database`.
+
+### Fixed
+
+- `TenantQuota::withTenantLock()` ran `wrapInTransaction()` with a nested flush: a deadlock inside the flush answered
+  the raw `1305 SAVEPOINT DOCTRINE_2 does not exist` (500) and left the connection nested for the worker's next
+  requests. It now runs on the bundle's runner (one flush, the connection repaired, `TransientStorageFailure`).
+- `MonitorApplier` (`nowo:uptime:apply-monitors`): the hand-written transaction rolled back a nested level twice after a
+  deadlock; now a runner unit, replayed after a transient failure.
+- Every scheduler consumer checked every due monitor: due monitors are claimed before their check, only while still
+  due, for the interval or at least twice the request timeout plus 30 s (a slow check is not claimed twice).
+- **Up to 1.28.3 a running check could revert an edit of the monitor's configuration.** A check loaded the monitor
+  before its network step and, whenever it changed the configuration (failure and notification streaks, i.e. while the
+  monitor was failing), wrote the whole configuration back. An edit saved during that window (up to the check timeout,
+  usually the full timeout when the target is down) was silently undone, **including rotated or removed credentials**:
+  auth headers, URL basic-auth credentials, proxy settings. The check's unit now locks the monitor row and reads it
+  again before it stores the outcome, and the UI edit does the same. **Re-check the edits you saved while a monitor
+  was failing**, in particular credentials you rotated or removed (audit QK-I1).
+- Concurrent checks of one monitor lost aggregate counts, failed on the aggregate bucket's unique key, opened two
+  incidents or sent a second alert: the check's unit locks the monitor row and reads it again.
+- Alerts were sent before the check was stored; they now follow the commit, once, and a failure while writing what
+  incident listeners left after the commit is logged and can no longer suppress them (audit QK-L1).
+- The time of a sent alert is stored on the monitor row locked and read again by id, also after a replay, and never
+  moved back (audit QK-L2).
+- `TenantProvisioner::ensure()`: two concurrent calls for one new slug failed with a unique violation.
+- Push ingest: two concurrent pushes of one monitor both passed the rate limit.
+- Two settings screens saved at the same time: the later one wrote back the settings its page loaded.
+- `nowo:uptime:rollup` overwrote counts recorded meanwhile and loaded every result of every monitor at once.
+- Storage failures on the bundle's routes answered 500.
+
+### Notes
+
+- **Application entity manager:** the bundle still writes an application entity manager in two cases only, both
+  unchanged in behaviour: (a) the deprecated 1.27 BC path `doctrine.flush_listener_changes` (default true) flushes what
+  incident listeners left there when nothing was pending before them; (b) `TenantQuota::withTenantLock($yourManager, …)`
+  called by your code with your own manager runs on a runner of that manager: it flushes and commits it, and after a
+  failure clears or detaches what the unit loaded (1.28 `wrapInTransaction()` flushed it and closed it). The bundle's own
+  calls always pass its private manager.
+
+### Known issues (fixed in 1.29.x)
+
+- `nowo:uptime:apply-monitors` and the backup import (overwrite mode) write the monitor configuration without locking
+  the monitor rows first, so a check committed between their read and their write can lose one streak update (alert
+  timing only). The applier's replay after a storage failure reads the tenants before locking them, so on MySQL a UI
+  create committed in between can push the tenant one monitor past its quota (audit QK-L4).
+- `TenantProvisioner::ensure()` inside a transaction your code opened on MySQL (REPEATABLE READ): when another request
+  creates the same tenant at the same moment, the re-read cannot see it and the unique violation reaches you (as in
+  1.28); retry your transaction (audit QK-L5).
+
+### Tests
+
+- `tests/bootstrap.php` ignores one third-party deprecation (doctrine/doctrine-bundle 2.19 calling DBAL 4.6's
+  deprecated `Type::hasType()`); kernel tests build their schema with Doctrine ORM 3.8's schema editor
+  API (`Tests\Support\TestSchemaTool`). The lock moves to doctrine/orm 3.8.0 and doctrine/doctrine-bundle 2.19.4.
+
 ### Documentation
 
 - `docs/SECURITY.md`: record the audits since 1.23.0 (Appendices KE, LD, MQ, NX) and refresh the latest audit date (REQ-SEC-004).

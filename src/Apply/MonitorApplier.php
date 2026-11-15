@@ -15,6 +15,7 @@ use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Throwable;
 
@@ -53,6 +54,7 @@ final readonly class MonitorApplier implements MonitorApplierInterface
     /**
      * @param TenantQuota|null $quota Tenant limits (monitor count and minimum interval)
      * @param EventDispatcherInterface|null $eventDispatcher Receives {@see MonitorsAppliedEvent} after the commit
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -60,6 +62,7 @@ final readonly class MonitorApplier implements MonitorApplierInterface
         private TenantRepository $tenants,
         private ?TenantQuota $quota = null,
         private ?EventDispatcherInterface $eventDispatcher = null,
+        private ?UptimeTransactionRunner $transactionRunner = null,
     ) {
     }
 
@@ -92,34 +95,35 @@ final readonly class MonitorApplier implements MonitorApplierInterface
             throw ApplyFailedException::from($failure);
         }
 
-        // A plain transaction, not wrapInTransaction(): a refusal must leave the entity manager open (nothing was
-        // written yet), and a failure is replaced, not rethrown.
-        $connection = $this->entityManager->getConnection();
-        $connection->beginTransaction();
+        // Since 1.29 (Beacon spec 239) one unit of work of the bundle's runner instead of a hand-written transaction: it
+        // flushes once at its own level and, after any failure, leaves no transaction of its own open (1.28 rolled back
+        // a nested level twice after a MySQL deadlock in the flush and left the connection nested). A refusal leaves
+        // the entity manager open (only what the run loaded is forgotten); a deadlock or lock wait is replayed (up to
+        // three attempts in all) from the tenant locks on.
         try {
-            foreach ($tenants as $tenant) {
-                $this->entityManager->lock($tenant, LockMode::PESSIMISTIC_WRITE);
-            }
-            // Planned again under the locks: a concurrent UI create may have taken a URL key or a quota slot.
-            [$plan, $errors] = $this->plan($spec, $tenants, $tokens, $prune);
-            if ($errors !== []) {
-                throw new ApplyRefusedException($errors);
-            }
-            $this->write($plan, $prune);
-            $this->entityManager->flush();
-            $connection->commit();
+            $plan = ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->runRetrying(function () use ($spec, $tenants, $tokens, $prune): array {
+                // A replay after a storage failure runs on a fresh manager: the tenants are that manager's copies.
+                $managed = $this->managedTenants($tenants);
+                foreach ($managed as $tenant) {
+                    $this->entityManager->lock($tenant, LockMode::PESSIMISTIC_WRITE);
+                }
+                // Planned again under the locks: a concurrent UI create may have taken a URL key or a quota slot.
+                [$plan, $errors] = $this->plan($spec, $managed, $tokens, $prune);
+                if ($errors !== []) {
+                    throw new ApplyRefusedException($errors);
+                }
+                $this->write($plan, $prune);
+
+                return $plan;
+            });
+        } catch (ApplyRefusedException $refused) {
+            throw $refused;
+        } catch (UniqueConstraintViolationException) {
+            // A concurrent write outside the locked tenants (another tenant's UI create) took a unique value
+            // between the plan and the flush: a conflict to retry (exit 6), not a failure (audit FI-I6).
+            throw new ApplyRefusedException([new ApplyError('', self::CONCURRENT_CONFLICT, ApplyError::EXIT_CONFLICT)]);
         } catch (Throwable $failure) {
-            if ($connection->isTransactionActive()) {
-                $connection->rollBack();
-            }
-
-            if ($failure instanceof UniqueConstraintViolationException) {
-                // A concurrent write outside the locked tenants (another tenant's UI create) took a unique value
-                // between the plan and the flush: a conflict to retry (exit 6), not a failure (audit FI-I6).
-                throw new ApplyRefusedException([new ApplyError('', self::CONCURRENT_CONFLICT, ApplyError::EXIT_CONFLICT)]);
-            }
-
-            throw $failure instanceof ApplyRefusedException ? $failure : ApplyFailedException::from($failure);
+            throw ApplyFailedException::from($failure);
         }
 
         // The changes are committed: a failing listener must not turn the run into "nothing applied", nor deprive the
@@ -135,6 +139,24 @@ final readonly class MonitorApplier implements MonitorApplierInterface
         }
 
         return $result;
+    }
+
+    /**
+     * The tenants as entities of the manager the unit runs on (a replay after a storage failure runs on a fresh one).
+     *
+     * @param array<string, Tenant> $tenants
+     *
+     * @return array<string, Tenant>
+     */
+    private function managedTenants(array $tenants): array
+    {
+        foreach ($tenants as $slug => $tenant) {
+            if (!$this->entityManager->contains($tenant)) {
+                $tenants[$slug] = $this->entityManager->find(Tenant::class, $tenant->getId()) ?? $tenant;
+            }
+        }
+
+        return $tenants;
     }
 
     /**

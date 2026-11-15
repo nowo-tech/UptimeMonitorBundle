@@ -108,6 +108,7 @@ make demo-screenshots   # reseeds the demo and refreshes docs/images/demo/*.webp
 - [PSR evaluation (REQ-CS-007)](docs/PSR.md)
 - [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Scheduling](docs/SCHEDULING.md)
+- [High load (Beacon spec 239): transactions, 503 / 409, races, lock order](docs/HIGH-LOAD.md)
 - [Check types](docs/CHECK-TYPES.md)
 - [Push monitors — server health](docs/PUSH-MONITORS.md) (and [monitors as code](docs/PUSH-MONITORS.md#monitors-as-code): `nowo:uptime:apply-monitors`)
 - [Monitor configuration (Uptime Kuma parity)](docs/MONITOR-CONFIGURATION.md)
