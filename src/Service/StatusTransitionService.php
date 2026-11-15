@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Apply\MonitorApplier;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeRowLock;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -125,9 +126,17 @@ final readonly class StatusTransitionService
             }
             $monitor = $alert->getMonitor();
             $at      = $this->clock->now();
+            $id      = $monitor->getId();
             try {
-                $this->runner()->runRetrying(static function () use ($monitor, $at): void {
-                    $monitor->setLastAlertAt($at);
+                $this->runner()->runRetrying(function () use ($monitor, $id, $at): void {
+                    // The row locked and read again by id (a replay runs on a fresh manager, audit QK-L2), and never
+                    // moved back: a later alert of another unit keeps its time.
+                    $locked = $id === null ? $monitor : UptimeRowLock::lock($this->entityManager, Monitor::class, $id);
+                    $stored = $locked?->getLastAlertAt();
+                    if ($locked instanceof Monitor && (!$stored instanceof DateTimeImmutable || $stored < $at)) {
+                        // @igor-ignore - Doctrine entity locked for this unit of work; not a shared service.
+                        $locked->setLastAlertAt($at);
+                    }
                 });
             } catch (Throwable $failure) {
                 $this->logger->warning('Uptime alert of monitor {monitor_id} was sent, but its time could not be stored: {error}', [
@@ -175,8 +184,19 @@ final readonly class StatusTransitionService
         }
 
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {
-            // Since 1.29: what the listeners left in the bundle's manager is written in a unit of work of the runner.
-            $this->runner()->run(static fn (): mixed => null);
+            // Since 1.29: what the listeners left in the bundle's manager is written in a unit of work of the runner. The
+            // check is committed already: a failure here is logged (its class only), never thrown, so the alerts that
+            // follow are still sent (audit QK-L1).
+            try {
+                $this->runner()->run(static fn (): mixed => null);
+            } catch (Throwable $failure) {
+                $this->logger->error('Uptime incident listener changes could not be written after the commit: {error}', [
+                    'bundle'     => 'NowoUptimeMonitorBundle',
+                    'event'      => $events[0]::class,
+                    'monitor_id' => $events[0]->getMonitorId(),
+                    'error'      => $failure::class,
+                ]);
+            }
             if ($watch !== null) {
                 $this->afterListeners($watch[0], $watch[1], $events);
             }

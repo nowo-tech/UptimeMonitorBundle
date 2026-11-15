@@ -120,15 +120,17 @@ class MonitorRepository extends ServiceEntityRepository
 
     /**
      * Claims a due monitor for one check (since 1.29, Beacon spec 239): moves its next check time from the value the
-     * scan read to `$lease`, only if no other process changed it meanwhile. True when this call claimed it; false when
+     * scan read to `$lease`, only if no other process changed it meanwhile and it is still due at `$now` (a monitor
+     * whose next check is already in the future is never claimed again, audit QK-L3). True when this call claimed it; false when
      * another scheduler (or a check) got there first, so concurrent schedulers never check one monitor twice. One
      * statement, in a savepoint inside a transaction of the application.
      *
      * @param int $id Monitor id
      * @param DateTimeImmutable|null $seen The next check time the scan read
      * @param DateTimeImmutable $lease The next check time while the check runs (the check stores the real one)
+     * @param DateTimeImmutable|null $now The scan time the monitor must still be due at (null: no due check)
      */
-    public function claimDue(int $id, ?DateTimeImmutable $seen, DateTimeImmutable $lease): bool
+    public function claimDue(int $id, ?DateTimeImmutable $seen, DateTimeImmutable $lease, ?DateTimeImmutable $now = null): bool
     {
         $entityManager = $this->getEntityManager();
         $query         = $entityManager->createQueryBuilder()
@@ -139,6 +141,9 @@ class MonitorRepository extends ServiceEntityRepository
             ->setParameter('id', $id);
         if ($seen instanceof DateTimeImmutable) {
             $query->andWhere('m.nextCheckAt = :seen')->setParameter('seen', $seen, Types::DATETIME_IMMUTABLE);
+            if ($now instanceof DateTimeImmutable) {
+                $query->andWhere('m.nextCheckAt <= :now')->setParameter('now', $now, Types::DATETIME_IMMUTABLE);
+            }
         } else {
             $query->andWhere('m.nextCheckAt IS NULL');
         }

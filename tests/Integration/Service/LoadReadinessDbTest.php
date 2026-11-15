@@ -5,16 +5,23 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Service;
 
 use DateTimeImmutable;
+use Doctrine\DBAL\Driver\Exception as DriverException;
+use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Events;
 use Doctrine\Persistence\ManagerRegistry;
+use Exception;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\UptimeMonitorBundle\Check\CheckRunnerInterface;
 use Nowo\UptimeMonitorBundle\Controller\PushController;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
 use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -35,6 +42,7 @@ use Nowo\UptimeMonitorBundle\Service\MonitorRetryService;
 use Nowo\UptimeMonitorBundle\Service\NotificationService;
 use Nowo\UptimeMonitorBundle\Service\StatusTransitionService;
 use Nowo\UptimeMonitorBundle\Service\TenantProvisioner;
+use Nowo\UptimeMonitorBundle\Tests\Support\SingleManagerRegistry;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\SyncDispatcherTestTrait;
 use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
@@ -205,6 +213,81 @@ final class LoadReadinessDbTest extends TestCase
     }
 
     /**
+     * Audit QK-L1: what an incident listener left in the bundle's manager fails to flush after the commit. The check is
+     * stored and its transition is never judged again, so its alert must still go out (on 9efa776 the failure escaped
+     * and the "down" alert was lost for good).
+     */
+    public function testAFailingListenerFlushNeverSuppressesTheAlert(): void
+    {
+        $monitor = $this->monitor('API');
+        $monitor->setLastKnownStatus(CheckStatus::Up);
+        $this->em->flush();
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorWentDownEvent::class, function (): void {
+            // Two tags with one name: the unique key refuses the flush after the commit.
+            $this->em->persist(new Tag($this->tenant, 'dup'));
+            $this->em->persist(new Tag($this->tenant, 'dup'));
+        });
+
+        $result = $this->executor($this->em, null, $dispatcher)->execute($monitor);
+
+        self::assertSame(CheckStatus::Down, $result->getStatus());
+        self::assertSame(['API:down'], $this->alerts);
+        self::assertSame(1, SqliteEntityManagerFactory::count($this->em, 'uptime_check_result'));
+    }
+
+    /**
+     * Audit QK-L2: the time of a sent alert is stored on the row locked again by id, also when its unit is replayed
+     * after a storage failure (on 9efa776 the replay wrote to the entity of the replaced manager: nothing stored), and
+     * a later time stored meanwhile is never moved back.
+     */
+    public function testTheTimeOfASentAlertSurvivesAReplayAndNeverMovesBack(): void
+    {
+        $monitor = $this->monitor('API');
+        $later   = $this->monitor('Web');
+        $future  = new DateTimeImmutable('2026-03-10 13:00:00');
+        $this->em->getConnection()->update('uptime_monitor', ['last_alert_at' => $future], ['id' => $later->getId()], ['last_alert_at' => Types::DATETIME_IMMUTABLE]);
+        $private = new UptimeEntityManager(new SingleManagerRegistry($this->em));
+        $mine    = $private->find(Monitor::class, $monitor->getId());
+        $theirs  = $private->find(Monitor::class, $later->getId());
+        self::assertInstanceOf(Monitor::class, $mine);
+        self::assertInstanceOf(Monitor::class, $theirs);
+        $deadlocks = 1;
+        $this->em->getEventManager()->addEventListener([Events::onFlush], new class($deadlocks) {
+            public function __construct(private int &$deadlocks)
+            {
+            }
+
+            public function onFlush(): void
+            {
+                if ($this->deadlocks-- > 0) {
+                    throw new DeadlockException(new class('deadlock', 1213) extends Exception implements DriverException {
+                        public function getSQLState(): string
+                        {
+                            return '40001';
+                        }
+                    }, null);
+                }
+            }
+        });
+        $transitions = new StatusTransitionService(
+            $private,
+            new IncidentRepository($this->registry($private)),
+            new NotificationService([$this->recordingChannel()], ['enabled' => true]),
+            ['enabled' => true],
+            clock: $this->clock,
+            transactionRunner: new UptimeTransactionRunner($private, new UptimeManagerRegistry($this->createStub(ManagerRegistry::class), $private), UptimeEntityManager::NAME, 1, 0),
+        );
+
+        $transitions->sendCommitted([new UptimeAlert($mine, UptimeAlert::TRANSITION_DOWN, CheckStatus::Down, CheckStatus::Up), new UptimeAlert($theirs, UptimeAlert::TRANSITION_DOWN, CheckStatus::Down, CheckStatus::Up)]);
+
+        self::assertSame(-2, $deadlocks, 'three flushes: the first unit (deadlock), its replay, the second alert\'s unit');
+        $connection = $this->em->getConnection();
+        self::assertSame(self::NOW, (string) $connection->fetchOne('SELECT last_alert_at FROM uptime_monitor WHERE id = ?', [$monitor->getId()]));
+        self::assertSame('2026-03-10 13:00:00', (string) $connection->fetchOne('SELECT last_alert_at FROM uptime_monitor WHERE id = ?', [$later->getId()]));
+    }
+
+    /**
      * R5: two first visits of a project provision its tenant at the same time. 1.28.3 failed the second one with a
      * unique violation (a 500 and a closed entity manager).
      */
@@ -336,20 +419,9 @@ final class LoadReadinessDbTest extends TestCase
         };
     }
 
-    private function executor(EntityManagerInterface $em, ?IncidentRepository $incidents = null, ?EventDispatcher $dispatcher = null): CheckExecutorService
+    private function recordingChannel(): NotificationChannelInterface
     {
-        $registry = $this->registry($em);
-        $runner   = $this->createStub(CheckRunnerInterface::class);
-        $runner->method('supports')->willReturn(true);
-        $runner->method('run')->willReturnCallback(function (Monitor $monitor): CheckResultDto {
-            // The network step: the other process works meanwhile.
-            if ($this->meanwhile !== null) {
-                ($this->meanwhile)($monitor);
-            }
-
-            return new CheckResultDto(CheckStatus::Down, 5, null, 'timeout');
-        });
-        $channel = new class($this->alerts) implements NotificationChannelInterface {
+        return new class($this->alerts) implements NotificationChannelInterface {
             /**
              * @param list<string> $alerts
              */
@@ -376,6 +448,22 @@ final class LoadReadinessDbTest extends TestCase
                 return 'recording';
             }
         };
+    }
+
+    private function executor(EntityManagerInterface $em, ?IncidentRepository $incidents = null, ?EventDispatcher $dispatcher = null): CheckExecutorService
+    {
+        $registry = $this->registry($em);
+        $runner   = $this->createStub(CheckRunnerInterface::class);
+        $runner->method('supports')->willReturn(true);
+        $runner->method('run')->willReturnCallback(function (Monitor $monitor): CheckResultDto {
+            // The network step: the other process works meanwhile.
+            if ($this->meanwhile !== null) {
+                ($this->meanwhile)($monitor);
+            }
+
+            return new CheckResultDto(CheckStatus::Down, 5, null, 'timeout');
+        });
+        $channel      = $this->recordingChannel();
         $transactions = new UptimeTransactionRunner($em, backoffBaseMilliseconds: 0);
 
         return new CheckExecutorService(

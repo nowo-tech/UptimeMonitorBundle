@@ -103,10 +103,14 @@ final readonly class CheckExecutorService
 
         [$result, $events, $alerts] = $this->runner()->runRetrying(fn (): array => $this->store($id === null ? $monitor : null, $id, $raw, $now));
 
-        // Since 1.25 the incident events follow the commit: the new incident has its id, a failed unit sends none.
-        $this->statusTransitionService->dispatchCommitted($events);
-        // Since 1.29 the notifications follow the commit too: a replayed unit never sends one twice.
-        $this->statusTransitionService->sendCommitted($alerts);
+        try {
+            // Since 1.25 the incident events follow the commit: the new incident has its id, a failed unit sends none.
+            $this->statusTransitionService->dispatchCommitted($events);
+        } finally {
+            // Since 1.29 the notifications follow the commit too, once: a replayed unit never sends one twice, and
+            // nothing after the commit can suppress them (the transition is stored, it is never judged again; QK-L1).
+            $this->statusTransitionService->sendCommitted($alerts);
+        }
         $this->dashboardSyncDispatcher->dispatchAfterCheck($result->getMonitor(), $result);
 
         return $result;

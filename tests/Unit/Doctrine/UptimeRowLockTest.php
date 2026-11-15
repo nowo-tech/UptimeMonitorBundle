@@ -70,5 +70,17 @@ final class UptimeRowLockTest extends TestCase
         self::assertFalse($monitors->claimDue((int) $due->getId(), $due->getNextCheckAt(), $lease), 'claimed already');
         $em->clear();
         self::assertEquals($lease, $em->find(Monitor::class, $never->getId())?->getNextCheckAt());
+
+        // Audit QK-L3: a monitor whose committed next check is in the future is not due, even when the caller read that
+        // value (a monitor reloaded, or a group refreshed earlier in the same scan).
+        $tenant = $em->find(Tenant::class, $tenant->getId());
+        self::assertInstanceOf(Tenant::class, $tenant);
+        $future = new Monitor($tenant, 'Not due', MonitorType::Https, 'https://c.test');
+        $future->setNextCheckAt(new DateTimeImmutable('2026-03-10 12:05:00'));
+        $em->persist($future);
+        $em->flush();
+        $scan = new DateTimeImmutable('2026-03-10 12:00:00');
+        self::assertFalse($monitors->claimDue((int) $future->getId(), $future->getNextCheckAt(), $lease, $scan));
+        self::assertTrue($monitors->claimDue((int) $future->getId(), $future->getNextCheckAt(), $lease, $future->getNextCheckAt()));
     }
 }

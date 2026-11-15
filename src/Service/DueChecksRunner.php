@@ -9,6 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeSavepoint;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Monitor\MonitorSettings;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -17,6 +18,7 @@ use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Throwable;
 
+use function ceil;
 use function max;
 use function sprintf;
 
@@ -32,11 +34,16 @@ use function sprintf;
  *
  * Since 1.29 (Beacon spec 239) each monitor is claimed before its check ({@see MonitorRepository::claimDue()}): its
  * next check time moves to now + interval only if no other scheduler moved it since the scan, so two consumers of the
- * scheduler transport (or two `run-due` commands) never check the same monitor twice. A monitor another process
- * claimed is skipped; a monitor whose check fails stays claimed until that time, so it never heads every scan.
+ * scheduler transport (or two `run-due` commands) never check the same monitor twice, and only while it is still due.
+ * The claim lasts the interval, at least twice the request timeout plus {@see self::LEASE_MARGIN_SECONDS}
+ * ({@see self::leaseSeconds()}). A monitor another process claimed is skipped; a monitor whose check fails stays
+ * claimed until that time, so it never heads every scan. Consumers need synchronised clocks (NTP).
  */
 final readonly class DueChecksRunner
 {
+    /** Seconds added to twice the request timeout for the claim's lease (since 1.29). */
+    public const LEASE_MARGIN_SECONDS = 30;
+
     /**
      * @param MonitorRepository $monitorRepository Finds the due monitors of enabled tenants
      * @param CheckExecutorService $checkExecutor Runs and stores one check
@@ -95,7 +102,7 @@ final readonly class DueChecksRunner
                 }
             }
 
-            if (!$this->claim($monitor)) {
+            if (!$this->claim($monitor, $now)) {
                 continue;
             }
 
@@ -122,7 +129,7 @@ final readonly class DueChecksRunner
      * Claims the monitor for this scan (since 1.29); false when another process claimed or changed it first, or the
      * claim itself failed (the monitor stays due for the next tick).
      */
-    private function claim(Monitor $monitor): bool
+    private function claim(Monitor $monitor, DateTimeImmutable $now): bool
     {
         $id = $monitor->getId();
         if ($id === null) {
@@ -130,7 +137,7 @@ final readonly class DueChecksRunner
         }
 
         try {
-            return $this->monitorRepository->claimDue($id, $monitor->getNextCheckAt(), $this->clock->now()->modify(sprintf('+%d seconds', max(1, $monitor->getIntervalSeconds()))));
+            return $this->monitorRepository->claimDue($id, $monitor->getNextCheckAt(), $this->clock->now()->modify(sprintf('+%d seconds', self::leaseSeconds($monitor))), $now);
         } catch (Throwable $e) {
             $this->logger->warning('Uptime monitor {monitor_id} could not be claimed for its check: {error}', [
                 'bundle'     => 'NowoUptimeMonitorBundle',
@@ -140,6 +147,16 @@ final readonly class DueChecksRunner
 
             return false;
         }
+    }
+
+    /**
+     * How long a claim lasts (since 1.29, audit QK-L3): the interval, but never less than twice the check's request
+     * timeout plus a margin, so a slow check (a down target answering only at the timeout) is not claimed again by
+     * another consumer while it still runs. The check stores the real next time when it ends.
+     */
+    public static function leaseSeconds(Monitor $monitor): int
+    {
+        return max(1, $monitor->getIntervalSeconds(), 2 * (int) ceil(MonitorSettings::from($monitor)->getRequestTimeoutSeconds()) + self::LEASE_MARGIN_SECONDS);
     }
 
     /**

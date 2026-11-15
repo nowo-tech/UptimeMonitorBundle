@@ -64,6 +64,18 @@ final class LoadReadinessEdgesTest extends TestCase
         self::assertSame(0, SqliteEntityManagerFactory::count($this->em, 'uptime_check_result'));
     }
 
+    /**
+     * Audit QK-L3: a claim lasts the interval, but at least twice the request timeout plus a margin.
+     */
+    public function testTheClaimOutlastsASlowCheck(): void
+    {
+        $monitor = new Monitor($this->tenant, 'Slow', MonitorType::Https, 'https://slow.test');
+        $monitor->setIntervalSeconds(30)->setConfig(['timeout' => 60]);
+        self::assertSame(150, DueChecksRunner::leaseSeconds($monitor));
+        $monitor->setIntervalSeconds(600);
+        self::assertSame(600, DueChecksRunner::leaseSeconds($monitor));
+    }
+
     public function testAClaimThatFailsSkipsTheMonitorWithAWarning(): void
     {
         $monitor = $this->monitor('API');

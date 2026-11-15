@@ -111,16 +111,45 @@ High load readiness (Beacon spec 239). See [HIGH-LOAD.md](HIGH-LOAD.md) and [UPG
   requests. It now runs on the bundle's runner (one flush, the connection repaired, `TransientStorageFailure`).
 - `MonitorApplier` (`nowo:uptime:apply-monitors`): the hand-written transaction rolled back a nested level twice after a
   deadlock; now a runner unit, replayed after a transient failure.
-- Every scheduler consumer checked every due monitor: due monitors are claimed before their check.
-- A check wrote back the monitor configuration it loaded before the network step, undoing an edit saved meanwhile.
+- Every scheduler consumer checked every due monitor: due monitors are claimed before their check, only while still
+  due, for the interval or at least twice the request timeout plus 30 s (a slow check is not claimed twice).
+- **Up to 1.28.3 a running check could revert an edit of the monitor's configuration.** A check loaded the monitor
+  before its network step and, whenever it changed the configuration (failure and notification streaks, i.e. while the
+  monitor was failing), wrote the whole configuration back. An edit saved during that window (up to the check timeout,
+  usually the full timeout when the target is down) was silently undone, **including rotated or removed credentials**:
+  auth headers, URL basic-auth credentials, proxy settings. The check's unit now locks the monitor row and reads it
+  again before it stores the outcome, and the UI edit does the same. **Re-check the edits you saved while a monitor
+  was failing**, in particular credentials you rotated or removed (audit QK-I1).
 - Concurrent checks of one monitor lost aggregate counts, failed on the aggregate bucket's unique key, opened two
   incidents or sent a second alert: the check's unit locks the monitor row and reads it again.
-- Alerts were sent before the check was stored; they now follow the commit.
+- Alerts were sent before the check was stored; they now follow the commit, once, and a failure while writing what
+  incident listeners left after the commit is logged and can no longer suppress them (audit QK-L1).
+- The time of a sent alert is stored on the monitor row locked and read again by id, also after a replay, and never
+  moved back (audit QK-L2).
 - `TenantProvisioner::ensure()`: two concurrent calls for one new slug failed with a unique violation.
 - Push ingest: two concurrent pushes of one monitor both passed the rate limit.
 - Two settings screens saved at the same time: the later one wrote back the settings its page loaded.
 - `nowo:uptime:rollup` overwrote counts recorded meanwhile and loaded every result of every monitor at once.
 - Storage failures on the bundle's routes answered 500.
+
+### Notes
+
+- **Application entity manager:** the bundle still writes an application entity manager in two cases only, both
+  unchanged in behaviour: (a) the deprecated 1.27 BC path `doctrine.flush_listener_changes` (default true) flushes what
+  incident listeners left there when nothing was pending before them; (b) `TenantQuota::withTenantLock($yourManager, …)`
+  called by your code with your own manager runs on a runner of that manager: it flushes and commits it, and after a
+  failure clears or detaches what the unit loaded (1.28 `wrapInTransaction()` flushed it and closed it). The bundle's own
+  calls always pass its private manager.
+
+### Known issues (fixed in 1.29.x)
+
+- `nowo:uptime:apply-monitors` and the backup import (overwrite mode) write the monitor configuration without locking
+  the monitor rows first, so a check committed between their read and their write can lose one streak update (alert
+  timing only). The applier's replay after a storage failure reads the tenants before locking them, so on MySQL a UI
+  create committed in between can push the tenant one monitor past its quota (audit QK-L4).
+- `TenantProvisioner::ensure()` inside a transaction your code opened on MySQL (REPEATABLE READ): when another request
+  creates the same tenant at the same moment, the re-read cannot see it and the unique violation reaches you (as in
+  1.28); retry your transaction (audit QK-L5).
 
 ### Tests
 

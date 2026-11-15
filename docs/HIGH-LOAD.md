@@ -71,13 +71,13 @@ DoctrineDeadlockRetryBundle's HTTP mapping).
 
 | Before 1.29 | Since 1.29 |
 |-------------|------------|
-| Every scheduler consumer (or `run-due` command) checked every due monitor | Each due monitor is **claimed** first (`MonitorRepository::claimDue()`: its next check time moves to now + interval only if nobody moved it since the scan), so it is checked once |
+| Every scheduler consumer (or `run-due` command) checked every due monitor | Each due monitor is **claimed** first (`MonitorRepository::claimDue()`: its next check time moves to now + the interval, at least twice the request timeout + 30 s, only if nobody moved it since the scan and it is still due), so it is checked once. Keep the consumers' clocks synchronised (NTP) |
 | A check wrote back the configuration it loaded before the network step, undoing an edit saved meanwhile | The check's unit locks the monitor row and reads it again, then applies the outcome to that state |
 | Two checks of one monitor at once (a group refreshed by two children) lost aggregate counts, failed on the bucket's unique key, opened two incidents or sent a second "down" alert | Checks of one monitor queue on its row; the status, the buckets and the incident are judged on the committed state |
 | A deadlock inside the quota write (`TenantQuota::withTenantLock()`, `wrapInTransaction()` with a nested flush) answered a raw `1305` and left the connection nested | One flush at the runner's level; a transient failure answers 503 and leaves the connection at level 0 |
 | Two first visits of a project provisioning its tenant: the second failed with a unique violation | The second reads the tenant the first one wrote |
 | Two pushes of one monitor at once were both accepted | The pause and the push rate are judged again on the locked row: the second one gets 429 |
-| Alerts went out before the check was stored | Alerts follow the commit and are never sent twice by a replay |
+| Alerts went out before the check was stored | Alerts follow the commit and are never sent twice by a replay; a failure after the commit cannot suppress them; the alert time is stored on the locked row and never moved back |
 | Two settings screens saved at once: the later one wrote back what its page loaded | Each screen locks the tenant row and applies its own fields to the committed settings |
 | The rollup overwrote counts recorded by checks while it ran, and loaded every result of every monitor | One monitor per unit, under the monitor row lock, reading that monitor's results as plain rows |
 
