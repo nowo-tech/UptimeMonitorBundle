@@ -6,12 +6,12 @@ namespace Nowo\UptimeMonitorBundle\Tests\Integration\BothHosts;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Fixtures\Host\Entity\HostNote;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestSchemaTool;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -46,7 +46,7 @@ final class DddHostKernelTest extends KernelTestCase
         $this->application = $application;
         $this->uptime      = $uptime;
         foreach ([$application, $uptime] as $manager) {
-            (new SchemaTool($manager))->createSchema($manager->getMetadataFactory()->getAllMetadata());
+            TestSchemaTool::of($manager)->createSchema($manager->getMetadataFactory()->getAllMetadata());
         }
     }
 

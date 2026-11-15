@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Routing;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Tests\Support\HostRoutingKernel;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestSchemaTool;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
@@ -50,7 +50,7 @@ final class HostHooksKernelTest extends TestCase
 
         $em = $this->kernel->getContainer()->get('doctrine.orm.entity_manager');
         self::assertInstanceOf(EntityManagerInterface::class, $em);
-        (new SchemaTool($em))->createSchema($em->getMetadataFactory()->getAllMetadata());
+        TestSchemaTool::of($em)->createSchema($em->getMetadataFactory()->getAllMetadata());
         $tenant  = new Tenant('main', 'Main');
         $monitor = new Monitor($tenant, 'API health', MonitorType::Https, 'https://user:placeholder@api.test/');
         $em->persist($tenant);

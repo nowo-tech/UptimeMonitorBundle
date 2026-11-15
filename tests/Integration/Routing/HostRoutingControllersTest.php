@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Routing;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\UptimeMonitorBundle\Tests\Support\HostRoutingKernel;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestSchemaTool;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
@@ -64,7 +64,7 @@ final class HostRoutingControllersTest extends TestCase
         self::assertNotNull($kernel);
         $entityManager = $kernel->getContainer()->get('doctrine.orm.entity_manager');
         self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        (new SchemaTool($entityManager))->createSchema($entityManager->getMetadataFactory()->getAllMetadata());
+        TestSchemaTool::of($entityManager)->createSchema($entityManager->getMetadataFactory()->getAllMetadata());
 
         // AbstractController::json() goes through the controller's service locator (container.service_subscriber).
         $response = $kernel->handle(Request::create('/api/uptime/unknown/summary'));

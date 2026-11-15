@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\BothHosts;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
@@ -15,6 +14,7 @@ use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Fixtures\Host\Entity\HostNote;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestSchemaTool;
 use stdClass;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\ConsoleEvents;
@@ -51,7 +51,7 @@ final class StandardHostKernelTest extends KernelTestCase
         $application = $doctrine->getManager();
         self::assertInstanceOf(EntityManagerInterface::class, $application);
         $this->application = $application;
-        (new SchemaTool($application))->createSchema($application->getMetadataFactory()->getAllMetadata());
+        TestSchemaTool::of($application)->createSchema($application->getMetadataFactory()->getAllMetadata());
     }
 
     public function testTheBundleWorksOnItsPrivateManagerOverTheApplicationConnection(): void

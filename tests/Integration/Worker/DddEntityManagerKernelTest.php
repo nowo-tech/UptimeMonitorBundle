@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Worker;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Tests\Support\TestSchemaTool;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -38,7 +38,7 @@ final class DddEntityManagerKernelTest extends KernelTestCase
         $option    = $this->manager($doctrine, 'bundle');
         $reporting = $this->manager($doctrine, 'reporting');
         self::assertSame($default, $doctrine->getManagerForClass(Monitor::class));
-        (new SchemaTool($default))->createSchema($default->getMetadataFactory()->getAllMetadata());
+        TestSchemaTool::of($default)->createSchema($default->getMetadataFactory()->getAllMetadata());
         $bundle = $container->get(UptimeEntityManager::class);
         self::assertInstanceOf(UptimeEntityManager::class, $bundle);
         self::assertSame($option->getConfiguration()->getMetadataDriverImpl(), $bundle->getConfiguration()->getMetadataDriverImpl());

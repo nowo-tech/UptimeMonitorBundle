@@ -122,6 +122,12 @@ High load readiness (Beacon spec 239). See [HIGH-LOAD.md](HIGH-LOAD.md) and [UPG
 - `nowo:uptime:rollup` overwrote counts recorded meanwhile and loaded every result of every monitor at once.
 - Storage failures on the bundle's routes answered 500.
 
+### Tests
+
+- `tests/bootstrap.php` ignores one third-party deprecation (doctrine/doctrine-bundle 2.19 calling DBAL 4.6's
+  deprecated `Type::hasType()`); kernel tests build their schema with Doctrine ORM 3.8's schema editor
+  API (`Tests\Support\TestSchemaTool`). The lock moves to doctrine/orm 3.8.0 and doctrine/doctrine-bundle 2.19.4.
+
 ### Documentation
 
 - `docs/SECURITY.md`: record the audits since 1.23.0 (Appendices KE, LD, MQ, NX) and refresh the latest audit date (REQ-SEC-004).
