@@ -10,6 +10,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Push\PushCredentials;
 use Nowo\UptimeMonitorBundle\Push\PushPayload;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -20,6 +21,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 use function intdiv;
+use function is_int;
 use function is_resource;
 use function max;
 use function preg_match;
@@ -37,11 +39,17 @@ use function trim;
  * never taken from the request. An unknown key, a wrong token, a revoked token and a bad signature give the same 401;
  * a paused monitor or a disabled tenant (known only once authenticated) 403; nothing is stored unless the push is
  * accepted (202).
+ *
+ * Since 1.29 (Beacon spec 239) the push is stored in one unit of work of the bundle's runner that locks the monitor row
+ * and checks the pause and the push rate again on the committed state: two concurrent pushes of one monitor never both
+ * pass the rate limit, and a push never overwrites the check state written meanwhile. A deadlock or lock wait is retried
+ * a few times, then answered `503` with `Retry-After`.
  */
 final readonly class PushController
 {
     /**
      * @param array{enabled: bool, max_body_bytes: int, signature_window_seconds: int, min_push_seconds: int} $push `push` configuration
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         private MonitorRepository $monitorRepository,
@@ -50,6 +58,7 @@ final readonly class PushController
         #[Autowire('%nowo_uptime_monitor.push%')]
         private array $push,
         private ClockInterface $clock = new NativeClock(),
+        private ?UptimeTransactionRunner $transactionRunner = null,
     ) {
     }
 
@@ -83,13 +92,10 @@ final readonly class PushController
             return $this->reply(['error' => 'monitor_disabled'], Response::HTTP_FORBIDDEN);
         }
 
-        $now   = $this->clock->now();
-        $last  = $monitor->getPushLastAt();
-        $every = max($this->push['min_push_seconds'], intdiv($monitor->getIntervalSeconds(), 2));
-        if ($last instanceof DateTimeImmutable && $now->getTimestamp() - $last->getTimestamp() < $every) {
-            return $this->reply(['error' => 'too_many_pushes'], Response::HTTP_TOO_MANY_REQUESTS, [
-                'Retry-After' => (string) max(1, $every - ($now->getTimestamp() - $last->getTimestamp())),
-            ]);
+        $now  = $this->clock->now();
+        $wait = $this->waitSeconds($monitor, $now);
+        if ($wait !== null) {
+            return $this->tooManyPushes($wait);
         }
         if (trim($body) !== '' && !str_starts_with(strtolower((string) $request->headers->get('Content-Type', '')), 'application/json')) {
             return $this->reply(['error' => 'unsupported_media_type'], Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
@@ -100,10 +106,50 @@ final readonly class PushController
             return $this->reply(['error' => 'invalid_payload', 'details' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $monitor->recordPush($now, $sample);
-        $this->entityManager->flush();
+        $id      = (int) $monitor->getId();
+        $outcome = ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->runRetrying(function () use ($id, $now, $sample): int|string|null {
+            // The committed state, locked until the commit: pause and rate are judged again on it.
+            $locked = $this->monitorRepository->lockForWrite($id);
+            if (!$locked instanceof Monitor) {
+                return 'unauthorized';
+            }
+            if ($locked->isPaused() || !$locked->getTenant()->isEnabled()) {
+                return 'monitor_disabled';
+            }
+            $wait = $this->waitSeconds($locked, $now);
+            if ($wait !== null) {
+                return $wait;
+            }
+            $locked->recordPush($now, $sample);
 
-        return $this->reply(['status' => 'accepted'], Response::HTTP_ACCEPTED);
+            return null;
+        });
+
+        return match (true) {
+            $outcome === 'unauthorized'     => $this->reply(['error' => 'unauthorized'], Response::HTTP_UNAUTHORIZED, ['WWW-Authenticate' => 'Bearer']),
+            $outcome === 'monitor_disabled' => $this->reply(['error' => 'monitor_disabled'], Response::HTTP_FORBIDDEN),
+            is_int($outcome)                => $this->tooManyPushes($outcome),
+            default                         => $this->reply(['status' => 'accepted'], Response::HTTP_ACCEPTED),
+        };
+    }
+
+    /**
+     * Seconds the monitor must wait before its next push; null when it may push now.
+     */
+    private function waitSeconds(Monitor $monitor, DateTimeImmutable $now): ?int
+    {
+        $last  = $monitor->getPushLastAt();
+        $every = max($this->push['min_push_seconds'], intdiv($monitor->getIntervalSeconds(), 2));
+        if (!$last instanceof DateTimeImmutable || $now->getTimestamp() - $last->getTimestamp() >= $every) {
+            return null;
+        }
+
+        return max(1, $every - ($now->getTimestamp() - $last->getTimestamp()));
+    }
+
+    private function tooManyPushes(int $wait): JsonResponse
+    {
+        return $this->reply(['error' => 'too_many_pushes'], Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => (string) $wait]);
     }
 
     /**

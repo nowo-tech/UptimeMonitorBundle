@@ -29,6 +29,11 @@ use function sprintf;
  * of `next_check_at`, so it cannot head every following scan) and the remaining monitors are reloaded in the fresh
  * manager (SEC-004 N1). With `checks.max_scan_seconds` the scan stops once the budget is
  * spent; the remaining monitors stay due and run first on the next tick (oldest `next_check_at` first).
+ *
+ * Since 1.29 (Beacon spec 239) each monitor is claimed before its check ({@see MonitorRepository::claimDue()}): its
+ * next check time moves to now + interval only if no other scheduler moved it since the scan, so two consumers of the
+ * scheduler transport (or two `run-due` commands) never check the same monitor twice. A monitor another process
+ * claimed is skipped; a monitor whose check fails stays claimed until that time, so it never heads every scan.
  */
 final readonly class DueChecksRunner
 {
@@ -90,9 +95,16 @@ final readonly class DueChecksRunner
                 }
             }
 
+            if (!$this->claim($monitor)) {
+                continue;
+            }
+
             try {
                 $this->checkExecutor->execute($monitor);
                 ++$count;
+            } catch (MonitorGoneException) {
+                // Deleted while its check ran: nothing to store.
+                continue;
             } catch (Throwable $e) {
                 $this->logger->error('Uptime check of monitor {monitor_id} failed: {error}', [
                     'bundle'     => 'NowoUptimeMonitorBundle',
@@ -104,6 +116,30 @@ final readonly class DueChecksRunner
         }
 
         return $count;
+    }
+
+    /**
+     * Claims the monitor for this scan (since 1.29); false when another process claimed or changed it first, or the
+     * claim itself failed (the monitor stays due for the next tick).
+     */
+    private function claim(Monitor $monitor): bool
+    {
+        $id = $monitor->getId();
+        if ($id === null) {
+            return true;
+        }
+
+        try {
+            return $this->monitorRepository->claimDue($id, $monitor->getNextCheckAt(), $this->clock->now()->modify(sprintf('+%d seconds', max(1, $monitor->getIntervalSeconds()))));
+        } catch (Throwable $e) {
+            $this->logger->warning('Uptime monitor {monitor_id} could not be claimed for its check: {error}', [
+                'bundle'     => 'NowoUptimeMonitorBundle',
+                'monitor_id' => $id,
+                'error'      => $e::class,
+            ]);
+
+            return false;
+        }
     }
 
     /**

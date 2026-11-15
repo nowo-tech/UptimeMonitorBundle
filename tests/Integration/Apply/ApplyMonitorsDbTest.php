@@ -13,6 +13,7 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\Decorator\EntityManagerDecorator;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\UptimeMonitorBundle\Apply\ApplyError;
 use Nowo\UptimeMonitorBundle\Apply\ApplyFailedException;
 use Nowo\UptimeMonitorBundle\Apply\ApplyRefusedException;
@@ -38,6 +39,7 @@ use Nowo\UptimeMonitorBundle\Tests\Support\RecordingLogger;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use Nowo\UptimeMonitorBundle\Tests\Support\StatementLog;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Apply\MonitorFileParserTest;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -242,6 +244,42 @@ final class ApplyMonitorsDbTest extends TestCase
         self::assertArrayNotHasKey('push_grace_seconds', $monitor->getConfig());
         self::assertSame(2, $monitor->getConfig()['failure_streak'], 'internal counters survive');
         self::assertSame([70.0, 80.0], $monitor->getConfig()['push_thresholds']['disk']);
+    }
+
+    /**
+     * 1.29 (Beacon spec 239): a transient failure of the unit (here after the manager lost the tenants, as a storage
+     * failure resets it) is replayed from the tenant locks on, with the tenants loaded again.
+     */
+    public function testATransientFailureIsReplayedWithTheTenantsLoadedAgain(): void
+    {
+        $registry = $this->createStub(ManagerRegistry::class);
+        $registry->method('getManagerForClass')->willReturn($this->em);
+        $failures = 1;
+        $flaky    = new class($registry, $this->em, $failures) extends MonitorRepository {
+            public function __construct(ManagerRegistry $registry, private readonly EntityManagerInterface $em, private int &$failures)
+            {
+                parent::__construct($registry);
+            }
+
+            public function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
+            {
+                if ($this->failures-- > 0) {
+                    $this->em->clear();
+
+                    throw new TransientStorageFailure(0);
+                }
+
+                return parent::findBy($criteria, $orderBy, $limit, $offset);
+            }
+        };
+        $applier = new MonitorApplier($this->em, $flaky, $this->tenants, null, null, new UptimeTransactionRunner($this->em, backoffBaseMilliseconds: 0));
+
+        [$code, $json] = $this->runCommand(['--file' => $this->monitorsFile([MonitorFileParserTest::entry()])], '', $applier);
+
+        self::assertSame(0, $code);
+        self::assertSame(-1, $failures);
+        self::assertCount(1, $json['created']);
+        self::assertInstanceOf(Monitor::class, $this->fileMonitor());
     }
 
     public function testPausedIsManagedOnlyWhenTheFileSaysSo(): void

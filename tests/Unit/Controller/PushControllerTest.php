@@ -43,10 +43,12 @@ final class PushControllerTest extends TestCase
     /**
      * @param array<string, mixed> $push
      */
-    private function controller(?Monitor $found, bool $flushes = false, array $push = []): PushController
+    private function controller(?Monitor $found, bool $flushes = false, array $push = [], ?Monitor $locked = null, bool $lockFound = true): PushController
     {
         $repository = $this->createMock(MonitorRepository::class);
         $repository->method('findOneByPushKey')->willReturn($found);
+        // Since 1.29 the push is stored on the monitor row locked and read again inside the runner's unit of work.
+        $repository->method('lockForWrite')->willReturn($lockFound ? $locked ?? $found : null);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects($flushes ? self::once() : self::never())->method('flush');
 
@@ -125,6 +127,26 @@ final class PushControllerTest extends TestCase
         $this->monitor->setPaused(false);
         $this->monitor->getTenant()->setEnabled(false);
         self::assertSame(403, $this->controller($this->monitor)(self::KEY, $this->request('{}', $this->token))->getStatusCode());
+    }
+
+    /**
+     * Since 1.29 the pause and the rate are judged again on the locked row: a monitor deleted, paused or pushed
+     * meanwhile answers as if the request had come after that change.
+     */
+    public function testTheCommittedStateDecidesUnderTheRowLock(): void
+    {
+        self::assertSame(401, $this->controller($this->monitor, true, lockFound: false)(self::KEY, $this->request('{}', $this->token))->getStatusCode());
+
+        $paused = new Monitor($this->monitor->getTenant(), 'web', MonitorType::Push, 'push');
+        $paused->setPaused(true);
+        self::assertSame(403, $this->controller($this->monitor, true, locked: $paused)(self::KEY, $this->request('{}', $this->token))->getStatusCode());
+
+        $pushed = new Monitor($this->monitor->getTenant(), 'web', MonitorType::Push, 'push');
+        $pushed->setIntervalSeconds(60)->recordPush($this->clock->now()->modify('-5 seconds'), []);
+        $response = $this->controller($this->monitor, true, locked: $pushed)(self::KEY, $this->request('{}', $this->token));
+        self::assertSame(429, $response->getStatusCode());
+        self::assertSame('25', $response->headers->get('Retry-After'));
+        self::assertNull($this->monitor->getPushLastAt());
     }
 
     public function testTooLargeBodiesAre413WhateverTheDeclaredLength(): void

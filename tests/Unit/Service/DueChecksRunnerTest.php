@@ -196,12 +196,25 @@ final class DueChecksRunnerTest extends TestCase
 
         $monitorRepository = $this->createMock(MonitorRepository::class);
         $monitorRepository->method('findDue')->willReturn([$broken, $deleted]);
+        $monitorRepository->method('claimDue')->willReturn(true);
 
         $runner = $this->createMock(CheckRunnerInterface::class);
         $runner->method('supports')->willReturn(true);
         $runner->method('run')->willReturn(new CheckResultDto(CheckStatus::Up, 1));
 
+        // Since 1.29 the check's unit of work locks the monitor row and reads it again first.
+        $locked = $this->createMock(Query::class);
+        $locked->method('setLockMode')->willReturnSelf();
+        $locked->method('setHint')->willReturnSelf();
+        $locked->method('getOneOrNullResult')->willReturn($broken);
+        $lockQb = $this->createMock(QueryBuilder::class);
+        $lockQb->method('select')->willReturnSelf();
+        $lockQb->method('from')->willReturnSelf();
+        $lockQb->method('where')->willReturnSelf();
+        $lockQb->method('setParameter')->willReturnSelf();
+        $lockQb->method('getQuery')->willReturn($locked);
         $closed = $this->createMock(EntityManagerInterface::class);
+        $closed->method('createQueryBuilder')->willReturn($lockQb);
         $closed->method('flush')->willThrowException(new RuntimeException('closed'));
         $closed->method('isOpen')->willReturn(false);
 

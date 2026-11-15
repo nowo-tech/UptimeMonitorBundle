@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Service;
 
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 
 use function preg_match;
 use function sprintf;
@@ -27,15 +29,21 @@ final readonly class TenantProvisioner implements TenantProvisionerInterface
      * @param TenantRepository $tenants Tenant lookup by slug
      * @param EntityManagerInterface $entityManager Persists created and changed tenants (the bundle's private manager
      *                                              since 1.27.0: an application manager is never flushed)
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         private TenantRepository $tenants,
         private EntityManagerInterface $entityManager,
+        private ?UptimeTransactionRunner $transactionRunner = null,
     ) {
     }
 
     /**
      * The tenant with this slug, created (enabled) when missing; an existing tenant keeps its settings.
+     *
+     * Since 1.29 (Beacon spec 239) two concurrent calls for one new slug (two first visits of a project) both get the
+     * tenant: the one whose insert the unique slug refuses reads the row the other wrote, instead of failing with a
+     * unique violation (a 500 before).
      *
      * @throws InvalidArgumentException when the slug is not lowercase letters, digits and hyphens
      */
@@ -48,10 +56,18 @@ final readonly class TenantProvisioner implements TenantProvisionerInterface
 
         $tenant = $this->tenants->findOneBySlug($slug);
         if (!$tenant instanceof Tenant) {
-            $tenant = new Tenant($slug, $name);
-            $this->entityManager->persist($tenant);
-            // 1.27.0: the bundle's private manager, so only this tenant is flushed (never the application's changes).
-            $this->entityManager->flush();
+            try {
+                // 1.27.0: the bundle's private manager, so only this tenant is written (never the application's changes).
+                $tenant = $this->runner()->run(function () use ($slug, $name): Tenant {
+                    $tenant = new Tenant($slug, $name);
+                    $this->entityManager->persist($tenant);
+
+                    return $tenant;
+                });
+            } catch (UniqueConstraintViolationException $lost) {
+                // Another request created it first: its row is the tenant.
+                $tenant = $this->tenants->findOneBySlug($slug) ?? throw $lost;
+            }
         }
 
         // The application gets the tenant of its own manager (it may relate its entities to it and flush them).
@@ -65,9 +81,16 @@ final readonly class TenantProvisioner implements TenantProvisionerInterface
         if (!$tenant instanceof Tenant) {
             return false;
         }
-        $tenant->setEnabled($enabled);
-        $this->entityManager->flush();
+        $this->runner()->run(static fn (): Tenant => $tenant->setEnabled($enabled));
 
         return true;
+    }
+
+    /**
+     * The bundle's runner of every write (since 1.29).
+     */
+    private function runner(): UptimeTransactionRunner
+    {
+        return $this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager);
     }
 }

@@ -17,6 +17,7 @@ use Nowo\UptimeMonitorBundle\Form\TenantFormType;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use stdClass;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -43,6 +44,7 @@ final class TenantController extends AbstractController
      * @param array<string, mixed> $multiTenantConfig
      * @param UptimeMonitorAccessCheckerInterface|null $accessChecker Configured checker; a tenant-aware one filters the list
      * @param TokenStorageInterface|null $tokenStorage Current security token (null without SecurityBundle)
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
@@ -54,6 +56,7 @@ final class TenantController extends AbstractController
         private readonly UptimePages $pages = new UptimePages(),
         private readonly ?UptimeMonitorAccessCheckerInterface $accessChecker = null,
         private readonly ?TokenStorageInterface $tokenStorage = null,
+        private readonly ?UptimeTransactionRunner $transactionRunner = null,
     ) {
     }
 
@@ -114,8 +117,10 @@ final class TenantController extends AbstractController
             /** @var array{slug: string, name: string} $data */
             $data   = $form->getData();
             $tenant = new Tenant($data['slug'], $data['name']);
-            $this->entityManager->persist($tenant);
-            $this->entityManager->flush();
+            // Since 1.29: one unit of work of the bundle's runner; a slug another request took meanwhile answers 409.
+            ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->run(function () use ($tenant): void {
+                $this->entityManager->persist($tenant);
+            });
 
             return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenant->getSlug()]);
         }

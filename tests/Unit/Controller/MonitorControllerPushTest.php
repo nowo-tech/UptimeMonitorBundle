@@ -57,6 +57,7 @@ final class MonitorControllerPushTest extends TestCase
         $tenantRepo->method('findOneBySlug')->willReturn($monitor->getTenant());
         $monitorRepo = $this->createMock(MonitorRepository::class);
         $monitorRepo->method('find')->willReturn($monitor);
+        $monitorRepo->method('lockForWrite')->willReturn($monitor);
         $aggregates = $this->getMockBuilder(CheckAggregateRepository::class)->onlyMethods(['findForMonitorInRange'])->disableOriginalConstructor()->getMock();
         $aggregates->method('findForMonitorInRange')->willReturn([]);
         $results = $this->createMock(CheckResultRepository::class);

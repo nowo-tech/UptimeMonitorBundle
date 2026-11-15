@@ -6,7 +6,10 @@ namespace Nowo\UptimeMonitorBundle\Repository;
 
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeRowLock;
+use Nowo\UptimeMonitorBundle\Doctrine\UptimeSavepoint;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use SortDirection;
@@ -113,6 +116,45 @@ class MonitorRepository extends ServiceEntityRepository
             ->getResult();
 
         return $monitors;
+    }
+
+    /**
+     * Claims a due monitor for one check (since 1.29, Beacon spec 239): moves its next check time from the value the
+     * scan read to `$lease`, only if no other process changed it meanwhile. True when this call claimed it; false when
+     * another scheduler (or a check) got there first, so concurrent schedulers never check one monitor twice. One
+     * statement, in a savepoint inside a transaction of the application.
+     *
+     * @param int $id Monitor id
+     * @param DateTimeImmutable|null $seen The next check time the scan read
+     * @param DateTimeImmutable $lease The next check time while the check runs (the check stores the real one)
+     */
+    public function claimDue(int $id, ?DateTimeImmutable $seen, DateTimeImmutable $lease): bool
+    {
+        $entityManager = $this->getEntityManager();
+        $query         = $entityManager->createQueryBuilder()
+            ->update(Monitor::class, 'm')
+            ->set('m.nextCheckAt', ':lease')
+            ->where('m.id = :id')
+            ->setParameter('lease', $lease, Types::DATETIME_IMMUTABLE)
+            ->setParameter('id', $id);
+        if ($seen instanceof DateTimeImmutable) {
+            $query->andWhere('m.nextCheckAt = :seen')->setParameter('seen', $seen, Types::DATETIME_IMMUTABLE);
+        } else {
+            $query->andWhere('m.nextCheckAt IS NULL');
+        }
+
+        return (int) UptimeSavepoint::run($entityManager->getConnection(), static fn (): mixed => $query->getQuery()->execute()) === 1;
+    }
+
+    /**
+     * The monitor row locked for the running unit of work and read again (since 1.29, Beacon spec 239): the writers
+     * of the row queue up until the transaction ends. Inside a transaction only.
+     *
+     * @return Monitor|null Null when the row does not exist (any more)
+     */
+    public function lockForWrite(int $id): ?Monitor
+    {
+        return UptimeRowLock::lock($this->getEntityManager(), Monitor::class, $id);
     }
 
     /**

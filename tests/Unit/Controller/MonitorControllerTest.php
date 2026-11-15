@@ -55,6 +55,7 @@ final class MonitorControllerTest extends TestCase
 
         $monitorRepo = $this->createMock(MonitorRepository::class);
         $monitorRepo->method('find')->willReturn($monitor);
+        $monitorRepo->method('lockForWrite')->willReturn($monitor);
 
         return new MonitorController(
             $this->createMock(TranslatorInterface::class),

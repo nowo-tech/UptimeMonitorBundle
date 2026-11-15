@@ -37,6 +37,7 @@ use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Component\Clock\ClockInterface;
@@ -91,6 +92,7 @@ final class MonitorController extends AbstractUptimeController
      * @param MonitorReadScope|null $readScope Narrows the monitor page for users without tenant access (since 1.21)
      * @param TokenStorageInterface|null $tokenStorage Actor of the lifecycle events (since 1.25; null without SecurityBundle)
      * @param ClockInterface $clock Occurred-at of the lifecycle events (since 1.25)
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner of every write (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -114,6 +116,7 @@ final class MonitorController extends AbstractUptimeController
         private readonly ?MonitorReadScope $readScope = null,
         private readonly ?TokenStorageInterface $tokenStorage = null,
         private readonly ClockInterface $clock = new NativeClock(),
+        private readonly ?UptimeTransactionRunner $transactionRunner = null,
     ) {
         parent::__construct($translator);
     }
@@ -148,8 +151,7 @@ final class MonitorController extends AbstractUptimeController
             return $this->redirectToRoute('nowo_uptime_monitor_show', ['tenantSlug' => $tenantSlug, 'id' => $id]);
         }
         $credentials = $this->pushCredentials ?? throw new NotFoundHttpException();
-        $token       = $credentials->issueToken($monitor);
-        $this->entityManager->flush();
+        $token       = $this->runner()->run(static fn (): string => $credentials->issueToken($monitor));
 
         $response = $this->renderShow($tenantSlug, $monitor, $request, [
             'push_secret'         => $token,
@@ -171,8 +173,7 @@ final class MonitorController extends AbstractUptimeController
     {
         $monitor = $this->requireUiManaged($this->requirePushMonitor($tenantSlug, $id));
         if ($this->isCsrfTokenValid('push_revoke' . $id, (string) $request->request->get('_token'))) {
-            $this->pushCredentials?->revoke($monitor);
-            $this->entityManager->flush();
+            $this->runner()->run(fn (): mixed => $this->pushCredentials?->revoke($monitor));
             $this->addFlash('success', $this->transMessage('flash.monitor.push_revoked'));
         }
 
@@ -390,7 +391,9 @@ final class MonitorController extends AbstractUptimeController
         if (!$retype && $form->isSubmitted() && $form->isValid()) {
             // Since 1.21: the same host quota as a new monitor or the pause action (GU-M1).
             $checks = MonitorQuotaCheckEvent::forChange($tenantSlug, $monitor, $data->type, $data->paused);
-            if (!$this->saveUnderQuota($monitor->getTenant(), fn () => $this->monitorFactory->applyFormData($monitor, $data), $takesSlot, $checks)) {
+            // Since 1.29: the row is locked and read again first, so the change applies to the state the checks committed
+            // meanwhile (failure and notification streaks) instead of writing back the ones loaded with the page.
+            if (!$this->saveUnderQuota($monitor->getTenant(), fn () => $this->monitorFactory->applyFormData($this->lockMonitor($monitor), $data), $takesSlot, $checks)) {
                 $form->addError(new FormError($this->denialReason($checks) ?? $this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
 
                 return $this->renderMonitorForm($request, $tenantSlug, $form, 'monitor.edit', $monitor);
@@ -469,6 +472,8 @@ final class MonitorController extends AbstractUptimeController
      * Runs a write. When it takes a slot of the tenant quota or has host checks ({@see MonitorQuotaCheckEvent}, since
      * 1.21) it runs under the tenant row lock, with the quota counted again and the checks dispatched inside (SEC-004
      * Q3, GU-L1: no count-then-write race). False, with nothing written, when the tenant is full or a check is denied.
+     * Since 1.29 every write is one unit of work of the bundle's runner (flushed and committed by it; a transient failure
+     * answers 503).
      *
      * @param callable(): mixed $apply The change, flushed after it
      * @param list<MonitorQuotaCheckEvent> $checks
@@ -485,7 +490,6 @@ final class MonitorController extends AbstractUptimeController
                 }
             }
             $apply();
-            $this->entityManager->flush();
 
             return true;
         };
@@ -494,7 +498,25 @@ final class MonitorController extends AbstractUptimeController
             return $this->quota->withTenantLock($this->entityManager, $tenant, $write);
         }
 
-        return $write(null);
+        return $this->runner()->run(static fn (): bool => $write(null));
+    }
+
+    /**
+     * The monitor, locked and read again inside the running unit of work (since 1.29).
+     *
+     * @throws NotFoundHttpException When the monitor was deleted meanwhile
+     */
+    private function lockMonitor(Monitor $monitor): Monitor
+    {
+        return $this->monitorRepository->lockForWrite((int) $monitor->getId()) ?? throw new NotFoundHttpException('Monitor not found.');
+    }
+
+    /**
+     * The bundle's runner of every write (since 1.29).
+     */
+    private function runner(): UptimeTransactionRunner
+    {
+        return $this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager);
     }
 
     /**
@@ -529,8 +551,9 @@ final class MonitorController extends AbstractUptimeController
 
         if ($this->isCsrfTokenValid('delete' . $monitor->getId(), (string) $request->request->get('_token'))) {
             $monitorId = (int) $monitor->getId();
-            $this->entityManager->remove($monitor);
-            $this->entityManager->flush();
+            $this->runner()->run(function () use ($monitor): void {
+                $this->entityManager->remove($monitor);
+            });
             $this->eventDispatcher?->dispatch(new MonitorDeletedEvent($tenantSlug, $monitorId, $this->actorId(), $this->clock->now()));
             $this->addFlash('success', $this->transMessage('flash.monitor.deleted'));
         }
@@ -557,7 +580,12 @@ final class MonitorController extends AbstractUptimeController
             // the reason becomes a flash. Pausing is never checked.
             $checks = MonitorQuotaCheckEvent::forChange($tenantSlug, $monitor, $monitor->getType(), false);
             // @igor-ignore - HTTP handler delegates to services; no controller worker state.
-            if (!$this->saveUnderQuota($monitor->getTenant(), static fn (): Monitor => $monitor->setPaused(!$monitor->isPaused()), false, $checks)) {
+            if (!$this->saveUnderQuota($monitor->getTenant(), function () use ($monitor): Monitor {
+                $locked = $this->lockMonitor($monitor);
+
+                // @igor-ignore - Doctrine entity loaded for this request; not a shared service.
+                return $locked->setPaused(!$locked->isPaused());
+            }, false, $checks)) {
                 $this->addFlash('error', (string) $this->denialReason($checks));
             } else {
                 $this->eventDispatcher?->dispatch(new MonitorPausedEvent($tenantSlug, (int) $monitor->getId(), $monitor->isPaused(), $this->actorId(), $this->clock->now()));

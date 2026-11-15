@@ -10,6 +10,7 @@ use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 
@@ -31,12 +32,14 @@ final readonly class DemoSeedService
      * Creates the demo seeder.
      *
      * @param ClockInterface $clock Clock for the first check time of the seeded monitors
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
         private TenantRepository $tenantRepository,
         private MonitorRepository $monitorRepository,
         private ClockInterface $clock = new NativeClock(),
+        private ?UptimeTransactionRunner $transactionRunner = null,
     ) {
     }
 
@@ -65,7 +68,7 @@ final readonly class DemoSeedService
         if (!$tenant instanceof Tenant) {
             $tenant = new Tenant($tenantSlug, $tenantName);
             $this->entityManager->persist($tenant);
-            $this->entityManager->flush();
+            $this->runner()->run(static fn (): mixed => null);
         }
 
         $groupLabels = [
@@ -121,7 +124,7 @@ final readonly class DemoSeedService
             ++$created;
         }
 
-        $this->entityManager->flush();
+        $this->runner()->run(static fn (): mixed => null);
 
         return ['tenant' => $tenant, 'monitors_created' => $created];
     }
@@ -145,7 +148,7 @@ final readonly class DemoSeedService
             $this->entityManager->remove($monitor);
         }
 
-        $this->entityManager->flush();
+        $this->runner()->run(static fn (): mixed => null);
 
         return count($monitors);
     }
@@ -199,5 +202,14 @@ final readonly class DemoSeedService
         if ($group instanceof Monitor) {
             $monitor->setParent($group)->setProject(null);
         }
+    }
+
+    /**
+     * The bundle's runner of every write (since 1.29, Beacon spec 239): the pending changes are written in one unit of
+     * work of its own, and a transient failure surfaces as TransientStorageFailure.
+     */
+    private function runner(): UptimeTransactionRunner
+    {
+        return $this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager);
     }
 }

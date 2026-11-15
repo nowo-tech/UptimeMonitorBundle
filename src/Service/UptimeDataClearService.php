@@ -15,6 +15,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
@@ -35,6 +36,7 @@ final readonly class UptimeDataClearService
     /**
      * @param array<string, mixed> $retentionConfig
      * @param LoggerInterface $logger Logs start, success (counts) and failure (exception class) — REQ-OBS-001
+     * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -44,6 +46,7 @@ final readonly class UptimeDataClearService
         private array $retentionConfig = [],
         private ClockInterface $clock = new NativeClock(),
         private LoggerInterface $logger = new NullLogger(),
+        private ?UptimeTransactionRunner $transactionRunner = null,
     ) {
     }
 
@@ -65,7 +68,7 @@ final readonly class UptimeDataClearService
             $aggregates = $this->deleteAggregates($tenantSlug);
             $reset      = $this->resetMonitors($tenantSlug);
 
-            $this->entityManager->flush();
+            $this->runner()->run(static fn (): mixed => null);
         } catch (Throwable $e) {
             $this->logger->error('Uptime data clear failed for tenant {tenant}: {error}', $context + ['error' => $e::class]);
 
@@ -160,5 +163,14 @@ final readonly class UptimeDataClearService
                 Monitor::class,
             ))
             ->setParameter('tenantSlug', $tenantSlug);
+    }
+
+    /**
+     * The bundle's runner of every write (since 1.29, Beacon spec 239): the pending changes are written in one unit of
+     * work of its own, and a transient failure surfaces as TransientStorageFailure.
+     */
+    private function runner(): UptimeTransactionRunner
+    {
+        return $this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager);
     }
 }
