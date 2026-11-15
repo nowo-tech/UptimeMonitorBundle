@@ -46,6 +46,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Check/TcpCheckRunner.php` | Tcp check runner | FR-CHECK-004 |
 | `Service/CheckExecutorService.php` | Check execution orchestrator | FR-CHECK-002 |
 | `Service/DueChecksRunner.php` | Due checks runner | FR-CHECK-003 |
+| `Service/MonitorGoneException.php` | A monitor deleted while its check ran (1.29.0) | FR-CHECK-003 |
 | `Service/StatusTransitionService.php` | Status transition & incidents | FR-CHECK-005 |
 
 ## Controllers
@@ -78,6 +79,10 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Doctrine/UnitOfWorkBoundaries.php` | Tracks the running request / message / command so the private manager is dropped only at the outermost boundary (1.28.0, REQ-RUNTIME-002) | FR-WORKER-001 |
 | `Doctrine/UptimeEntityManager.php` | The bundle's private entity manager (1.27.0, REQ-ARCH-001 rules 6 and 8) | FR-ENTITY-001, FR-WORKER-001 |
 | `Doctrine/UptimeSavepoint.php` | Runs bulk bundle statements in a savepoint inside an application transaction (1.28.0) | FR-ENTITY-001 |
+| `Doctrine/ExcludedEntityNamespaceDriver.php` | Keeps a default mapping driver of another manager from claiming the bundle entities (1.26.0) | FR-ENTITY-001 |
+| `Doctrine/PrivateManagerRepositoryFactory.php` | Repository factory owned by each private manager (no leak across replaced managers, 1.27.x) | FR-ENTITY-001, FR-WORKER-001 |
+| `Doctrine/UptimeRowLock.php` | Locks a bundle row for the running unit of work and reads it again (1.29.0, Beacon spec 239) | FR-ENTITY-001, FR-WORKER-001 |
+| `Transaction/UptimeTransactionRunner.php` | Runner of every bundle write on transaction-doctrine (1.29.0, Beacon spec 239) | FR-ENTITY-001, FR-WORKER-001 |
 | `Doctrine/UptimeManagerRegistry.php` | The bundle's view of the Doctrine registry (bundle classes → private manager) | FR-ENTITY-001 |
 | `Entity/CheckAggregate.php` | Persistence model | FR-ENTITY-001 |
 | `Entity/CheckResult.php` | Persistence model | FR-ENTITY-001 |
@@ -191,6 +196,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | --- | --- |
 | `Service/SchemaSyncService.php` | Schema sync | FR-CLI-003 |
 | `EventSubscriber/ClosedEntityManagerSubscriber.php` | Replaces a closed EntityManager before a bundle route runs (workers without kernel reset) | FR-ENTITY-001, FR-WORKER-001 |
+| `EventSubscriber/StorageFailureSubscriber.php` | 503 + Retry-After / 409 for storage failures on the bundle routes (1.29.0, Beacon spec 239) | FR-ENTITY-001, FR-WORKER-001 |
 | `EventSubscriber/WorkerBoundaryResetListener.php` | Drops the bundle's private entity manager at the outermost worker boundaries (REQ-RUNTIME-002; outermost since 1.28.0) | FR-ENTITY-001, FR-WORKER-001 |
 
 ## Async messaging
@@ -433,6 +439,6 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Twig views | 32 | 32 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **257** | **257** |
+| **Total production sources** | **263** | **263** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.
