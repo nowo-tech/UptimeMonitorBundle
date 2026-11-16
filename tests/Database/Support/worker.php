@@ -40,7 +40,7 @@ $errors = [];
 
 switch ($mode) {
     case 'check':
-        $em       = DatabaseSupport::privateManager($url);
+        $em = DatabaseSupport::privateManager($url);
         /** @var int $i the closure below reads it by reference while the loop advances it */
         $i        = 0;
         $executor = DatabaseSupport::executor($em, static function () use (&$i): CheckStatus {
