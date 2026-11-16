@@ -89,6 +89,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Demo `.gitignore` ignores `/.pnpm-store` (REQ-GITIGNORE-003)
+- README: `## Screenshots` moved to the mid-body slot after `## Quick start` (REQ-DOCS-019)
+
 ## [1.29.0] - 2026-11-15
 
 High load readiness (Beacon spec 239). See [HIGH-LOAD.md](HIGH-LOAD.md) and [UPGRADING](UPGRADING.md#to-1290).
