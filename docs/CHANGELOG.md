@@ -91,6 +91,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Demo: the host layouts are UiKit's admin and guest layouts with the UiKit default theme and masthead; the Bootstrap and Bootstrap Icons CDN assets, `demo.css` and the leftover OTP demo templates are removed; the demo requires `nowo-tech/ui-kit-bundle` ^2.53; screenshots re-captured (REQ-DEMO-014). No bundle runtime change.
 - Demo `.gitignore` ignores `/.pnpm-store` (REQ-GITIGNORE-003)
 - README: `## Screenshots` moved to the mid-body slot after `## Quick start` (REQ-DOCS-019)
 
