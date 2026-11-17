@@ -10,3 +10,7 @@ services:
     # Demo-only console commands (app:uptime:demo-history backfills screenshot/e2e history).
     App\Command\:
         resource: '../src/Command/'
+
+    # Demo of MonitorShowLiveUpdatesEvent (1.30): ?live=paused | notify on a monitor page.
+    App\EventListener\:
+        resource: '../src/EventListener/'

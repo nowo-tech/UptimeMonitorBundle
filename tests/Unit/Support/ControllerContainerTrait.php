@@ -36,11 +36,19 @@ trait ControllerContainerTrait
     /** @var array<string, mixed> Variables of the last template the bound controller rendered */
     protected array $renderedContext = [];
 
+    /** @var list<array{string, array<string, mixed>}> Route and parameters of every URL the bound controller generated */
+    protected array $generatedUrls = [];
+
     protected function bindController(AbstractController $controller, bool $csrfValid = true, ?Request $request = null): void
     {
-        $router = $this->createMock(UrlGeneratorInterface::class);
+        $router              = $this->createMock(UrlGeneratorInterface::class);
+        $this->generatedUrls = [];
         $router->method('generate')->willReturnCallback(
-            static fn (string $route, array $parameters = []): string => '/generated/' . $route . (isset($parameters['return']) ? '?return=' . $parameters['return'] : ''),
+            function (string $route, array $parameters = []): string {
+                $this->generatedUrls[] = [$route, $parameters];
+
+                return '/generated/' . $route . (isset($parameters['return']) ? '?return=' . $parameters['return'] : '');
+            },
         );
 
         $twig = $this->createMock(Environment::class);

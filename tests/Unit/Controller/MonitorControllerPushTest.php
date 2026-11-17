@@ -50,7 +50,10 @@ final class MonitorControllerPushTest extends TestCase
         $this->credentials = new PushCredentials('kernel-secret');
     }
 
-    private function controller(Monitor $monitor, ?EntityManagerInterface $em = null, ?MonitorReadScope $readScope = null): MonitorController
+    /**
+     * @param array<string, mixed> $webUi
+     */
+    private function controller(Monitor $monitor, ?EntityManagerInterface $em = null, ?MonitorReadScope $readScope = null, array $webUi = []): MonitorController
     {
         $this->setEntityId($monitor, 7);
         $tenantRepo = $this->createMock(TenantRepository::class);
@@ -73,6 +76,7 @@ final class MonitorControllerPushTest extends TestCase
             $this->dashboardViewBuilder($monitorRepo),
             $em ?? $this->createMock(EntityManagerInterface::class),
             new UptimePages(),
+            webUi: $webUi,
             pushCredentials: $this->credentials,
             pushSeries: new PushMetricsSeries($results),
             readScope: $readScope,
@@ -165,6 +169,19 @@ final class MonitorControllerPushTest extends TestCase
         self::assertSame($this->credentials->signingSecret($monitor), $this->renderedContext['push_signing_secret']);
         self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
         self::assertTrue($this->renderedContext['push']['has_token']);
+    }
+
+    public function testSwL2TheTokenPageSortLinksUseTheGetShowRoute(): void
+    {
+        $monitor = $this->pushMonitor();
+        $request = Request::create('/main/monitors/7/push-token', 'POST', ['_token' => 'valid']);
+        $request->attributes->set('_route', 'nowo_uptime_monitor_push_token');
+        $controller = $this->controller($monitor, webUi: ['monitor_show' => ['log' => ['sortable' => true]]]);
+        $this->bindController($controller, true, $request);
+
+        $controller->pushToken('main', 7, $request);
+
+        self::assertSame('/generated/nowo_uptime_monitor_show', $this->renderedContext['log_sort']['links']['latency'], 'not the POST-only route (405)');
     }
 
     public function testAnUnsignedMonitorGetsNoSigningSecret(): void

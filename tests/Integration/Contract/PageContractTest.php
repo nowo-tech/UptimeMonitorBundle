@@ -8,24 +8,37 @@ use LogicException;
 use Nowo\UiKitBundle\Test\PageContractTestCase;
 use Nowo\UiKitBundle\Test\PageFixture;
 use Nowo\UiKitBundle\Test\RenderedPage;
+use Nowo\UiKitBundle\Test\StubHost;
+use Nowo\UiKitBundle\View\Action;
 use Nowo\UiKitBundle\View\ListPage;
+use Nowo\UiKitBundle\View\PageHeader;
+use Nowo\UiKitBundle\View\ShowPage;
+use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
+use Nowo\UptimeMonitorBundle\Ui\MonitorLogSort;
+use Nowo\UptimeMonitorBundle\Ui\MonitorShowLayout;
 use Nowo\UptimeMonitorBundle\Ui\NewMonitorState;
 use Nowo\UptimeMonitorBundle\Ui\UptimeAreaNav;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
+use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\Form\FormError;
 use Twig\Environment;
 use Twig\TwigFunction;
 
+use function array_keys;
 use function array_map;
 use function dirname;
+use function file_get_contents;
+use function html_entity_decode;
 use function is_string;
+use function json_decode;
 use function preg_match;
+use function preg_match_all;
 use function str_starts_with;
 use function strpos;
 use function substr;
@@ -320,6 +333,172 @@ final class PageContractTest extends PageContractTestCase
         self::assertStringNotContainsString('host-charts', $default);
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function monitorShowBcCases(): iterable
+    {
+        foreach (['plain', 'group', 'paged', 'push', 'push file-managed', 'slots', 'charts none'] as $case) {
+            foreach (['auto', 'dark'] as $theme) {
+                yield $case . ' / ' . $theme => [$case, $theme];
+            }
+        }
+    }
+
+    /**
+     * 1.30 BC pin: with nothing of 1.30 configured (the processed defaults of web_ui.monitor_show, no root attributes,
+     * no log sort, the history URL kept) the monitor page renders byte for byte what the v1.29.0 template renders
+     * (tests/Fixtures/bc/monitor_show_v1.29.0.html.twig.txt, a verbatim copy) with the same variables.
+     */
+    #[DataProvider('monitorShowBcCases')]
+    public function testMonitorShowUnsetOutputIsTheV129One(string $case, string $theme): void
+    {
+        $defaults = (new Processor())->processConfiguration(new Configuration(), [[]])['web_ui']['monitor_show'];
+        $context  = match ($case) {
+            'group'             => PageFixtures::monitorShow(true),
+            'paged'             => PageFixtures::monitorShowPaged(),
+            'push'              => PageFixtures::monitorShowPush(),
+            'push file-managed' => PageFixtures::monitorShowPush(true),
+            default             => PageFixtures::monitorShow(),
+        };
+        if ($case === 'slots') {
+            $defaults['charts'] = 'host';
+            $defaults['slots']  = ['figures' => 'host/_figures.html.twig', 'charts' => 'host/_charts.html.twig', 'details' => 'host/_details.html.twig', 'history' => null, 'log' => null];
+        }
+        if ($case === 'charts none') {
+            $defaults['charts'] = 'none';
+        }
+        $layout = MonitorShowLayout::resolve($defaults);
+        $old    = ['monitor_layout' => ['charts' => $layout['charts'], 'slots' => $layout['slots']]] + $context;
+        $new    = ['monitor_layout' => $layout, 'monitor_root_attributes' => [], 'log_sort' => null] + $context;
+
+        self::assertSame(
+            $this->renderWithTheme($theme, new PageFixture('bc/monitor_show_v1.29.0.html.twig', $old)),
+            $this->renderWithTheme($theme, new PageFixture(self::VIEWS . 'monitor/show.html.twig', $new)),
+        );
+    }
+
+    public function testTheMonitorPageRegionsFollowTheConfiguredOrder(): void
+    {
+        $layout = MonitorShowLayout::resolve(['order' => ['figures', 'history', 'details', 'charts', 'log']]);
+        self::assertSame(['figures', 'history', 'details', 'charts', 'log', 'children', 'push'], $layout['order']);
+        $html = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => $layout] + PageFixtures::monitorShow()))->html;
+
+        $root    = strpos($html, 'id="uptime-monitor-detail-root"');
+        $figures = strpos($html, 'uptime-metrics-cards');
+        $history = strpos($html, 'uptime-detail-history-section');
+        $details = strpos($html, 'uptime-details-header');
+        $charts  = strpos($html, 'uptime-detail-charts');
+        $log     = strpos($html, 'data-events-table');
+        self::assertIsInt($root);
+        self::assertIsInt($figures);
+        self::assertIsInt($history);
+        self::assertIsInt($details);
+        self::assertIsInt($charts);
+        self::assertIsInt($log);
+        self::assertTrue($root < $figures && $figures < $history && $history < $details && $details < $charts && $charts < $log, 'figures → history → details (inside the root) → charts → log');
+        self::assertSame(1, substr_count($html, 'uptime-details-header'), 'details render once, inside the root');
+        self::assertSame(4, substr_count($html, 'data-detail-pending'), 'one pending wrapper per check-dependent region');
+        self::assertStringContainsString('data-uptime-region="figures"', $html);
+        self::assertStringContainsString('data-detail-status', $html, 'the status badge stays in the details');
+
+        // A monitor without checks: the notice first, every pending region hidden; an empty group renders nothing.
+        $unchecked = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => MonitorShowLayout::resolve(['order' => ['children', 'log']])] + PageFixtures::monitorShow(true)))->html;
+        $notice    = strpos($unchecked, 'data-detail-unchecked');
+        $children  = strpos($unchecked, 'uptime-group-children');
+        self::assertIsInt($notice);
+        self::assertIsInt($children);
+        self::assertTrue($notice < $children);
+        self::assertSame(4, preg_match_all('#data-detail-pending data-uptime-region="[a-z]+" hidden>#', $unchecked));
+        self::assertStringContainsString('uptime-details-header', $unchecked, 'details not listed stay in the sections');
+
+        // charts: none leaves no empty wrapper.
+        $none = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => MonitorShowLayout::resolve(['charts' => 'none', 'order' => ['log']])] + PageFixtures::monitorShow()))->html;
+        self::assertStringNotContainsString('data-uptime-region="charts"', $none);
+        self::assertStringContainsString('uptime-push-credentials', $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => MonitorShowLayout::resolve(['order' => ['push']])] + PageFixtures::monitorShowPush()))->html);
+    }
+
+    public function testTheHistoryAndLogSlotsReplaceTheirRegions(): void
+    {
+        $layout = MonitorShowLayout::resolve(['slots' => ['history' => 'host/_history.html.twig', 'log' => 'host/_log.html.twig']]);
+        $html   = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => $layout] + PageFixtures::monitorShowPaged()))->html;
+
+        self::assertStringContainsString('<p class="host-history">1</p>', $html);
+        self::assertStringContainsString('<p class="host-log">1 / 2</p>', $html);
+        self::assertStringNotContainsString('uptime-detail-history-section', $html);
+        self::assertStringNotContainsString('data-events-table', $html);
+        self::assertStringContainsString('uptime-metrics-cards', $html, 'the other regions stay');
+    }
+
+    public function testTheCheckLogOptions(): void
+    {
+        $layout = MonitorShowLayout::resolve(['log' => ['sortable' => true, 'align_numbers' => true, 'time_format' => 'H:i', 'time_title_format' => 'Y-m-d H:i:s']]);
+        $sort   = (new MonitorLogSort('latency', 'asc'))->view(['status' => '/s?log_sort=status&log_dir=asc', 'time' => '/s?log_sort=time&log_dir=desc', 'latency' => '/s?log_sort=latency&log_dir=desc', 'code' => '/s?log_sort=code&log_dir=asc']);
+        $html   = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => $layout, 'log_sort' => $sort] + PageFixtures::monitorShow()))->html;
+
+        self::assertStringContainsString('<time datetime="2026-10-26T10:00:00+00:00" title="2026-10-26 10:00:00">10:00</time>', $html);
+        self::assertStringContainsString('<td class="uptime-cell-num" data-uptime-phone="meta">1200 ms</td>', $html);
+        self::assertStringContainsString('<td class="uptime-cell-num" data-nowo-ui-priority="3"', $html);
+        self::assertMatchesRegularExpression('#<th scope="col" class="uptime-cell-num" aria-sort="ascending"><a class="uptime-sort-link" href="/s\?log_sort=latency&amp;log_dir=desc" data-log-sort="latency" title="Sort by Latency">Latency<span class="uptime-sort-indicator" aria-hidden="true">▲</span></a></th>#', $html);
+        self::assertStringContainsString('<th scope="col" class="uptime-cell-num" data-nowo-ui-priority="3"><a class="uptime-sort-link" href="/s?log_sort=code&amp;log_dir=asc"', $html);
+        self::assertSame(1, substr_count($html, 'aria-sort='), 'only the sorted column');
+        self::assertSame(4, substr_count($html, 'data-log-sort='), 'status, time, latency, code (not the message)');
+
+        // Alignment alone: plain headers with the number class; descending indicator.
+        $aligned = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => MonitorShowLayout::resolve(['log' => ['align_numbers' => true]])] + PageFixtures::monitorShow()))->html;
+        self::assertStringContainsString('<th scope="col" class="uptime-cell-num">Latency</th>', $aligned);
+        self::assertStringNotContainsString('uptime-sort-link', $aligned);
+        $desc = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => MonitorShowLayout::resolve(['log' => ['sortable' => true]]), 'log_sort' => (new MonitorLogSort())->view(['status' => '/a', 'time' => '/b', 'latency' => '/c', 'code' => '/d'])] + PageFixtures::monitorShow()))->html;
+        self::assertStringContainsString('aria-sort="descending"', $desc);
+        self::assertStringContainsString('▼', $desc);
+        self::assertStringContainsString('<th scope="col"><a class="uptime-sort-link" href="/a"', $desc);
+    }
+
+    public function testTheHeaderStatusBadgeAndSplitActions(): void
+    {
+        $context         = PageFixtures::monitorShow();
+        $page            = $context['page'];
+        $context['page'] = new ShowPage(
+            new PageHeader($page->header->title, $page->header->intro, [
+                (new Action('edit', UptimePages::label('monitor.edit'), '/main/monitors/7/edit'))->asIcon('tabler:pencil'),
+                Action::delete('/main/monitors/7/delete', 'token-delete7', null, UptimePages::label('monitor.delete')),
+            ], actionsLayout: 'split'),
+            $page->sections,
+            bundle: UptimePages::BUNDLE,
+            attributes: ['data-testid' => 'uptime-monitor'],
+        );
+        $html = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => MonitorShowLayout::resolve(['header' => ['status' => true, 'actions_layout' => 'split']])] + $context))->html;
+
+        self::assertSame(1, preg_match('#<span class="[^"]*uptime-status-badge uptime-status-badge--down" data-nowo-ui-page-status="danger"[^>]*data-detail-status[^>]*>Down</span>#', $html), 'the live badge in the page header');
+        self::assertSame(1, substr_count($html, 'data-detail-status'), 'not repeated in the details card');
+        self::assertStringNotContainsString('uptime-details-status', $html);
+        self::assertStringContainsString('data-testid="uptime-monitor-status"', $html);
+        self::assertSame(1, preg_match('#data-status-badges="([^"]+)"#', $html, $badges));
+        $decoded = json_decode(html_entity_decode($badges[1], ENT_QUOTES | ENT_HTML5), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        self::assertSame(['up', 'down', 'degraded', 'unknown'], array_keys($decoded));
+        self::assertSame('danger', $decoded['down']['tone']);
+        self::assertStringContainsString('uptime-status-badge--down', $decoded['down']['class']);
+
+        $unknown = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', ['monitor_layout' => MonitorShowLayout::resolve(['header' => ['status' => true]])] + PageFixtures::monitorShow(true)))->html;
+        self::assertSame(1, preg_match('#data-nowo-ui-page-status="neutral"[^>]*>Unknown</span>#', $unknown));
+    }
+
+    public function testTheLiveUpdatesRootHooks(): void
+    {
+        $html = $this->renderPage(new PageFixture(self::VIEWS . 'monitor/show.html.twig', [
+            'api_history_url'         => null,
+            'monitor_root_attributes' => ['class' => 'host-root "x"', 'data-controller' => 'live-updates-watch', 'data-live-updates-watch-url-value' => '/main/api/monitors/7/history?a=1&b="2"', 'data-ready' => true],
+        ] + PageFixtures::monitorShow()))->html;
+
+        self::assertStringNotContainsString('data-api-history', $html, 'no history URL: no polling');
+        self::assertStringContainsString('class="uptime-detail host-root &quot;x&quot;" id="uptime-monitor-detail-root"', $html);
+        self::assertStringContainsString(' data-controller="live-updates-watch"', $html);
+        self::assertStringContainsString(' data-live-updates-watch-url-value="/main/api/monitors/7/history?a=1&amp;b=&quot;2&quot;"', $html);
+        self::assertStringContainsString(' data-ready>', $html);
+        self::assertSame(1, substr_count($html, 'class="uptime-detail '), 'class is appended, not repeated');
+    }
+
     public function testGuL2APushPageWithoutTheUrlPrintsNoIngestUrl(): void
     {
         $fixture = PageFixtures::monitorShowPush();
@@ -576,10 +755,17 @@ final class PageContractTest extends PageContractTestCase
             // UptimePageEvent section of a host.
             'host/_section.html.twig' => '<p class="host-section">{{ note }}</p>',
             // web_ui.monitor_show slots (1.21): rendered with the page variables.
-            'host/_details.html.twig'         => '<p class="host-details">{{ monitor.name }}</p>',
-            'host/_figures.html.twig'         => '<p class="host-figures">{{ detail.uptime_24h }}</p>',
-            'host/_charts.html.twig'          => '<p class="host-charts">{{ api_history_url }}</p>',
-            'host/tenants_override.html.twig' => "{% extends '@NowoUptimeMonitorBundle/tenant/index.html.twig' %}{% block nowo_ui_list_after %}<p class=\"host-note\">Managed by the host.</p>{% endblock %}",
+            'host/_details.html.twig' => '<p class="host-details">{{ monitor.name }}</p>',
+            'host/_figures.html.twig' => '<p class="host-figures">{{ detail.uptime_24h }}</p>',
+            'host/_charts.html.twig'  => '<p class="host-charts">{{ api_history_url }}</p>',
+            // web_ui.monitor_show slots (1.30).
+            'host/_history.html.twig' => '<p class="host-history">{{ detail.history|length }}</p>',
+            'host/_log.html.twig'     => '<p class="host-log">{{ log_pagination.page }} / {{ log_pagination.totalPages }}</p>',
+            // The stub page header also prints the rendered status badge (web_ui.monitor_show.header.status, 1.30).
+            StubHost::PARTIAL_TEMPLATE => StubHost::templates()[StubHost::PARTIAL_TEMPLATE] . '{% if status_badge|default(null) %}<div data-pc-status>{{ status_badge|raw }}</div>{% endif %}',
+            // The v1.29.0 monitor page, verbatim (1.30 BC pin).
+            'bc/monitor_show_v1.29.0.html.twig' => (string) file_get_contents(dirname(__DIR__, 2) . '/Fixtures/bc/monitor_show_v1.29.0.html.twig.txt'),
+            'host/tenants_override.html.twig'   => "{% extends '@NowoUptimeMonitorBundle/tenant/index.html.twig' %}{% block nowo_ui_list_after %}<p class=\"host-note\">Managed by the host.</p>{% endblock %}",
         ];
     }
 

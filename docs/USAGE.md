@@ -15,6 +15,7 @@
   - [DDD host](#ddd-host)
 - [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 - [Overriding templates](#overriding-templates)
+  - [Monitor page by configuration (1.30)](#monitor-page-by-configuration-130)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
   - [Layout and CSS stack (REQ-UI-001 / REQ-UI-003)](#layout-and-css-stack-req-ui-001--req-ui-003)
 
@@ -350,6 +351,63 @@ block — see [TEMPLATES.md](TEMPLATES.md) for the pages, view models and data b
     <p class="{{ nowo_ui_class('muted', page.bundle) }}">Maintenance window every Sunday 02:00 UTC.</p>
     {{ parent() }}
 {% endblock %}
+```
+
+### Monitor page by configuration (1.30)
+
+The monitor page (`monitor_show`) can be laid out without a template copy. Every option is off by default, and the
+page is then byte for byte the 1.29 one (pinned by a test against the v1.29.0 template).
+
+```yaml
+# config/packages/nowo_uptime_monitor.yaml
+nowo_uptime_monitor:
+    web_ui:
+        monitor_show:
+            # Regions inside the live-updates root, in this order (the others follow in the bundle order).
+            order: [figures, history, details, children, charts, push, log]
+            charts: host
+            slots:
+                figures: 'uptime/monitor/_figures.html.twig'   # e.g. a UiKit stat_row
+                details: 'uptime/monitor/_details.html.twig'   # e.g. a compact detail_list
+                charts: 'uptime/monitor/_charts.html.twig'
+                # history / log: replace those regions too (log gets log_events, log_pagination, log_sort)
+            log:
+                sortable: true                     # headers sort the recent check log, last 100 checks (log_sort / log_dir)
+                align_numbers: true                # latency and code at the end (class uptime-cell-num)
+                time_format: 'H:i'
+                time_title_format: 'Y-m-d H:i:s'   # full date and seconds in the title attribute
+                per_page: 25                       # null = web_ui.per_page
+            header:
+                actions_layout: split              # icon buttons, one primary button, the "more" menu
+                status: true                       # live status badge next to the title (UiKit page_status)
+                icons: { edit: 'tabler:pencil', pause: 'tabler:player-pause', resume: 'tabler:player-play' }
+```
+
+The page header is the UiKit `page_header` partial, so a host theme override of that partial applies. Host header
+actions still come from `UptimePageEvent::addAction()` (give them `display: icon` to sit with the icon buttons).
+
+**Live updates per request.** `MonitorShowLiveUpdatesEvent` is dispatched on every monitor page render. A listener can
+turn the history polling off (`setApiHistoryUrl(null)`: no `data-api-history`, the script keeps the server-rendered
+state) and add attributes to the script root `#uptime-monitor-detail-root`. Only `data-*`, `aria-*`, `role`, `title`,
+`lang`, `dir` and `class` (appended) are accepted, never `on*`, `style` or the bundle's own attributes. Every value is
+escaped. The event lives for one request, so decide from the current user or request in the listener and keep no state
+in the service (FrankenPHP worker mode).
+
+```php
+#[AsEventListener]
+public function onMonitorPage(MonitorShowLiveUpdatesEvent $event): void
+{
+    $mode = $this->preferences->liveUpdates();   // auto | notify | paused, read for this request
+    if ($mode === 'auto') {
+        return;
+    }
+    $event->setApiHistoryUrl(null);
+    if ($mode === 'notify') {
+        $event->setRootAttribute('data-controller', 'live-updates-watch');
+        $event->setRootAttribute('data-live-updates-watch-url-value', $event->historyUrl);
+        $event->setRootAttribute('data-live-updates-watch-interval-value', 15000);
+    }
+}
 ```
 
 ### Forms in templates (REQ-TWIG-005)

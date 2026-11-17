@@ -180,7 +180,14 @@ final class ConfigurationTest extends TestCase
         self::assertSame([Configuration::DEFAULT_FORM_THEME], $config['web_ui']['form_themes']);
         self::assertSame(['dashboard' => null, 'manage' => null, 'settings' => null], $config['security']['roles']);
         // 1.21 host hooks: off by default.
-        self::assertSame(['charts' => 'bundle', 'slots' => ['figures' => null, 'charts' => null, 'details' => null]], $config['web_ui']['monitor_show']);
+        self::assertSame([
+            'charts' => 'bundle',
+            'slots'  => ['figures' => null, 'charts' => null, 'details' => null, 'history' => null, 'log' => null],
+            'order'  => [],
+            // 1.30: log and header options, off by default (the 1.29 page).
+            'log'    => ['sortable' => false, 'align_numbers' => false, 'time_format' => 'Y-m-d H:i:s', 'time_title_format' => null, 'per_page' => null],
+            'header' => ['actions_layout' => 'toolbar', 'status' => false, 'icons' => []],
+        ], $config['web_ui']['monitor_show']);
         self::assertNull($config['web_ui']['settings']['sections_resolver']);
         self::assertFalse($config['web_ui']['strict_tenant_paths']);
         self::assertNull($config['multi_tenant']['provisioner']);
@@ -194,6 +201,52 @@ final class ConfigurationTest extends TestCase
 
         $this->expectException(InvalidConfigurationException::class);
         (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['monitor_show' => ['charts' => 'mine']]]]);
+    }
+
+    public function testMonitorShowAcceptsTheRegionOrderLogAndHeaderOptions(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['monitor_show' => [
+            'order'  => ['figures', 'history', 'details'],
+            'slots'  => ['history' => 'host/_history.html.twig', 'log' => 'host/_log.html.twig'],
+            'log'    => ['sortable' => true, 'align_numbers' => true, 'time_format' => 'H:i', 'time_title_format' => 'Y-m-d H:i:s', 'per_page' => 50],
+            'header' => ['actions_layout' => 'split', 'status' => true, 'icons' => ['edit' => 'tabler:pencil', 'resume' => 'tabler:player-play']],
+        ]]]])['web_ui']['monitor_show'];
+
+        self::assertSame(['figures', 'history', 'details'], $config['order']);
+        self::assertSame('host/_log.html.twig', $config['slots']['log']);
+        self::assertSame(50, $config['log']['per_page']);
+        self::assertSame(['edit' => 'tabler:pencil', 'resume' => 'tabler:player-play'], $config['header']['icons']);
+        // Path-like names stay valid as long as no segment is empty or "..".
+        $icons = (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['monitor_show' => ['header' => ['icons' => ['edit' => 'icons/ui.v2/edit_pen-1']]]]]])['web_ui']['monitor_show']['header']['icons'];
+        self::assertSame(['edit' => 'icons/ui.v2/edit_pen-1'], $icons);
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function invalidMonitorShow(): iterable
+    {
+        yield 'repeated region' => [['order' => ['log', 'log']]];
+        yield 'unknown region' => [['order' => ['sidebar']]];
+        yield 'unknown action' => [['header' => ['icons' => ['share' => 'tabler:share']]]];
+        yield 'unsafe icon' => [['header' => ['icons' => ['edit' => '"><script>']]]];
+        yield 'icon with a .. segment' => [['header' => ['icons' => ['edit' => 'icons/../secret']]]];
+        yield 'icon with doubled separators' => [['header' => ['icons' => ['edit' => 'tabler::pencil']]]];
+        yield 'icon ending with a separator' => [['header' => ['icons' => ['edit' => 'tabler:']]]];
+        yield 'icon over 100 characters' => [['header' => ['icons' => ['edit' => str_repeat('a', 101)]]]];
+        yield 'unknown layout' => [['header' => ['actions_layout' => 'grid']]];
+        yield 'empty time format' => [['log' => ['time_format' => '']]];
+        yield 'per page too small' => [['log' => ['per_page' => 1]]];
+    }
+
+    /**
+     * @param array<string, mixed> $monitorShow
+     */
+    #[DataProvider('invalidMonitorShow')]
+    public function testMonitorShowRefusesInvalidOptions(array $monitorShow): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['monitor_show' => $monitorShow]]]);
     }
 
     public function testDeniedTenantStatusDefaultsTo403AndAccepts404Only(): void

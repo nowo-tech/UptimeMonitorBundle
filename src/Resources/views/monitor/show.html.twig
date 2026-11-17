@@ -21,6 +21,14 @@
   Since 1.24 (MUX-100, MUX-101): on phones (under 30rem) the figures are two columns; the check log is a stacked list
   under 40rem of card width (status badge, time, latency, code when there is one, then the message; same
   uptime-phone-* hooks as the table dashboard).
+  Since 1.30 (web_ui.monitor_show; every default renders the 1.29 markup): the history, log, children and push
+  regions are blocks too (monitor_history, monitor_log, monitor_children, monitor_push); slots.history / slots.log
+  replace a region; order (monitor_layout.order, the full list) renders the regions in that order inside the script
+  root, each check-dependent one in its own data-detail-pending wrapper, details inside the root only when listed;
+  log options (monitor_layout.log: sortable headers through log_sort, align_numbers, time_format,
+  time_title_format); header.status puts the live status badge in the UiKit page header (page_status) instead of the
+  first details card; api_history_url null (MonitorShowLiveUpdatesEvent) renders no data-api-history, and
+  monitor_root_attributes adds the host's attributes (validated names, escaped values) to the root.
 #}
 {% extends '@NowoUiKit/page/show.html.twig' %}
 {% trans_default_domain 'NowoUptimeMonitorBundle' %}
@@ -40,6 +48,29 @@
     <script type="module" src="{{ asset('uptime-monitor-detail.js', 'nowo_uptime_monitor') }}"></script>
 {% endblock %}
 
+{# 1.30, web_ui.monitor_show.header.status: the live status badge next to the title (UiKit page_status). #}
+{% block nowo_ui_page_header %}{% if monitor_layout.header.status|default(false) %}
+    {% set _b = page.bundle %}
+    {% set _tones = {up: 'success', down: 'danger', degraded: 'warning', unknown: 'neutral'} %}
+    {% set _status = latest ? latest.status.value : 'unknown' %}
+    {% set _status = _tones[_status] is defined ? _status : 'unknown' %}
+    {% set _badges = {} %}
+    {% for _key, _tone in _tones %}
+        {% set _badges = _badges|merge({(_key): {label: ('status.' ~ _key)|trans, class: nowo_ui_class('page_status', _b) ~ ' ' ~ nowo_ui_class('badge_' ~ _tone, _b) ~ ' uptime-status-badge uptime-status-badge--' ~ _key, tone: _tone}}) %}
+    {% endfor %}
+    {% set _header = page.header.withStatus(nowo_ui_dialog_status({
+        label: _badges[_status].label,
+        tone: _tones[_status],
+        attributes: {
+            class: 'uptime-status-badge uptime-status-badge--' ~ _status,
+            'data-detail-status': true,
+            'data-testid': 'uptime-monitor-status',
+            'data-status-badges': _badges|json_encode,
+        },
+    })) %}
+    {{ include('@NowoUiKitBundle/page/_page_header.html.twig', {header: _header, bundle: _b, nowo_ui_page_type: 'show', extra_actions: [], header_actions: true, presentation: null}, false) }}
+{% else %}{{ parent() }}{% endif %}{% endblock %}
+
 {% block nowo_ui_show_sections %}
     {% set _b = page.bundle %}
     {% set _status = latest ? latest.status.value : 'unknown' %}
@@ -48,7 +79,7 @@
         {% set _badges = _badges|merge({(_key): {label: ('status.' ~ _key)|trans, class: 'uptime-status-badge uptime-status-badge--' ~ _key ~ ' ' ~ nowo_ui_class(_slot, _b)}}) %}
     {% endfor %}
     {% set _layout = monitor_layout|default({charts: 'bundle', slots: {}}) %}
-    {% block monitor_details %}
+{% if 'details' not in (_layout.order|default([])) %}    {% block monitor_details %}
     {% if _layout.slots.details|default(null) %}
         {{ include(_layout.slots.details) }}
     {% else %}
@@ -58,12 +89,12 @@
                 <header class="{{ nowo_ui_class('card_header', _b) }}{% if loop.first %} uptime-details-header{% endif %}">
                     {% if section.title %}<h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ section.title|nowo_ui_trans }}</h2>{% endif %}
                     {% if loop.first %}
-                        <p class="uptime-details-status">
+{% if not (_layout.header.status|default(false)) %}                        <p class="uptime-details-status">
                             <span class="visually-hidden">{{ 'dashboard.col.status'|trans }}:</span>
                             <span class="{{ (_badges[_status] ?? _badges.unknown).class }}" data-detail-status data-testid="uptime-monitor-status"
                                   data-status-badges="{{ _badges|json_encode|e('html_attr') }}">{{ (_badges[_status] ?? _badges.unknown).label }}</span>
                         </p>
-                        {# 1.18: a monitor applied from a monitors file (nowo:uptime:apply-monitors) says so in the header.
+{% endif %}                        {# 1.18: a monitor applied from a monitors file (nowo:uptime:apply-monitors) says so in the header.
                            Hosts that override this page reuse the block (view fields monitor.fileManaged, monitor.originKey). #}
                         {% block monitor_origin_badge %}
                             {% if monitor.fileManaged|default(false) %}
@@ -82,23 +113,24 @@
     {% endfor %}
     {% endif %}
     {% endblock %}
-{% endblock %}
+{% endif %}{% endblock %}
 
 {% block nowo_ui_show_after %}
     {% set _b = page.bundle %}
     {% set _theme = uptime_theme() %}
     {% set _layout = monitor_layout|default({charts: 'bundle', slots: {}}) %}
-    {% for section in page_sections.before|default([]) %}
+{% set _order = _layout.order|default([]) %}{% set _root_attrs = monitor_root_attributes|default({}) %}    {% for section in page_sections.before|default([]) %}
         {{ include(section.template, section.context) }}
     {% endfor %}
     <div class="uptime-app uptime-app--embedded uptime-theme-{{ _theme }} uptime-page uptime-page--monitor"{% if _theme != 'auto' %} data-theme="{{ _theme }}"{% endif %}>
-        <div class="uptime-detail" id="uptime-monitor-detail-root"
+        <div class="uptime-detail{% if _root_attrs.class is defined %} {{ _root_attrs.class }}{% endif %}" id="uptime-monitor-detail-root"
              data-monitor-id="{{ monitor.id }}"
-             data-api-history="{{ api_history_url }}"
-             data-series="{{ chart_series_json|e('html_attr') }}"
-             data-latency-series="{{ latency_series_json|e('html_attr') }}">
+{% if api_history_url is not null %}             data-api-history="{{ api_history_url }}"
+{% endif %}             data-series="{{ chart_series_json|e('html_attr') }}"
+             data-latency-series="{{ latency_series_json|e('html_attr') }}"{% for _name, _value in _root_attrs %}{% if _name != 'class' %} {{ _name|e('html_attr') }}{% if _value is not same as(true) %}="{{ _value }}"{% endif %}{% endif %}{% endfor %}>
+{% if _order is empty %}
 
-            {% if monitor.type.value == 'group' and detail.children is not empty %}
+{% block monitor_children %}            {% if monitor.type.value == 'group' and detail.children is not empty %}
                 <section class="uptime-group-children {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
                     <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.show.group_children'|trans }}</h2>
                     <ul class="uptime-group-child-list">
@@ -112,17 +144,19 @@
                     </ul>
                 </section>
             {% endif %}
+{% endblock %}
 
-            {% if push|default(null) %}
+{% block monitor_push %}            {% if push|default(null) %}
                 {{ include('@NowoUptimeMonitorBundle/monitor/_push_health.html.twig') }}
             {% endif %}
+{% endblock %}
 
             {% if not latest %}
                 <p class="uptime-detail-unchecked {{ nowo_ui_class('muted', _b) }}" role="status" data-detail-unchecked data-testid="uptime-monitor-no-checks">{{ 'monitor.show.not_checked'|trans }}</p>
             {% endif %}
 
             <div class="uptime-detail-checked-content" data-detail-pending{% if not latest %} hidden{% endif %}>
-            <section class="uptime-detail-history-section {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
+{% block monitor_history %}{% if _layout.slots.history|default(null) %}{{ include(_layout.slots.history) }}{% else %}            <section class="uptime-detail-history-section {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
                 <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.show.history'|trans }}</h2>
                 {{ include('@NowoUptimeMonitorBundle/_history_bar.html.twig', {history: detail.history, large: true}) }}
                 <p class="uptime-history-legend {{ nowo_ui_class('muted', _b) }}">
@@ -135,6 +169,7 @@
                     {% endif %}
                 </p>
             </section>
+{% endif %}{% endblock %}
 
             {% block monitor_figures %}
             {% if _layout.slots.figures|default(null) %}
@@ -180,7 +215,7 @@
             {% endif %}
             {% endblock %}
 
-            <section class="uptime-events uptime-phone-list {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-monitor-log" aria-labelledby="uptime-monitor-log-title">
+{% block monitor_log %}{% set _log = _layout.log|default({}) %}{% set _sort = log_sort|default(null) %}{% set _num = _log.align_numbers|default(false) %}{% if _layout.slots.log|default(null) %}{{ include(_layout.slots.log) }}{% else %}            <section class="uptime-events uptime-phone-list {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-monitor-log" aria-labelledby="uptime-monitor-log-title">
                 <header class="uptime-events-header {{ nowo_ui_class('card_header', _b) }}">
                     <h2 class="{{ nowo_ui_class('card_title', _b) }}" id="uptime-monitor-log-title">{{ 'monitor.show.check_log'|trans }}</h2>
                 </header>
@@ -189,10 +224,18 @@
                     <table class="uptime-events-table uptime-phone-table {{ nowo_ui_class('table', _b) }}" data-events-table>
                         <thead class="{{ nowo_ui_class('table_head', _b) }}">
                             <tr>
+{% if _sort or _num %}
+{% import '@NowoUptimeMonitorBundle/monitor/_log_macros.html.twig' as _log_ui %}
+                                {{ _log_ui.th('monitor.show.col.status'|trans, 'status', _sort, false) }}
+                                {{ _log_ui.th('monitor.show.col.datetime'|trans, 'time', _sort, false) }}
+                                {{ _log_ui.th('monitor.show.col.latency'|trans, 'latency', _sort, _num) }}
+                                {{ _log_ui.th('monitor.show.col.code'|trans, 'code', _sort, _num, 3) }}
+{% else %}
                                 <th scope="col">{{ 'monitor.show.col.status'|trans }}</th>
                                 <th scope="col">{{ 'monitor.show.col.datetime'|trans }}</th>
                                 <th scope="col">{{ 'monitor.show.col.latency'|trans }}</th>
                                 <th scope="col" data-nowo-ui-priority="3">{{ 'monitor.show.col.code'|trans }}</th>
+{% endif %}
                                 <th scope="col">{{ 'monitor.show.col.message'|trans }}</th>
                             </tr>
                         </thead>
@@ -200,9 +243,9 @@
                             {% for event in log_events|default(detail.events|reverse) %}
                                 <tr>
                                     <td data-uptime-phone="status"><span class="uptime-status uptime-status-{{ event.status }}">{{ ('status.' ~ event.status)|trans }}</span></td>
-                                    <td data-uptime-phone="meta"><time datetime="{{ event.checked_at|date('c') }}">{{ event.checked_at|date('Y-m-d H:i:s') }}</time></td>
-                                    <td data-uptime-phone="meta">{{ event.latency_ms }} ms</td>
-                                    <td data-nowo-ui-priority="3" data-uptime-phone="{{ event.status_code is null ? 'hidden' : 'meta' }}" data-label="{{ 'monitor.show.col.code'|trans }}">{{ event.status_code ?? '—' }}</td>
+                                    <td data-uptime-phone="meta"><time datetime="{{ event.checked_at|date('c') }}"{% if _log.time_title_format|default(null) %} title="{{ event.checked_at|date(_log.time_title_format) }}"{% endif %}>{{ event.checked_at|date(_log.time_format|default('Y-m-d H:i:s')) }}</time></td>
+                                    <td{% if _num %} class="uptime-cell-num"{% endif %} data-uptime-phone="meta">{{ event.latency_ms }} ms</td>
+                                    <td{% if _num %} class="uptime-cell-num"{% endif %} data-nowo-ui-priority="3" data-uptime-phone="{{ event.status_code is null ? 'hidden' : 'meta' }}" data-label="{{ 'monitor.show.col.code'|trans }}">{{ event.status_code ?? '—' }}</td>
                                     <td class="uptime-event-message" data-uptime-phone="detail">{{ event.message ?? '—' }}</td>
                                 </tr>
                             {% else %}
@@ -219,7 +262,27 @@
                     </div>
                 {% endif %}
             </section>
-            </div>
+{% endif %}{% endblock %}            </div>
+{% else %}
+{# 1.30, web_ui.monitor_show.order: the regions in the configured order (monitor_layout.order, the full list). #}
+{% set _status = latest ? latest.status.value : 'unknown' %}
+{% set _badges = {} %}
+{% for _key, _slot in {up: 'badge_success', down: 'badge_danger', degraded: 'badge_warning', unknown: 'badge_neutral'} %}
+    {% set _badges = _badges|merge({(_key): {label: ('status.' ~ _key)|trans, class: 'uptime-status-badge uptime-status-badge--' ~ _key ~ ' ' ~ nowo_ui_class(_slot, _b)}}) %}
+{% endfor %}
+            {% if not latest %}
+                <p class="uptime-detail-unchecked {{ nowo_ui_class('muted', _b) }}" role="status" data-detail-unchecked data-testid="uptime-monitor-no-checks">{{ 'monitor.show.not_checked'|trans }}</p>
+            {% endif %}
+{% for _region in _order %}
+    {% set _region_html %}{{ block('monitor_' ~ _region) }}{% endset %}
+    {% if _region_html|trim is empty %}
+    {% elseif _region in ['history', 'figures', 'charts', 'log'] %}
+            <div class="uptime-detail-checked-content" data-detail-pending data-uptime-region="{{ _region }}"{% if not latest %} hidden{% endif %}>{{ _region_html }}</div>
+    {% else %}
+            {{ _region_html }}
+    {% endif %}
+{% endfor %}
+{% endif %}
         </div>
     </div>
     {% for section in page_sections.after|default([]) %}

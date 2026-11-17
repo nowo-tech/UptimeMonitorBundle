@@ -22,6 +22,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorShowLiveUpdatesEvent;
 use Nowo\UptimeMonitorBundle\Event\StatusPageMonitorsEvent;
 use Nowo\UptimeMonitorBundle\Event\UptimePageEvent;
 use Nowo\UptimeMonitorBundle\Form\MonitorFormType;
@@ -49,7 +50,11 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function array_column;
+use function array_filter;
+use function array_intersect_key;
+use function array_keys;
 use function array_map;
+use function array_values;
 
 /**
  * 1.12 host embedding: page actions by access, the host page event, the paginated check log, the table dashboard,
@@ -111,6 +116,7 @@ final class HostEmbeddingControllersTest extends TestCase
         array $hiddenFields = [],
         ?EntityManagerInterface $em = null,
         UptimePages $pages = new UptimePages(),
+        ?EventDispatcher $dispatcher = null,
     ): MonitorController {
         $tenantRepo = $this->createStub(TenantRepository::class);
         $tenantRepo->method('findOneBySlug')->willReturn($monitor->getTenant());
@@ -132,7 +138,7 @@ final class HostEmbeddingControllersTest extends TestCase
             $pages,
             actions: $actions,
             quota: $quota,
-            eventDispatcher: $this->dispatcher(),
+            eventDispatcher: $dispatcher ?? $this->dispatcher(),
             webUi: $webUi,
             hiddenFields: $hiddenFields,
         );
@@ -184,6 +190,100 @@ final class HostEmbeddingControllersTest extends TestCase
         self::assertSame(3, $pager->page);
         self::assertSame(3, $pager->totalPages);
         self::assertCount(1, $this->renderedContext['log_events']);
+    }
+
+    public function testMonitorPageOptionsOf130(): void
+    {
+        $monitor = $this->monitor();
+        $checks  = $this->createStub(CheckResultRepository::class);
+        $checks->method('findRecentForMonitor')->willReturn($this->checks($monitor, 7));
+        $dispatcher = $this->dispatcher();
+        $dispatcher->addListener(MonitorShowLiveUpdatesEvent::class, static function (MonitorShowLiveUpdatesEvent $event): void {
+            // A host whose user paused live updates: no polling, its own watcher on the bundle URL.
+            $event->setApiHistoryUrl(null);
+            $event->setRootAttribute('data-controller', 'live-updates-watch');
+            $event->setRootAttribute('data-live-updates-watch-url-value', $event->historyUrl);
+        });
+        $webUi = ['per_page' => 2, 'monitor_show' => [
+            'order'  => ['figures', 'history'],
+            'log'    => ['sortable' => true, 'per_page' => 5],
+            'header' => ['actions_layout' => 'split', 'status' => true, 'icons' => ['edit' => 'tabler:pencil', 'pause' => 'tabler:player-pause']],
+        ]];
+        $controller = $this->monitorController($monitor, $checks, $this->actions(true), webUi: $webUi, dispatcher: $dispatcher);
+        $request    = Request::create('/main/monitors/4', 'GET', ['log_sort' => 'latency', 'log_dir' => 'desc', 'range' => '24']);
+        $request->attributes->set('_route', 'personal_nowo_uptime_monitor_show');
+        $request->attributes->set('_route_params', ['tenantSlug' => 'main', 'id' => 4]);
+        $this->bindController($controller);
+
+        $controller->show('main', 4, $request);
+
+        self::assertNull($this->renderedContext['api_history_url']);
+        self::assertSame(['data-controller' => 'live-updates-watch', 'data-live-updates-watch-url-value' => '/generated/nowo_uptime_api_monitor_history'], $this->renderedContext['monitor_root_attributes']);
+        self::assertSame(['figures', 'history', 'children', 'push', 'charts', 'log'], $this->renderedContext['monitor_layout']['order']);
+        $pager = $this->renderedContext['log_pagination'];
+        self::assertInstanceOf(Pagination::class, $pager);
+        self::assertSame(5, $pager->perPage, 'log.per_page wins over web_ui.per_page');
+        self::assertSame(['log_sort' => 'latency', 'log_dir' => 'desc'], $pager->query, 'pages keep the sort');
+        self::assertSame([16, 15, 14, 13, 12], array_column($this->renderedContext['log_events'], 'latency_ms'), 'slowest first');
+        $sort = $this->renderedContext['log_sort'];
+        self::assertSame(['latency', 'desc'], [$sort['column'], $sort['direction']]);
+        self::assertSame(['status', 'time', 'latency', 'code'], array_keys($sort['links']));
+        self::assertSame('/generated/personal_nowo_uptime_monitor_show', $sort['links']['code'], 'the tenant path copy of the current page');
+        $page = $this->renderedContext['page'];
+        self::assertInstanceOf(ShowPage::class, $page);
+        self::assertSame('split', $page->header->actionsLayout);
+        self::assertSame(['icon', 'icon', null, null], array_map(static fn (Action $action): ?string => $action->display, $page->header->actions));
+        self::assertSame('tabler:pencil', $page->header->actions[0]->icon);
+
+        // Without a request: the bundle route, newest first.
+        $controller->show('main', 4);
+        self::assertSame('/generated/nowo_uptime_monitor_show', $this->renderedContext['log_sort']['links']['time']);
+        self::assertSame([], $this->renderedContext['log_pagination']->query);
+    }
+
+    public function testSwL1SortLinksKeepTheMonitorRouteParamsOverTheQuery(): void
+    {
+        $monitor = $this->monitor();
+        $checks  = $this->createStub(CheckResultRepository::class);
+        $checks->method('findRecentForMonitor')->willReturn($this->checks($monitor, 2));
+        $controller = $this->monitorController($monitor, $checks, null, webUi: ['monitor_show' => ['log' => ['sortable' => true]]]);
+        $request    = Request::create('/main/monitors/4', 'GET', ['id' => 'abc', 'tenantSlug' => 'x', 'other' => 'kept', 'page' => '2', 'log_sort' => 'code', 'log_dir' => 'desc']);
+        $request->attributes->set('_route', 'nowo_uptime_monitor_show');
+        $request->attributes->set('_route_params', ['tenantSlug' => 'main', 'id' => '4', 'extra' => 'y']);
+        $request->query->set('extra', 'z');
+        $this->bindController($controller);
+
+        $controller->show('main', 4, $request);
+
+        $sortLinks = array_values(array_filter($this->generatedUrls, static fn (array $call): bool => isset($call[1]['log_sort'])));
+        self::assertCount(4, $sortLinks);
+        foreach ($sortLinks as [$route, $params]) {
+            self::assertSame('nowo_uptime_monitor_show', $route);
+            self::assertSame('main', $params['tenantSlug']);
+            self::assertSame(4, $params['id']);
+            self::assertSame('kept', $params['other'], 'other query parameters stay');
+            self::assertArrayNotHasKey('page', $params);
+            self::assertArrayNotHasKey('extra', $params, 'a query key named like a route parameter is dropped');
+        }
+        self::assertSame(['log_sort' => 'code', 'log_dir' => 'asc'], array_intersect_key($sortLinks[3][1], ['log_sort' => 1, 'log_dir' => 1]), 'the sort query wins over the request one');
+    }
+
+    public function testMonitorPageDefaultsKeepThe129Context(): void
+    {
+        $monitor = $this->monitor();
+        $checks  = $this->createStub(CheckResultRepository::class);
+        $checks->method('findRecentForMonitor')->willReturn($this->checks($monitor, 3));
+        $controller = $this->monitorController($monitor, $checks, $this->actions(true));
+        $this->bindController($controller);
+
+        $controller->show('main', 4, Request::create('/main/monitors/4', 'GET', ['log_sort' => 'latency']));
+
+        self::assertSame('/generated/nowo_uptime_api_monitor_history', $this->renderedContext['api_history_url']);
+        self::assertSame([], $this->renderedContext['monitor_root_attributes']);
+        self::assertNull($this->renderedContext['log_sort'], 'the sort query is ignored unless log.sortable');
+        self::assertSame([12, 11, 10], array_column($this->renderedContext['log_events'], 'latency_ms'), 'newest first');
+        self::assertSame('toolbar', $this->renderedContext['page']->header->actionsLayout);
+        self::assertSame([null, null, null, null], array_map(static fn (Action $action): ?string => $action->display, $this->renderedContext['page']->header->actions));
     }
 
     public function testMonitorPagesDropTheBackLinkWhenTheHostNavigates(): void

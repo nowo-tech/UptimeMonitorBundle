@@ -22,6 +22,7 @@ use Nowo\UptimeMonitorBundle\Event\MonitorCreatedEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorDeletedEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorPausedEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorQuotaCheckEvent;
+use Nowo\UptimeMonitorBundle\Event\MonitorShowLiveUpdatesEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorUpdatedEvent;
 use Nowo\UptimeMonitorBundle\Event\UptimePageEvent;
 use Nowo\UptimeMonitorBundle\Form\Model\MonitorFormData;
@@ -38,6 +39,9 @@ use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
 use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
+use Nowo\UptimeMonitorBundle\Ui\MonitorHeaderActions;
+use Nowo\UptimeMonitorBundle\Ui\MonitorLogSort;
+use Nowo\UptimeMonitorBundle\Ui\MonitorShowLayout;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Component\Clock\ClockInterface;
@@ -67,6 +71,7 @@ use function get_object_vars;
 use function in_array;
 use function is_array;
 use function is_int;
+use function is_string;
 use function json_encode;
 use function sprintf;
 
@@ -134,7 +139,10 @@ final class MonitorController extends AbstractUptimeController
     #[Route('/{id}', name: 'show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(string $tenantSlug, int $id, ?Request $request = null): Response
     {
-        return $this->renderShow($tenantSlug, $this->requireMonitor($tenantSlug, $id), $request);
+        $route = $request?->attributes->get('_route');
+
+        // The sort links of the check log point at this GET route (a tenant path copy keeps its own name).
+        return $this->renderShow($tenantSlug, $this->requireMonitor($tenantSlug, $id), $request, showRoute: is_string($route) && $route !== '' ? $route : null);
     }
 
     /**
@@ -182,8 +190,10 @@ final class MonitorController extends AbstractUptimeController
 
     /**
      * @param array<string, mixed> $extra one-time context (a token just issued)
+     * @param string|null $showRoute the GET show route the check log sort links use (null: `nowo_uptime_monitor_show`;
+     *                               never the route of a POST action that renders the page)
      */
-    private function renderShow(string $tenantSlug, Monitor $monitor, ?Request $request, array $extra = []): Response
+    private function renderShow(string $tenantSlug, Monitor $monitor, ?Request $request, array $extra = [], ?string $showRoute = null): Response
     {
         $id     = (int) $monitor->getId();
         $series = $this->chartService->buildMonitorSeries($monitor, AggregatePeriod::Day, 30);
@@ -194,18 +204,29 @@ final class MonitorController extends AbstractUptimeController
             // Only the group children the user may view (GU-L2).
             $detail['children'] = array_values(array_filter($detail['children'], static fn (array $child): bool => $scope->canView($child['monitor'])));
         }
-        $event   = $this->dispatchPageEvent(new UptimePageEvent('monitor_show', $tenantSlug, $monitor));
-        $log     = array_reverse($detail['events']);
-        $perPage = $this->perPage();
-        $pager   = Pagination::fromTotal(count($log), $request?->query->getInt('page', 1) ?? 1, $perPage, [$perPage], variant: Pagination::VARIANT_COMPACT);
+        $event  = $this->dispatchPageEvent(new UptimePageEvent('monitor_show', $tenantSlug, $monitor));
+        $layout = $this->monitorShowLayout();
+        $live   = new MonitorShowLiveUpdatesEvent($tenantSlug, $monitor, $this->generateUrl('nowo_uptime_api_monitor_history', [
+            'tenantSlug' => $tenantSlug,
+            'id'         => $id,
+        ]));
+        $this->eventDispatcher?->dispatch($live);
+        $sort    = $layout['log']['sortable'] ? MonitorLogSort::fromRequest($request) : null;
+        $log     = MonitorLogSort::apply(array_reverse($detail['events']), $sort);
+        $perPage = $layout['log']['per_page'] ?? $this->perPage();
+        $pager   = Pagination::fromTotal(count($log), $request?->query->getInt('page', 1) ?? 1, $perPage, [$perPage], query: $sort?->query() ?? [], variant: Pagination::VARIANT_COMPACT);
 
         return $this->render($this->pages->template('monitor_show', '@NowoUptimeMonitorBundle/monitor/show.html.twig'), $this->pages->context([
-            'page'           => $this->buildShowPage($tenantSlug, $monitor, $event),
+            'page'           => $this->buildShowPage($tenantSlug, $monitor, $event, $layout['header']),
             'page_sections'  => ['before' => $event->getSections('before'), 'after' => $event->getSections('after')],
             'log_events'     => array_slice($log, ($pager->page - 1) * $perPage, $perPage),
             'log_pagination' => $pager,
-            'tenant_slug'    => $tenantSlug,
-            'monitor'        => $monitor,
+            // Since 1.30: the sortable log headers (null unless web_ui.monitor_show.log.sortable).
+            'log_sort' => $sort?->view($this->logSortLinks($request, $showRoute ?? 'nowo_uptime_monitor_show', $tenantSlug, $id, $sort)),
+            // Since 1.30: the root attributes listeners of MonitorShowLiveUpdatesEvent added (validated names).
+            'monitor_root_attributes' => $live->getRootAttributes(),
+            'tenant_slug'             => $tenantSlug,
+            'monitor'                 => $monitor,
             // Since 1.21: what a slot template should print of the target and config (`monitor` holds them unmasked).
             'monitor_safe' => [
                 'target' => SecretRedactor::maskUrl($monitor->getTarget()),
@@ -215,17 +236,15 @@ final class MonitorController extends AbstractUptimeController
             'detail'              => $detail,
             'chart_series_json'   => json_encode($series, JSON_THROW_ON_ERROR),
             'latency_series_json' => json_encode($detail['latency_series'], JSON_THROW_ON_ERROR),
-            'api_history_url'     => $this->generateUrl('nowo_uptime_api_monitor_history', [
-                'tenantSlug' => $tenantSlug,
-                'id'         => $id,
-            ]),
+            // Since 1.30: null when a MonitorShowLiveUpdatesEvent listener turned the polling off.
+            'api_history_url'    => $live->getApiHistoryUrl(),
             'api_aggregates_url' => $this->generateUrl('nowo_uptime_api_monitor_aggregates', [
                 'tenantSlug' => $tenantSlug,
                 'id'         => $id,
             ]),
             // A token just issued comes with its URL: only a manager reaches that action.
             'push'           => $this->pushView($monitor, $request, $extra !== [] || $this->seesTenant($tenantSlug)),
-            'monitor_layout' => $this->monitorShowLayout(),
+            'monitor_layout' => $layout,
         ] + $extra));
     }
 
@@ -603,9 +622,12 @@ final class MonitorController extends AbstractUptimeController
     /**
      * Monitor detail view model: name, target, back link, the monitor actions of {@see UptimeActions} (edit opens the
      * monitor form dialog, a plain link without JavaScript; pause / resume; delete behind a confirm) and the host's
-     * ({@see UptimePageEvent}), and the details section (the project only when the form keeps that field).
+     * ({@see UptimePageEvent}), and the details section (the project only when the form keeps that field). Since 1.30
+     * the header follows `web_ui.monitor_show.header` (actions layout, icon buttons).
+     *
+     * @param array{actions_layout: string, status: bool, icons: array<string, string>} $header `web_ui.monitor_show.header`
      */
-    private function buildShowPage(string $tenantSlug, Monitor $monitor, UptimePageEvent $event): ShowPage
+    private function buildShowPage(string $tenantSlug, Monitor $monitor, UptimePageEvent $event, array $header): ShowPage
     {
         $parent  = $monitor->getParent();
         $actions = match (true) {
@@ -614,7 +636,11 @@ final class MonitorController extends AbstractUptimeController
             default                                 => [$this->editAction($tenantSlug, $monitor)],
         };
         $pushActions = $this->actions?->push($tenantSlug, $monitor) ?? [];
-        $items       = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
+        if ($header['icons'] !== []) {
+            $actions     = MonitorHeaderActions::withIcons($actions, $monitor, $header['icons']);
+            $pushActions = MonitorHeaderActions::withIcons($pushActions, $monitor, $header['icons']);
+        }
+        $items = [new DetailItem(UptimePages::label('monitor.show.type'), $monitor->getType()->value, badge: 'neutral')];
         // A user shown only this monitor does not get the name of its group (GU-L2): no group row, no project row instead.
         $hideParent = $parent instanceof Monitor && !$this->seesTenant($tenantSlug);
         if (!$hideParent && ($parent instanceof Monitor || !in_array('project', $this->hiddenFields, true))) {
@@ -637,6 +663,7 @@ final class MonitorController extends AbstractUptimeController
                 SecretRedactor::maskUrl($monitor->getTarget()),
                 [...$actions, ...$pushActions, ...$event->getActions()],
                 back: $this->pages->backLinks() ? new BackLink($this->dashboardUrl($tenantSlug), UptimePages::label('nav.dashboard')) : null,
+                actionsLayout: $header['actions_layout'],
             ),
             [
                 new DetailSection(UptimePages::label('monitor.show.details'), $items, 'uptime-monitor-details'),
@@ -753,20 +780,37 @@ final class MonitorController extends AbstractUptimeController
     }
 
     /**
-     * The monitor page regions (`web_ui.monitor_show`, since 1.21): chart mode and slot templates.
+     * The monitor page regions (`web_ui.monitor_show`, since 1.21): chart mode and slot templates; since 1.30 the region
+     * order, the check log options and the header options (the defaults render the 1.29 page).
      *
-     * @return array{charts: string, slots: array<string, string|null>}
+     * @return array{charts: string, slots: array<string, string|null>, order: list<string>, log: array{sortable: bool, align_numbers: bool, time_format: string, time_title_format: string|null, per_page: int|null}, header: array{actions_layout: string, status: bool, icons: array<string, string>}}
      */
     private function monitorShowLayout(): array
     {
-        $options = $this->webUi['monitor_show'] ?? [];
-        $charts  = $options['charts'] ?? 'bundle';
-        $slots   = $options['slots'] ?? [];
+        return MonitorShowLayout::resolve($this->webUi['monitor_show'] ?? []);
+    }
 
-        return [
-            'charts' => in_array($charts, ['host', 'none'], true) ? $charts : 'bundle',
-            'slots'  => is_array($slots) ? $slots : [],
-        ];
+    /**
+     * Header links of the sortable check log: the GET show route `$route` with the monitor's own route parameters,
+     * `log_sort` / `log_dir` of each column and the other query parameters (never `page`, and never a query key that
+     * names a route parameter: those come from the page, not from the URL).
+     *
+     * @return array<string, string> URL by column
+     */
+    private function logSortLinks(?Request $request, string $route, string $tenantSlug, int $id, MonitorLogSort $sort): array
+    {
+        $params      = ['tenantSlug' => $tenantSlug, 'id' => $id];
+        $query       = $request?->query->all() ?? [];
+        $routeParams = $request?->attributes->get('_route_params');
+        foreach ([...array_keys(is_array($routeParams) ? $routeParams : []), ...array_keys($params), 'page', 'log_sort', 'log_dir'] as $key) {
+            unset($query[$key]);
+        }
+        $links = [];
+        foreach (MonitorLogSort::COLUMNS as $column) {
+            $links[$column] = $this->generateUrl($route, $params + $sort->linkQuery($column) + $query);
+        }
+
+        return $links;
     }
 
     /**

@@ -85,6 +85,54 @@ describe('monitor detail', () => {
     expect(() => applyHistoryPayload(root, PAYLOAD)).not.toThrow();
   });
 
+  it('updates the tone of the page header badge (1.30 header.status)', () => {
+    const root = mount();
+    root.querySelector('[data-detail-status]')?.remove();
+    const badges = {
+      up: { label: 'Up', class: 'nowo-ui-page-status nowo-ui-badge--success uptime-status-badge uptime-status-badge--up', tone: 'success' },
+      down: { label: 'Down', class: 'nowo-ui-page-status nowo-ui-badge--danger uptime-status-badge uptime-status-badge--down', tone: 'danger' },
+      unknown: { label: 'Unknown', class: 'nowo-ui-page-status nowo-ui-badge--neutral', tone: 'neutral' },
+    };
+    const badge = document.createElement('span');
+    badge.dataset.detailStatus = '';
+    badge.dataset.nowoUiPageStatus = 'neutral';
+    badge.dataset.statusBadges = JSON.stringify(badges);
+    document.body.prepend(badge);
+
+    applyHistoryPayload(root, { ...PAYLOAD, last_status: 'down' });
+    expect(badge.textContent).toBe('Down');
+    expect(badge.className).toBe(badges.down.class);
+    expect(badge.dataset.nowoUiPageStatus).toBe('danger');
+
+    // A badge without the UiKit attribute keeps none.
+    delete badge.dataset.nowoUiPageStatus;
+    applyHistoryPayload(root, { ...PAYLOAD, last_status: 'up' });
+    expect(badge.dataset.nowoUiPageStatus).toBeUndefined();
+    badge.remove();
+  });
+
+  it('reveals every pending region once the first check arrives (1.30 region order)', () => {
+    const root = mount();
+    root.insertAdjacentHTML('beforeend', '<p data-detail-unchecked>Not checked yet</p><div data-detail-pending hidden></div><div data-detail-pending hidden></div>');
+
+    applyHistoryPayload(root, PAYLOAD);
+    root.querySelectorAll<HTMLElement>('[data-detail-pending]').forEach((pending) => {
+      expect(pending.hidden).toBe(false);
+    });
+  });
+
+  it('does not poll without data-api-history (1.30 live updates off)', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    mount();
+    expect(document.getElementById('uptime-monitor-detail-root')?.hasAttribute('data-api-history')).toBe(false);
+
+    bootstrap();
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('reveals the history, figures and log once the first check arrives', () => {
     const root = mount();
     root.insertAdjacentHTML('beforeend', '<p data-detail-unchecked>Not checked yet</p><div data-detail-pending hidden></div>');
