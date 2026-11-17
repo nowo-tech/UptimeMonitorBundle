@@ -459,7 +459,7 @@ final class Configuration implements ConfigurationInterface
                                         ->scalarNode('charts')->defaultNull()->info('Rendered in the charts region with charts: host.')->end()
                                         ->scalarNode('details')->defaultNull()->info('Replaces the details card(s) (with the status badge of the first one).')->end()
                                         ->scalarNode('history')->defaultNull()->info('Since 1.30: replaces the check history card (history bar, legend, last check).')->end()
-                                        ->scalarNode('log')->defaultNull()->info('Since 1.30: replaces the check log card (table and pager; variables log_events, log_pagination, log_sort, log_options).')->end()
+                                        ->scalarNode('log')->defaultNull()->info('Since 1.30: replaces the check log card (table and pager; variables log_events, log_pagination, log_sort, monitor_layout.log).')->end()
                                     ->end()
                                 ->end()
                                 ->arrayNode('order')

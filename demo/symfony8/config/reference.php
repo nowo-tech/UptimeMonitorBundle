@@ -1035,6 +1035,21 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 figures?: scalar|Param|null, // Replaces the key figures (24 h / 30 d uptime, latency). // Default: null
  *                 charts?: scalar|Param|null, // Rendered in the charts region with charts: host. // Default: null
  *                 details?: scalar|Param|null, // Replaces the details card(s) (with the status badge of the first one). // Default: null
+ *                 history?: scalar|Param|null, // Since 1.30: replaces the check history card (history bar, legend, last check). // Default: null
+ *                 log?: scalar|Param|null, // Since 1.30: replaces the check log card (table and pager; variables log_events, log_pagination, log_sort, monitor_layout.log). // Default: null
+ *             },
+ *             order?: list<"details"|"children"|"push"|"history"|"figures"|"charts"|"log"|Param>,
+ *             log?: array{ // Since 1.30: check log options (the defaults render the 1.29 log).
+ *                 sortable?: bool|Param, // Status, time, latency and code headers sort the log (query log_sort / log_dir; default newest first). // Default: false
+ *                 align_numbers?: bool|Param, // Latency and code cells right-aligned with tabular figures (class uptime-cell-num). // Default: false
+ *                 time_format?: scalar|Param|null, // PHP date format of the check time, e.g. H:i. // Default: "Y-m-d H:i:s"
+ *                 time_title_format?: scalar|Param|null, // PHP date format of the time's title attribute (e.g. Y-m-d H:i:s); null = no title. // Default: null
+ *                 per_page?: int|Param, // Rows per log page; null = web_ui.per_page. // Default: null
+ *             },
+ *             header?: array{ // Since 1.30: the page header (UiKit page_header partial).
+ *                 actions_layout?: "toolbar"|"split"|Param, // toolbar: one button per action (1.29); split: icon buttons, one primary button and the "more" menu (UiKit header_actions). // Default: "toolbar"
+ *                 status?: bool|Param, // The status badge next to the title (UiKit page_status, updated live) instead of in the first details card. // Default: false
+ *                 icons?: array<string, scalar|Param|null>,
  *             },
  *         },
  *         strict_tenant_paths?: bool|Param, // Since 1.21: serve a tenant only under the path its slug selects (a tenant_paths entry whose slug_prefix it starts with, else the default path); any other path answers 404. // Default: false
