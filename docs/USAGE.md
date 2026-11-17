@@ -372,7 +372,7 @@ nowo_uptime_monitor:
                 charts: 'uptime/monitor/_charts.html.twig'
                 # history / log: replace those regions too (log gets log_events, log_pagination, log_sort)
             log:
-                sortable: true                     # status, time, latency and code headers sort (log_sort / log_dir)
+                sortable: true                     # headers sort the recent check log, last 100 checks (log_sort / log_dir)
                 align_numbers: true                # latency and code at the end (class uptime-cell-num)
                 time_format: 'H:i'
                 time_title_format: 'Y-m-d H:i:s'   # full date and seconds in the title attribute

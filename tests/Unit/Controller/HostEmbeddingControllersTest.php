@@ -50,8 +50,11 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function array_column;
+use function array_filter;
+use function array_intersect_key;
 use function array_keys;
 use function array_map;
+use function array_values;
 
 /**
  * 1.12 host embedding: page actions by access, the host page event, the paginated check log, the table dashboard,
@@ -236,6 +239,33 @@ final class HostEmbeddingControllersTest extends TestCase
         $controller->show('main', 4);
         self::assertSame('/generated/nowo_uptime_monitor_show', $this->renderedContext['log_sort']['links']['time']);
         self::assertSame([], $this->renderedContext['log_pagination']->query);
+    }
+
+    public function testSwL1SortLinksKeepTheMonitorRouteParamsOverTheQuery(): void
+    {
+        $monitor = $this->monitor();
+        $checks  = $this->createStub(CheckResultRepository::class);
+        $checks->method('findRecentForMonitor')->willReturn($this->checks($monitor, 2));
+        $controller = $this->monitorController($monitor, $checks, null, webUi: ['monitor_show' => ['log' => ['sortable' => true]]]);
+        $request    = Request::create('/main/monitors/4', 'GET', ['id' => 'abc', 'tenantSlug' => 'x', 'other' => 'kept', 'page' => '2', 'log_sort' => 'code', 'log_dir' => 'desc']);
+        $request->attributes->set('_route', 'nowo_uptime_monitor_show');
+        $request->attributes->set('_route_params', ['tenantSlug' => 'main', 'id' => '4', 'extra' => 'y']);
+        $request->query->set('extra', 'z');
+        $this->bindController($controller);
+
+        $controller->show('main', 4, $request);
+
+        $sortLinks = array_values(array_filter($this->generatedUrls, static fn (array $call): bool => isset($call[1]['log_sort'])));
+        self::assertCount(4, $sortLinks);
+        foreach ($sortLinks as [$route, $params]) {
+            self::assertSame('nowo_uptime_monitor_show', $route);
+            self::assertSame('main', $params['tenantSlug']);
+            self::assertSame(4, $params['id']);
+            self::assertSame('kept', $params['other'], 'other query parameters stay');
+            self::assertArrayNotHasKey('page', $params);
+            self::assertArrayNotHasKey('extra', $params, 'a query key named like a route parameter is dropped');
+        }
+        self::assertSame(['log_sort' => 'code', 'log_dir' => 'asc'], array_intersect_key($sortLinks[3][1], ['log_sort' => 1, 'log_dir' => 1]), 'the sort query wins over the request one');
     }
 
     public function testMonitorPageDefaultsKeepThe129Context(): void

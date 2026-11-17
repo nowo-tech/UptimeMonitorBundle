@@ -139,7 +139,10 @@ final class MonitorController extends AbstractUptimeController
     #[Route('/{id}', name: 'show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(string $tenantSlug, int $id, ?Request $request = null): Response
     {
-        return $this->renderShow($tenantSlug, $this->requireMonitor($tenantSlug, $id), $request);
+        $route = $request?->attributes->get('_route');
+
+        // The sort links of the check log point at this GET route (a tenant path copy keeps its own name).
+        return $this->renderShow($tenantSlug, $this->requireMonitor($tenantSlug, $id), $request, showRoute: is_string($route) && $route !== '' ? $route : null);
     }
 
     /**
@@ -187,8 +190,10 @@ final class MonitorController extends AbstractUptimeController
 
     /**
      * @param array<string, mixed> $extra one-time context (a token just issued)
+     * @param string|null $showRoute the GET show route the check log sort links use (null: `nowo_uptime_monitor_show`;
+     *                               never the route of a POST action that renders the page)
      */
-    private function renderShow(string $tenantSlug, Monitor $monitor, ?Request $request, array $extra = []): Response
+    private function renderShow(string $tenantSlug, Monitor $monitor, ?Request $request, array $extra = [], ?string $showRoute = null): Response
     {
         $id     = (int) $monitor->getId();
         $series = $this->chartService->buildMonitorSeries($monitor, AggregatePeriod::Day, 30);
@@ -217,7 +222,7 @@ final class MonitorController extends AbstractUptimeController
             'log_events'     => array_slice($log, ($pager->page - 1) * $perPage, $perPage),
             'log_pagination' => $pager,
             // Since 1.30: the sortable log headers (null unless web_ui.monitor_show.log.sortable).
-            'log_sort' => $sort?->view($this->logSortLinks($request, $tenantSlug, $id, $sort)),
+            'log_sort' => $sort?->view($this->logSortLinks($request, $showRoute ?? 'nowo_uptime_monitor_show', $tenantSlug, $id, $sort)),
             // Since 1.30: the root attributes listeners of MonitorShowLiveUpdatesEvent added (validated names).
             'monitor_root_attributes' => $live->getRootAttributes(),
             'tenant_slug'             => $tenantSlug,
@@ -786,22 +791,23 @@ final class MonitorController extends AbstractUptimeController
     }
 
     /**
-     * Header links of the sortable check log: the current page route (a tenant path copy keeps its own) with the other
-     * query parameters, `log_sort` / `log_dir` of each column and no `page`.
+     * Header links of the sortable check log: the GET show route `$route` with the monitor's own route parameters,
+     * `log_sort` / `log_dir` of each column and the other query parameters (never `page`, and never a query key that
+     * names a route parameter: those come from the page, not from the URL).
      *
      * @return array<string, string> URL by column
      */
-    private function logSortLinks(?Request $request, string $tenantSlug, int $id, MonitorLogSort $sort): array
+    private function logSortLinks(?Request $request, string $route, string $tenantSlug, int $id, MonitorLogSort $sort): array
     {
-        $route  = $request?->attributes->get('_route');
-        $params = $request?->attributes->get('_route_params');
-        $query  = $request?->query->all() ?? [];
-        unset($query['page'], $query['log_sort'], $query['log_dir']);
-        $route  = is_string($route) && $route !== '' ? $route : 'nowo_uptime_monitor_show';
-        $params = is_array($params) && $params !== [] ? $params : ['tenantSlug' => $tenantSlug, 'id' => $id];
-        $links  = [];
+        $params      = ['tenantSlug' => $tenantSlug, 'id' => $id];
+        $query       = $request?->query->all() ?? [];
+        $routeParams = $request?->attributes->get('_route_params');
+        foreach ([...array_keys(is_array($routeParams) ? $routeParams : []), ...array_keys($params), 'page', 'log_sort', 'log_dir'] as $key) {
+            unset($query[$key]);
+        }
+        $links = [];
         foreach (MonitorLogSort::COLUMNS as $column) {
-            $links[$column] = $this->generateUrl($route, $query + $params + $sort->linkQuery($column));
+            $links[$column] = $this->generateUrl($route, $params + $sort->linkQuery($column) + $query);
         }
 
         return $links;

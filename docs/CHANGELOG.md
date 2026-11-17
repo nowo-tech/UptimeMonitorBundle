@@ -98,7 +98,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     and push regions are also blocks (`monitor_history`, `monitor_log`, `monitor_children`, `monitor_push`).
   - `order`: the regions (`details`, `children`, `push`, `history`, `figures`, `charts`, `log`) in a configured order
     inside the live-updates root, e.g. figures first, then history. Regions left out follow in the bundle order.
-  - `log`: `sortable` (status, time, latency and code headers sort the whole log, `log_sort` / `log_dir`, kept by the
+  - `log`: `sortable` (status, time, latency and code headers sort the recent check log (last 100 checks), `log_sort` / `log_dir`, kept by the
     UiKit pager; `aria-sort` on the sorted column), `align_numbers` (latency and code at the end, tabular figures),
     `time_format` (e.g. `H:i`), `time_title_format` (e.g. the full date and seconds in `title`), `per_page`.
   - `header`: `actions_layout: split` (UiKit icon buttons, one primary button, the "more" menu), `status` (the live

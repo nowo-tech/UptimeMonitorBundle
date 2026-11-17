@@ -216,6 +216,9 @@ final class ConfigurationTest extends TestCase
         self::assertSame('host/_log.html.twig', $config['slots']['log']);
         self::assertSame(50, $config['log']['per_page']);
         self::assertSame(['edit' => 'tabler:pencil', 'resume' => 'tabler:player-play'], $config['header']['icons']);
+        // Path-like names stay valid as long as no segment is empty or "..".
+        $icons = (new Processor())->processConfiguration(new Configuration(), [['web_ui' => ['monitor_show' => ['header' => ['icons' => ['edit' => 'icons/ui.v2/edit_pen-1']]]]]])['web_ui']['monitor_show']['header']['icons'];
+        self::assertSame(['edit' => 'icons/ui.v2/edit_pen-1'], $icons);
     }
 
     /**
@@ -227,6 +230,10 @@ final class ConfigurationTest extends TestCase
         yield 'unknown region' => [['order' => ['sidebar']]];
         yield 'unknown action' => [['header' => ['icons' => ['share' => 'tabler:share']]]];
         yield 'unsafe icon' => [['header' => ['icons' => ['edit' => '"><script>']]]];
+        yield 'icon with a .. segment' => [['header' => ['icons' => ['edit' => 'icons/../secret']]]];
+        yield 'icon with doubled separators' => [['header' => ['icons' => ['edit' => 'tabler::pencil']]]];
+        yield 'icon ending with a separator' => [['header' => ['icons' => ['edit' => 'tabler:']]]];
+        yield 'icon over 100 characters' => [['header' => ['icons' => ['edit' => str_repeat('a', 101)]]]];
         yield 'unknown layout' => [['header' => ['actions_layout' => 'grid']]];
         yield 'empty time format' => [['log' => ['time_format' => '']]];
         yield 'per page too small' => [['log' => ['per_page' => 1]]];

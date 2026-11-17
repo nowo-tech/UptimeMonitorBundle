@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Ui;
 
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Request;
 
 use function array_reverse;
+use function implode;
 use function in_array;
 use function is_string;
+use function sprintf;
 use function usort;
 
 /**
@@ -27,11 +30,19 @@ final readonly class MonitorLogSort
     /**
      * @param string $column One of {@see self::COLUMNS}
      * @param string $direction `asc` or `desc`
+     *
+     * @throws InvalidArgumentException On an unknown column or direction
      */
     public function __construct(
         public string $column = 'time',
         public string $direction = 'desc',
     ) {
+        if (!in_array($column, self::COLUMNS, true)) {
+            throw new InvalidArgumentException(sprintf('Unknown check log sort column "%s" (%s).', $column, implode(', ', self::COLUMNS)));
+        }
+        if (!in_array($direction, ['asc', 'desc'], true)) {
+            throw new InvalidArgumentException(sprintf('Unknown check log sort direction "%s" (asc, desc).', $direction));
+        }
     }
 
     /**

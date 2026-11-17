@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Ui;
 
+use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Ui\MonitorLogSort;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -51,6 +52,18 @@ final class MonitorLogSortTest extends TestCase
         self::assertSame(['10:03', '10:00', '10:01', '10:02'], $this->times(MonitorLogSort::apply($events, new MonitorLogSort('code', 'asc'))));
         self::assertSame(['10:01', '10:03', '10:00', '10:02'], $this->times(MonitorLogSort::apply($events, new MonitorLogSort('code', 'desc'))));
         self::assertSame(['degraded', 'down', 'up', 'up'], array_column(MonitorLogSort::apply($events, new MonitorLogSort('status', 'asc')), 'status'));
+    }
+
+    public function testSwI2AnUnknownColumnIsRefused(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        new MonitorLogSort('message');
+    }
+
+    public function testSwI2AnUnknownDirectionIsRefused(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        new MonitorLogSort('time', 'up');
     }
 
     public function testHeaderLinksToggleTheCurrentColumn(): void

@@ -20,6 +20,7 @@ use function is_string;
 use function preg_match;
 use function sprintf;
 use function str_contains;
+use function strlen;
 
 /**
  * Configuration tree for {@see UptimeMonitorExtension}.
@@ -504,8 +505,8 @@ final class Configuration implements ConfigurationInterface
                                             ->useAttributeAsKey('action')
                                             ->scalarPrototype()
                                                 ->validate()
-                                                    ->ifTrue(static fn (mixed $icon): bool => !is_string($icon) || preg_match('/^[A-Za-z0-9][A-Za-z0-9:_.\/-]{0,99}$/D', $icon) !== 1)
-                                                    ->thenInvalid('web_ui.monitor_show.header.icons: invalid icon name %s (letters, digits, ":", "_", ".", "/", "-").')
+                                                    ->ifTrue(static fn (mixed $icon): bool => !is_string($icon) || (strlen($icon) > 100 || preg_match('/^[A-Za-z0-9]+(?:[:_.\/-][A-Za-z0-9]+)*$/D', $icon) !== 1))
+                                                    ->thenInvalid('web_ui.monitor_show.header.icons: invalid icon name %s (letters and digits, single ":", "_", ".", "/" or "-" between them; at most 100 characters).')
                                                 ->end()
                                             ->end()
                                             ->validate()
