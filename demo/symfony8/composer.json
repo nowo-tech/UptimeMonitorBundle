@@ -6,7 +6,8 @@
     "require": {
         "doctrine/doctrine-bundle": "^3.0",
         "doctrine/orm": "^3.0",
-        "nowo-tech/form-kit-bundle": "^2.0",
+        "nowo-tech/form-kit-bundle": "^2.23",
+        "nowo-tech/ui-kit-bundle": "^2.53",
         "nowo-tech/uptime-monitor-bundle": "@dev",
         "php": ">=8.4",
         "symfony/asset": "^8.0",

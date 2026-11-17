@@ -1,25 +1,22 @@
 {#
-  Demo host layout (REQ-UI-003 nowo_ui_kit.layouts.admin): the UiKit admin layout, the demo framework assets
-  (layouts/_framework.html.twig) and a small demo masthead in nowo_ui_navigation. Every Uptime Monitor admin page
-  (UiKit scaffolds) renders inside it; the bundle ships no layout and no CDN link.
+  Demo host layout (REQ-UI-003 nowo_ui_kit.layouts.admin, REQ-DEMO-014): the UiKit admin layout with its default theme
+  and the UiKit masthead in nowo_ui_navigation; no CSS framework, no CDN, no token override. Every Uptime Monitor
+  admin page (UiKit scaffolds) renders inside it; the bundle ships no layout and no CDN link.
 #}
 {% extends '@NowoUiKit/layout/admin.html.twig' %}
 
-{% block nowo_ui_styles %}
-    {{ include('layouts/_framework.html.twig') }}
-    {{ parent() }}
-    <link rel="stylesheet" href="{{ asset('demo.css') }}">
-{% endblock %}
-
 {% block nowo_ui_navigation %}
-    <header class="demo-masthead">
-        <a class="demo-masthead__brand" href="{{ path('demo_home') }}">Uptime Monitor demo</a>
-        <nav class="demo-masthead__nav" aria-label="Demo">
-            <a href="{{ path('nowo_uptime_tenant_index') }}">Tenants</a>
-            <a href="{{ path('nowo_uptime_dashboard', { tenantSlug: 'main' }) }}">Dashboard</a>
-            <a href="{{ path('nowo_uptime_settings_index', { tenantSlug: 'main' }) }}">Settings</a>
-            <a href="{{ path('nowo_uptime_status_page', { tenantSlug: 'main' }) }}">Status page</a>
+    {% set _route = app.request.attributes.get('_route') %}
+    <header class="nowo-ui-header" data-testid="demo-masthead">
+        <a class="nowo-ui-brand" href="{{ path('demo_home') }}">Uptime Monitor demo</a>
+        <nav class="nowo-ui-menu" aria-label="Demo">
+            <a class="nowo-ui-link" href="{{ path('nowo_uptime_tenant_index') }}"{% if _route starts with 'nowo_uptime_tenant' %} aria-current="page"{% endif %}>Tenants</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_uptime_dashboard', { tenantSlug: 'main' }) }}"{% if _route == 'nowo_uptime_dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_uptime_settings_index', { tenantSlug: 'main' }) }}"{% if _route starts with 'nowo_uptime_settings' %} aria-current="page"{% endif %}>Settings</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_uptime_status_page', { tenantSlug: 'main' }) }}"{% if _route == 'nowo_uptime_status_page' %} aria-current="page"{% endif %}>Status page</a>
         </nav>
-        {{ include('@NowoUiKitBundle/partials/_theme_toggle.html.twig', {compact: true}) }}
+        <div class="nowo-ui-header__end">
+            {{ include('@NowoUiKitBundle/partials/_theme_toggle.html.twig', { compact: true }, false) }}
+        </div>
     </header>
 {% endblock %}
