@@ -1,0 +1,16 @@
+{#
+  Check log header cells of the monitor page (since 1.30, web_ui.monitor_show.log): th(label, column, sort, num,
+  priority). label is the translated column name (escaped here); sort is the log_sort view (null: plain header, else
+  the column's link with aria-sort on the sorted column); num right-aligns the cell (uptime-cell-num); priority is the
+  UiKit data-nowo-ui-priority (null: none).
+#}
+{% macro th(label, column, sort, num, priority = null) %}
+    {%- set _current = sort and sort.column == column -%}
+    <th scope="col"{% if num %} class="uptime-cell-num"{% endif %}{% if priority %} data-nowo-ui-priority="{{ priority }}"{% endif %}{% if _current %} aria-sort="{{ sort.direction == 'asc' ? 'ascending' : 'descending' }}"{% endif %}>
+        {%- if sort -%}
+            <a class="uptime-sort-link" href="{{ sort.links[column] }}" data-log-sort="{{ column }}" title="{{ 'monitor.show.sort_by'|trans({'%column%': label}, 'NowoUptimeMonitorBundle') }}">{{ label }}{% if _current %}<span class="uptime-sort-indicator" aria-hidden="true">{{ sort.direction == 'asc' ? '▲' : '▼' }}</span>{% endif %}</a>
+        {%- else -%}
+            {{ label }}
+        {%- endif -%}
+    </th>
+{%- endmacro %}

@@ -136,6 +136,18 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Minor, no BC break. Nothing changes unless you set the new options.
+
+- **Monitor page without a template copy.** If you override `web_ui.templates.monitor_show` (or copy
+  `monitor/show.html.twig`) only to reorder the regions, change the check log, gate the live polling or restyle the
+  header, try the configuration instead and delete the copy: `web_ui.monitor_show.order`, `slots.history`,
+  `slots.log`, `log.*`, `header.*` and a `MonitorShowLiveUpdatesEvent` listener. See
+  [USAGE.md](USAGE.md#monitor-page-by-configuration-130) and [CONFIGURATION.md](CONFIGURATION.md).
+- **`api_history_url` may be null** in the monitor page context when a `MonitorShowLiveUpdatesEvent` listener turned
+  the polling off. Slot templates that print it should handle null. Without such a listener it is the URL, as before.
+- **Template overrides** that extend `monitor/show.html.twig` keep working; the new blocks (`monitor_history`,
+  `monitor_log`, `monitor_children`, `monitor_push`) wrap the same markup.
+
 ## To 1.29.0
 
 From **1.28.3**:

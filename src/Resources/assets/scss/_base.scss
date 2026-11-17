@@ -735,6 +735,29 @@
   color: var(--uptime-muted);
 }
 
+// Check log options (since 1.30, web_ui.monitor_show.log): numbers at the end, sortable headers.
+.uptime-cell-num,
+.uptime-events-table .uptime-cell-num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.uptime-sort-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+}
+
+.uptime-sort-indicator {
+  margin-inline-start: 0.25rem;
+  font-size: 0.75em;
+}
+
 
 // Push monitors (since 1.14): credentials, server health gauges, disks and charts.
 .uptime-form-help {

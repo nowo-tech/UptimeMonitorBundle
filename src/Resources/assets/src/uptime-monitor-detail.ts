@@ -111,8 +111,11 @@ function renderAggregateCharts(series: SeriesData, palette: ChartPalette): void 
   }
 }
 
-/** Translated label and classes of each status badge (`data-status-badges`, rendered by the Twig template). */
-type StatusBadges = Record<string, { label: string; class: string }>;
+/**
+ * Translated label and classes of each status badge (`data-status-badges`, rendered by the Twig template); since 1.30
+ * the header badge (`web_ui.monitor_show.header.status`, UiKit page_status) also carries its tone.
+ */
+type StatusBadges = Record<string, { label: string; class: string; tone?: string }>;
 
 /**
  * Updates the status badge: the translated label and classes the template rendered for the status (since 1.17 the badge
@@ -130,6 +133,9 @@ function applyStatus(root: HTMLElement, status: string): void {
   const badge = badges?.[status] ?? badges?.unknown;
   statusEl.className = badge?.class ?? `uptime-detail-status uptime-status-${status}`;
   statusEl.textContent = badge === undefined ? status : badge.label;
+  if (badge?.tone !== undefined && statusEl.dataset.nowoUiPageStatus !== undefined) {
+    statusEl.dataset.nowoUiPageStatus = badge.tone;
+  }
 }
 
 /** Applies the history API payload to the detail page. Exported for tests. */

@@ -89,6 +89,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Monitor page by configuration** (`web_ui.monitor_show`, Beacon spec 241 T025, ARCH-1117-05, UX-1117-27). Every
+  option is off by default and the page is then byte for byte the 1.29 one (a test renders the v1.29.0 template with
+  the same variables and compares).
+  - `slots.history` and `slots.log` replace the check history and check log regions; the history, log, group children
+    and push regions are also blocks (`monitor_history`, `monitor_log`, `monitor_children`, `monitor_push`).
+  - `order`: the regions (`details`, `children`, `push`, `history`, `figures`, `charts`, `log`) in a configured order
+    inside the live-updates root, e.g. figures first, then history. Regions left out follow in the bundle order.
+  - `log`: `sortable` (status, time, latency and code headers sort the whole log, `log_sort` / `log_dir`, kept by the
+    UiKit pager; `aria-sort` on the sorted column), `align_numbers` (latency and code at the end, tabular figures),
+    `time_format` (e.g. `H:i`), `time_title_format` (e.g. the full date and seconds in `title`), `per_page`.
+  - `header`: `actions_layout: split` (UiKit icon buttons, one primary button, the "more" menu), `status` (the live
+    status badge next to the title through UiKit `page_status`, updated by the script, tone included) and `icons`
+    (bundle actions shown as icon buttons: edit, pause, resume, delete, push_token, push_revoke).
+- **`MonitorShowLiveUpdatesEvent`**, dispatched on every monitor page render: `setApiHistoryUrl(null)` renders no
+  `data-api-history`, so the script does not poll (e.g. live updates paused for this user); `setRootAttribute()` adds
+  attributes to the script root (only `data-*`, `aria-*`, `role`, `title`, `lang`, `dir`, `class`; never `on*`,
+  `style` or the bundle's own; values escaped). The event lives for one request (worker mode safe).
+- Translations: `monitor.show.sort_by` in all seven locales.
+
 ### Changed
 
 - Demo: the host layouts are UiKit's admin and guest layouts with the UiKit default theme and masthead; the Bootstrap and Bootstrap Icons CDN assets, `demo.css` and the leftover OTP demo templates are removed; the demo requires `nowo-tech/ui-kit-bundle` ^2.53; screenshots re-captured (REQ-DEMO-014). No bundle runtime change.

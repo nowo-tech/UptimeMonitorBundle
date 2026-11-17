@@ -237,6 +237,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Event/MonitorDeletedEvent.php` | After-commit, id-only: admin UI delete (1.25) | FR-EVENT-002 |
 | `Event/MonitorPausedEvent.php` | After-commit, id-only: admin UI pause / resume (1.25) | FR-EVENT-002 |
 | `Event/UptimePageEvent.php` | Host header actions and sections of the dashboard and monitor pages | FR-EVENT-002 |
+| `Event/MonitorShowLiveUpdatesEvent.php` | Monitor page live updates per request (1.30): history URL or none, script root attributes (validated names) | FR-EVENT-002 |
 
 ## Routing & tenants
 
@@ -263,6 +264,9 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Controller/SummaryController.php` | Tenant status summary page (`nowo_uptime_summary`) | FR-UI-007 |
 | `Service/StatusSummary.php` | Active monitors, counts per status and overall status of a tenant | FR-UI-007 |
 | `Ui/UptimeActions.php` | Page actions by access (dashboard header, New monitor with the tenant limit, monitor edit / pause / delete) | FR-UI-005 |
+| `Ui/MonitorShowLayout.php` | Monitor page layout of `web_ui.monitor_show` (slots, region order, log and header options; 1.30) | FR-UI-005 |
+| `Ui/MonitorLogSort.php` | Sortable check log of the monitor page (`log_sort` / `log_dir`, 1.30) | FR-UI-005 |
+| `Ui/MonitorHeaderActions.php` | Icon buttons of the monitor page header (`web_ui.monitor_show.header.icons`, 1.30) | FR-UI-005 |
 | `Ui/NewMonitorState.php` | New monitor for a host-placed opener (1.22, UM-6): form URL, label, disabled reason at the monitor limit | FR-UI-005 |
 
 ## Tenant limits
@@ -354,6 +358,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/monitor/_monitor_form_fields.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/_monitor_form_modal.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/_push_health.html.twig` | Server health view of a push monitor: credentials, gauges, disks, charts ([spec 003](../003-push-monitors/spec.md)) | FR-VIEW-004, FR-PUSH-006 |
+| `Resources/views/monitor/_log_macros.html.twig` | Check log header cells (sortable, number alignment; 1.30) | FR-VIEW-004 |
 | `Resources/views/monitor/form.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/monitor/show.html.twig` | Monitor UI template | FR-VIEW-004 |
 | `Resources/views/settings/about.html.twig` | Settings UI template | FR-VIEW-002 |
@@ -428,17 +433,17 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Async messaging | 2 | 2 |
 | Scheduler | 1 | 1 |
 | Monitor helpers | 5 | 5 |
-| Events | 7 | 7 |
+| Events | 8 | 8 |
 | Routing & tenants | 5 | 5 |
-| UI page contract | 10 | 10 |
+| UI page contract | 13 | 13 |
 | Tenant limits | 3 | 3 |
 | Frontend TypeScript | 11 | 11 |
 | SCSS themes | 13 | 13 |
 | Symfony config | 2 | 2 |
 | Translations | 7 | 7 |
-| Twig views | 32 | 32 |
+| Twig views | 33 | 33 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **263** | **263** |
+| **Total production sources** | **268** | **268** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.
