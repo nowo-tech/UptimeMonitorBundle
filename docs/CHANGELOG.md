@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.31.0] - 2026-11-18](#1310---2026-11-18)
 - [[1.30.0] - 2026-11-18](#1300---2026-11-18)
 - [[1.29.0] - 2026-11-15](#1290---2026-11-15)
 - [[1.28.3] - 2026-11-13](#1283---2026-11-13)
@@ -90,7 +91,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-Concurrency (REQ-RUNTIME-003). See [CONCURRENCY.md](CONCURRENCY.md) and [UPGRADING](UPGRADING.md#unreleased).
+## [1.31.0] - 2026-11-18
+
+Concurrency (REQ-RUNTIME-003). See [CONCURRENCY.md](CONCURRENCY.md) and [UPGRADING](UPGRADING.md#to-1310).
 
 ### Added
 
@@ -1842,7 +1845,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.30.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.31.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
