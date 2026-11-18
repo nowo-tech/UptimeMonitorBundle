@@ -230,6 +230,7 @@ form.settings.tag_color: 'Kleur'
 form.tenant.slug: 'Slug'
 form.monitor.name_required: 'Geef de monitor een naam.'
 form.tenant.slug_regex: 'Gebruik kleine letters, cijfers en koppeltekens.'
+form.tenant.slug_taken: 'Een andere tenant heeft deze slug al.'
 form.tenant.name: 'Weergavenaam'
 
 # Public status page

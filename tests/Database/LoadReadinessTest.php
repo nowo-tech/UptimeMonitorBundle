@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Database;
 
 use DateTimeImmutable;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\TransactionContract\TransientStorageFailure;
+use Nowo\TransactionDoctrine\ConflictCode;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\TransientFailureClassifier;
 use Nowo\TransactionDoctrine\TransientFailureKind;
 use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\EventSubscriber\StorageFailureSubscriber;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
@@ -26,11 +31,16 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Throwable;
 
 use function array_merge;
 use function count;
 use function fclose;
 use function fgets;
+use function fwrite;
 use function is_array;
 use function is_resource;
 use function json_decode;
@@ -59,6 +69,7 @@ use const PHP_BINARY;
 #[CoversClass(DueChecksRunner::class)]
 #[CoversClass(TenantProvisioner::class)]
 #[CoversClass(MonitorRepository::class)]
+#[CoversClass(StorageFailureSubscriber::class)]
 final class LoadReadinessTest extends TestCase
 {
     private string $url;
@@ -87,7 +98,7 @@ final class LoadReadinessTest extends TestCase
 
     /**
      * Another session holds the tenant row: the quota write gives up after the lock wait timeout with a transient
-     * failure (503 on the bundle's routes), nothing written and no transaction left open. 1.28.3: a raw lock wait
+     * failure (409 + Retry-After + CONFLICT_001 on the bundle's routes since 1.31), nothing written and no transaction left open. 1.28.3: a raw lock wait
      * timeout (500) and a closed entity manager.
      */
     public function testATenantLockWaitIsATransientFailureAndLeavesNoTransaction(): void
@@ -104,6 +115,7 @@ final class LoadReadinessTest extends TestCase
             self::fail('the lock wait must fail');
         } catch (TransientStorageFailure $failure) {
             self::assertSame(1, $failure->retryAfterSeconds());
+            $this->assertTheAnswerIsConflict001($failure);
         } finally {
             $peer->rollBack();
             $peer->close();
@@ -141,6 +153,7 @@ final class LoadReadinessTest extends TestCase
             self::fail('the deadlock must fail');
         } catch (TransientStorageFailure $failure) {
             self::assertSame(TransientFailureKind::Deadlock, (new TransientFailureClassifier())->classify($failure));
+            $this->assertTheAnswerIsConflict001($failure);
         } finally {
             $peer = $this->finish($process, $pipes);
         }
@@ -221,6 +234,61 @@ final class LoadReadinessTest extends TestCase
 
         self::assertSame([], $errors);
         self::assertSame(30, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM uptime_tenant WHERE slug LIKE 't-%'"));
+    }
+
+    /**
+     * 1.31 (REQ-RUNTIME-003): two connections write the same tag name. The second insert waits on the first one's
+     * unique key and, once it commits, is refused with a unique violation: never a lock conflict (no CONFLICT code, no
+     * replay), and the connection is back at level 0. The tag screen turns it into the "name taken" form error.
+     */
+    public function testATagNameTakenByAConcurrentRequestIsAUniqueViolationNotAConflict(): void
+    {
+        [$process, $pipes] = $this->start(['hold-tag', $this->url, (string) $this->tenant->getId(), 'prod']);
+        self::assertStringContainsString('ready', (string) fgets($pipes[1]));
+        DatabaseSupport::lockTimeout($this->em->getConnection(), 10);
+
+        try {
+            fwrite($pipes[0], "go\n");
+            (new UptimeTransactionRunner($this->em))->runRetrying(function (): void {
+                $this->em->persist(new Tag($this->tenant, 'prod'));
+            });
+            self::fail('the second insert must be refused');
+        } catch (UniqueConstraintViolationException $refused) {
+            $event = $this->exceptionEvent($refused);
+            (new StorageFailureSubscriber())->onKernelException($event);
+            self::assertNull($event->getResponse());
+            self::assertSame($refused, $event->getThrowable());
+        } finally {
+            $peer = $this->finish($process, $pipes);
+        }
+
+        self::assertSame(['peer' => 'committed'], $peer);
+        self::assertSame(0, $this->em->getConnection()->getTransactionNestingLevel());
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM uptime_tag WHERE name = 'prod'"));
+    }
+
+    /**
+     * The real failure answers 409 + Retry-After + CONFLICT_001 on a bundle JSON route, 503 when configured so.
+     */
+    private function assertTheAnswerIsConflict001(TransientStorageFailure $failure): void
+    {
+        foreach ([409 => new StorageFailureSubscriber(), 503 => new StorageFailureSubscriber(new ConflictResponsePolicy(503))] as $status => $subscriber) {
+            $event = $this->exceptionEvent($failure);
+            $subscriber->onKernelException($event);
+            $response = $event->getResponse();
+            self::assertNotNull($response);
+            self::assertSame($status, $response->getStatusCode());
+            self::assertSame('1', $response->headers->get('Retry-After'));
+            self::assertSame(['error' => 'unavailable', 'code' => ConflictCode::RETRY_SAFE], json_decode((string) $response->getContent(), true));
+        }
+    }
+
+    private function exceptionEvent(Throwable $failure): ExceptionEvent
+    {
+        $request = new Request();
+        $request->attributes->set('_route', 'nowo_uptime_push');
+
+        return new ExceptionEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, $failure);
     }
 
     private function quota(): TenantQuota

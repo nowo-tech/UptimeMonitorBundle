@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use LogicException;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
 use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
+use Nowo\UptimeMonitorBundle\EventSubscriber\StorageFailureSubscriber;
 use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
 use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
@@ -248,6 +250,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $this->registerHostHooks($container, $config['multi_tenant']['provisioner'], $config['web_ui']['settings']['sections_resolver']);
         $this->registerTablePrefixListener($container);
         $this->registerBundleEntityManager($container);
+        $this->registerConflictResponsePolicy($container, $config['conflict_response']);
     }
 
     /**
@@ -273,6 +276,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $container->setDefinition(UptimeTransactionRunner::SERVICE_ID, (new Definition(UptimeTransactionRunner::class, [
             new Reference(UptimeEntityManager::class),
             new Reference(UptimeManagerRegistry::class),
+            null,
         ]))->setFactory([UptimeTransactionRunner::class, 'forBundle'])->setPublic(false));
         $container->setAlias(UptimeTransactionRunner::class, UptimeTransactionRunner::SERVICE_ID)->setPublic(false);
 
@@ -413,6 +417,27 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
     }
 
     /**
+     * 1.31 (REQ-RUNTIME-003 rule 6): the policy of the bundle's conflict answer ({@see StorageFailureSubscriber}).
+     * With no option set and NowoTransactionDoctrineBundle registered, the shared policy, so the whole application
+     * answers the same; otherwise the bundle's own (409 and 1 s unless configured).
+     *
+     * @param array{status: int|null, retry_after: int|null} $config
+     */
+    private function registerConflictResponsePolicy(ContainerBuilder $container, array $config): void
+    {
+        $id = Configuration::ALIAS . '.conflict_response_policy';
+        if ($config['status'] === null && $config['retry_after'] === null && $this->isBundleRegistered($container, 'NowoTransactionDoctrineBundle')) {
+            $container->setAlias($id, ConflictResponsePolicy::class)->setPublic(false);
+        } else {
+            $container->setDefinition($id, (new Definition(ConflictResponsePolicy::class, [
+                $config['status'] ?? ConflictResponsePolicy::STATUS_CONFLICT,
+                $config['retry_after'] ?? ConflictResponsePolicy::DEFAULT_RETRY_AFTER,
+            ]))->setPublic(false));
+        }
+        $container->getDefinition(StorageFailureSubscriber::class)->setArgument('$policy', new Reference($id));
+    }
+
+    /**
      * Prefer kernel.bundles: ContainerBuilder::hasExtension() can be false while SecurityBundle
      * is already registered (e.g. during early Flex cache:clear boots).
      */
@@ -422,6 +447,11 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             return true;
         }
 
+        return $this->isBundleRegistered($container, 'SecurityBundle');
+    }
+
+    private function isBundleRegistered(ContainerBuilder $container, string $name): bool
+    {
         if (!$container->hasParameter('kernel.bundles')) {
             return false;
         }
@@ -429,6 +459,6 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         /** @var array<string, class-string> $bundles */
         $bundles = $container->getParameter('kernel.bundles');
 
-        return isset($bundles['SecurityBundle']);
+        return isset($bundles[$name]);
     }
 }

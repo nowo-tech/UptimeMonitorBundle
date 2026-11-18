@@ -137,6 +137,30 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+From **1.30.0** (minor): `composer update nowo-tech/uptime-monitor-bundle` (pulls nowo-tech/transaction-doctrine ^1.5).
+See [CONCURRENCY.md](CONCURRENCY.md).
+
+- **Lock conflicts answer 409, not 503.** A deadlock, lock wait timeout or serialization failure on a bundle route
+  now answers `409 Conflict` (still with `Retry-After` when nothing was committed). Clients and monitors that retried
+  on 503 should retry on 409 with `code: CONFLICT_001`, and reload on `CONFLICT_002`. To keep 503:
+
+  ```yaml
+  nowo_uptime_monitor:
+      conflict_response:
+          status: 503
+  ```
+
+  With no `conflict_response` option and NowoTransactionDoctrineBundle registered, the bundle follows
+  `nowo_transaction_doctrine.conflict_response` (409 by default there too).
+- **JSON bodies gain `code`**: `{"error": "unavailable", "code": "CONFLICT_001"}`. Tests that compare the whole body
+  need the new key. The `error` values are unchanged; `{"error": "conflict"}` now means `CONFLICT_002` (part may be
+  committed), no longer a unique violation.
+- **Unique violations are not conflicts.** A taken tenant slug or tag name is a form error (422); any other unique
+  violation reaching a bundle route is a 500 (it was a 409). A lost connection is a 500 (it was a 503).
+- **HTML conflict pages** come from an `HttpException` with the status and `X-Conflict-Code` (was
+  `ServiceUnavailableHttpException` / `ConflictHttpException`): an `error503.html.twig` override needs an
+  `error409.html.twig` twin.
+
 ## To 1.30.0
 
 From **1.29.0**:

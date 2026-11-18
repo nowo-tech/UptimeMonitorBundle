@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use InvalidArgumentException;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -15,6 +16,7 @@ use function array_keys;
 use function array_unique;
 use function count;
 use function implode;
+use function in_array;
 use function is_array;
 use function is_string;
 use function preg_match;
@@ -149,6 +151,25 @@ final class Configuration implements ConfigurationInterface
                                 ->ifTrue(static fn (mixed $v): bool => !is_string($v) || preg_match('/^[A-Za-z0-9_]*$/', $v) !== 1)
                                 ->thenInvalid('nowo_uptime_monitor.doctrine.table_prefix may only contain letters, digits and underscores, got %s.')
                             ->end()
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('conflict_response')
+                    ->addDefaultsIfNotSet()
+                    ->info('Since 1.31 (REQ-RUNTIME-003 rule 6): the answer of a bundle route to a lock conflict (deadlock, lock wait timeout, serialization failure). Nothing committed: the status + Retry-After + code CONFLICT_001; part committed: the status, no Retry-After, code CONFLICT_002. Null options follow the shared nowo_transaction_doctrine.conflict_response policy when NowoTransactionDoctrineBundle is registered, else 409 and 1 s.')
+                    ->children()
+                        ->integerNode('status')
+                            ->info('409 (default) or 503 (the 1.29 to 1.30 answer). Null = the shared policy, else 409.')
+                            ->defaultNull()
+                            ->validate()
+                                ->ifTrue(static fn (mixed $v): bool => $v !== null && !in_array($v, ConflictResponsePolicy::STATUSES, true))
+                                ->thenInvalid('nowo_uptime_monitor.conflict_response.status must be 409 or 503; got %s.')
+                            ->end()
+                        ->end()
+                        ->integerNode('retry_after')
+                            ->info('Retry-After seconds of a CONFLICT_001 answer when the failure carries no hint of its own. Null = the shared policy, else 1.')
+                            ->defaultNull()
+                            ->min(0)
                         ->end()
                     ->end()
                 ->end()

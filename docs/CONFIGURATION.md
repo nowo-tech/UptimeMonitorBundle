@@ -12,6 +12,9 @@ nowo_uptime_monitor:
         register_mapping: true          # 1.27.0+: false = the host maps the bundle entities itself (DDD host)
         mapping_type: attribute         # 1.27.0+: attribute | xml (src/Resources/config/doctrine, same schema)
         flush_listener_changes: true    # 1.27.0+: BC flush of what incident listeners left in the host manager (deprecated; false in 2.0)
+    conflict_response:        # since 1.31 (REQ-RUNTIME-003): answer to a lock conflict, see CONCURRENCY.md
+        status: null          # 409 | 503; null = nowo_transaction_doctrine.conflict_response when registered, else 409
+        retry_after: null     # Retry-After seconds of CONFLICT_001 when the failure has no hint; null = shared policy, else 1
     checks:
         min_latency_ms: 0   # floor for stored latency (ms); use e.g. 1 for localhost
         block_private_urls: true   # SSRF guard for HTTP/TCP/SSL/ping/DNS monitors; false to monitor private networks

@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
+use Nowo\TransactionDoctrine\Symfony\NowoTransactionDoctrineBundle;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
 use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
+use Nowo\UptimeMonitorBundle\EventSubscriber\StorageFailureSubscriber;
 use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
 use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
@@ -20,6 +23,7 @@ use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeDoctrineExtension;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\FakeFrameworkExtension;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -430,6 +434,42 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertSame(4096, $container->getParameter('nowo_uptime_monitor.checks.max_body_bytes'));
         self::assertSame(3, $container->getParameter('nowo_uptime_monitor.checks.max_redirects'));
         self::assertSame(120, $container->getParameter('nowo_uptime_monitor.checks.max_scan_seconds'));
+    }
+
+    public function testTheConflictAnswerIs409AndConfigurableTo503(): void
+    {
+        $default = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[]], $default);
+        $custom = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['conflict_response' => ['status' => 503, 'retry_after' => 5]]], $custom);
+
+        $id = 'nowo_uptime_monitor.conflict_response_policy';
+        self::assertSame([409, 1], $default->getDefinition($id)->getArguments());
+        self::assertSame([503, 5], $custom->getDefinition($id)->getArguments());
+        self::assertEquals(new Reference($id), $custom->getDefinition(StorageFailureSubscriber::class)->getArgument('$policy'));
+        // The runner gives no Retry-After hint of its own: the policy decides.
+        self::assertNull($default->getDefinition(UptimeTransactionRunner::SERVICE_ID)->getArgument(2));
+    }
+
+    public function testTheSharedTransactionDoctrinePolicyIsUsedWhenNothingIsConfigured(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class, 'NowoTransactionDoctrineBundle' => NowoTransactionDoctrineBundle::class]);
+        (new UptimeMonitorExtension())->load([[]], $container);
+        $own = $this->containerWithSecurityBundle();
+        $own->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class, 'NowoTransactionDoctrineBundle' => NowoTransactionDoctrineBundle::class]);
+        (new UptimeMonitorExtension())->load([['conflict_response' => ['retry_after' => 2]]], $own);
+
+        self::assertSame(ConflictResponsePolicy::class, (string) $container->getAlias('nowo_uptime_monitor.conflict_response_policy'));
+        self::assertSame([409, 2], $own->getDefinition('nowo_uptime_monitor.conflict_response_policy')->getArguments());
+    }
+
+    public function testAConflictStatusOtherThan409Or503IsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('must be 409 or 503');
+
+        (new UptimeMonitorExtension())->load([['conflict_response' => ['status' => 500]]], $this->containerWithSecurityBundle());
     }
 
     private function containerWithSecurityBundle(): ContainerBuilder

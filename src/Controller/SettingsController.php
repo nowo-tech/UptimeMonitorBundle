@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Controller;
 
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use JsonException;
 use Nowo\UiKitBundle\View\Action;
@@ -748,14 +749,21 @@ final class SettingsController extends AbstractUptimeController
             $tag->setName($tagData->name);
             // @igor-ignore - Doctrine entity loaded for this request; not a shared service.
             $tag->setColor($tagData->color !== '' ? $tagData->color : null);
-            $this->runner()->run(function () use ($tag, $editing): void {
-                if ($editing === null) {
-                    $this->entityManager->persist($tag);
-                }
-            });
-            $this->addFlash('success', $this->transMessage($editing === null ? 'flash.settings.tag_created' : 'flash.settings.tag_updated'));
+            try {
+                $this->runner()->run(function () use ($tag, $editing): void {
+                    if ($editing === null) {
+                        $this->entityManager->persist($tag);
+                    }
+                });
+                $this->addFlash('success', $this->transMessage($editing === null ? 'flash.settings.tag_created' : 'flash.settings.tag_updated'));
 
-            return $this->redirectToRoute('nowo_uptime_settings_tags', ['tenantSlug' => $tenantSlug]);
+                return $this->redirectToRoute('nowo_uptime_settings_tags', ['tenantSlug' => $tenantSlug]);
+            } catch (UniqueConstraintViolationException) {
+                // Since 1.31: another request took the name between the check and the commit. The unique tag name
+                // refuses the second write, an expected "only one" race (REQ-RUNTIME-003): the same form error as the
+                // check (a 409 page before). The runner left nothing pending.
+                $form->get('name')->addError(new FormError($this->transMessage('settings.tags.name_taken')));
+            }
         }
 
         $tags = $this->tagRepository->findByTenant($tenant);

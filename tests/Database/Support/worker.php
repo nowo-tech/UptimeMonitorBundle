@@ -10,6 +10,8 @@ declare(strict_types=1);
  *   php worker.php ensure <url> <tenants> <start at>                 provisions tenants t-0 … t-(N-1)
  *   php worker.php peer <url> <tenant id> <monitor id> <other id>    holds a monitor row, then (after a line on stdin)
  *                                                                    asks for the tenant row
+ *   php worker.php hold-tag <url> <tenant id> <name>                 writes a tag in an open transaction, then (after a
+ *                                                                    line on stdin and a short wait) commits it
  *
  * Every mode prints one JSON line. The modes that race wait until <start at> (a Unix time with microseconds), so the
  * processes start together.
@@ -17,6 +19,8 @@ declare(strict_types=1);
 
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\Tag;
+use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
@@ -113,6 +117,19 @@ switch ($mode) {
         } catch (Throwable) {
         }
         echo json_encode(['peer' => $result]), "\n";
+        break;
+
+    case 'hold-tag':
+        $em = DatabaseSupport::privateManager($url);
+        $em->getConnection()->beginTransaction();
+        $em->persist(new Tag($em->getReference(Tenant::class, (int) $argv[3]) ?? throw new RuntimeException('no tenant'), $argv[4]));
+        $em->flush();
+        echo json_encode(['ready' => true]), "\n";
+        // The other session inserts the same name now and waits on this row's unique key until the commit.
+        fgets(\STDIN);
+        usleep(500_000);
+        $em->getConnection()->commit();
+        echo json_encode(['peer' => 'committed']), "\n";
         break;
 
     default:

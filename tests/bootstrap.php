@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Doctrine\Deprecations\Deprecation;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 // REQ-SF-005: the suite fails on any deprecation, with one third-party exception. doctrine/doctrine-bundle 2.19's
 // ConnectionFactory calls Doctrine\DBAL\Types\Type::hasType() (deprecated in doctrine/dbal 4.6) for the types

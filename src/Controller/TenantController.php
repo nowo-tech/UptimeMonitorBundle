@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Controller;
 
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UiKitBundle\View\Action;
 use Nowo\UiKitBundle\View\BackLink;
@@ -18,15 +19,19 @@ use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
+use Nowo\UptimeMonitorBundle\Translation\UptimeTranslation;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use stdClass;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function array_filter;
 use function array_values;
@@ -45,6 +50,7 @@ final class TenantController extends AbstractController
      * @param UptimeMonitorAccessCheckerInterface|null $accessChecker Configured checker; a tenant-aware one filters the list
      * @param TokenStorageInterface|null $tokenStorage Current security token (null without SecurityBundle)
      * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner (since 1.29; null = one on $entityManager)
+     * @param TranslatorInterface|null $translator Translates the taken-slug form error (since 1.31; null = the message key)
      */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
@@ -57,7 +63,36 @@ final class TenantController extends AbstractController
         private readonly ?UptimeMonitorAccessCheckerInterface $accessChecker = null,
         private readonly ?TokenStorageInterface $tokenStorage = null,
         private readonly ?UptimeTransactionRunner $transactionRunner = null,
+        private readonly ?TranslatorInterface $translator = null,
     ) {
+    }
+
+    /**
+     * Creates the tenant in one unit of work of the bundle's runner (since 1.29). A slug that is already taken is a
+     * form error on the slug (since 1.31; before, a 409 page), also when another request took it between the check and
+     * the commit: the unique slug refuses the second insert, an expected "only one" race (REQ-RUNTIME-003), not a
+     * conflict. Null, with the error on the form, when the slug is taken.
+     *
+     * @param FormInterface<mixed> $form
+     */
+    private function createTenant(FormInterface $form, string $slug, string $name): ?Tenant
+    {
+        if (!$this->tenantRepository->findOneBySlug($slug) instanceof Tenant) {
+            $tenant = new Tenant($slug, $name);
+            try {
+                ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->run(function () use ($tenant): void {
+                    $this->entityManager->persist($tenant);
+                });
+
+                return $tenant;
+            } catch (UniqueConstraintViolationException) {
+                // Another request created the same slug meanwhile: the runner left nothing pending.
+            }
+        }
+        $message = 'form.tenant.slug_taken';
+        $form->get('slug')->addError(new FormError($this->translator?->trans($message, [], UptimeTranslation::DOMAIN) ?? $message));
+
+        return null;
     }
 
     /**
@@ -116,13 +151,10 @@ final class TenantController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var array{slug: string, name: string} $data */
             $data   = $form->getData();
-            $tenant = new Tenant($data['slug'], $data['name']);
-            // Since 1.29: one unit of work of the bundle's runner; a slug another request took meanwhile answers 409.
-            ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->run(function () use ($tenant): void {
-                $this->entityManager->persist($tenant);
-            });
-
-            return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenant->getSlug()]);
+            $tenant = $this->createTenant($form, $data['slug'], $data['name']);
+            if ($tenant instanceof Tenant) {
+                return $this->redirectToRoute('nowo_uptime_dashboard', ['tenantSlug' => $tenant->getSlug()]);
+            }
         }
 
         $indexUrl = $this->generateUrl('nowo_uptime_tenant_index');

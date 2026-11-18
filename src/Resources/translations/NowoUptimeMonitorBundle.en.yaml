@@ -230,6 +230,7 @@ form.settings.tag_color: 'Color'
 form.tenant.slug: 'Slug'
 form.monitor.name_required: 'Give the monitor a name.'
 form.tenant.slug_regex: 'Use lowercase letters, numbers and hyphens.'
+form.tenant.slug_taken: 'Another tenant already has this slug.'
 form.tenant.name: 'Display name'
 
 # Public status page

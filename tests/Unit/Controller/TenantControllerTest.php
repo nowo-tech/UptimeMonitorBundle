@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 
+use Doctrine\DBAL\Driver\Exception as DriverException;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -20,6 +22,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\InMemoryUser;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[CoversClass(TenantController::class)]
 final class TenantControllerTest extends TestCase
@@ -115,6 +118,48 @@ final class TenantControllerTest extends TestCase
         $this->bindController($controller, true, $request);
 
         self::assertTrue($controller->new($request)->isRedirect());
+    }
+
+    public function testATakenSlugIsAFormErrorAndNothingIsWritten(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('persist');
+        $tenantRepo = $this->createStub(TenantRepository::class);
+        $tenantRepo->method('findOneBySlug')->willReturn(new Tenant('acme', 'Acme'));
+        $translator = $this->createStub(TranslatorInterface::class);
+        $translator->method('trans')->willReturnCallback(static fn (string $id): string => 'translated ' . $id);
+        $request    = $this->tenantPost();
+        $controller = new TenantController($tenantRepo, $em, ['list_enabled' => true, 'redirect_when_single' => false], ['default_tenant' => 'main'], translator: $translator);
+        $this->bindController($controller, true, $request);
+
+        $response = $controller->new($request);
+
+        self::assertFalse($response->isRedirect());
+        self::assertStringContainsString('translated form.tenant.slug_taken', (string) $this->renderedContext['form']->children['slug']->vars['errors']);
+    }
+
+    public function testASlugAnotherRequestTookBeforeTheCommitIsAFormErrorNotAConflict(): void
+    {
+        // The unique slug refuses the insert: the concurrent request committed the same slug after the check.
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::once())->method('persist');
+        $em->method('flush')->willThrowException(new UniqueConstraintViolationException($this->createStub(DriverException::class), null));
+        $request    = $this->tenantPost();
+        $controller = new TenantController($this->createStub(TenantRepository::class), $em, ['list_enabled' => true, 'redirect_when_single' => false], ['default_tenant' => 'main']);
+        $this->bindController($controller, true, $request);
+
+        $response = $controller->new($request);
+
+        self::assertFalse($response->isRedirect());
+        self::assertStringContainsString('form.tenant.slug_taken', (string) $this->renderedContext['form']->children['slug']->vars['errors']);
+    }
+
+    private function tenantPost(): Request
+    {
+        $request = Request::create('/tenants/new', 'POST', ['tenant_form' => ['slug' => 'acme', 'name' => 'Acme', '_token' => 'valid']]);
+        $request->headers->set('Content-Type', 'application/x-www-form-urlencoded');
+
+        return $request;
     }
 
     public function testListDisabledFallsBackToTheFirstTenantWhenTheDefaultIsMissing(): void
