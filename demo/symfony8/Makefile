@@ -101,7 +101,9 @@ update-bundle: ensure-up
 release-check: ensure-up update-bundle test test-coverage
 
 # REQ-DEMO-013: Playwright runs in the official image (host network) against the running demo on PORT.
-PLAYWRIGHT_IMAGE ?= mcr.microsoft.com/playwright:v1.63.0-jammy
+# The image tag always follows the exact @playwright/test version pinned in e2e/package.json (browsers ship with the image).
+PLAYWRIGHT_VERSION := $(shell sed -n 's/.*"@playwright\/test": "\([0-9.]*\)".*/\1/p' e2e/package.json)
+PLAYWRIGHT_IMAGE ?= mcr.microsoft.com/playwright:v$(PLAYWRIGHT_VERSION)-jammy
 DEMO_PORT = $$(grep "^PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); PORT=$${PORT:-8011}
 
 # Happy path: dashboard, monitor create + show, status page, settings (data reset first so runs are repeatable).
