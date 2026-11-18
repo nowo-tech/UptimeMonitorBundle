@@ -32,9 +32,9 @@ use function usleep;
  * - after a storage failure the private manager is closed and replaced through the bundle registry; after a refusal
  *   only what the unit loaded is forgotten. An application manager is never flushed, cleared, closed or reset;
  * - a transient failure (deadlock, lock wait timeout, serialization failure, lost savepoint) surfaces as
- *   {@see TransientStorageFailure} with a Retry-After hint: 503 on the bundle's routes.
+ *   {@see TransientStorageFailure} with a Retry-After hint: 409 + `CONFLICT_001` on the bundle's routes (since 1.31; 503 before).
  *
- * {@see self::run()} makes one attempt (HTTP writes: the client retries after the 503). {@see self::runRetrying()}
+ * {@see self::run()} makes one attempt (HTTP writes: the client retries after the 409). {@see self::runRetrying()}
  * replays a transient failure a few times with full-jitter backoff, only when it is the outermost transaction (inside a
  * transaction of the application the storage may have rolled back the caller's work too): background units of work
  * (scheduled checks, push ingest, the monitors file, the rollup), which must therefore be replayable.

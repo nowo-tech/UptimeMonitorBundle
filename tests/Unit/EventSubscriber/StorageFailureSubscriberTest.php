@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\EventSubscriber;
 
+use Doctrine\DBAL\Driver\AbstractException;
 use Doctrine\DBAL\Driver\Exception as DriverException;
+use Doctrine\DBAL\Exception\ConnectionLost;
 use Doctrine\DBAL\Exception\DeadlockException;
+use Doctrine\DBAL\Exception\DriverException as DriverExceptionWrapper;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Nowo\TransactionContract\TransientStorageFailure;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
+use Nowo\TransactionDoctrine\TransientFailureKind;
+use Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict;
 use Nowo\UptimeMonitorBundle\Controller\PushController;
 use Nowo\UptimeMonitorBundle\EventSubscriber\StorageFailureSubscriber;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -15,8 +21,7 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
-use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Throwable;
@@ -29,7 +34,7 @@ final class StorageFailureSubscriberTest extends TestCase
         self::assertSame([KernelEvents::EXCEPTION => ['onKernelException', -64]], StorageFailureSubscriber::getSubscribedEvents());
     }
 
-    public function testATransientFailureOfAPageIsA503WithItsRetryAfter(): void
+    public function testATransientFailureOfAPageIsA409WithItsRetryAfterAndCode001(): void
     {
         $failure = new TransientStorageFailure(3);
         $event   = $this->event($this->request('nowo_uptime_monitor_edit', 'Nowo\UptimeMonitorBundle\Controller\MonitorController::edit'), $failure);
@@ -37,13 +42,14 @@ final class StorageFailureSubscriberTest extends TestCase
         (new StorageFailureSubscriber())->onKernelException($event);
 
         $mapped = $event->getThrowable();
-        self::assertInstanceOf(ServiceUnavailableHttpException::class, $mapped);
-        self::assertSame(['Retry-After' => 3], $mapped->getHeaders());
+        self::assertInstanceOf(HttpException::class, $mapped);
+        self::assertSame(409, $mapped->getStatusCode());
+        self::assertSame(['X-Conflict-Code' => 'CONFLICT_001', 'Retry-After' => '3'], $mapped->getHeaders());
         self::assertSame($failure, $mapped->getPrevious());
         self::assertStringNotContainsString('SQL', $mapped->getMessage());
     }
 
-    public function testARawDeadlockOfAJsonRouteIsA503Body(): void
+    public function testARawDeadlockOfAJsonRouteIsA409BodyWithTheCode(): void
     {
         $event = $this->event($this->request('nowo_uptime_push', PushController::class), new DeadlockException($this->createStub(DriverException::class), null));
 
@@ -51,35 +57,90 @@ final class StorageFailureSubscriberTest extends TestCase
 
         $response = $event->getResponse();
         self::assertNotNull($response);
-        self::assertSame(503, $response->getStatusCode());
+        self::assertSame(409, $response->getStatusCode());
         self::assertSame('1', $response->headers->get('Retry-After'));
-        self::assertSame('{"error":"unavailable"}', $response->getContent());
+        self::assertSame('CONFLICT_001', $response->headers->get('X-Conflict-Code'));
+        self::assertSame('{"error":"unavailable","code":"CONFLICT_001"}', $response->getContent());
         self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
     }
 
-    public function testATransientFailureWithoutAHintWaitsOneSecondOnTheApi(): void
+    public function testASerializationFailureIsAConflict(): void
+    {
+        $event = $this->event($this->request('nowo_uptime_push', PushController::class), new DriverExceptionWrapper($this->driverError('serialization', '40001', 0), null));
+
+        (new StorageFailureSubscriber())->onKernelException($event);
+
+        self::assertSame(409, $event->getResponse()?->getStatusCode());
+    }
+
+    public function testATransientFailureWithoutAHintWaitsThePolicysRetryAfterOnTheApi(): void
     {
         // A renamed tenant-path route of an API controller is still the bundle's.
         $event = $this->event($this->request('host_status', 'Nowo\UptimeMonitorBundle\Controller\Api\StatusApiController::status'), new TransientStorageFailure());
 
-        (new StorageFailureSubscriber())->onKernelException($event);
+        (new StorageFailureSubscriber(new ConflictResponsePolicy(retryAfterSeconds: 4)))->onKernelException($event);
 
-        self::assertSame('1', $event->getResponse()?->headers->get('Retry-After'));
+        self::assertSame('4', $event->getResponse()?->headers->get('Retry-After'));
     }
 
-    public function testAUniqueConflictIsA409(): void
+    public function testTheStatusIsConfigurableTo503(): void
     {
-        $conflict = new UniqueConstraintViolationException($this->createStub(DriverException::class), null);
-        $page     = $this->event($this->request('nowo_uptime_tenant_new', null), $conflict);
-        $json     = $this->event($this->request('nowo_uptime_tenant_new', null, 'application/json'), $conflict);
+        $page = $this->event($this->request('nowo_uptime_monitor_edit', null), new TransientStorageFailure(2));
+        $json = $this->event($this->request('nowo_uptime_push', null), new TransientStorageFailure(2));
 
-        (new StorageFailureSubscriber())->onKernelException($page);
+        $subscriber = new StorageFailureSubscriber(new ConflictResponsePolicy(503));
+        $subscriber->onKernelException($page);
+        $subscriber->onKernelException($json);
+
+        self::assertInstanceOf(HttpException::class, $page->getThrowable());
+        self::assertSame(503, $page->getThrowable()->getStatusCode());
+        self::assertSame(503, $json->getResponse()?->getStatusCode());
+        self::assertSame('{"error":"unavailable","code":"CONFLICT_001"}', $json->getResponse()->getContent());
+    }
+
+    public function testAPartlyCommittedConflictIsCode002WithoutRetryAfter(): void
+    {
+        $committed = new ConcurrencyConflict(2, TransientFailureKind::Deadlock, 1, new DeadlockException($this->createStub(DriverException::class), null), true);
+        $json      = $this->event($this->request('nowo_uptime_push', null), $committed);
+        $page      = $this->event($this->request('nowo_uptime_monitor_edit', null), $committed);
+
         (new StorageFailureSubscriber())->onKernelException($json);
+        (new StorageFailureSubscriber())->onKernelException($page);
 
-        self::assertInstanceOf(ConflictHttpException::class, $page->getThrowable());
-        self::assertSame($conflict, $page->getThrowable()->getPrevious());
-        self::assertSame(409, $json->getResponse()?->getStatusCode());
-        self::assertSame('{"error":"conflict"}', $json->getResponse()->getContent());
+        $response = $json->getResponse();
+        self::assertNotNull($response);
+        self::assertSame(409, $response->getStatusCode());
+        self::assertFalse($response->headers->has('Retry-After'));
+        self::assertSame('{"error":"conflict","code":"CONFLICT_002"}', $response->getContent());
+        $mapped = $page->getThrowable();
+        self::assertInstanceOf(HttpException::class, $mapped);
+        self::assertSame(['X-Conflict-Code' => 'CONFLICT_002'], $mapped->getHeaders());
+        self::assertStringContainsString('Reload', $mapped->getMessage());
+    }
+
+    public function testALostSavepointWithNoDeadlockIsCode002(): void
+    {
+        $lost  = new DriverExceptionWrapper($this->driverError('SAVEPOINT DOCTRINE_2 does not exist', '42000', 1305), null);
+        $event = $this->event($this->request('nowo_uptime_push', null), new TransientStorageFailure(1, 'lost', $lost));
+
+        (new StorageFailureSubscriber())->onKernelException($event);
+
+        self::assertSame('CONFLICT_002', $event->getResponse()?->headers->get('X-Conflict-Code'));
+        self::assertFalse($event->getResponse()->headers->has('Retry-After'));
+    }
+
+    public function testUniqueViolationsAndLostConnectionsAreNotConflicts(): void
+    {
+        $unique = new UniqueConstraintViolationException($this->createStub(DriverException::class), null);
+        $lost   = new ConnectionLost($this->createStub(DriverException::class), null);
+        foreach ([$unique, $lost, new TransientStorageFailure(1, 'wrapped', $lost)] as $failure) {
+            $event = $this->event($this->request('nowo_uptime_tenant_new', null, 'application/json'), $failure);
+
+            (new StorageFailureSubscriber())->onKernelException($event);
+
+            self::assertNull($event->getResponse());
+            self::assertSame($failure, $event->getThrowable());
+        }
     }
 
     public function testOtherFailuresAndOtherRoutesAreLeftAlone(): void
@@ -95,6 +156,12 @@ final class StorageFailureSubscriberTest extends TestCase
         }
         self::assertSame($other, $ours->getThrowable());
         self::assertInstanceOf(TransientStorageFailure::class, $foreign->getThrowable());
+    }
+
+    private function driverError(string $message, string $sqlState, int $code): DriverException
+    {
+        return new class($message, $sqlState, $code) extends AbstractException {
+        };
     }
 
     private function request(string $route, ?string $controller, ?string $accept = null): Request

@@ -90,6 +90,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+Concurrency (REQ-RUNTIME-003). See [CONCURRENCY.md](CONCURRENCY.md) and [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **Conflict codes**: every lock-conflict answer of the bundle's routes carries `CONFLICT_001` (nothing committed,
+  with `Retry-After`) or `CONFLICT_002` (part may be committed, no `Retry-After`): a `code` key in the JSON body of the
+  push endpoint and the JSON API (the `error` key is unchanged), and an `X-Conflict-Code` header on every answer.
+- **`conflict_response.status` / `conflict_response.retry_after`**: 409 (default) or 503, and the default
+  `Retry-After`. With neither set and NowoTransactionDoctrineBundle registered, the shared
+  `nowo_transaction_doctrine.conflict_response` policy is used.
+- `docs/CONCURRENCY.md`: write paths, codes, host options, residual risks. CI job `Load readiness` now also runs on
+  MariaDB 11.4 (DBAL 4 and DBAL 3), as a required check. Real-server test: two connections writing the same tag name.
+
+### Changed
+
+- **Lock conflicts answer 409 instead of 503** (REQ-RUNTIME-003 rule 6): deadlocks, lock wait timeouts and
+  serialization failures of a bundle route. Set `conflict_response.status: 503` to keep the old status.
+- **Unique violations are no longer answered 409**: a taken tenant slug or tag name, also when a concurrent request
+  took it between the check and the commit, is a form error (422) on the field; any other unique violation is a real
+  error (500). Lost connections are never mapped (a 500, no `Retry-After`).
+- Requires nowo-tech/transaction-doctrine ^1.5 (`ConflictCode`, serialization failures replayed by default).
+
+### Fixed
+
+- A duplicate tenant slug submitted on the new-tenant form answered a 409 error page instead of a form error.
+
 ## [1.30.0] - 2026-11-18
 
 ### Added

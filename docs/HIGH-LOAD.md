@@ -2,13 +2,14 @@
 
 Since 1.29.0 (Beacon spec 239) the bundle is built for many concurrent requests and several scheduler consumers on
 long-running workers: FrankenPHP worker mode with the kernel **not** reset between requests, RoadRunner, Messenger
-consumers.
+consumers. The write-path table, the conflict codes and the residual risks are in [CONCURRENCY.md](CONCURRENCY.md)
+(REQ-RUNTIME-003).
 
 ## Table of contents
 
 - [One unit of work per write](#one-unit-of-work-per-write)
 - [Your entity manager is yours](#your-entity-manager-is-yours)
-- [Transient failures: 503, conflicts: 409](#transient-failures-503-conflicts-409)
+- [Lock conflicts: 409 + CONFLICT code](#lock-conflicts-409--conflict-code)
 - [Races that no longer happen](#races-that-no-longer-happen)
 - [One lock order](#one-lock-order)
 - [Database settings](#database-settings)
@@ -36,7 +37,7 @@ implementing nowo-tech/transaction-contract's `TransactionRunnerInterface`):
 Units of work that run in the background are replayed after a deadlock or lock wait, up to three attempts with
 full-jitter backoff, and only when they are the outermost transaction: scheduled checks, push ingest, the monitors file
 (`nowo:uptime:apply-monitors`), the rollup, the time of a sent alert. HTTP writes of the UI make one attempt and answer
-503 (the user retries).
+409 + `Retry-After` + `CONFLICT_001` (503 before 1.31; the user retries).
 
 ## Your entity manager is yours
 
@@ -50,22 +51,17 @@ savepoint, and a bundle failure rolls back to that savepoint only. A transient f
 replayed by the bundle (the server may have rolled back your work too): it reaches you as `TransientStorageFailure`;
 retry your whole transaction.
 
-## Transient failures: 503, conflicts: 409
+## Lock conflicts: 409 + CONFLICT code
 
-On the bundle's routes (a `nowo_uptime_*` route or a controller of the bundle), `StorageFailureSubscriber`
-(`kernel.exception`, priority -64) maps:
-
-| Failure | Answer |
-|---------|--------|
-| `Nowo\TransactionContract\TransientStorageFailure`, or a DBAL `RetryableException` (deadlock, lock wait timeout) | `503 Service Unavailable` with `Retry-After` (the runner's hint, 1 s) |
-| A unique key refused a concurrent write (tenant slug, tag name, push URL key) | `409 Conflict` |
-
-The push endpoint and the JSON API answer `{"error": "unavailable"}` / `{"error": "conflict"}` with `Cache-Control:
-no-store`; HTML pages get a `ServiceUnavailableHttpException` / `ConflictHttpException`, rendered by your error page.
-The storage error stays the previous exception, for your logs: no SQL or parameter reaches the client.
+Since 1.31 (REQ-RUNTIME-003 rule 6), `StorageFailureSubscriber` (`kernel.exception`, priority -64) answers a lock
+conflict of the bundle's routes (deadlock, lock wait timeout, serialization failure) with **409** and a code:
+`CONFLICT_001` + `Retry-After` when nothing was committed, `CONFLICT_002` without `Retry-After` when part may be. The
+status is configurable to 503 (`nowo_uptime_monitor.conflict_response.status`). Unique violations and lost connections
+are not conflicts: the tenant slug and the tag name races are form errors, anything else stays a real error. Details,
+JSON shapes and options: [CONCURRENCY.md](CONCURRENCY.md#conflict-answer).
 
 Your own controllers that call the bundle services map `TransientStorageFailure` themselves (or enable
-DoctrineDeadlockRetryBundle's HTTP mapping).
+nowo-tech/transaction-doctrine's responder, `conflict_response.map_transient_failures`).
 
 ## Races that no longer happen
 
@@ -74,7 +70,7 @@ DoctrineDeadlockRetryBundle's HTTP mapping).
 | Every scheduler consumer (or `run-due` command) checked every due monitor | Each due monitor is **claimed** first (`MonitorRepository::claimDue()`: its next check time moves to now + the interval, at least twice the request timeout + 30 s, only if nobody moved it since the scan and it is still due), so it is checked once. Keep the consumers' clocks synchronised (NTP) |
 | A check wrote back the configuration it loaded before the network step, undoing an edit saved meanwhile | The check's unit locks the monitor row and reads it again, then applies the outcome to that state |
 | Two checks of one monitor at once (a group refreshed by two children) lost aggregate counts, failed on the bucket's unique key, opened two incidents or sent a second "down" alert | Checks of one monitor queue on its row; the status, the buckets and the incident are judged on the committed state |
-| A deadlock inside the quota write (`TenantQuota::withTenantLock()`, `wrapInTransaction()` with a nested flush) answered a raw `1305` and left the connection nested | One flush at the runner's level; a transient failure answers 503 and leaves the connection at level 0 |
+| A deadlock inside the quota write (`TenantQuota::withTenantLock()`, `wrapInTransaction()` with a nested flush) answered a raw `1305` and left the connection nested | One flush at the runner's level; a transient failure answers 409 + `CONFLICT_001` (503 before 1.31) and leaves the connection at level 0 |
 | Two first visits of a project provisioning its tenant: the second failed with a unique violation | The second reads the tenant the first one wrote |
 | Two pushes of one monitor at once were both accepted | The pause and the push rate are judged again on the locked row: the second one gets 429 |
 | Alerts went out before the check was stored | Alerts follow the commit and are never sent twice by a replay; a failure after the commit cannot suppress them; the alert time is stored on the locked row and never moved back |
@@ -95,7 +91,7 @@ The row locks are `SELECT … FOR UPDATE` (none on SQLite, where a writing trans
   failure inside your transaction marks the whole transaction rollback-only.
 - **Lock waits:** a unit waits for a locked row as long as the server lets it (`innodb_lock_wait_timeout`, 50 s by
   default on MySQL; `lock_timeout` on PostgreSQL, unlimited by default). Keep it below your request timeout
-  (for example 5–10 s for the web workers): a timeout becomes a 503, never a stuck worker.
+  (for example 5–10 s for the web workers): a timeout becomes a 409 `CONFLICT_001`, never a stuck worker.
 - **Connection poolers:** PgBouncer in transaction pooling mode is fine (the bundle holds no session state between units);
   statement pooling is not supported.
 
@@ -113,8 +109,10 @@ DoctrineBundle's `doctrine_ping_connection` / `doctrine_clear_entity_manager` Me
   manager on the same connection plays the other process). SQLite by default, MySQL / PostgreSQL with
   `UPTIME_TEST_DATABASE_URL`.
 - `tests/Database` (suite `database`): lock wait, deadlock inside a nested flush, two processes checking one monitor,
-  two schedulers, two processes provisioning the same tenants. Skipped without `UPTIME_TEST_DATABASE_URL`.
-- CI job `Load readiness`: MySQL 8.4 and PostgreSQL 16, DBAL 4 and DBAL 3, `--fail-on-skipped`.
+  two schedulers, two processes provisioning the same tenants, two connections writing the same tag name (a unique
+  violation, never a conflict); the real lock failures are checked against the 409 / 503 answer. Skipped without `UPTIME_TEST_DATABASE_URL`.
+- CI job `Load readiness` (required): MySQL 8.4, MariaDB 11.4 and PostgreSQL 16, DBAL 4 and DBAL 3,
+  `--fail-on-skipped`.
 
 ```bash
 UPTIME_TEST_DATABASE_URL='mysql://root@127.0.0.1:3306/uptime?serverVersion=8.4.0' vendor/bin/phpunit --testsuite database

@@ -141,7 +141,7 @@ final readonly class MonitorBackupService
         try {
             // SEC-004 Q3: with a quota the rows are written under the tenant row lock, the remaining quota counted
             // once after the lock (null = no monitor limit). Since 1.29 the import is one unit of work of the bundle's
-            // runner either way (all rows or none; a transient failure leaves no transaction open and answers 503).
+            // runner either way (all rows or none; a transient failure leaves no transaction open and answers 409 + CONFLICT_001).
             $result = $this->quota instanceof TenantQuota
                 ? $this->quota->withTenantLock($this->entityManager, $tenant, fn (?int $remaining): array => $this->importRows($tenant, $rows, $mode, $remaining))
                 : ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->run(fn (): array => $this->importRows($tenant, $rows, $mode, null));

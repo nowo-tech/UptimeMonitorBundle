@@ -492,7 +492,7 @@ final class MonitorController extends AbstractUptimeController
      * 1.21) it runs under the tenant row lock, with the quota counted again and the checks dispatched inside (SEC-004
      * Q3, GU-L1: no count-then-write race). False, with nothing written, when the tenant is full or a check is denied.
      * Since 1.29 every write is one unit of work of the bundle's runner (flushed and committed by it; a transient failure
-     * answers 503).
+     * answers 409 + CONFLICT_001).
      *
      * @param callable(): mixed $apply The change, flushed after it
      * @param list<MonitorQuotaCheckEvent> $checks

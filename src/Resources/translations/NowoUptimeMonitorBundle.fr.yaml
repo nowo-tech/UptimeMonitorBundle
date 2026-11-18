@@ -230,6 +230,7 @@ form.settings.tag_color: 'Couleur'
 form.tenant.slug: 'Slug'
 form.monitor.name_required: 'Donnez un nom au moniteur.'
 form.tenant.slug_regex: 'Utilisez des lettres minuscules, des chiffres et des tirets.'
+form.tenant.slug_taken: 'Un autre locataire utilise déjà ce slug.'
 form.tenant.name: 'Nom affiché'
 
 # Public status page

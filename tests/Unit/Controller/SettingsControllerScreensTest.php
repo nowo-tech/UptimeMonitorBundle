@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Event\PreFlushEventArgs;
+use Doctrine\ORM\Events;
 use Doctrine\Persistence\ManagerRegistry;
 use JsonException;
 use Nowo\UiKitBundle\View\SettingsSection;
@@ -272,6 +274,40 @@ final class SettingsControllerScreensTest extends TestCase
             self::assertStringContainsString($error, (string) $this->renderedContext['form']->children['name']->vars['errors']);
         }
         self::assertCount(1, $this->em->getRepository(Tag::class)->findAll());
+    }
+
+    public function testATagNameAnotherRequestTookAfterTheCheckIsAFormErrorNotAConflict(): void
+    {
+        // The concurrent request writes the same name between the name check and this request's flush (one SQLite
+        // connection: its row shares this unit's transaction, so the rollback takes both; tests/Database runs the real
+        // two-connection race).
+        $tenantId = (int) $this->tenant->getId();
+        $this->em->getEventManager()->addEventListener(Events::preFlush, new class($tenantId) {
+            private bool $done = false;
+
+            public function __construct(private readonly int $tenantId)
+            {
+            }
+
+            public function preFlush(PreFlushEventArgs $args): void
+            {
+                if (!$this->done) {
+                    $this->done = true;
+                    $args->getObjectManager()->getConnection()->insert('uptime_tag', ['tenant_id' => $this->tenantId, 'name' => 'prod']);
+                }
+            }
+        });
+        $request    = $this->post(TagFormType::class, ['name' => 'prod', 'color' => '']);
+        $controller = $this->controller();
+        $this->bindController($controller, true, $request);
+
+        $response = $controller->tags('main', $request);
+
+        self::assertSame(422, $response->getStatusCode());
+        self::assertStringContainsString('settings.tags.name_taken', (string) $this->renderedContext['form']->children['name']->vars['errors']);
+        self::assertSame([], $this->flashes($request, 'success'));
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM uptime_tag WHERE name = 'prod'"));
+        self::assertSame(0, $this->em->getConnection()->getTransactionNestingLevel());
     }
 
     public function testEditingAnotherTenantsTagIsNotFound(): void

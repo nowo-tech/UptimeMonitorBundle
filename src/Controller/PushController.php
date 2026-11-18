@@ -43,7 +43,7 @@ use function trim;
  * Since 1.29 (Beacon spec 239) the push is stored in one unit of work of the bundle's runner that locks the monitor row
  * and checks the pause and the push rate again on the committed state: two concurrent pushes of one monitor never both
  * pass the rate limit, and a push never overwrites the check state written meanwhile. A deadlock or lock wait is retried
- * a few times, then answered `503` with `Retry-After`.
+ * a few times, then answered `409` + `Retry-After` + `CONFLICT_001` (since 1.31; 503 before).
  */
 final readonly class PushController
 {

@@ -230,6 +230,7 @@ form.settings.tag_color: 'Farbe'
 form.tenant.slug: 'Slug'
 form.monitor.name_required: 'Gib dem Monitor einen Namen.'
 form.tenant.slug_regex: 'Verwenden Sie Kleinbuchstaben, Zahlen und Bindestriche.'
+form.tenant.slug_taken: 'Ein anderer Mandant hat diesen Slug bereits.'
 form.tenant.name: 'Anzeigename'
 
 # Public status page
