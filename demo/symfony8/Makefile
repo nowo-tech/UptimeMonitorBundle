@@ -95,7 +95,7 @@ link-bundle: ensure-up
 	$(COMPOSE) exec php sh -c "rm -rf vendor/nowo-tech/uptime-monitor-bundle && ln -s /var/uptime-monitor-bundle vendor/nowo-tech/uptime-monitor-bundle && php bin/console cache:clear && php bin/console assets:install public"
 
 update-bundle: ensure-up
-	$(COMPOSE) exec php composer update nowo-tech/uptime-monitor-bundle --no-interaction
+	$(COMPOSE) exec php composer update nowo-tech/uptime-monitor-bundle -w --no-interaction
 	$(COMPOSE) exec php sh -c "php bin/console cache:clear --env=dev && php bin/console assets:install public"
 
 release-check: ensure-up update-bundle test test-coverage
