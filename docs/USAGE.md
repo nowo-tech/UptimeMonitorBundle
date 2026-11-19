@@ -151,7 +151,7 @@ public function onDown(MonitorWentDownEvent $event): void
 
 ## SearchKit: monitors (1.32)
 
-With `nowo-tech/search-kit-bundle` ^1.9 installed (optional, `suggest`) and `web_ui` enabled, the SearchKit palette and
+With `nowo-tech/search-kit-bundle` ^1.9 installed (optional, `suggest`; **SearchKit needs PHP 8.3 or later**, the bundle itself still runs on PHP 8.2 without it) and `web_ui` enabled, the SearchKit palette and
 results page get a group `uptime_monitors`. Each search:
 
 1. takes the viewer's tenant from the tenant resolver (the `tenantSlug` of the request, else `multi_tenant.default_tenant`;
@@ -163,6 +163,8 @@ results page get a group `uptime_monitors`. Each search:
 4. keeps only the monitors the checker lets the viewer see: `canViewMonitor()` for a monitor-aware checker (so a monitor shared
    outside the tenant is searchable), else `canAccessTenant()`, else the dashboard check; then SearchKit sends its
    `SearchKitEvents::ITEM_VISIBILITY` event, where a host deny wins.
+
+**Multi-tenant hosts must set `search_kit.tenant_resolver`.** The palette request carries no `{tenantSlug}`, so the default (the request's `tenantSlug`, else `multi_tenant.default_tenant`) searches one tenant; a host with several tenants returns the viewer's own. **Results are ordered by monitor name** (then id), with no relevance ranking.
 
 A refusal anywhere (no tenant, no access, a denied monitor) gives no group and no count, so a hidden monitor looks like a
 missing one. The total is the visible count inside the candidate window and the results page goes at most that deep.

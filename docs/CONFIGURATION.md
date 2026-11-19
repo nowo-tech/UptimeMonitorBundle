@@ -130,7 +130,7 @@ Deprecated since **1.11** (REQ-UI-003 vocabulary, removed in 2.0): `templates.la
 | `search_kit.tenant_resolver` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface` (the viewer's tenant slug, or `null`: no results). `null` = request `tenantSlug`, else `multi_tenant.default_tenant`. |
 | `search_kit.max_candidates` | `100` | Monitors read and access-checked per search (1-1000). |
 
-See [USAGE](USAGE.md#searchkit-monitors-132).
+SearchKit needs PHP 8.3 or later. Multi-tenant hosts must set `search_kit.tenant_resolver`; results are ordered by name. See [USAGE](USAGE.md#searchkit-monitors-132).
 
 ### Check limits (SEC-004)
 

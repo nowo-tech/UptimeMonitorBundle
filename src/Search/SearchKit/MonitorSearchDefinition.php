@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Search\SearchKit;
 use Doctrine\ORM\QueryBuilder;
 use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
+use Nowo\SearchKitBundle\Model\SearchReference;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\SearchKitBundle\Search\Query\SearchWords;
 use Nowo\SearchKitBundle\Search\Query\SeeAllLink;
@@ -21,6 +22,7 @@ use Symfony\Component\Routing\Exception\ExceptionInterface as RoutingException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function ctype_digit;
 use function is_string;
 use function max;
 use function mb_stripos;
@@ -90,6 +92,18 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     public function subjectType(): string
     {
         return 'uptime_monitor';
+    }
+
+    public function idField(): string
+    {
+        return 'm.id';
+    }
+
+    public function referenceId(SearchReference $reference): ?string
+    {
+        $id = $reference->routeParameters['id'] ?? null;
+
+        return $reference->route === 'nowo_uptime_monitor_show' && is_string($id) && ctype_digit($id) ? $id : null;
     }
 
     public function baseQuery(int|string $tenant, SearchQuery $query): QueryBuilder

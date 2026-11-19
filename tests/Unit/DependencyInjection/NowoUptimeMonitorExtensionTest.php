@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
-use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\Symfony\NowoTransactionDoctrineBundle;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
@@ -65,11 +64,15 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
 
     public function testSearchKitDefinitionIsTaggedAndConfigurable(): void
     {
+        if (!class_exists('Nowo\\SearchKitBundle\\Provider\\Entity\\EntitySearchDefinition')) {
+            self::markTestSkipped('SearchKit (PHP >= 8.3) is not installed.');
+        }
+
         $container = $this->containerWithSecurityBundle();
         (new UptimeMonitorExtension())->load([['search_kit' => ['max_candidates' => 50, 'tenant_resolver' => 'app.tenant_resolver']]], $container);
 
         $definition = $container->getDefinition(MonitorSearchDefinition::class);
-        self::assertTrue($definition->hasTag(EntitySearchDefinition::TAG));
+        self::assertTrue($definition->hasTag('nowo_search_kit.entity_definition'));
         self::assertSame(50, $definition->getArgument('$maxCandidates'));
         self::assertEquals(new Reference('app.tenant_resolver'), $definition->getArgument('$tenants'));
 

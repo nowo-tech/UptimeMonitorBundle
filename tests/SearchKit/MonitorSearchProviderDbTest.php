@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Nowo\UptimeMonitorBundle\Tests\Integration\Search;
+namespace Nowo\UptimeMonitorBundle\Tests\SearchKit;
 
 use Doctrine\DBAL\Configuration as DbalConfiguration;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\SearchKitBundle\Event\SearchItemVisibilityEvent;
 use Nowo\SearchKitBundle\Event\SearchKitEvents;
+use Nowo\SearchKitBundle\Model\SearchReference;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\SearchKitBundle\Test\EntitySearchProviderTestCase;
 use Nowo\SearchKitBundle\Test\QueryCounter;
@@ -38,11 +39,17 @@ use Symfony\Component\Security\Core\User\InMemoryUser;
 use Symfony\Component\Translation\IdentityTranslator;
 
 use function array_map;
+use function class_exists;
 use function in_array;
 use function json_encode;
 use function str_contains;
 
 use const JSON_UNESCAPED_SLASHES;
+
+// SearchKit requires PHP >= 8.3 and stays optional: without it (the PHP 8.2 CI cell) this file declares nothing.
+if (!class_exists(EntitySearchProviderTestCase::class)) {
+    return;
+}
 
 /**
  * The SearchKit contract kit against the real MonitorSearchDefinition and a real database (SQLite by default; MySQL /
@@ -64,6 +71,8 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
     private bool $dashboardOpen = true;
     /** @var list<string> names the host checker refuses to show */
     private array $hidden = [];
+    /** @var list<string> names seedHidden() made the host checker refuse */
+    private array $hiddenNames = [];
 
     protected function setUp(): void
     {
@@ -152,7 +161,7 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
 
     public function isHidden(string $name): bool
     {
-        return in_array($name, $this->hidden, true);
+        return in_array($name, $this->hidden, true) || in_array($name, $this->hiddenNames, true);
     }
 
     protected function definition(): EntitySearchDefinition
@@ -170,9 +179,26 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         return ['acme', 'beta'];
     }
 
-    protected function seed(int|string $tenant, string $text): void
+    protected function seed(int|string $tenant, string $text): int
     {
-        $this->add((string) $tenant, $text, 'https://seed.example.com/');
+        return $this->add((string) $tenant, $text, 'https://seed.example.com/');
+    }
+
+    protected function seedHidden(int|string $tenant, string $text): int
+    {
+        $this->hiddenNames[] = $text;
+
+        return $this->add((string) $tenant, $text, 'https://hidden.example.com/');
+    }
+
+    protected function seedArchived(int|string $tenant, string $text): int
+    {
+        self::markTestSkipped('Monitors have no archived or deleted state: nothing for baseQuery() to filter out.');
+    }
+
+    protected function reference(int|string $id): SearchReference
+    {
+        return new SearchReference('/uptime/acme/monitors/' . $id, 'uptime_monitors', 'nowo_uptime_monitor_show', ['tenantSlug' => 'acme', 'id' => (string) $id]);
     }
 
     protected function actAs(int|string|null $tenant, string $userIdentifier): void
@@ -281,6 +307,15 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         self::assertSame(1000, (new MonitorSearchDefinition(new MonitorRepository($this->registry), $this, new MonitorSearchVisibility(new AllowAllUptimeMonitorAccessChecker()), new MonitorSearchMapper(), new UrlGenerator(new RouteCollection(), new RequestContext()), null, 5000))->maxCandidates());
     }
 
+    public function testReferenceIdAcceptsOnlyAMonitorPageWithADigitId(): void
+    {
+        self::assertSame('m.id', $this->definition->idField());
+        self::assertSame('12', $this->definition->referenceId($this->reference(12)));
+        self::assertNull($this->definition->referenceId(new SearchReference('/x', 'uptime_monitors', 'other_route', ['id' => '12'])));
+        self::assertNull($this->definition->referenceId(new SearchReference('/x', 'uptime_monitors', 'nowo_uptime_monitor_show', ['id' => '1 OR 1'])));
+        self::assertNull($this->definition->referenceId(new SearchReference('/x', 'uptime_monitors', 'nowo_uptime_monitor_show')));
+    }
+
     public function testSubtitleWithoutAStatusOrWithoutAnOrigin(): void
     {
         $marker = $this->marker();
@@ -298,7 +333,7 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
     /**
      * @param array<string, mixed> $config
      */
-    private function add(string $tenant, string $name, string $target, ?CheckStatus $status = null, array $config = [], MonitorType $type = MonitorType::Https): void
+    private function add(string $tenant, string $name, string $target, ?CheckStatus $status = null, array $config = [], MonitorType $type = MonitorType::Https): int
     {
         $tenantEntity = $this->em->getRepository(Tenant::class)->findOneBy(['slug' => $tenant]);
         self::assertInstanceOf(Tenant::class, $tenantEntity);
@@ -313,6 +348,9 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
 
         $this->em->persist($monitor);
         $this->em->flush();
+        $id = (int) $monitor->getId();
         $this->em->clear();
+
+        return $id;
     }
 }
