@@ -16,7 +16,11 @@ use function preg_match_all;
 use function preg_replace;
 use function preg_replace_callback;
 use function str_contains;
+use function strcspn;
+use function strlen;
+use function strrpos;
 use function strtolower;
+use function substr;
 
 use const PREG_SET_ORDER;
 
@@ -45,9 +49,6 @@ final class SecretRedactor
      */
     private const SENSITIVE_QUERY_KEY = '/token|key|secret|pass|pwd|sig|auth|credential|session|code|jwt|bearer|hash/i';
 
-    /** The userinfo of a URL, with or without a scheme (`http://user:pass@` or `user:pass@`), up to its last `@`. */
-    private const EDITABLE_USERINFO = '#^((?:[a-z][a-z0-9+.\-]*://)?)([^/?\#]*)@#i';
-
     /** Default port by scheme, so `https://host` and `https://host:443` are one destination. */
     private const DEFAULT_PORTS = ['http' => 80, 'https' => 443];
 
@@ -64,7 +65,13 @@ final class SecretRedactor
             return $value;
         }
 
-        // Greedy authority match: a raw '@' inside the password is part of the userinfo too.
+        // The authority ends at the first '/', '?' or '#'. Greedy match: a raw '@' inside the password is part of the
+        // userinfo too. When an '@' follows the authority and the userinfo may have been cut short by a raw '/', '?' or
+        // '#' (see isAmbiguousUrl()), no host can be told from the credentials: the whole URL is hidden (since 1.32).
+        if (self::isAmbiguousUrl($value)) {
+            return self::opaque($value);
+        }
+
         $value = (string) preg_replace('#^([a-z][a-z0-9+.\-]*://)[^/?\#]*@#i', '$1' . self::MASK . '@', $value);
 
         return (string) preg_replace_callback(
@@ -72,6 +79,42 @@ final class SecretRedactor
             static fn (array $m): string => $m[1] . $m[2] . '=' . (preg_match(self::SENSITIVE_QUERY_KEY, $m[2]) === 1 ? self::MASK : $m[3]),
             $value,
         );
+    }
+
+    /**
+     * Whether the credentials of a URL or proxy cannot be told from its host (since 1.32): an '@' follows the first
+     * '/', '?' or '#', and either the authority before it holds an '@' too or a ':' stands before that later '@'
+     * (`https://admin:4242/rest@host/`, `https://u:p@host/x?e=a@b`, `https://host:8443/n?to=ops@example.com`). A
+     * password with a raw '/', '?' or '#' looks exactly like that, and `parse_url()` would read `user:digits` as
+     * `host:port`. The value is then one opaque secret ({@see self::opaque()}): no host is shown, nothing is split.
+     * A path or query with an '@' and no ':' before it (`host/@me`, `host/x?email=a@b`) is not ambiguous.
+     *
+     * @param string $authority The text before the first '/', '?' or '#' after the scheme
+     * @param string $after The rest, starting at that delimiter
+     */
+    public static function isAmbiguousAuthority(string $authority, string $after): bool
+    {
+        $at = strrpos($after, '@');
+
+        return $at !== false && (str_contains($authority, '@') || str_contains($authority . substr($after, 0, $at), ':'));
+    }
+
+    /**
+     * {@see self::isAmbiguousAuthority()} of a whole URL or proxy, with or without a scheme.
+     */
+    public static function isAmbiguousUrl(string $value): bool
+    {
+        [, $authority, $after] = self::authorityParts($value);
+
+        return self::isAmbiguousAuthority($authority, $after);
+    }
+
+    /**
+     * The value shown for an ambiguous URL: its scheme (if any) and the mask, `https://***` / `***`.
+     */
+    public static function opaque(string $value): string
+    {
+        return self::authorityParts($value)[0] . self::MASK;
     }
 
     /**
@@ -127,11 +170,14 @@ final class SecretRedactor
      */
     public static function maskEditableUrl(string $value): string
     {
-        $value = (string) preg_replace_callback(
-            self::EDITABLE_USERINFO,
-            static fn (array $m): string => $m[1] . ($m[2] === '' ? '' : self::MASK) . '@',
-            $value,
-        );
+        if (self::isAmbiguousUrl($value)) {
+            return self::opaque($value);
+        }
+
+        $parts = self::splitUserinfo($value);
+        if ($parts !== null) {
+            $value = $parts[0] . ($parts[1] === '' ? '' : self::MASK) . '@' . $parts[2];
+        }
 
         return (string) preg_replace_callback(
             self::QUERY_PAIR,
@@ -149,6 +195,16 @@ final class SecretRedactor
     public static function restoreEditableUrl(string $submitted, string $stored): string
     {
         if ($stored === '' || !str_contains($submitted, self::MASK)) {
+            return $submitted;
+        }
+
+        // An ambiguous stored URL is one opaque secret: kept only when the field comes back byte-identical to what
+        // the form showed, anything else is retyped. An ambiguous submitted value is never split (since 1.32).
+        if (self::isAmbiguousUrl($stored)) {
+            return $submitted === self::opaque($stored) ? $stored : $submitted;
+        }
+
+        if (self::isAmbiguousUrl($submitted)) {
             return $submitted;
         }
 
@@ -173,15 +229,13 @@ final class SecretRedactor
             $submitted,
         );
 
-        if (preg_match(self::EDITABLE_USERINFO, $stored, $userinfo) !== 1 || $userinfo[2] === '') {
+        $storedParts    = self::splitUserinfo($stored);
+        $submittedParts = self::splitUserinfo($submitted);
+        if ($storedParts === null || $storedParts[1] === '' || $submittedParts === null || $submittedParts[1] !== self::MASK) {
             return $submitted;
         }
 
-        return (string) preg_replace_callback(
-            self::EDITABLE_USERINFO,
-            static fn (array $m): string => $m[1] . ($m[2] === self::MASK ? $userinfo[2] : $m[2]) . '@',
-            $submitted,
-        );
+        return $submittedParts[0] . $storedParts[1] . '@' . $submittedParts[2];
     }
 
     /**
@@ -245,11 +299,20 @@ final class SecretRedactor
             return $value;
         }
 
-        $value = (string) preg_replace_callback(
-            self::EDITABLE_USERINFO,
-            static fn (array $m): string => $m[2] === self::MASK ? $m[1] : $m[0],
-            $value,
-        );
+        // An opaque mask left with nothing stored behind it (`https://***`) is dropped whole; an ambiguous typed value is
+        // never split.
+        if (preg_match('#^(?:[a-z][a-z0-9+.\-]*://)?\*\*\*$#i', $value) === 1) {
+            return '';
+        }
+
+        if (self::isAmbiguousUrl($value)) {
+            return $value;
+        }
+
+        $parts = self::splitUserinfo($value);
+        if ($parts !== null && $parts[1] === self::MASK) {
+            $value = $parts[0] . $parts[2];
+        }
 
         // A removed pair keeps its separator, marked with NUL, then the separators are tidied up.
         $value = (string) preg_replace_callback(
@@ -280,12 +343,31 @@ final class SecretRedactor
      */
     public static function sameOrigin(string $a, string $b): bool
     {
+        if (self::isAmbiguousUrl($a) || self::isAmbiguousUrl($b)) {
+            return false;
+        }
+
         return self::origin($a) === self::origin($b);
+    }
+
+    /**
+     * Whether a kept secret may go back with the submitted URL or proxy (since 1.32): {@see self::sameOrigin()}, or an
+     * ambiguous stored value whose opaque mask came back byte-identical ({@see self::opaque()}), which is then
+     * restored as it was.
+     */
+    public static function keepsDestination(string $submitted, string $stored): bool
+    {
+        if (self::isAmbiguousUrl($stored)) {
+            return $submitted === self::opaque($stored);
+        }
+
+        return self::sameOrigin($submitted, $stored);
     }
 
     private static function origin(string $value): string
     {
-        $url = self::maskUserinfo($value);
+        // The destination of the raw value, read as the HTTP client reads it: no ambiguity rule, no masking.
+        $url = $value;
         if (preg_match('#^[a-z][a-z0-9+.\-]*://#i', $url) !== 1) {
             $url = 'http://' . $url;
         }
@@ -303,6 +385,37 @@ final class SecretRedactor
 
     private static function maskUserinfo(string $value): string
     {
-        return (string) preg_replace(self::EDITABLE_USERINFO, '$1' . self::MASK . '@', $value);
+        $parts = self::splitUserinfo($value);
+
+        return $parts === null ? $value : $parts[0] . self::MASK . '@' . $parts[2];
+    }
+
+    /**
+     * Splits a URL or proxy (with or without a scheme) at its userinfo: `[scheme://, userinfo, the rest after the '@']`,
+     * or null when there is none. The userinfo runs to the last '@' of the authority (the text up to the first '/', '?'
+     * or '#'). Callers handle an ambiguous value ({@see self::isAmbiguousUrl()}) before: it is never split.
+     *
+     * @return array{0: string, 1: string, 2: string}|null
+     */
+    private static function splitUserinfo(string $value): ?array
+    {
+        [$scheme, $authority, $after] = self::authorityParts($value);
+        $at                           = strrpos($authority, '@');
+
+        return $at === false ? null : [$scheme, substr($authority, 0, $at), substr($authority, $at + 1) . $after];
+    }
+
+    /**
+     * The scheme (`https://`, or an empty string), the authority (up to the first '/', '?' or '#') and the rest.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private static function authorityParts(string $value): array
+    {
+        $scheme    = preg_match('#^[a-z][a-z0-9+.\-]*://#i', $value, $m) === 1 ? $m[0] : '';
+        $rest      = substr($value, strlen($scheme));
+        $authority = substr($rest, 0, strcspn($rest, '/?#'));
+
+        return [$scheme, $authority, substr($rest, strlen($authority))];
     }
 }

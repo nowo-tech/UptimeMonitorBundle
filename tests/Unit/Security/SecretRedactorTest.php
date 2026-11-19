@@ -28,6 +28,17 @@ final class SecretRedactorTest extends TestCase
             'https://example.test/hook?api_key=***&page=2&Token=***&SIG=***#frag',
         ];
         yield 'flag without value' => ['https://example.test/?debug&secret=REDACTED-TEST', 'https://example.test/?debug&secret=***'];
+        yield 'password with a raw slash and port-like text' => ['https://admin:4242/rest@host.example.com/', 'https://***'];
+        yield 'password with a raw slash' => ['https://admin:pa/ss@host.example.com/x?token=abc', 'https://***'];
+        yield 'password with a raw question mark' => ['https://admin:pa?ss@host.example.com/', 'https://***'];
+        yield 'password with a raw hash' => ['https://admin:pa#ss@host.example.com/', 'https://***'];
+        yield 'user with a slash' => ['https://us/er:pw@host.example.com/', 'https://***'];
+        yield 'raw at sign and slash in the password' => ['https://u:p@s/s@host.example.com/', 'https://***'];
+        yield 'ipv6 with an at sign later' => ['http://[::1]:8080/x@y:z', 'http://***'];
+        yield 'port and an e-mail in the query' => ['https://api.example.com:8443/notify?email=ops@example.com', 'https://***'];
+        yield 'at sign in the path, no colon before it' => ['https://example.test/@me', 'https://example.test/@me'];
+        yield 'e-mail in the query' => ['https://example.test/x?email=a@b.example', 'https://example.test/x?email=a@b.example'];
+        yield 'connection string is not a url' => ['Server=db;User=sa;Password=Secret123;', 'Server=db;User=sa;Password=Secret123;'];
         yield 'userinfo and query' => ['https://u:p@example.test/?password=REDACTED-TEST', 'https://***@example.test/?password=***'];
     }
 
@@ -74,6 +85,17 @@ final class SecretRedactorTest extends TestCase
         yield 'no userinfo, @ in the path' => ['https://example.test/a@b', 'https://example.test/a@b'];
         yield 'query tokens, empty value kept' => ['https://example.test/?api_key=k&page=2&token=&sig=s#f', 'https://example.test/?api_key=***&page=2&token=&sig=***#f'];
         yield 'nothing secret' => ['https://example.test/health', 'https://example.test/health'];
+        yield 'password with a raw slash and port-like text' => ['https://admin:4242/rest@host.example.com/', 'https://***'];
+        yield 'password with a raw slash' => ['https://admin:pa/ss@host.example.com/x?token=abc', 'https://***'];
+        yield 'password with a raw question mark' => ['https://admin:pa?ss@host.example.com/', 'https://***'];
+        yield 'password with a raw hash' => ['https://admin:pa#ss@host.example.com/', 'https://***'];
+        yield 'user with a slash' => ['https://us/er:pw@host.example.com/', 'https://***'];
+        yield 'raw at sign and slash in the password' => ['https://u:p@s/s@host.example.com/', 'https://***'];
+        yield 'ipv6 with an at sign later' => ['http://[::1]:8080/x@y:z', 'http://***'];
+        yield 'port and an e-mail in the query' => ['https://api.example.com:8443/notify?email=ops@example.com', 'https://***'];
+        yield 'proxy without a scheme and a raw slash' => ['u:pa/ss@proxy.test:3128', '***'];
+        yield 'at sign in the path, no colon before it' => ['https://example.test/@me', 'https://example.test/@me'];
+        yield 'e-mail in the query' => ['https://example.test/x?email=a@b.example', 'https://example.test/x?email=a@b.example'];
     }
 
     #[DataProvider('editableUrlProvider')]
@@ -99,7 +121,91 @@ final class SecretRedactorTest extends TestCase
         yield 'stored without userinfo' => ['https://***@example.test/?token=***', 'https://example.test/?token=t1', 'https://***@example.test/?token=t1'];
         yield 'stored with an empty userinfo' => ['https://***@example.test/', 'https://@example.test/', 'https://***@example.test/'];
         yield 'proxy without a scheme' => ['***@proxy.test:3128', 'p:q@proxy.test:3128', 'p:q@proxy.test:3128'];
+        yield 'ambiguous stored value, opaque mask unchanged' => ['https://***', 'https://admin:4242/rest@host.example.com/x?token=abc', 'https://admin:4242/rest@host.example.com/x?token=abc'];
+        yield 'ambiguous stored value, anything else is retyped' => ['https://***@host.example.com/x', 'https://admin:pa/ss@host.example.com/x', 'https://***@host.example.com/x'];
+        yield 'ambiguous stored value, retyped' => ['https://new:pw@host.example.com/x', 'https://admin:pa/ss@host.example.com/x', 'https://new:pw@host.example.com/x'];
+        yield 'ambiguous stored ipv6 value' => ['http://***', 'http://[::1]:8080/x@y:z', 'http://[::1]:8080/x@y:z'];
+        yield 'ambiguous submitted value is never split' => ['https://***@attacker.example/a:b@api.example.com', 'https://u:pw@api.example.com/', 'https://***@attacker.example/a:b@api.example.com'];
         yield '& inside the stored userinfo' => ['https://***@example.test/?token=***', 'https://a&token=x@example.test/?token=t1', 'https://a&token=x@example.test/?token=t1'];
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function awkwardUrlProvider(): iterable
+    {
+        yield 'password with a raw slash and port-like text' => ['https://admin:4242/rest@host.example.com/'];
+        yield 'password with a raw slash' => ['https://admin:pa/ss@host.example.com/x?token=abc&page=2'];
+        yield 'password with a raw question mark' => ['https://admin:pa?ss@host.example.com/'];
+        yield 'password with a raw hash' => ['https://admin:pa#ss@host.example.com/'];
+        yield 'user with a slash' => ['https://us/er:pw@host.example.com/'];
+        yield 'proxy without a scheme' => ['u:pa/ss@proxy.test:3128'];
+        yield 'raw at sign and slash in the password' => ['https://u:p@s/s@host.example.com/'];
+        yield 'ipv6 with an at sign later' => ['http://[::1]:8080/x@y:z'];
+        yield 'port and an e-mail in the query' => ['https://api.example.com:8443/notify?email=ops@example.com'];
+        yield 'userinfo and an e-mail in the query' => ['https://u:p@host.example.com/x?e=a@b'];
+    }
+
+    /**
+     * The edit form shows no part of the credentials or host of an ambiguous URL, and saving it unchanged restores the
+     * stored value exactly; the opaque mask never counts as the same origin.
+     */
+    #[DataProvider('awkwardUrlProvider')]
+    public function testTheEditFormRoundTripKeepsTheStoredUrlExactly(string $stored): void
+    {
+        $masked = SecretRedactor::maskEditableUrl($stored);
+
+        self::assertMatchesRegularExpression('#^(?:[a-z]+://)?\*\*\*$#', $masked);
+        self::assertTrue(SecretRedactor::isAmbiguousUrl($stored));
+        self::assertSame($stored, SecretRedactor::restoreEditableUrl($masked, $stored));
+        self::assertTrue(SecretRedactor::keepsDestination($masked, $stored));
+        self::assertFalse(SecretRedactor::sameOrigin($masked, $stored));
+        self::assertFalse(SecretRedactor::keepsDestination($masked . 'x', $stored));
+        self::assertSame('', SecretRedactor::stripMaskedUrl($masked), 'a mask with nothing stored behind it is dropped whole');
+    }
+
+    /**
+     * The payloads that read as the stored host but reach another one: never the same origin, nothing is restored.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function spoofedUrlProvider(): iterable
+    {
+        yield 'colon in the path' => ['https://attacker.example/a:b@api.example.com'];
+        yield 'port and slash' => ['https://attacker.example:8443/x@api.example.com'];
+        yield 'query' => ['https://attacker.example/?u=a:b@api.example.com'];
+        yield 'fragment' => ['https://attacker.example/#a:b@api.example.com'];
+        yield 'masked userinfo' => ['https://***@attacker.example/a:b@api.example.com'];
+        yield 'bare host' => ['attacker.example/a:b@api.example.com'];
+    }
+
+    #[DataProvider('spoofedUrlProvider')]
+    public function testASpoofedUrlIsNeverTheSameOriginAndRestoresNothing(string $submitted): void
+    {
+        $stored = 'https://u:pw@api.example.com/health';
+
+        self::assertTrue(SecretRedactor::isAmbiguousUrl($submitted));
+        self::assertFalse(SecretRedactor::sameOrigin($submitted, $stored));
+        self::assertFalse(SecretRedactor::sameOrigin($stored, $submitted));
+        self::assertFalse(SecretRedactor::keepsDestination($submitted, $stored));
+        self::assertSame($submitted, SecretRedactor::restoreEditableUrl($submitted, $stored));
+        self::assertSame($submitted, SecretRedactor::stripMaskedUrl($submitted));
+    }
+
+    public function testAnOriginIsTheDestinationOfTheRawValue(): void
+    {
+        self::assertTrue(SecretRedactor::sameOrigin('https://***@api.example.com/x', 'https://u:pw@api.example.com:443/y'));
+        self::assertFalse(SecretRedactor::sameOrigin('https://***@attacker.example/x', 'https://u:pw@api.example.com/x'));
+        self::assertTrue(SecretRedactor::sameOrigin('https://u:p@ss@api.example.com/x', 'https://***@api.example.com/'), 'a raw @ in the password');
+        self::assertTrue(SecretRedactor::sameOrigin('https://api.example.com/x?email=a@b.example', 'https://api.example.com/'), 'an e-mail in the query is no userinfo');
+    }
+
+    public function testAMaskWithNothingStoredBehindItIsStrippedForAwkwardUrlsToo(): void
+    {
+        self::assertSame('https://host.example.com/x', SecretRedactor::stripMaskedUrl('https://***@host.example.com/x'));
+        self::assertSame('', SecretRedactor::stripMaskedUrl('https://***'));
+        self::assertSame('', SecretRedactor::stripMaskedUrl('***'));
+        self::assertSame('https://admin:pa/ss@host.example.com/', SecretRedactor::stripMaskedUrl('https://admin:pa/ss@host.example.com/'), 'a typed value is kept');
     }
 
     #[DataProvider('restoreProvider')]

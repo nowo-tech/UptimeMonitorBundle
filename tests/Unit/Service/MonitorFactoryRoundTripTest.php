@@ -162,6 +162,291 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame(['authorization' => 'Bearer abc', 'X-Empty' => ''], $config['headers']);
     }
 
+    /**
+     * Since 1.32: an ambiguous URL (a password with a raw `/`, `?` or `#`, or an `@` after the authority with a `:` before
+     * it) is one opaque secret. The form shows `scheme://***`, nothing of the credentials or the host, and an unchanged
+     * save keeps the target, the headers, the password and the body exactly.
+     */
+    public function testAnAmbiguousUrlIsOneOpaqueSecretAndAnUnchangedFormKeepsEverything(): void
+    {
+        $urls = [
+            'https://admin:4242/rest@api.test/health?token=t1' => 'https://***',
+            'https://admin:pa/ss@api.test/'                    => 'https://***',
+            'https://admin:pa?ss@api.test/'                    => 'https://***',
+            'https://admin:pa#ss@api.test/'                    => 'https://***',
+            'https://us/er:pw@api.test/'                       => 'https://***',
+            'https://u:p@s/s@api.test/'                        => 'https://***',
+            'http://[::1]:8080/x@y:z'                          => 'http://***',
+            'https://api.test:8443/notify?email=ops@x.test'    => 'https://***',
+        ];
+        foreach ($urls as $stored => $shown) {
+            $monitor = $this->ambiguousMonitor($stored);
+
+            $data = $this->factory()->toFormData($monitor);
+            self::assertSame($shown, $data->url, $stored);
+            self::assertSame('***', $data->httpBody);
+            self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data), $stored);
+            self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data), $stored);
+
+            $this->factory()->applyFormData($monitor, $data);
+            $config = $monitor->getConfig();
+            self::assertSame($stored, $config['url'], $stored);
+            self::assertSame($stored, $monitor->getTarget(), $stored);
+            self::assertSame(['Authorization' => 'Bearer abc'], $config['headers'], $stored);
+            self::assertSame('pw', $config['auth_password'], $stored);
+            self::assertSame('{"k":"v"}', $config['body'], $stored);
+            self::assertSame('pu:pa/ss@proxy.test:3128', $config['proxy'], $stored);
+        }
+    }
+
+    /**
+     * Since 1.32 (VH2-1): a URL whose text reads as the stored host but reaches another one is never the same
+     * destination: the header, basic-auth password and body are not carried to it and the masks are dropped.
+     */
+    public function testASpoofedUrlNeverCarriesTheStoredSecretsToAnotherHost(): void
+    {
+        $payloads = [
+            'https://attacker.example/a:b@api.example.com',
+            'https://attacker.example:8443/x@api.example.com',
+            'https://attacker.example/?u=a:b@api.example.com',
+            'https://attacker.example/#a:b@api.example.com',
+            'https://***@attacker.example/a:b@api.example.com',
+        ];
+        $stores = ['https://u:pw@api.example.com/health', 'https://api.example.com:8443/n?to=ops@attacker.example'];
+        foreach ($stores as $stored) {
+            foreach ($payloads as $payload) {
+                $monitor   = $this->ambiguousMonitor($stored);
+                $data      = $this->factory()->toFormData($monitor);
+                $data->url = $payload;
+
+                $retype = $this->factory()->secretsNeedingRetype($monitor, $data);
+                foreach (['httpHeaders', 'httpBody', 'authPassword'] as $field) {
+                    self::assertContains($field, $retype, $stored . ' / ' . $payload);
+                }
+
+                $this->factory()->applyFormData($monitor, $data);
+                $config = $monitor->getConfig();
+                self::assertArrayNotHasKey('auth_password', $config, $payload);
+                self::assertArrayNotHasKey('body', $config, $payload);
+                self::assertStringNotContainsString('Bearer abc', (string) json_encode($config), $payload);
+                self::assertStringNotContainsString('pw', (string) ($config['url'] ?? ''), $payload);
+            }
+        }
+    }
+
+    /**
+     * Since 1.25.1, fixed in 1.32 (VH3-1): the stored URL secrets, headers, basic-auth password and body travel with the
+     * request, so they stay only while the request goes where it went: the same URL, the same proxy (or none, or the proxy
+     * removed) and TLS verification not switched off. An unchanged save keeps everything.
+     */
+    public function testAnUnchangedSaveKeepsEveryStoredSecretIncludingTheProxy(): void
+    {
+        $monitor = $this->routeMonitor(true, true);
+        $data    = $this->factory()->toFormData($monitor);
+
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+        self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data));
+        $this->factory()->applyFormData($monitor, $data);
+        $this->assertEverythingKept($monitor, true);
+    }
+
+    public function testRemovingTheProxyKeepsTheSecretsBecauseTheRequestGoesStraightToTheUrl(): void
+    {
+        $monitor     = $this->routeMonitor(true);
+        $data        = $this->factory()->toFormData($monitor);
+        $data->proxy = '';
+
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+        $this->factory()->applyFormData($monitor, $data);
+        $this->assertEverythingKept($monitor, false);
+    }
+
+    /**
+     * @return iterable<string, array{string, string, bool, list<string>}>
+     */
+    public static function routeChangeProvider(): iterable
+    {
+        yield 'a proxy added' => ['', 'http://attacker:3128', false, ['url', 'httpHeaders', 'httpBody', 'authPassword']];
+        yield 'a proxy added with TLS verification off' => ['', 'http://attacker:3128', true, ['url', 'httpHeaders', 'httpBody', 'authPassword']];
+        yield 'TLS verification switched off' => ['', '', true, ['url', 'httpHeaders', 'httpBody', 'authPassword']];
+        yield 'the proxy replaced' => ['stored', 'http://attacker:3128', false, ['url', 'httpHeaders', 'httpBody', 'authPassword']];
+        yield 'the proxy mask moved to another host' => ['stored', 'http://***@attacker:3128', false, ['url', 'httpHeaders', 'httpBody', 'authPassword', 'proxy']];
+    }
+
+    /**
+     * @param list<string> $expectedRetype
+     */
+    #[DataProvider('routeChangeProvider')]
+    public function testAnotherProxyOrWeakerTlsNeverCarriesTheStoredSecrets(string $storedProxy, string $submittedProxy, bool $ignoreTls, array $expectedRetype): void
+    {
+        $monitor         = $this->routeMonitor($storedProxy !== '');
+        $data            = $this->factory()->toFormData($monitor);
+        $data->proxy     = $submittedProxy;
+        $data->ignoreTls = $ignoreTls;
+
+        $retype = $this->factory()->secretsNeedingRetype($monitor, $data);
+        foreach ($expectedRetype as $field) {
+            self::assertContains($field, $retype);
+        }
+
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        self::assertArrayNotHasKey('auth_password', $config);
+        self::assertArrayNotHasKey('body', $config);
+        self::assertStringNotContainsString('Bearer abc', (string) json_encode($config));
+        self::assertStringNotContainsString('pw@', (string) $config['url'], 'the URL userinfo is not carried either');
+        self::assertStringNotContainsString('t1', (string) $config['url'], 'nor its token');
+        self::assertStringNotContainsString('pu:pp', (string) ($config['proxy'] ?? ''));
+    }
+
+    public function testTlsVerificationAlreadyOffMayStayOff(): void
+    {
+        $monitor = $this->routeMonitor(false, true);
+        $data    = $this->factory()->toFormData($monitor);
+
+        self::assertTrue($data->ignoreTls);
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+    }
+
+    /**
+     * Since 1.25.1 (password and headers) and 1.25.2 (body), fixed in 1.32 (VH4-1): the secrets never leave the HTTP
+     * family. Turning an HTTP monitor into TCP / SSL / ping and back must not read the new host as the old URL.
+     *
+     * @return iterable<string, array{MonitorType, string, int, string}>
+     */
+    public static function typeSwitchProvider(): iterable
+    {
+        yield 'TCP on port 80' => [MonitorType::Tcp, 'attacker.example', 80, 'http://attacker.example/'];
+        yield 'TCP on port 443' => [MonitorType::Tcp, 'attacker.example', 443, 'http://attacker.example:443/'];
+        yield 'SSL on port 443' => [MonitorType::Ssl, 'attacker.example', 443, 'https://attacker.example/'];
+        yield 'ping' => [MonitorType::Ping, 'attacker.example', 0, 'http://attacker.example/'];
+    }
+
+    #[DataProvider('typeSwitchProvider')]
+    public function testTheSecretsNeverFollowATypeSwitchToANonHttpTypeAndBack(MonitorType $type, string $host, int $port, string $backUrl): void
+    {
+        $monitor = $this->routeMonitor(false);
+
+        // Edit 1: HTTP to a host-and-port type, the old url field still in the form.
+        $data       = $this->factory()->toFormData($monitor);
+        $data->type = $type;
+        $data->host = $host;
+        $data->port = $port;
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        foreach (['auth_password', 'body', 'headers'] as $key) {
+            self::assertArrayNotHasKey($key, $config, $type->value . ' keeps no ' . $key);
+        }
+
+        self::assertStringNotContainsString('Bearer abc', (string) json_encode($config));
+
+        // Edit 2: back to HTTP on the attacker's host, which the TCP / SSL target spells out.
+        $data               = $this->factory()->toFormData($monitor);
+        $data->type         = MonitorType::Http;
+        $data->url          = $backUrl;
+        $data->authMethod   = 'basic';
+        $data->authUsername = 'user';
+        $data->authPassword = '';
+        $data->httpBody     = '';
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        self::assertArrayNotHasKey('auth_password', $config);
+        self::assertArrayNotHasKey('body', $config);
+        self::assertStringNotContainsString('pw', (string) json_encode($config));
+    }
+
+    public function testSwitchingBetweenHttpAndHttpsWithTheSameUrlKeepsEverything(): void
+    {
+        $monitor    = $this->routeMonitor(true);
+        $data       = $this->factory()->toFormData($monitor);
+        $data->type = MonitorType::Http;
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertSame(MonitorType::Http, $monitor->getType());
+        $this->assertEverythingKept($monitor, true);
+
+        $data       = $this->factory()->toFormData($monitor);
+        $data->type = MonitorType::Https;
+        $this->factory()->applyFormData($monitor, $data);
+        $this->assertEverythingKept($monitor, true);
+    }
+
+    /** A monitor stored as a TCP one with HTTP-looking leftovers never keeps them (legacy data, the secrets do not travel). */
+    public function testASecretLeftOnANonHttpMonitorIsNotCarriedBackToHttp(): void
+    {
+        $monitor = new Monitor($this->tenant, 'Probe', MonitorType::Tcp, 'attacker.example:80');
+        $monitor->setConfig(['host' => 'attacker.example', 'port' => 80, 'auth_password' => 'pw', 'body' => 'b', 'headers' => ['Authorization' => 'Bearer abc']]);
+
+        $data               = $this->factory()->toFormData($monitor);
+        $data->type         = MonitorType::Http;
+        $data->url          = 'http://attacker.example/';
+        $data->authMethod   = 'basic';
+        $data->authUsername = 'user';
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+
+        self::assertArrayNotHasKey('auth_password', $config);
+        self::assertArrayNotHasKey('body', $config);
+        self::assertStringNotContainsString('Bearer abc', (string) json_encode($config));
+    }
+
+    private function routeMonitor(bool $proxy, bool $ignoreTls = false): Monitor
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://u:pw@api.test/h?token=t1');
+        $config  = [
+            'url'           => 'https://u:pw@api.test/h?token=t1',
+            'method'        => 'POST',
+            'headers'       => ['Authorization' => 'Bearer abc'],
+            'auth_method'   => 'basic',
+            'auth_username' => 'user',
+            'auth_password' => 'pw',
+            'body'          => '{"k":"v"}',
+        ];
+        if ($proxy) {
+            $config['proxy'] = 'http://pu:pp@proxy.test:3128';
+        }
+
+        if ($ignoreTls) {
+            $config['verify_ssl'] = false;
+            $config['ignore_tls'] = true;
+        }
+
+        $monitor->setConfig($config);
+
+        return $monitor;
+    }
+
+    private function assertEverythingKept(Monitor $monitor, bool $proxy): void
+    {
+        $config = $monitor->getConfig();
+        self::assertSame('https://u:pw@api.test/h?token=t1', $config['url']);
+        self::assertSame(['Authorization' => 'Bearer abc'], $config['headers']);
+        self::assertSame('pw', $config['auth_password']);
+        self::assertSame('{"k":"v"}', $config['body']);
+        if ($proxy) {
+            self::assertSame('http://pu:pp@proxy.test:3128', $config['proxy']);
+        } else {
+            self::assertArrayNotHasKey('proxy', $config);
+        }
+    }
+
+    private function ambiguousMonitor(string $stored): Monitor
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, $stored);
+        $monitor->setConfig([
+            'url'           => $stored,
+            'method'        => 'POST',
+            'proxy'         => 'pu:pa/ss@proxy.test:3128',
+            'headers'       => ['Authorization' => 'Bearer abc'],
+            'auth_method'   => 'basic',
+            'auth_username' => 'user',
+            'auth_password' => 'pw',
+            'body'          => '{"k":"v"}',
+        ]);
+
+        return $monitor;
+    }
+
     /** Since 1.25.1: a typed secret replaces the stored one; removing it from the form removes it. */
     public function testTypedSecretsReplaceAndRemovedOnesAreDropped(): void
     {
@@ -339,8 +624,8 @@ final class MonitorFactoryRoundTripTest extends TestCase
         yield 'host changed' => ['https://***@evil.test/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
         yield 'port changed' => ['https://***@api.test:8443/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
         yield 'scheme changed' => ['http://***@api.test/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
-        yield 'proxy host changed' => ['https://***@api.test/h?token=***', 'http://***@evil-proxy.test:3128', ['proxy']];
-        yield 'proxy port changed' => ['https://***@api.test/other', 'http://***@proxy.test:8080', ['proxy']];
+        yield 'proxy host changed' => ['https://***@api.test/h?token=***', 'http://***@evil-proxy.test:3128', ['url', 'httpHeaders', 'authPassword', 'proxy']];
+        yield 'proxy port changed' => ['https://***@api.test/other', 'http://***@proxy.test:8080', ['url', 'httpHeaders', 'authPassword', 'proxy']];
         yield 'same origins' => ['https://***@API.test:443/v2?token=***', 'http://***@proxy.test:3128', []];
     }
 

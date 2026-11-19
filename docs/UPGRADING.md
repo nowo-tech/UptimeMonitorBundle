@@ -138,6 +138,21 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Additive, with three fixes. (0) Since 1.25.1 (password, headers) and 1.25.2 (body), changing an HTTP monitor to another type
+(TCP, SSL, ping…) and back could carry the stored password and body to the host typed in between; the secrets now never leave
+the HTTP family, and a monitor of another type holds none. (1) Since 1.25.1 the edit form kept the stored headers, basic-auth password, body and URL secrets
+whenever the URL's host was unchanged, even when the proxy was added or changed or TLS verification was switched off, so
+those secrets could be sent through another proxy. They are now kept only while the URL, the proxy (or its removal) and the
+TLS setting allow it; otherwise the form asks for them again. (2) `SecretRedactor::maskUrl()` (since 1.11.0) and `maskEditableUrl()` (since 1.25.1) printed a URL password
+written with a raw `/`, `?` or `#` as stored. An ambiguous URL (an `@` after the first `/`, `?` or `#` with a `:` before it
+or an `@` in the authority, e.g. `https://admin:4242/rest@host/` or `https://host:8443/n?to=ops@example.com`) now shows
+`scheme://***` on the pages, the edit form and the search, with no host. On the edit form that value is one opaque secret:
+saving it unchanged keeps the stored URL, anything else must be retyped, and a changed URL no longer keeps the stored
+header, password or body (`SecretRedactor::keepsDestination()`). Nothing else changes unless `nowo-tech/search-kit-bundle` ^1.9 is installed: the bundle then registers the
+`uptime_monitors` search group (turn it off with `nowo_uptime_monitor.search_kit.enabled: false`). Without SearchKit
+nothing is wired and SearchKit stays optional (`suggest`). Hosts that want the search to follow their own tenant (the
+palette request carries no `{tenantSlug}`) set `search_kit.tenant_resolver`; see [USAGE](USAGE.md#searchkit-monitors-132).
+
 ## To 1.31.0
 
 From **1.30.0**:

@@ -83,7 +83,8 @@
         "symfony/mailer": "For email notifications",
         "symfony/messenger": "For async check execution and scheduler consumer",
         "symfony/mercure-bundle": "For dashboard.sync: mercure (real-time SSE updates)",
-        "pentatrion/vite-bundle": "Vite integration in host application demos"
+        "pentatrion/vite-bundle": "Vite integration in host application demos",
+        "nowo-tech/search-kit-bundle": "^1.9 (needs PHP 8.3 or later) for the SearchKit provider of monitors (group uptime_monitors)"
     },
     "autoload": {
         "psr-4": {

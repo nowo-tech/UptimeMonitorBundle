@@ -3,8 +3,6 @@ parameters:
     paths:
         - src
         - tests
-    excludePaths:
-        - demo/*
     bootstrapFiles:
         - vendor/autoload.php
     reportUnmatchedIgnoredErrors: false
@@ -18,5 +16,6 @@ parameters:
     ignoreErrors: []
 
 includes:
+  - phpstan.search-kit.php
   - vendor/nowo-tech/phpstan-frankenphp/ruleset-classic.neon
   - vendor/nowo-tech/phpstan-frankenphp/ruleset-worker.neon

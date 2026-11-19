@@ -36,6 +36,9 @@ services:
             - '../../Limits/TenantLimitsInterface.php'
             - '../../Limits/ConfigurableTenantLimits.php'
             - '../../Push/PushPayload.php'
+            - '../../Search/MonitorSearchHit.php'
+            - '../../Search/SearchKit/'
+            - '../../Search/MonitorSearchUrl.php'
             - '../../Push/PushThresholds.php'
             # apply-monitors (1.18): value objects and exceptions, not services
             - '../../Apply/ApplyError.php'
@@ -188,6 +191,11 @@ services:
             $tokenStorage: '@?security.token_storage'
             $webUiEnabled: '%nowo_uptime_monitor.web_ui.enabled%'
             $deniedTenantStatus: '%nowo_uptime_monitor.security.denied_tenant_status%'
+
+    Nowo\UptimeMonitorBundle\Search\MonitorSearchVisibility:
+        arguments:
+            $tokenStorage: '@?security.token_storage'
+            $allowUnauthenticated: '%nowo_uptime_monitor.security.allow_unauthenticated%'
 
     Nowo\UptimeMonitorBundle\Security\MonitorReadScope:
         arguments:

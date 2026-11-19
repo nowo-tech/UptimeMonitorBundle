@@ -15,6 +15,8 @@ use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
 use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
+use Nowo\UptimeMonitorBundle\Search\RequestMonitorSearchTenantResolver;
+use Nowo\UptimeMonitorBundle\Search\SearchKit\MonitorSearchDefinition;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -31,6 +33,7 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 use function array_key_exists;
+use function class_exists;
 use function in_array;
 use function is_array;
 use function is_bool;
@@ -42,6 +45,12 @@ use function rtrim;
  */
 final class UptimeMonitorExtension extends Extension implements PrependExtensionInterface
 {
+    /** SearchKit's definition base class (optional, PHP 8.3+): by name, so the bundle loads without it. */
+    private const SEARCH_KIT_DEFINITION = 'Nowo\\SearchKitBundle\\Provider\\Entity\\EntitySearchDefinition';
+
+    /** Tag SearchKit collects entity search definitions by (`EntitySearchDefinition::TAG`). */
+    private const SEARCH_KIT_TAG = 'nowo_search_kit.entity_definition';
+
     /**
      * Prepends FormKit, framework, Twig and UiKit defaults the bundle relies on.
      */
@@ -248,6 +257,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $this->registerAccessChecker($container, $config['security'], (bool) $config['web_ui']['enabled']);
         $this->registerTenantLimits($container, $config['limits']);
         $this->registerHostHooks($container, $config['multi_tenant']['provisioner'], $config['web_ui']['settings']['sections_resolver']);
+        $this->registerSearchKit($container, $config['search_kit'], (bool) $config['web_ui']['enabled']);
         $this->registerTablePrefixListener($container);
         $this->registerBundleEntityManager($container);
         $this->registerConflictResponsePolicy($container, $config['conflict_response']);
@@ -318,6 +328,28 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         }
 
         $container->setAlias(TenantLimitsInterface::class, $providerId);
+    }
+
+    /**
+     * Since 1.32: registers the SearchKit definition of monitors (SearchKit builds the provider from the tag) when
+     * SearchKit ^1.9 is installed, `search_kit.enabled` is on and the admin pages (the result links) exist.
+     *
+     * @param array<string, mixed> $search `search_kit` configuration
+     */
+    private function registerSearchKit(ContainerBuilder $container, array $search, bool $webUi): void
+    {
+        if (!$webUi || !(bool) $search['enabled'] || !class_exists(self::SEARCH_KIT_DEFINITION)) {
+            return;
+        }
+
+        $resolver = is_string($search['tenant_resolver']) && $search['tenant_resolver'] !== '' ? new Reference($search['tenant_resolver']) : new Reference(RequestMonitorSearchTenantResolver::class);
+        $container->register(MonitorSearchDefinition::class, MonitorSearchDefinition::class)
+            ->setAutowired(true)
+            ->setArgument('$monitors', new Reference('nowo_uptime_monitor.repository.monitor'))
+            ->setArgument('$tenants', $resolver)
+            ->setArgument('$translator', new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$maxCandidates', (int) $search['max_candidates'])
+            ->addTag(self::SEARCH_KIT_TAG, ['priority' => 0]);
     }
 
     /**

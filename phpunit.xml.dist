@@ -12,6 +12,10 @@
         <testsuite name="unit">
             <directory>tests/Unit</directory>
         </testsuite>
+        <!-- Needs nowo-tech/search-kit-bundle (PHP >= 8.3, optional): the files declare nothing without it. -->
+        <testsuite name="searchkit">
+            <directory>tests/SearchKit</directory>
+        </testsuite>
         <testsuite name="integration">
             <directory>tests/Integration</directory>
         </testsuite>
