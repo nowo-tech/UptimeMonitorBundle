@@ -74,7 +74,9 @@ jobs:
       # SearchKit requires PHP >= 8.3: on 8.2 the bundle is installed without it and its provider tests skip.
       - name: Without SearchKit (PHP 8.2)
         if: matrix.php == '8.2'
-        run: composer remove --dev nowo-tech/search-kit-bundle --no-interaction --no-update
+        run: |
+          composer remove --dev nowo-tech/search-kit-bundle --no-interaction --no-update
+          rm -rf tests/SearchKit
 
       - name: Install dependencies with Symfony ${{ matrix.symfony }}
         run: |
@@ -179,8 +181,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer config platform.php 8.3.99
-          composer install --prefer-dist --no-progress --no-interaction
+          composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
 
       - name: Fix code style
         run: composer cs-fix
@@ -220,8 +221,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer config platform.php 8.3.99
-          composer install --prefer-dist --no-progress --no-interaction
+          composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
 
       - name: Check code style
         run: composer cs-check
@@ -242,8 +242,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer config platform.php 8.3.99
-          composer install --prefer-dist --no-progress --no-interaction
+          composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
 
       - name: PHPStan (level and ignoreErrors from phpstan.neon.dist; fails the build on any error)
         run: composer phpstan --no-interaction
@@ -340,8 +339,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer config platform.php 8.3.99
-          composer install --prefer-dist --no-progress --no-interaction
+          composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
 
       - name: Use DBAL 3
         if: ${{ matrix.dbal != '' }}
@@ -458,8 +456,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer config platform.php 8.3.99
-          composer install --prefer-dist --no-progress --no-interaction
+          composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
 
       - name: Igor worker-state audit (REQ-CS-008)
         run: composer igor
@@ -487,8 +484,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer config platform.php 8.3.99
-          composer install --prefer-dist --no-progress --no-interaction
+          composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
 
       - name: Downgrade nowo-tech/transaction-* to the lowest allowed versions
         run: |
