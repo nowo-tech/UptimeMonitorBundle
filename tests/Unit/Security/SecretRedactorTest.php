@@ -82,6 +82,14 @@ final class SecretRedactorTest extends TestCase
         yield 'no userinfo, @ in the path' => ['https://example.test/a@b', 'https://example.test/a@b'];
         yield 'query tokens, empty value kept' => ['https://example.test/?api_key=k&page=2&token=&sig=s#f', 'https://example.test/?api_key=***&page=2&token=&sig=***#f'];
         yield 'nothing secret' => ['https://example.test/health', 'https://example.test/health'];
+        yield 'password with a raw slash and port-like text' => ['https://admin:4242/rest@host.example.com/', 'https://***@host.example.com/'];
+        yield 'password with a raw slash' => ['https://admin:pa/ss@host.example.com/x?token=abc', 'https://***@host.example.com/x?token=***'];
+        yield 'password with a raw question mark' => ['https://admin:pa?ss@host.example.com/', 'https://***@host.example.com/'];
+        yield 'password with a raw hash' => ['https://admin:pa#ss@host.example.com/', 'https://***@host.example.com/'];
+        yield 'user with a slash' => ['https://us/er:pw@host.example.com/', 'https://***@host.example.com/'];
+        yield 'proxy without a scheme and a raw slash' => ['u:pa/ss@proxy.test:3128', '***@proxy.test:3128'];
+        yield 'at sign in the path, no colon before it' => ['https://example.test/@me', 'https://example.test/@me'];
+        yield 'e-mail in the query' => ['https://example.test/x?email=a@b.example', 'https://example.test/x?email=a@b.example'];
     }
 
     #[DataProvider('editableUrlProvider')]
@@ -107,7 +115,45 @@ final class SecretRedactorTest extends TestCase
         yield 'stored without userinfo' => ['https://***@example.test/?token=***', 'https://example.test/?token=t1', 'https://***@example.test/?token=t1'];
         yield 'stored with an empty userinfo' => ['https://***@example.test/', 'https://@example.test/', 'https://***@example.test/'];
         yield 'proxy without a scheme' => ['***@proxy.test:3128', 'p:q@proxy.test:3128', 'p:q@proxy.test:3128'];
+        yield 'stored password with a raw slash' => ['https://***@host.example.com/x?token=***', 'https://admin:4242/rest@host.example.com/x?token=abc', 'https://admin:4242/rest@host.example.com/x?token=abc'];
+        yield 'stored password with a raw slash, path edited' => ['https://***@host.example.com/v2?token=***', 'https://admin:pa/ss@host.example.com/x?token=abc', 'https://admin:pa/ss@host.example.com/v2?token=abc'];
+        yield 'stored password with a raw slash, userinfo retyped' => ['https://new:pw@host.example.com/x', 'https://admin:pa/ss@host.example.com/x', 'https://new:pw@host.example.com/x'];
         yield '& inside the stored userinfo' => ['https://***@example.test/?token=***', 'https://a&token=x@example.test/?token=t1', 'https://a&token=x@example.test/?token=t1'];
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function awkwardUrlProvider(): iterable
+    {
+        yield 'password with a raw slash and port-like text' => ['https://admin:4242/rest@host.example.com/'];
+        yield 'password with a raw slash' => ['https://admin:pa/ss@host.example.com/x?token=abc&page=2'];
+        yield 'password with a raw question mark' => ['https://admin:pa?ss@host.example.com/'];
+        yield 'password with a raw hash' => ['https://admin:pa#ss@host.example.com/'];
+        yield 'user with a slash' => ['https://us/er:pw@host.example.com/'];
+        yield 'proxy without a scheme' => ['u:pa/ss@proxy.test:3128'];
+    }
+
+    /**
+     * The edit form shows no part of the password, and saving it unchanged restores the stored value exactly.
+     */
+    #[DataProvider('awkwardUrlProvider')]
+    public function testTheEditFormRoundTripKeepsTheStoredUrlExactly(string $stored): void
+    {
+        $masked = SecretRedactor::maskEditableUrl($stored);
+
+        foreach (['admin:', 'pa/', 'pa?', 'pa#', '4242', 'rest', 'us/', 'er:pw', 'u:p', 'abc', 'ss@'] as $leak) {
+            self::assertStringNotContainsString($leak, $masked, $leak);
+        }
+
+        self::assertTrue(SecretRedactor::sameOrigin($masked, $stored), 'the masked form is the same destination');
+        self::assertSame($stored, SecretRedactor::restoreEditableUrl($masked, $stored));
+    }
+
+    public function testAMaskWithNothingStoredBehindItIsStrippedForAwkwardUrlsToo(): void
+    {
+        self::assertSame('https://host.example.com/x', SecretRedactor::stripMaskedUrl('https://***@host.example.com/x'));
+        self::assertSame('https://admin:pa/ss@host.example.com/', SecretRedactor::stripMaskedUrl('https://admin:pa/ss@host.example.com/'), 'a typed value is kept');
     }
 
     #[DataProvider('restoreProvider')]

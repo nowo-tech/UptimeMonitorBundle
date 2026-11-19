@@ -138,8 +138,8 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
-Additive, with one fix: `SecretRedactor::maskUrl()` now also masks a URL password written with a raw `/`, `?` or `#`
-(see the CHANGELOG), so those few targets show `https://***@host/` instead of the unmasked userinfo. Nothing else changes unless `nowo-tech/search-kit-bundle` ^1.9 is installed: the bundle then registers the
+Additive, with one fix: `SecretRedactor::maskUrl()` and `maskEditableUrl()` now also mask a URL password written with a raw `/`, `?` or `#`
+(see the CHANGELOG), so those few targets show `https://***@host/` instead of the unmasked userinfo; the edit form keeps the stored value when it is saved unchanged. Nothing else changes unless `nowo-tech/search-kit-bundle` ^1.9 is installed: the bundle then registers the
 `uptime_monitors` search group (turn it off with `nowo_uptime_monitor.search_kit.enabled: false`). Without SearchKit
 nothing is wired and SearchKit stays optional (`suggest`). Hosts that want the search to follow their own tenant (the
 palette request carries no `{tenantSlug}`) set `search_kit.tenant_resolver`; see [USAGE](USAGE.md#searchkit-monitors-132).

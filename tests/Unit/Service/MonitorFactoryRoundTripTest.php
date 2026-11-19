@@ -162,6 +162,25 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame(['authorization' => 'Bearer abc', 'X-Empty' => ''], $config['headers']);
     }
 
+    /** Since 1.32: a password with a raw `/`, `?` or `#` is masked whole on the form and kept exactly when saved unchanged. */
+    public function testAwkwardPasswordsAreMaskedWholeAndAnUnchangedFormKeepsTheTargetExactly(): void
+    {
+        foreach (['https://admin:4242/rest@api.test/health?token=t1', 'https://admin:pa/ss@api.test/', 'https://admin:pa?ss@api.test/', 'https://admin:pa#ss@api.test/', 'https://us/er:pw@api.test/'] as $stored) {
+            $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, $stored);
+            $monitor->setConfig(['url' => $stored, 'proxy' => 'pu:pa/ss@proxy.test:3128']);
+
+            $data = $this->factory()->toFormData($monitor);
+            foreach (['admin', 'rest', 'pa/', 'pa?', 'pa#', 'er:pw', 'pa/ss'] as $leak) {
+                self::assertStringNotContainsString($leak, $data->url . $data->proxy, $stored . ' leaks ' . $leak);
+            }
+
+            $this->factory()->applyFormData($monitor, $data);
+            self::assertSame($stored, $monitor->getConfig()['url'], $stored);
+            self::assertSame($stored, $monitor->getTarget(), $stored);
+            self::assertSame('pu:pa/ss@proxy.test:3128', $monitor->getConfig()['proxy'], $stored);
+        }
+    }
+
     /** Since 1.25.1: a typed secret replaces the stored one; removing it from the form removes it. */
     public function testTypedSecretsReplaceAndRemovedOnesAreDropped(): void
     {

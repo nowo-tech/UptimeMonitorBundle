@@ -16,6 +16,8 @@ use function preg_match_all;
 use function preg_replace;
 use function preg_replace_callback;
 use function str_contains;
+use function strcspn;
+use function strlen;
 use function strrpos;
 use function strtolower;
 use function substr;
@@ -46,9 +48,6 @@ final class SecretRedactor
      * `/services/…`, a Telegram `/bot<token>/`) or under another name is not masked.
      */
     private const SENSITIVE_QUERY_KEY = '/token|key|secret|pass|pwd|sig|auth|credential|session|code|jwt|bearer|hash/i';
-
-    /** The userinfo of a URL, with or without a scheme (`http://user:pass@` or `user:pass@`), up to its last `@`. */
-    private const EDITABLE_USERINFO = '#^((?:[a-z][a-z0-9+.\-]*://)?)([^/?\#]*)@#i';
 
     /** Default port by scheme, so `https://host` and `https://host:443` are one destination. */
     private const DEFAULT_PORTS = ['http' => 80, 'https' => 443];
@@ -154,11 +153,10 @@ final class SecretRedactor
      */
     public static function maskEditableUrl(string $value): string
     {
-        $value = (string) preg_replace_callback(
-            self::EDITABLE_USERINFO,
-            static fn (array $m): string => $m[1] . ($m[2] === '' ? '' : self::MASK) . '@',
-            $value,
-        );
+        $parts = self::splitUserinfo($value);
+        if ($parts !== null) {
+            $value = $parts[0] . ($parts[1] === '' ? '' : self::MASK) . '@' . $parts[2];
+        }
 
         return (string) preg_replace_callback(
             self::QUERY_PAIR,
@@ -200,15 +198,13 @@ final class SecretRedactor
             $submitted,
         );
 
-        if (preg_match(self::EDITABLE_USERINFO, $stored, $userinfo) !== 1 || $userinfo[2] === '') {
+        $storedParts    = self::splitUserinfo($stored);
+        $submittedParts = self::splitUserinfo($submitted);
+        if ($storedParts === null || $storedParts[1] === '' || $submittedParts === null || $submittedParts[1] !== self::MASK) {
             return $submitted;
         }
 
-        return (string) preg_replace_callback(
-            self::EDITABLE_USERINFO,
-            static fn (array $m): string => $m[1] . ($m[2] === self::MASK ? $userinfo[2] : $m[2]) . '@',
-            $submitted,
-        );
+        return $submittedParts[0] . $storedParts[1] . '@' . $submittedParts[2];
     }
 
     /**
@@ -272,11 +268,10 @@ final class SecretRedactor
             return $value;
         }
 
-        $value = (string) preg_replace_callback(
-            self::EDITABLE_USERINFO,
-            static fn (array $m): string => $m[2] === self::MASK ? $m[1] : $m[0],
-            $value,
-        );
+        $parts = self::splitUserinfo($value);
+        if ($parts !== null && $parts[1] === self::MASK) {
+            $value = $parts[0] . $parts[2];
+        }
 
         // A removed pair keeps its separator, marked with NUL, then the separators are tidied up.
         $value = (string) preg_replace_callback(
@@ -330,6 +325,29 @@ final class SecretRedactor
 
     private static function maskUserinfo(string $value): string
     {
-        return (string) preg_replace(self::EDITABLE_USERINFO, '$1' . self::MASK . '@', $value);
+        $parts = self::splitUserinfo($value);
+
+        return $parts === null ? $value : $parts[0] . self::MASK . '@' . $parts[2];
+    }
+
+    /**
+     * Splits a URL or proxy (with or without a scheme) at its userinfo: `[scheme://, userinfo, the rest after the '@']`,
+     * or null when there is none. The userinfo runs to the last '@' of the authority (the text up to the first '/', '?'
+     * or '#'); when no '@' stands there but a ':' stands before a later '@' ({@see self::isAmbiguousAuthority()}), a
+     * password with a raw '/', '?' or '#' ended the authority early and the userinfo runs to the last '@' (since 1.32).
+     *
+     * @return array{0: string, 1: string, 2: string}|null
+     */
+    private static function splitUserinfo(string $value): ?array
+    {
+        $scheme    = preg_match('#^[a-z][a-z0-9+.\-]*://#i', $value, $m) === 1 ? $m[0] : '';
+        $rest      = substr($value, strlen($scheme));
+        $authority = substr($rest, 0, strcspn($rest, '/?#'));
+        $at        = strrpos($authority, '@');
+        if ($at === false && self::isAmbiguousAuthority($authority, substr($rest, strlen($authority)))) {
+            $at = strrpos($rest, '@');
+        }
+
+        return $at === false ? null : [$scheme, substr($rest, 0, $at), substr($rest, $at + 1)];
     }
 }
