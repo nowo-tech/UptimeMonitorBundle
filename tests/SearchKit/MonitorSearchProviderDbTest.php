@@ -46,10 +46,6 @@ use function str_contains;
 
 use const JSON_UNESCAPED_SLASHES;
 
-// SearchKit requires PHP >= 8.3 and stays optional: without it (the PHP 8.2 CI cell) this file declares nothing.
-if (!class_exists(EntitySearchProviderTestCase::class)) {
-    return;
-}
 
 /**
  * The SearchKit contract kit against the real MonitorSearchDefinition and a real database (SQLite by default; MySQL /
@@ -76,6 +72,10 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
 
     protected function setUp(): void
     {
+        if (!class_exists(EntitySearchDefinition::class)) {
+            self::markTestSkipped('nowo-tech/search-kit-bundle (PHP 8.3 or later) is not installed.');
+        }
+
         $this->counter = new QueryCounter();
         $this->em      = SqliteEntityManagerFactory::create((new DbalConfiguration())->setMiddlewares([new QueryCountingMiddleware($this->counter)]));
         $this->em->persist(new Tenant('acme', 'Acme'));
@@ -141,7 +141,9 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
 
     protected function tearDown(): void
     {
-        $this->em->getConnection()->close();
+        if (isset($this->em)) {
+            $this->em->getConnection()->close();
+        }
     }
 
     public function resolve(string $userIdentifier): ?string

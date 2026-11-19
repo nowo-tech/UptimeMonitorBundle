@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use LogicException;
-use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
 use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
@@ -46,6 +45,12 @@ use function rtrim;
  */
 final class UptimeMonitorExtension extends Extension implements PrependExtensionInterface
 {
+    /** SearchKit's definition base class (optional, PHP 8.3+): by name, so the bundle loads without it. */
+    private const SEARCH_KIT_DEFINITION = 'Nowo\\SearchKitBundle\\Provider\\Entity\\EntitySearchDefinition';
+
+    /** Tag SearchKit collects entity search definitions by (`EntitySearchDefinition::TAG`). */
+    private const SEARCH_KIT_TAG = 'nowo_search_kit.entity_definition';
+
     /**
      * Prepends FormKit, framework, Twig and UiKit defaults the bundle relies on.
      */
@@ -333,7 +338,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
      */
     private function registerSearchKit(ContainerBuilder $container, array $search, bool $webUi): void
     {
-        if (!$webUi || !(bool) $search['enabled'] || !class_exists(EntitySearchDefinition::class)) {
+        if (!$webUi || !(bool) $search['enabled'] || !class_exists(self::SEARCH_KIT_DEFINITION)) {
             return;
         }
 
@@ -344,7 +349,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             ->setArgument('$tenants', $resolver)
             ->setArgument('$translator', new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->setArgument('$maxCandidates', (int) $search['max_candidates'])
-            ->addTag(EntitySearchDefinition::TAG, ['priority' => 0]);
+            ->addTag(self::SEARCH_KIT_TAG, ['priority' => 0]);
     }
 
     /**

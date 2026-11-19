@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d045a375f98279a3545b58996014ca7d",
+    "content-hash": "2c90514fca33b9d957a88bd0ef38fa1b",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -7375,171 +7375,6 @@
             "time": "2026-11-15T02:26:27+00:00"
         },
         {
-            "name": "nowo-tech/search-kit-bundle",
-            "version": "dev-feat/provider-base-1.9",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/nowo-tech/SearchKitBundle.git",
-                "reference": "bd844111df0f02841a16d6cc941816b0a779717e"
-            },
-            "require": {
-                "nowo-tech/form-kit-bundle": "^2.17",
-                "php": ">=8.3 <8.6",
-                "psr/log": "^3.0",
-                "symfony/asset": "^7.4 || ^8.0",
-                "symfony/config": "^7.4 || ^8.0",
-                "symfony/dependency-injection": "^7.4 || ^8.0",
-                "symfony/deprecation-contracts": "^2.5 || ^3.0",
-                "symfony/event-dispatcher-contracts": "^3.5",
-                "symfony/form": "^7.4 || ^8.0",
-                "symfony/framework-bundle": "^7.4 || ^8.0",
-                "symfony/http-foundation": "^7.4 || ^8.0",
-                "symfony/http-kernel": "^7.4 || ^8.0",
-                "symfony/options-resolver": "^7.4 || ^8.0",
-                "symfony/rate-limiter": "^7.4 || ^8.0",
-                "symfony/routing": "^7.4 || ^8.0",
-                "symfony/security-bundle": "^7.4 || ^8.0",
-                "symfony/security-csrf": "^7.4 || ^8.0",
-                "symfony/translation": "^7.4 || ^8.0",
-                "symfony/translation-contracts": "^3.5",
-                "symfony/twig-bundle": "^7.4 || ^8.0",
-                "twig/extra-bundle": "^3.12",
-                "twig/string-extra": "^3.12",
-                "twig/twig": "^3.12"
-            },
-            "require-dev": {
-                "doctrine/dbal": "^4.2",
-                "doctrine/orm": "^3.3",
-                "friendsofphp/php-cs-fixer": "^3.64",
-                "igor-php/igor-php": "^0.9.7 || ^0.10.0",
-                "nowo-tech/phpstan-frankenphp": "^1.1",
-                "nowo-tech/ui-kit-bundle": "^2.2",
-                "phpstan/phpstan": "^2.1",
-                "phpstan/phpstan-phpunit": "^2.0",
-                "phpstan/phpstan-symfony": "^2.0",
-                "phpunit/phpunit": "^10.5 || ^11.5",
-                "rector/rector": "^2.0",
-                "symfony/browser-kit": "^7.4 || ^8.0",
-                "symfony/css-selector": "^7.4 || ^8.0",
-                "symfony/event-dispatcher": "^7.4 || ^8.0",
-                "symfony/ux-icons": "^2.25 || ^3.0",
-                "symfony/yaml": "^7.4 || ^8.0",
-                "vincentlanglet/twig-cs-fixer": "^3.0 || ^4.0"
-            },
-            "suggest": {
-                "doctrine/dbal": "^4.2 — EntitySearchDefinition / EntitySearchProvider with a DBAL query builder, and the QueryCountingMiddleware of the provider test kit",
-                "doctrine/orm": "^3.3 — EntitySearchDefinition / EntitySearchProvider with an ORM query builder",
-                "nowo-tech/dashboard-menu-bundle": "Built-in Pages group: menu entries the user can see (menu_pages)",
-                "nowo-tech/ui-kit-bundle": "^2.2 — optional UiKit theme integration (REQ-UI-003): host classes / attributes of the theme slots on the widget parts, --nowo-search-* tokens from --nowo-ui-*",
-                "phpunit/phpunit": "^10.5 || ^11.5 — EntitySearchProviderTestCase, the provider contract test kit (Nowo\\SearchKitBundle\\Test)",
-                "symfony/ux-icons": "Kind and item icons from your icon set (icon_set: ux_icon); without it the built-in SVG is used"
-            },
-            "default-branch": true,
-            "type": "symfony-bundle",
-            "extra": {
-                "nowo-package-version": "1.0.0",
-                "branch-alias": {
-                    "dev-main": "1.0.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Nowo\\SearchKitBundle\\": "src/"
-                }
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "Nowo\\SearchKitBundle\\Tests\\": "tests/"
-                }
-            },
-            "archive": {
-                "exclude": [
-                    "/demo",
-                    "/.cursor"
-                ]
-            },
-            "scripts": {
-                "test": [
-                    "phpunit --color=always"
-                ],
-                "test-coverage": [
-                    "phpunit --color=always --coverage-html coverage --coverage-clover coverage.xml --coverage-text"
-                ],
-                "coverage-check": [
-                    "phpunit --color=always --coverage-text --coverage-clover=coverage.xml"
-                ],
-                "cs-check": [
-                    "php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php"
-                ],
-                "cs-fix": [
-                    "php-cs-fixer fix --config=.php-cs-fixer.dist.php"
-                ],
-                "rector": [
-                    "rector process"
-                ],
-                "rector-dry": [
-                    "rector process --dry-run --no-progress-bar"
-                ],
-                "phpstan": [
-                    "phpstan analyse --memory-limit=1G"
-                ],
-                "twig:lint": [
-                    "twig-cs-fixer lint --config=.twig-cs-fixer.php"
-                ],
-                "twig:fix": [
-                    "twig-cs-fixer fix --config=.twig-cs-fixer.php"
-                ],
-                "composer-validate": [
-                    "composer validate --strict"
-                ],
-                "qa": [
-                    "@cs-check",
-                    "@phpstan",
-                    "@test"
-                ],
-                "igor": [
-                    "igor-php --no-agent ."
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Héctor Franco Aceituno",
-                    "email": "hectorfranco@nowo.tech",
-                    "homepage": "https://github.com/HecFranco",
-                    "role": "Maintainer"
-                },
-                {
-                    "name": "Nowo.tech",
-                    "homepage": "https://nowo.tech"
-                }
-            ],
-            "description": "Global header search (command palette) for Symfony: a magnifier that stretches into a field, grouped permission-aware results from your own providers, Ctrl/⌘K, keyboard navigation, recents, UX Icons and theme tokens.",
-            "homepage": "https://github.com/nowo-tech/SearchKitBundle",
-            "keywords": [
-                "autocomplete",
-                "bundle",
-                "command-palette",
-                "frankenphp",
-                "global-search",
-                "nowo",
-                "search",
-                "symfony",
-                "symfony-bundle",
-                "typeahead",
-                "ux-icons"
-            ],
-            "support": {
-                "issues": "https://github.com/nowo-tech/SearchKitBundle/issues",
-                "source": "https://github.com/nowo-tech/SearchKitBundle",
-                "docs": "https://github.com/nowo-tech/SearchKitBundle/tree/main/docs",
-                "changelog": "https://github.com/nowo-tech/SearchKitBundle/blob/main/docs/CHANGELOG.md"
-            },
-            "time": "2026-11-19T15:43:16+00:00"
-        },
-        {
             "name": "phar-io/manifest",
             "version": "2.0.4",
             "source": {
@@ -10827,81 +10662,6 @@
             "time": "2026-10-25T14:40:16+00:00"
         },
         {
-            "name": "symfony/rate-limiter",
-            "version": "v7.4.23",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/rate-limiter.git",
-                "reference": "a65b8280000598b80b4456004280a56fdad011b3"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/rate-limiter/zipball/a65b8280000598b80b4456004280a56fdad011b3",
-                "reference": "a65b8280000598b80b4456004280a56fdad011b3",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.2",
-                "symfony/options-resolver": "^7.3|^8.0"
-            },
-            "require-dev": {
-                "psr/cache": "^1.0|^2.0|^3.0",
-                "symfony/lock": "^6.4|^7.0|^8.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Symfony\\Component\\RateLimiter\\": ""
-                },
-                "exclude-from-classmap": [
-                    "/Tests/"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Wouter de Jong",
-                    "email": "wouter@wouterj.nl"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
-            "description": "Provides a Token Bucket implementation to rate limit input and output in your application",
-            "homepage": "https://symfony.com",
-            "keywords": [
-                "limiter",
-                "rate-limiter"
-            ],
-            "support": {
-                "source": "https://github.com/symfony/rate-limiter/tree/v7.4.23"
-            },
-            "funding": [
-                {
-                    "url": "https://symfony.com/sponsor",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://github.com/fabpot",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/nicolas-grekas",
-                    "type": "github"
-                },
-                {
-                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
-                    "type": "tidelift"
-                }
-            ],
-            "time": "2026-11-01T19:17:22+00:00",
-            "published-time": "2026-11-04T11:28:28+00:00"
-        },
-        {
             "name": "symfony/stopwatch",
             "version": "v7.4.8",
             "source": {
@@ -11248,18 +11008,9 @@
             "time": "2026-10-05T23:14:19+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "nowo-tech/search-kit-bundle",
-            "version": "dev-feat/provider-base-1.9",
-            "alias": "1.9.0",
-            "alias_normalized": "1.9.0.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "nowo-tech/search-kit-bundle": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

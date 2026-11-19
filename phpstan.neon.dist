@@ -4,7 +4,11 @@ parameters:
         - src
         - tests
     excludePaths:
-        - demo/*
+        analyseAndScan:
+            # Stand-in for SearchKit's test case when SearchKit is absent (PHP 8.2); scanned, it would shadow the real class.
+            - tests/Support/SearchKitTestCaseStub.php
+        analyse:
+            - demo/*
     bootstrapFiles:
         - vendor/autoload.php
     reportUnmatchedIgnoredErrors: false
@@ -18,5 +22,6 @@ parameters:
     ignoreErrors: []
 
 includes:
+  - phpstan.search-kit.php
   - vendor/nowo-tech/phpstan-frankenphp/ruleset-classic.neon
   - vendor/nowo-tech/phpstan-frankenphp/ruleset-worker.neon
