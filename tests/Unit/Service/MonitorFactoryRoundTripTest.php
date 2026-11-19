@@ -234,6 +234,120 @@ final class MonitorFactoryRoundTripTest extends TestCase
         }
     }
 
+    /**
+     * Since 1.25.1, fixed in 1.32 (VH3-1): the stored URL secrets, headers, basic-auth password and body travel with the
+     * request, so they stay only while the request goes where it went: the same URL, the same proxy (or none, or the proxy
+     * removed) and TLS verification not switched off. An unchanged save keeps everything.
+     */
+    public function testAnUnchangedSaveKeepsEveryStoredSecretIncludingTheProxy(): void
+    {
+        $monitor = $this->routeMonitor(true, true);
+        $data    = $this->factory()->toFormData($monitor);
+
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+        self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data));
+        $this->factory()->applyFormData($monitor, $data);
+        $this->assertEverythingKept($monitor, true);
+    }
+
+    public function testRemovingTheProxyKeepsTheSecretsBecauseTheRequestGoesStraightToTheUrl(): void
+    {
+        $monitor     = $this->routeMonitor(true);
+        $data        = $this->factory()->toFormData($monitor);
+        $data->proxy = '';
+
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+        $this->factory()->applyFormData($monitor, $data);
+        $this->assertEverythingKept($monitor, false);
+    }
+
+    /**
+     * @return iterable<string, array{string, string, bool, list<string>}>
+     */
+    public static function routeChangeProvider(): iterable
+    {
+        yield 'a proxy added' => ['', 'http://attacker:3128', false, ['url', 'httpHeaders', 'httpBody', 'authPassword']];
+        yield 'a proxy added with TLS verification off' => ['', 'http://attacker:3128', true, ['url', 'httpHeaders', 'httpBody', 'authPassword']];
+        yield 'TLS verification switched off' => ['', '', true, ['url', 'httpHeaders', 'httpBody', 'authPassword']];
+        yield 'the proxy replaced' => ['stored', 'http://attacker:3128', false, ['url', 'httpHeaders', 'httpBody', 'authPassword']];
+        yield 'the proxy mask moved to another host' => ['stored', 'http://***@attacker:3128', false, ['url', 'httpHeaders', 'httpBody', 'authPassword', 'proxy']];
+    }
+
+    /**
+     * @param list<string> $expectedRetype
+     */
+    #[DataProvider('routeChangeProvider')]
+    public function testAnotherProxyOrWeakerTlsNeverCarriesTheStoredSecrets(string $storedProxy, string $submittedProxy, bool $ignoreTls, array $expectedRetype): void
+    {
+        $monitor         = $this->routeMonitor($storedProxy !== '');
+        $data            = $this->factory()->toFormData($monitor);
+        $data->proxy     = $submittedProxy;
+        $data->ignoreTls = $ignoreTls;
+
+        $retype = $this->factory()->secretsNeedingRetype($monitor, $data);
+        foreach ($expectedRetype as $field) {
+            self::assertContains($field, $retype);
+        }
+
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        self::assertArrayNotHasKey('auth_password', $config);
+        self::assertArrayNotHasKey('body', $config);
+        self::assertStringNotContainsString('Bearer abc', (string) json_encode($config));
+        self::assertStringNotContainsString('pw@', (string) $config['url'], 'the URL userinfo is not carried either');
+        self::assertStringNotContainsString('t1', (string) $config['url'], 'nor its token');
+        self::assertStringNotContainsString('pu:pp', (string) ($config['proxy'] ?? ''));
+    }
+
+    public function testTlsVerificationAlreadyOffMayStayOff(): void
+    {
+        $monitor = $this->routeMonitor(false, true);
+        $data    = $this->factory()->toFormData($monitor);
+
+        self::assertTrue($data->ignoreTls);
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+    }
+
+    private function routeMonitor(bool $proxy, bool $ignoreTls = false): Monitor
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://u:pw@api.test/h?token=t1');
+        $config  = [
+            'url'           => 'https://u:pw@api.test/h?token=t1',
+            'method'        => 'POST',
+            'headers'       => ['Authorization' => 'Bearer abc'],
+            'auth_method'   => 'basic',
+            'auth_username' => 'user',
+            'auth_password' => 'pw',
+            'body'          => '{"k":"v"}',
+        ];
+        if ($proxy) {
+            $config['proxy'] = 'http://pu:pp@proxy.test:3128';
+        }
+
+        if ($ignoreTls) {
+            $config['verify_ssl'] = false;
+            $config['ignore_tls'] = true;
+        }
+
+        $monitor->setConfig($config);
+
+        return $monitor;
+    }
+
+    private function assertEverythingKept(Monitor $monitor, bool $proxy): void
+    {
+        $config = $monitor->getConfig();
+        self::assertSame('https://u:pw@api.test/h?token=t1', $config['url']);
+        self::assertSame(['Authorization' => 'Bearer abc'], $config['headers']);
+        self::assertSame('pw', $config['auth_password']);
+        self::assertSame('{"k":"v"}', $config['body']);
+        if ($proxy) {
+            self::assertSame('http://pu:pp@proxy.test:3128', $config['proxy']);
+        } else {
+            self::assertArrayNotHasKey('proxy', $config);
+        }
+    }
+
     private function ambiguousMonitor(string $stored): Monitor
     {
         $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, $stored);
@@ -428,8 +542,8 @@ final class MonitorFactoryRoundTripTest extends TestCase
         yield 'host changed' => ['https://***@evil.test/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
         yield 'port changed' => ['https://***@api.test:8443/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
         yield 'scheme changed' => ['http://***@api.test/h?token=***', 'http://***@proxy.test:3128', ['url', 'httpHeaders', 'authPassword']];
-        yield 'proxy host changed' => ['https://***@api.test/h?token=***', 'http://***@evil-proxy.test:3128', ['proxy']];
-        yield 'proxy port changed' => ['https://***@api.test/other', 'http://***@proxy.test:8080', ['proxy']];
+        yield 'proxy host changed' => ['https://***@api.test/h?token=***', 'http://***@evil-proxy.test:3128', ['url', 'httpHeaders', 'authPassword', 'proxy']];
+        yield 'proxy port changed' => ['https://***@api.test/other', 'http://***@proxy.test:8080', ['url', 'httpHeaders', 'authPassword', 'proxy']];
         yield 'same origins' => ['https://***@API.test:443/v2?token=***', 'http://***@proxy.test:3128', []];
     }
 

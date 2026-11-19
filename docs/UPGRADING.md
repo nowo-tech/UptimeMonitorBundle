@@ -138,7 +138,10 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
-Additive, with one fix: `SecretRedactor::maskUrl()` (since 1.11.0) and `maskEditableUrl()` (since 1.25.1) printed a URL password
+Additive, with two fixes. (1) Since 1.25.1 the edit form kept the stored headers, basic-auth password, body and URL secrets
+whenever the URL's host was unchanged, even when the proxy was added or changed or TLS verification was switched off, so
+those secrets could be sent through another proxy. They are now kept only while the URL, the proxy (or its removal) and the
+TLS setting allow it; otherwise the form asks for them again. (2) `SecretRedactor::maskUrl()` (since 1.11.0) and `maskEditableUrl()` (since 1.25.1) printed a URL password
 written with a raw `/`, `?` or `#` as stored. An ambiguous URL (an `@` after the first `/`, `?` or `#` with a `:` before it
 or an `@` in the authority, e.g. `https://admin:4242/rest@host/` or `https://host:8443/n?to=ops@example.com`) now shows
 `scheme://***` on the pages, the edit form and the search, with no host. On the edit form that value is one opaque secret:

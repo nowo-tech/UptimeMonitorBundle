@@ -31,7 +31,7 @@ use function sprintf;
 final readonly class MonitorFactory
 {
     /** The stored secrets of a monitor that has none (a new one). */
-    private const NOTHING_STORED = ['url' => '', 'proxy' => '', 'headers' => null];
+    private const NOTHING_STORED = ['url' => '', 'proxy' => '', 'headers' => null, 'ignoreTls' => false];
 
     /**
      * Creates the factory.
@@ -51,7 +51,7 @@ final readonly class MonitorFactory
         $previousConfig    = $monitor->getConfig();
         $stored            = $this->storedSecrets($monitor);
         [$target, $config] = $this->buildTargetAndConfig($data, $stored);
-        $config            = $this->preserveInternalConfig($previousConfig, $config, $data, SecretRedactor::keepsDestination($data->url, $stored['url']));
+        $config            = $this->preserveInternalConfig($previousConfig, $config, $data, $this->keepsRoute($data, $stored));
 
         $monitor
             ->setName($data->name)
@@ -99,7 +99,7 @@ final readonly class MonitorFactory
 
         $stored = $this->storedSecrets($monitor);
         $fields = [];
-        if (!SecretRedactor::keepsDestination($data->url, $stored['url'])) {
+        if (!$this->keepsRoute($data, $stored)) {
             if (SecretRedactor::restoreEditableUrl($data->url, $stored['url']) !== $data->url) {
                 $fields[] = 'url';
             }
@@ -164,17 +164,33 @@ final readonly class MonitorFactory
     /**
      * The stored values behind the masks of the edit form; an HTTP monitor saved without `url` uses its target.
      *
-     * @return array{url: string, proxy: string, headers: mixed}
+     * @return array{url: string, proxy: string, headers: mixed, ignoreTls: bool}
      */
     private function storedSecrets(Monitor $monitor): array
     {
         $config = $monitor->getConfig();
 
         return [
-            'url'     => isset($config['url']) && is_string($config['url']) ? $config['url'] : $monitor->getTarget(),
-            'proxy'   => isset($config['proxy']) && is_string($config['proxy']) ? $config['proxy'] : '',
-            'headers' => $config['headers'] ?? null,
+            'url'       => isset($config['url']) && is_string($config['url']) ? $config['url'] : $monitor->getTarget(),
+            'proxy'     => isset($config['proxy']) && is_string($config['proxy']) ? $config['proxy'] : '',
+            'headers'   => $config['headers'] ?? null,
+            'ignoreTls' => ($config['verify_ssl'] ?? true) === false || ($config['ignore_tls'] ?? false) === true,
         ];
+    }
+
+    /**
+     * Whether the stored URL secrets, headers, basic-auth password and body may go with the submitted form (since 1.32):
+     * the URL keeps its destination, the proxy is unchanged or removed (a request that goes straight to the URL reaches
+     * no one new; a new or another proxy would see them, in clear text over `http://`), and TLS verification is not
+     * switched off (an interceptable connection). Otherwise they must be typed again.
+     *
+     * @param array{url: string, proxy: string, headers: mixed, ignoreTls: bool} $stored
+     */
+    private function keepsRoute(MonitorFormData $data, array $stored): bool
+    {
+        return SecretRedactor::keepsDestination($data->url, $stored['url'])
+            && ($data->proxy === '' || SecretRedactor::keepsDestination($data->proxy, $stored['proxy']))
+            && ($stored['ignoreTls'] || !$data->ignoreTls);
     }
 
     /**
@@ -299,7 +315,7 @@ final readonly class MonitorFactory
     }
 
     /**
-     * @param array{url: string, proxy: string, headers: mixed} $stored The secrets of the monitor being edited
+     * @param array{url: string, proxy: string, headers: mixed, ignoreTls: bool} $stored The secrets of the monitor being edited
      *
      * @return array{0: string, 1: array<string, mixed>}
      */
@@ -410,7 +426,7 @@ final readonly class MonitorFactory
      * one for its userinfo, token values and the headers, the proxy one for the proxy's. A mask left with nothing
      * behind it (across destinations, or never stored) is dropped, never saved as `***` (since 1.25.2).
      *
-     * @param array{url: string, proxy: string, headers: mixed} $stored
+     * @param array{url: string, proxy: string, headers: mixed, ignoreTls: bool} $stored
      *
      * @return array{0: string, 1: array<string, mixed>}
      */
@@ -489,13 +505,13 @@ final readonly class MonitorFactory
      * The URL, proxy and headers with the stored secrets put back where the submitted values still hold the mask, only
      * for the same origin (the URL's for its userinfo, token values and headers, the proxy's for the proxy).
      *
-     * @param array{url: string, proxy: string, headers: mixed} $stored
+     * @param array{url: string, proxy: string, headers: mixed, ignoreTls: bool} $stored
      *
      * @return array{0: string, 1: string, 2: array<string, string>}
      */
     private function restoredHttpSecrets(MonitorFormData $data, array $stored): array
     {
-        $sameUrl = SecretRedactor::keepsDestination($data->url, $stored['url']);
+        $sameUrl = $this->keepsRoute($data, $stored);
         $url     = $sameUrl ? SecretRedactor::restoreEditableUrl($data->url, $stored['url']) : $data->url;
         $proxy   = SecretRedactor::keepsDestination($data->proxy, $stored['proxy']) ? SecretRedactor::restoreEditableUrl($data->proxy, $stored['proxy']) : $data->proxy;
         $headers = HttpHeaderParser::parseLines($data->httpHeaders);
