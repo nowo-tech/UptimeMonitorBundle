@@ -51,7 +51,7 @@ final readonly class MonitorFactory
         $previousConfig    = $monitor->getConfig();
         $stored            = $this->storedSecrets($monitor);
         [$target, $config] = $this->buildTargetAndConfig($data, $stored);
-        $config            = $this->preserveInternalConfig($previousConfig, $config, $data, SecretRedactor::sameOrigin($data->url, $stored['url']));
+        $config            = $this->preserveInternalConfig($previousConfig, $config, $data, SecretRedactor::keepsDestination($data->url, $stored['url']));
 
         $monitor
             ->setName($data->name)
@@ -99,7 +99,7 @@ final readonly class MonitorFactory
 
         $stored = $this->storedSecrets($monitor);
         $fields = [];
-        if (!SecretRedactor::sameOrigin($data->url, $stored['url'])) {
+        if (!SecretRedactor::keepsDestination($data->url, $stored['url'])) {
             if (SecretRedactor::restoreEditableUrl($data->url, $stored['url']) !== $data->url) {
                 $fields[] = 'url';
             }
@@ -115,7 +115,7 @@ final readonly class MonitorFactory
             }
         }
 
-        if (!SecretRedactor::sameOrigin($data->proxy, $stored['proxy'])
+        if (!SecretRedactor::keepsDestination($data->proxy, $stored['proxy'])
             && SecretRedactor::restoreEditableUrl($data->proxy, $stored['proxy']) !== $data->proxy) {
             $fields[] = 'proxy';
         }
@@ -495,9 +495,9 @@ final readonly class MonitorFactory
      */
     private function restoredHttpSecrets(MonitorFormData $data, array $stored): array
     {
-        $sameUrl = SecretRedactor::sameOrigin($data->url, $stored['url']);
+        $sameUrl = SecretRedactor::keepsDestination($data->url, $stored['url']);
         $url     = $sameUrl ? SecretRedactor::restoreEditableUrl($data->url, $stored['url']) : $data->url;
-        $proxy   = SecretRedactor::sameOrigin($data->proxy, $stored['proxy']) ? SecretRedactor::restoreEditableUrl($data->proxy, $stored['proxy']) : $data->proxy;
+        $proxy   = SecretRedactor::keepsDestination($data->proxy, $stored['proxy']) ? SecretRedactor::restoreEditableUrl($data->proxy, $stored['proxy']) : $data->proxy;
         $headers = HttpHeaderParser::parseLines($data->httpHeaders);
         if ($sameUrl) {
             $headers = SecretRedactor::restoreEditableHeaders($headers, $stored['headers']);

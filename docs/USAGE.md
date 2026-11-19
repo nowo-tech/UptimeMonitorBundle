@@ -176,8 +176,10 @@ lists monitors by a search text.
 
 **URLs:** only the origin is shown (`https://host:8443`, `db.internal:5432`): userinfo, path, query string and fragment are
 dropped, because a secret may sit in any of them. It fails closed: a target that is not a plain URL or host (a connection
-string such as `Server=db;Password=x;`) shows nothing, and so does a URL whose password holds a raw `/`, `?` or `#`
-(`https://admin:4242/rest@host/`, where a `:` stands before the `@`). Push monitors and groups show no URL.
+string such as `Server=db;Password=x;`) shows nothing, and an ambiguous URL shows `scheme://***` with no host. A URL is
+ambiguous when an `@` follows the first `/`, `?` or `#` and either the authority before it holds an `@` or a `:` stands
+before that `@` (`https://admin:4242/rest@host/`, `https://host:8443/n?to=ops@example.com`): a password with a raw `/`, `?`
+or `#` looks exactly like that. Push monitors and groups show no URL.
 
 **Recents:** SearchKit's recents keep the title and subtitle of the rows a viewer opened in the browser (`localStorage`). A
 monitor row's subtitle holds the origin of its target and its status. With `recent.revalidate: false` they stay there

@@ -162,23 +162,93 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame(['authorization' => 'Bearer abc', 'X-Empty' => ''], $config['headers']);
     }
 
-    /** Since 1.32: a password with a raw `/`, `?` or `#` is masked whole on the form and kept exactly when saved unchanged. */
-    public function testAwkwardPasswordsAreMaskedWholeAndAnUnchangedFormKeepsTheTargetExactly(): void
+    /**
+     * Since 1.32: an ambiguous URL (a password with a raw `/`, `?` or `#`, or an `@` after the authority with a `:` before
+     * it) is one opaque secret. The form shows `scheme://***`, nothing of the credentials or the host, and an unchanged
+     * save keeps the target, the headers, the password and the body exactly.
+     */
+    public function testAnAmbiguousUrlIsOneOpaqueSecretAndAnUnchangedFormKeepsEverything(): void
     {
-        foreach (['https://admin:4242/rest@api.test/health?token=t1', 'https://admin:pa/ss@api.test/', 'https://admin:pa?ss@api.test/', 'https://admin:pa#ss@api.test/', 'https://us/er:pw@api.test/'] as $stored) {
-            $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, $stored);
-            $monitor->setConfig(['url' => $stored, 'proxy' => 'pu:pa/ss@proxy.test:3128']);
+        $urls = [
+            'https://admin:4242/rest@api.test/health?token=t1' => 'https://***',
+            'https://admin:pa/ss@api.test/'                    => 'https://***',
+            'https://admin:pa?ss@api.test/'                    => 'https://***',
+            'https://admin:pa#ss@api.test/'                    => 'https://***',
+            'https://us/er:pw@api.test/'                       => 'https://***',
+            'https://u:p@s/s@api.test/'                        => 'https://***',
+            'http://[::1]:8080/x@y:z'                          => 'http://***',
+            'https://api.test:8443/notify?email=ops@x.test'    => 'https://***',
+        ];
+        foreach ($urls as $stored => $shown) {
+            $monitor = $this->ambiguousMonitor($stored);
 
             $data = $this->factory()->toFormData($monitor);
-            foreach (['admin', 'rest', 'pa/', 'pa?', 'pa#', 'er:pw', 'pa/ss'] as $leak) {
-                self::assertStringNotContainsString($leak, $data->url . $data->proxy, $stored . ' leaks ' . $leak);
-            }
+            self::assertSame($shown, $data->url, $stored);
+            self::assertSame('***', $data->httpBody);
+            self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data), $stored);
+            self::assertSame([], $this->factory()->unresolvedMasks($monitor, $data), $stored);
 
             $this->factory()->applyFormData($monitor, $data);
-            self::assertSame($stored, $monitor->getConfig()['url'], $stored);
+            $config = $monitor->getConfig();
+            self::assertSame($stored, $config['url'], $stored);
             self::assertSame($stored, $monitor->getTarget(), $stored);
-            self::assertSame('pu:pa/ss@proxy.test:3128', $monitor->getConfig()['proxy'], $stored);
+            self::assertSame(['Authorization' => 'Bearer abc'], $config['headers'], $stored);
+            self::assertSame('pw', $config['auth_password'], $stored);
+            self::assertSame('{"k":"v"}', $config['body'], $stored);
+            self::assertSame('pu:pa/ss@proxy.test:3128', $config['proxy'], $stored);
         }
+    }
+
+    /**
+     * Since 1.32 (VH2-1): a URL whose text reads as the stored host but reaches another one is never the same
+     * destination: the header, basic-auth password and body are not carried to it and the masks are dropped.
+     */
+    public function testASpoofedUrlNeverCarriesTheStoredSecretsToAnotherHost(): void
+    {
+        $payloads = [
+            'https://attacker.example/a:b@api.example.com',
+            'https://attacker.example:8443/x@api.example.com',
+            'https://attacker.example/?u=a:b@api.example.com',
+            'https://attacker.example/#a:b@api.example.com',
+            'https://***@attacker.example/a:b@api.example.com',
+        ];
+        $stores = ['https://u:pw@api.example.com/health', 'https://api.example.com:8443/n?to=ops@attacker.example'];
+        foreach ($stores as $stored) {
+            foreach ($payloads as $payload) {
+                $monitor   = $this->ambiguousMonitor($stored);
+                $data      = $this->factory()->toFormData($monitor);
+                $data->url = $payload;
+
+                $retype = $this->factory()->secretsNeedingRetype($monitor, $data);
+                foreach (['httpHeaders', 'httpBody', 'authPassword'] as $field) {
+                    self::assertContains($field, $retype, $stored . ' / ' . $payload);
+                }
+
+                $this->factory()->applyFormData($monitor, $data);
+                $config = $monitor->getConfig();
+                self::assertArrayNotHasKey('auth_password', $config, $payload);
+                self::assertArrayNotHasKey('body', $config, $payload);
+                self::assertStringNotContainsString('Bearer abc', (string) json_encode($config), $payload);
+                self::assertStringNotContainsString('pw', (string) ($config['url'] ?? ''), $payload);
+            }
+        }
+    }
+
+    private function ambiguousMonitor(string $stored): Monitor
+    {
+        $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, $stored);
+        $monitor->setConfig([
+            'url'           => $stored,
+            'method'        => 'POST',
+            'proxy'         => 'pu:pa/ss@proxy.test:3128',
+            'headers'       => ['Authorization' => 'Bearer abc'],
+            'auth_method'   => 'basic',
+            'auth_username' => 'user',
+            'auth_password' => 'pw',
+            'body'          => '{"k":"v"}',
+        ]);
+
+        return $monitor;
     }
 
     /** Since 1.25.1: a typed secret replaces the stored one; removing it from the form removes it. */

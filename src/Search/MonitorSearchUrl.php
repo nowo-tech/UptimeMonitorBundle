@@ -7,9 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Search;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 
 use function preg_match;
-use function str_contains;
 use function strcspn;
-use function strlen;
 use function strrpos;
 use function strtolower;
 use function substr;
@@ -19,10 +17,11 @@ use function substr;
  * `host[:port]` for a bare host. Userinfo, path, query string and fragment are dropped, so no credential written into
  * a URL (`user:pass@`, `?token=`, a bot token in the path) reaches a result.
  *
- * It fails closed: an empty string when the target is not a plain URL or host (a connection string such as
- * `Server=db;Password=x;`), when the host is not a hostname, IPv4 or `[IPv6]`, or when a `@` follows the first `/`, `?`
- * or `#` and a `:` stands before that `@` (a password written with a raw `/`, `?` or `#` would otherwise be read as
- * `host:port`: `https://admin:4242/rest@host/`). See {@see SecretRedactor::isAmbiguousAuthority()}.
+ * It fails closed. An ambiguous URL (an `@` after the first `/`, `?` or `#` with a `:` before it or an `@` in the
+ * authority: `https://admin:4242/rest@host/`, `https://host:8443/n?to=ops@example.com`) shows `scheme://***` and no
+ * host, because a password written with a raw `/`, `?` or `#` cannot be told from a path
+ * ({@see SecretRedactor::isAmbiguousUrl()}). An empty string when the target is not a plain URL or host (a connection
+ * string such as `Server=db;Password=x;`) or the host is not a hostname, IPv4 or `[IPv6]`.
  */
 final class MonitorSearchUrl
 {
@@ -34,6 +33,10 @@ final class MonitorSearchUrl
      */
     public static function display(string $target): string
     {
+        if (SecretRedactor::isAmbiguousUrl($target)) {
+            return strtolower(SecretRedactor::opaque($target));
+        }
+
         $scheme = '';
         $rest   = $target;
         if (preg_match('#^([a-z][a-z0-9+.\-]*)://(.*)$#is', $target, $m) === 1) {
@@ -42,12 +45,9 @@ final class MonitorSearchUrl
         }
 
         $authority = substr($rest, 0, strcspn($rest, '/?#'));
-        $after     = substr($rest, strlen($authority));
-
-        if (str_contains($authority, '@')) {
-            $authority = substr($authority, (int) strrpos($authority, '@') + 1);
-        } elseif (SecretRedactor::isAmbiguousAuthority($authority, $after)) {
-            return '';
+        $at        = strrpos($authority, '@');
+        if ($at !== false) {
+            $authority = substr($authority, $at + 1);
         }
 
         if (preg_match(self::AUTHORITY, $authority, $h) !== 1 || (isset($h[2]) && (int) $h[2] > 65535)) {
