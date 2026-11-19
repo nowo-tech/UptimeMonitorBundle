@@ -91,6 +91,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Monitor search building blocks (`Nowo\UptimeMonitorBundle\Search`), the base of the SearchKit provider: `MonitorSearchQuery` (one SQL query, tenant joined, escaped `LIKE ... ESCAPE '!'` over the name and the target; a needle that only occurs in a credential finds nothing), `MonitorSearchVisibility` (the bundle's own access checker: `canViewMonitor()`, else `canAccessTenant()`, else `canAccessDashboard()`), `MonitorSearchMapper` and `MonitorSearchUrl`. A result shows the origin of the target only (`scheme://host[:port]`): userinfo, path, query and fragment are never shown or matched; groups and push monitors show no URL; the status only when asked.
+
 ### Changed
 
 - CI: new `deps-floor` job (as in BreadcrumbKit). It checks that the demo lock installs every nowo-tech requirement of the bundle (`.scripts/check-demo-lock.py`), then downgrades nowo-tech/transaction-* to the lowest versions composer.json allows (`composer update 'nowo-tech/transaction-*' --prefer-lowest`) and runs PHPStan and the tests there, so a call to a newer API than the constraint allows fails the pull request.
