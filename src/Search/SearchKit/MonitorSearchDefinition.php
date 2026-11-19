@@ -43,6 +43,17 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
 {
     public const GROUP = 'uptime_monitors';
 
+    /**
+     * Creates the definition.
+     *
+     * @param MonitorRepository $monitors Monitor repository of the bundle
+     * @param MonitorSearchTenantResolverInterface $tenants Tenant resolver of the viewer
+     * @param MonitorSearchVisibility $visibility The bundle's access check for search
+     * @param MonitorSearchMapper $mapper Monitor to result mapping
+     * @param UrlGeneratorInterface $urls URL generator
+     * @param TranslatorInterface|null $translator Translator (null: English label)
+     * @param int $maxCandidates Rows read and checked per search
+     */
     public function __construct(
         private readonly MonitorRepository $monitors,
         private readonly MonitorSearchTenantResolverInterface $tenants,
@@ -54,51 +65,81 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     ) {
     }
 
+    /**
+     * The group key `uptime_monitors`.
+     */
     public function group(): string
     {
         return self::GROUP;
     }
 
+    /**
+     * The translated group label (`search.group`).
+     */
     public function label(SearchQuery $query): string
     {
         return $this->translator?->trans('search.group', [], 'NowoUptimeMonitorBundle', $query->locale) ?? 'Monitors';
     }
 
+    /**
+     * UX Icons name of the group rows.
+     */
     public function icon(): string
     {
         return 'tabler:activity-heartbeat';
     }
 
+    /**
+     * The viewer's tenant slug, from the tenant resolver; null means no results.
+     */
     public function tenant(SearchQuery $query): ?string
     {
         return $this->tenants->resolve((string) $query->userIdentifier);
     }
 
+    /**
+     * Whether the viewer may use monitor search (`canAccessDashboard()` of the access checker).
+     */
     public function featureEnabled(int|string $tenant, SearchQuery $query): bool
     {
         return $this->visibility->canSearch();
     }
 
+    /**
+     * The monitor name and stored target; the target is verified again against the displayed origin.
+     */
     public function searchableFields(): array
     {
         return ['m.name', 'm.target'];
     }
 
+    /**
+     * Rows read and access-checked per search (`search_kit.max_candidates`, 1-1000).
+     */
     public function maxCandidates(): int
     {
         return max(1, min(1000, $this->maxCandidates));
     }
 
+    /**
+     * Subject type of the host visibility event.
+     */
     public function subjectType(): string
     {
         return 'uptime_monitor';
     }
 
+    /**
+     * The id field of baseQuery(), for recents revalidation.
+     */
     public function idField(): string
     {
         return 'm.id';
     }
 
+    /**
+     * The monitor id of a recent that points at a monitor page; null for anything else (client input).
+     */
     public function referenceId(SearchReference $reference): ?string
     {
         $id = $reference->routeParameters['id'] ?? null;
@@ -106,6 +147,9 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
         return $reference->route === 'nowo_uptime_monitor_show' && is_string($id) && ctype_digit($id) ? $id : null;
     }
 
+    /**
+     * Monitors of the tenant, ordered by name then id.
+     */
     public function baseQuery(int|string $tenant, SearchQuery $query): QueryBuilder
     {
         return $this->monitors->createQueryBuilder('m')
@@ -117,6 +161,9 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
             ->addOrderBy('m.id', 'ASC');
     }
 
+    /**
+     * Keeps the candidates whose words match the name or displayed origin and that the access checker lets the viewer see.
+     */
     public function filterVisible(array $rows, int|string $tenant, SearchQuery $query): array
     {
         $words   = SearchWords::words($query->text);
@@ -130,6 +177,9 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
         return $visible;
     }
 
+    /**
+     * The result row: name, monitor page link, origin and status.
+     */
     public function toItem(array|object $row, SearchQuery $query): SearchItem
     {
         /** @var Monitor $row */
@@ -145,6 +195,9 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
         );
     }
 
+    /**
+     * The tenant dashboard with the query, or null without a tenant or route.
+     */
     public function seeAllUrl(SearchQuery $query): ?string
     {
         $slug = $this->tenant($query);

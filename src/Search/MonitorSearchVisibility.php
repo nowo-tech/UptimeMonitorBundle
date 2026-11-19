@@ -21,6 +21,13 @@ use function is_object;
  */
 final readonly class MonitorSearchVisibility
 {
+    /**
+     * Creates the check.
+     *
+     * @param UptimeMonitorAccessCheckerInterface $accessChecker Access checker of the admin UI
+     * @param TokenStorageInterface|null $tokenStorage Token storage (null without SecurityBundle)
+     * @param bool $allowUnauthenticated `security.allow_unauthenticated`: the checks are skipped
+     */
     public function __construct(
         private UptimeMonitorAccessCheckerInterface $accessChecker,
         private ?TokenStorageInterface $tokenStorage = null,

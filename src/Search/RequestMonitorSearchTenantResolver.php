@@ -25,6 +25,9 @@ final readonly class RequestMonitorSearchTenantResolver implements MonitorSearch
     ) {
     }
 
+    /**
+     * The `tenantSlug` of the current request, else `multi_tenant.default_tenant`; null when neither is set.
+     */
     public function resolve(string $userIdentifier): ?string
     {
         $slug = $this->requests->getCurrentRequest()?->attributes->get('tenantSlug');

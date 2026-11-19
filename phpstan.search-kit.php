@@ -9,7 +9,9 @@ $installed = class_exists('Nowo\\SearchKitBundle\\Provider\\Entity\\EntitySearch
 return [
     'parameters' => [
         'excludePaths' => [
-            'analyse' => $installed ? [] : ['src/Search/SearchKit/*', 'tests/SearchKit/*'],
+            'analyse' => array_merge([__DIR__ . '/demo'], $installed ? [] : [__DIR__ . '/src/Search/SearchKit', __DIR__ . '/tests/SearchKit']),
+            // Stand-in for SearchKit's test case when SearchKit is absent; scanned, it would shadow the real class.
+            'analyseAndScan' => [__DIR__ . '/tests/Support/SearchKit'],
         ],
     ],
 ];

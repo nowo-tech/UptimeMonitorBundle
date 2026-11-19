@@ -46,7 +46,6 @@ use function str_contains;
 
 use const JSON_UNESCAPED_SLASHES;
 
-
 /**
  * The SearchKit contract kit against the real MonitorSearchDefinition and a real database (SQLite by default; MySQL /
  * MariaDB / PostgreSQL through UPTIME_TEST_DATABASE_URL), plus the monitor-specific rules: the host checker's deny, the

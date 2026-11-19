@@ -24,6 +24,11 @@ use function trim;
  */
 final readonly class MonitorSearchQuery
 {
+    /**
+     * Creates the query.
+     *
+     * @param MonitorRepository $monitors Monitor repository of the bundle
+     */
     public function __construct(private MonitorRepository $monitors)
     {
     }

@@ -12,8 +12,4 @@ fi
 # composer.json pins platform.php to the lowest supported PHP for the lock; resolve SearchKit against the running PHP.
 composer config platform.php "$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION . ".99";')"
 
-# Until SearchKit 1.9.0 is tagged: its feature branch. After the tag: drop the next two lines and require ^1.9.
-composer config repositories.search-kit vcs https://github.com/nowo-tech/SearchKitBundle
-SEARCH_KIT_CONSTRAINT='dev-feat/provider-base-1.9 as 1.9.0'
-
-composer require --dev "nowo-tech/search-kit-bundle:${SEARCH_KIT_CONSTRAINT}" --no-interaction --no-progress --prefer-dist
+composer require --dev "nowo-tech/search-kit-bundle:^1.9" --no-interaction --no-progress --prefer-dist
