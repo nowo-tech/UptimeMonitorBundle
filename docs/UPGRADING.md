@@ -138,7 +138,9 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
-Additive, with two fixes. (1) Since 1.25.1 the edit form kept the stored headers, basic-auth password, body and URL secrets
+Additive, with three fixes. (0) Since 1.25.1 (password, headers) and 1.25.2 (body), changing an HTTP monitor to another type
+(TCP, SSL, ping…) and back could carry the stored password and body to the host typed in between; the secrets now never leave
+the HTTP family, and a monitor of another type holds none. (1) Since 1.25.1 the edit form kept the stored headers, basic-auth password, body and URL secrets
 whenever the URL's host was unchanged, even when the proxy was added or changed or TLS verification was switched off, so
 those secrets could be sent through another proxy. They are now kept only while the URL, the proxy (or its removal) and the
 TLS setting allow it; otherwise the form asks for them again. (2) `SecretRedactor::maskUrl()` (since 1.11.0) and `maskEditableUrl()` (since 1.25.1) printed a URL password

@@ -308,6 +308,88 @@ final class MonitorFactoryRoundTripTest extends TestCase
         self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
     }
 
+    /**
+     * Since 1.25.1 (password and headers) and 1.25.2 (body), fixed in 1.32 (VH4-1): the secrets never leave the HTTP
+     * family. Turning an HTTP monitor into TCP / SSL / ping and back must not read the new host as the old URL.
+     *
+     * @return iterable<string, array{MonitorType, string, int, string}>
+     */
+    public static function typeSwitchProvider(): iterable
+    {
+        yield 'TCP on port 80' => [MonitorType::Tcp, 'attacker.example', 80, 'http://attacker.example/'];
+        yield 'TCP on port 443' => [MonitorType::Tcp, 'attacker.example', 443, 'http://attacker.example:443/'];
+        yield 'SSL on port 443' => [MonitorType::Ssl, 'attacker.example', 443, 'https://attacker.example/'];
+        yield 'ping' => [MonitorType::Ping, 'attacker.example', 0, 'http://attacker.example/'];
+    }
+
+    #[DataProvider('typeSwitchProvider')]
+    public function testTheSecretsNeverFollowATypeSwitchToANonHttpTypeAndBack(MonitorType $type, string $host, int $port, string $backUrl): void
+    {
+        $monitor = $this->routeMonitor(false);
+
+        // Edit 1: HTTP to a host-and-port type, the old url field still in the form.
+        $data       = $this->factory()->toFormData($monitor);
+        $data->type = $type;
+        $data->host = $host;
+        $data->port = $port;
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        foreach (['auth_password', 'body', 'headers'] as $key) {
+            self::assertArrayNotHasKey($key, $config, $type->value . ' keeps no ' . $key);
+        }
+
+        self::assertStringNotContainsString('Bearer abc', (string) json_encode($config));
+
+        // Edit 2: back to HTTP on the attacker's host, which the TCP / SSL target spells out.
+        $data               = $this->factory()->toFormData($monitor);
+        $data->type         = MonitorType::Http;
+        $data->url          = $backUrl;
+        $data->authMethod   = 'basic';
+        $data->authUsername = 'user';
+        $data->authPassword = '';
+        $data->httpBody     = '';
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+        self::assertArrayNotHasKey('auth_password', $config);
+        self::assertArrayNotHasKey('body', $config);
+        self::assertStringNotContainsString('pw', (string) json_encode($config));
+    }
+
+    public function testSwitchingBetweenHttpAndHttpsWithTheSameUrlKeepsEverything(): void
+    {
+        $monitor    = $this->routeMonitor(true);
+        $data       = $this->factory()->toFormData($monitor);
+        $data->type = MonitorType::Http;
+        self::assertSame([], $this->factory()->secretsNeedingRetype($monitor, $data));
+        $this->factory()->applyFormData($monitor, $data);
+        self::assertSame(MonitorType::Http, $monitor->getType());
+        $this->assertEverythingKept($monitor, true);
+
+        $data       = $this->factory()->toFormData($monitor);
+        $data->type = MonitorType::Https;
+        $this->factory()->applyFormData($monitor, $data);
+        $this->assertEverythingKept($monitor, true);
+    }
+
+    /** A monitor stored as a TCP one with HTTP-looking leftovers never keeps them (legacy data, the secrets do not travel). */
+    public function testASecretLeftOnANonHttpMonitorIsNotCarriedBackToHttp(): void
+    {
+        $monitor = new Monitor($this->tenant, 'Probe', MonitorType::Tcp, 'attacker.example:80');
+        $monitor->setConfig(['host' => 'attacker.example', 'port' => 80, 'auth_password' => 'pw', 'body' => 'b', 'headers' => ['Authorization' => 'Bearer abc']]);
+
+        $data               = $this->factory()->toFormData($monitor);
+        $data->type         = MonitorType::Http;
+        $data->url          = 'http://attacker.example/';
+        $data->authMethod   = 'basic';
+        $data->authUsername = 'user';
+        $this->factory()->applyFormData($monitor, $data);
+        $config = $monitor->getConfig();
+
+        self::assertArrayNotHasKey('auth_password', $config);
+        self::assertArrayNotHasKey('body', $config);
+        self::assertStringNotContainsString('Bearer abc', (string) json_encode($config));
+    }
+
     private function routeMonitor(bool $proxy, bool $ignoreTls = false): Monitor
     {
         $monitor = new Monitor($this->tenant, 'API', MonitorType::Https, 'https://u:pw@api.test/h?token=t1');
