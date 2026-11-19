@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
+use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\Symfony\NowoTransactionDoctrineBundle;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
@@ -18,6 +19,8 @@ use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
 use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
+use Nowo\UptimeMonitorBundle\Search\RequestMonitorSearchTenantResolver;
+use Nowo\UptimeMonitorBundle\Search\SearchKit\MonitorSearchDefinition;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -58,6 +61,29 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
             ConfigurableUptimeMonitorAccessChecker::class,
             $container->getDefinition('nowo_uptime_monitor.access_checker.default')->getClass(),
         );
+    }
+
+    public function testSearchKitDefinitionIsTaggedAndConfigurable(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['search_kit' => ['max_candidates' => 50, 'tenant_resolver' => 'app.tenant_resolver']]], $container);
+
+        $definition = $container->getDefinition(MonitorSearchDefinition::class);
+        self::assertTrue($definition->hasTag(EntitySearchDefinition::TAG));
+        self::assertSame(50, $definition->getArgument('$maxCandidates'));
+        self::assertEquals(new Reference('app.tenant_resolver'), $definition->getArgument('$tenants'));
+
+        $default = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[]], $default);
+        self::assertEquals(new Reference(RequestMonitorSearchTenantResolver::class), $default->getDefinition(MonitorSearchDefinition::class)->getArgument('$tenants'));
+    }
+
+    public function testSearchKitDefinitionIsOffWhenDisabled(): void
+    {
+        $container = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['search_kit' => ['enabled' => false]]], $container);
+
+        self::assertFalse($container->hasDefinition(MonitorSearchDefinition::class));
     }
 
     public function testLoadThrowsWhenDashboardRequiresSecurityBundle(): void

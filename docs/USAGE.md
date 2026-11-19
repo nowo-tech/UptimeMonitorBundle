@@ -10,6 +10,7 @@
 - [Commands](#commands)
 - [Notifications](#notifications)
 - [Host integration (tenants, access, events)](#host-integration-tenants-access-events)
+- [SearchKit: monitors (1.32)](#searchkit-monitors-132)
 - [Database and entity manager](#database-and-entity-manager)
   - [Standard host](#standard-host)
   - [DDD host](#ddd-host)
@@ -147,6 +148,44 @@ public function onDown(MonitorWentDownEvent $event): void
     $this->issues->openFor($event->getTenantSlug(), (int) $event->getMonitorId(), $event->message);
 }
 ```
+
+## SearchKit: monitors (1.32)
+
+With `nowo-tech/search-kit-bundle` ^1.9 installed (optional, `suggest`) and `web_ui` enabled, the SearchKit palette and
+results page get a group `uptime_monitors`. Each search:
+
+1. takes the viewer's tenant from the tenant resolver (the `tenantSlug` of the request, else `multi_tenant.default_tenant`;
+   a host replaces it with `search_kit.tenant_resolver`, a service implementing `MonitorSearchTenantResolverInterface`;
+   `null` means no results);
+2. checks `canAccessDashboard()` of the bundle's access checker (the group is off for a viewer who may not open the dashboards);
+3. reads at most `search_kit.max_candidates` monitors of that tenant in one SQL query, matching every word against the
+   name and the target with an escaped `LIKE ... ESCAPE '!'`;
+4. keeps only the monitors the checker lets the viewer see: `canViewMonitor()` for a monitor-aware checker (so a monitor shared
+   outside the tenant is searchable), else `canAccessTenant()`, else the dashboard check; then SearchKit sends its
+   `SearchKitEvents::ITEM_VISIBILITY` event, where a host deny wins.
+
+A refusal anywhere (no tenant, no access, a denied monitor) gives no group and no count, so a hidden monitor looks like a
+missing one. The total is the visible count inside the candidate window and the results page goes at most that deep.
+
+**What a result shows:** the name, the link to the monitor page, the origin of the target and the last status (the status is
+shown because the viewer may see the monitor). It never shows the config, headers, tokens, auth settings or push
+credentials.
+
+**URLs:** only the origin is shown (`https://host:8443`, `db.internal:5432`): userinfo, path, query string and fragment are
+dropped, because a secret may sit in any of them. Matching uses the same value: a word found only in a credential, a path or
+a query finds nothing, and neither does a push monitor's target. SQL reads the stored target, so a word that spans the
+userinfo (`https://host` of `https://user:pw@host`) does not find that monitor; a host or name fragment does.
+
+```yaml
+nowo_uptime_monitor:
+    search_kit:
+        enabled: true            # false: no monitors in SearchKit
+        tenant_resolver: null    # service id of a MonitorSearchTenantResolverInterface
+        max_candidates: 100      # 1-1000
+```
+
+The group can also be switched off or reordered in SearchKit (`nowo_search_kit.groups.uptime_monitors`). The services are
+stateless and read the user and the request at call time, so they are safe in FrankenPHP worker mode with kernel reset off.
 
 ## Database and entity manager
 

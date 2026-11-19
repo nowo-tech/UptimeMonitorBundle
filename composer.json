@@ -66,6 +66,7 @@
         "friendsofphp/php-cs-fixer": "^3.0",
         "igor-php/igor-php": "^0.10.0",
         "nowo-tech/phpstan-frankenphp": "^1.4",
+        "nowo-tech/search-kit-bundle": "dev-feat/provider-base-1.9 as 1.9.0",
         "phpstan/extension-installer": "^1.0",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
@@ -80,10 +81,11 @@
         "vincentlanglet/twig-cs-fixer": "^4.0"
     },
     "suggest": {
+        "nowo-tech/search-kit-bundle": "^1.9 for the SearchKit provider of monitors (group uptime_monitors)",
+        "pentatrion/vite-bundle": "Vite integration in host application demos",
         "symfony/mailer": "For email notifications",
-        "symfony/messenger": "For async check execution and scheduler consumer",
         "symfony/mercure-bundle": "For dashboard.sync: mercure (real-time SSE updates)",
-        "pentatrion/vite-bundle": "Vite integration in host application demos"
+        "symfony/messenger": "For async check execution and scheduler consumer"
     },
     "autoload": {
         "psr-4": {
@@ -154,5 +156,15 @@
         "phpstan": "Run PHPStan static analysis",
         "qa": "Run all quality assurance checks",
         "igor": "Run Igor FrankenPHP worker-state audit (REQ-CS-008)"
-    }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/nowo-tech/SearchKitBundle"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/nowo-tech/SearchKitBundle"
+        }
+    ]
 }

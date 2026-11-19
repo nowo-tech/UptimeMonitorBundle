@@ -440,3 +440,6 @@ form.monitor.host_placeholder: 'example.com'
 form.monitor.hostname_placeholder: 'example.com'
 form.monitor.dns_expected_placeholder: '192.0.2.10'
 form.monitor.keyword_placeholder: 'OK'
+
+# SearchKit
+search.group: 'Monitoren'

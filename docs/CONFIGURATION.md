@@ -122,6 +122,16 @@ Deprecated since **1.11** (REQ-UI-003 vocabulary, removed in 2.0): `templates.la
 `ui.*`, `dashboard.enabled`, `dashboard.path`, `security.dashboard_roles` / `manage_roles` / `settings_roles` — see
 [UPGRADING](UPGRADING.md#configuration-req-ui-003-vocabulary).
 
+### SearchKit (1.32)
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `search_kit.enabled` | `true` | `false`: the group `uptime_monitors` is not registered. It needs `nowo-tech/search-kit-bundle` ^1.9 and `web_ui.enabled`. |
+| `search_kit.tenant_resolver` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface` (the viewer's tenant slug, or `null`: no results). `null` = request `tenantSlug`, else `multi_tenant.default_tenant`. |
+| `search_kit.max_candidates` | `100` | Monitors read and access-checked per search (1-1000). |
+
+See [USAGE](USAGE.md#searchkit-monitors-132).
+
 ### Check limits (SEC-004)
 
 Monitor managers choose each monitor's timeout, redirects and target; the `checks.max_*` caps keep one monitor from

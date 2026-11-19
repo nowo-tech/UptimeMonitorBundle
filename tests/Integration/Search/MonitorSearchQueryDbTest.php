@@ -9,6 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
+use Nowo\UptimeMonitorBundle\Search\MonitorSearchHit;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchMapper;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchQuery;
 use Nowo\UptimeMonitorBundle\Tests\Support\MonitorSearchFixtures;
@@ -29,6 +30,7 @@ use function sort;
 #[Group('db')]
 #[CoversClass(MonitorSearchQuery::class)]
 #[CoversClass(MonitorSearchMapper::class)]
+#[CoversClass(MonitorSearchHit::class)]
 final class MonitorSearchQueryDbTest extends TestCase
 {
     private EntityManagerInterface $em;

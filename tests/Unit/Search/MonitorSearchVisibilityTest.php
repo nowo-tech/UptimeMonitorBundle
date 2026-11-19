@@ -61,6 +61,15 @@ final class MonitorSearchVisibilityTest extends TestCase
         self::assertTrue((new MonitorSearchVisibility($checker, null, true))->canSee($this->monitor('acme', 'A')));
     }
 
+    public function testCanSearchFollowsTheDashboardCheck(): void
+    {
+        $checker = $this->createMock(UptimeMonitorAccessCheckerInterface::class);
+        $checker->expects(self::once())->method('canAccessDashboard')->willReturn(false);
+
+        self::assertFalse((new MonitorSearchVisibility($checker))->canSearch());
+        self::assertTrue((new MonitorSearchVisibility($checker, null, true))->canSearch());
+    }
+
     private function monitor(string $tenant, string $name): Monitor
     {
         return new Monitor(new Tenant($tenant, $tenant), $name, MonitorType::Https, 'https://example.com');

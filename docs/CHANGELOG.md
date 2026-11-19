@@ -93,6 +93,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- SearchKit provider of monitors, group `uptime_monitors` (`search_kit.enabled`, `search_kit.tenant_resolver`, `search_kit.max_candidates`), wired only when `nowo-tech/search-kit-bundle` ^1.9 is installed and `web_ui` is enabled. It searches by name and by the origin of the target, in the viewer's tenant, and shows a monitor only when the bundle's access checker lets the viewer see it; a refusal looks like no match. New host hook `Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface`; new translation key `search.group`. See [USAGE](USAGE.md#searchkit-monitors-132).
 - Monitor search building blocks (`Nowo\UptimeMonitorBundle\Search`), the base of the SearchKit provider: `MonitorSearchQuery` (one SQL query, tenant joined, escaped `LIKE ... ESCAPE '!'` over the name and the target; a needle that only occurs in a credential finds nothing), `MonitorSearchVisibility` (the bundle's own access checker: `canViewMonitor()`, else `canAccessTenant()`, else `canAccessDashboard()`), `MonitorSearchMapper` and `MonitorSearchUrl`. A result shows the origin of the target only (`scheme://host[:port]`): userinfo, path, query and fragment are never shown or matched; groups and push monitors show no URL; the status only when asked.
 
 ### Changed

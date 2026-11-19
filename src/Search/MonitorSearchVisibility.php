@@ -29,6 +29,15 @@ final readonly class MonitorSearchVisibility
     }
 
     /**
+     * Whether the viewer may use monitor search at all: `canAccessDashboard()`, the bundle's `view` of the dashboards
+     * (always true under `security.allow_unauthenticated`).
+     */
+    public function canSearch(): bool
+    {
+        return $this->allowUnauthenticated || $this->accessChecker->canAccessDashboard($this->user());
+    }
+
+    /**
      * Whether the viewer may see the monitor listed (and its status: the same check).
      */
     public function canSee(Monitor $monitor): bool

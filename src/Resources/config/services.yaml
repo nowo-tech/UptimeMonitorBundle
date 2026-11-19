@@ -37,6 +37,7 @@ services:
             - '../../Limits/ConfigurableTenantLimits.php'
             - '../../Push/PushPayload.php'
             - '../../Search/MonitorSearchHit.php'
+            - '../../Search/SearchKit/'
             - '../../Search/MonitorSearchUrl.php'
             - '../../Push/PushThresholds.php'
             # apply-monitors (1.18): value objects and exceptions, not services
