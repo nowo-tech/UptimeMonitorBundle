@@ -159,7 +159,7 @@ results page get a group `uptime_monitors`. Each search:
    `null` means no results);
 2. checks `canAccessDashboard()` of the bundle's access checker (the group is off for a viewer who may not open the dashboards);
 3. reads at most `search_kit.max_candidates` monitors of that tenant in one SQL query, matching every word against the
-   name and the target with an escaped `LIKE ... ESCAPE '!'`;
+   **name** with an escaped `LIKE ... ESCAPE '!'` (the stored target may hold credentials, so SQL never matches it);
 4. keeps only the monitors the checker lets the viewer see: `canViewMonitor()` for a monitor-aware checker (so a monitor shared
    outside the tenant is searchable), else `canAccessTenant()`, else the dashboard check; then SearchKit sends its
    `SearchKitEvents::ITEM_VISIBILITY` event, where a host deny wins.
@@ -169,14 +169,20 @@ results page get a group `uptime_monitors`. Each search:
 A refusal anywhere (no tenant, no access, a denied monitor) gives no group and no count, so a hidden monitor looks like a
 missing one. The total is the visible count inside the candidate window and the results page goes at most that deep.
 
-**What a result shows:** the name, the link to the monitor page, the origin of the target and the last status (the status is
-shown because the viewer may see the monitor). It never shows the config, headers, tokens, auth settings or push
-credentials.
+**What a result shows:** the name, the link to the monitor page, the origin of the target and the translated last status
+(`Paused` for a paused monitor, whose last status is stale). The status is shown because the viewer may see the monitor. It
+never shows the config, headers, tokens, auth settings or push credentials. There is no "see all" link: no page of the bundle
+lists monitors by a search text.
 
 **URLs:** only the origin is shown (`https://host:8443`, `db.internal:5432`): userinfo, path, query string and fragment are
-dropped, because a secret may sit in any of them. Matching uses the same value: a word found only in a credential, a path or
-a query finds nothing, and neither does a push monitor's target. SQL reads the stored target, so a word that spans the
-userinfo (`https://host` of `https://user:pw@host`) does not find that monitor; a host or name fragment does.
+dropped, because a secret may sit in any of them. It fails closed: a target that is not a plain URL or host (a connection
+string such as `Server=db;Password=x;`) shows nothing, and so does a URL whose password holds a raw `/`, `?` or `#`
+(`https://admin:4242/rest@host/`, where a `:` stands before the `@`). Push monitors and groups show no URL.
+
+**Recents:** SearchKit's recents keep the title and subtitle of the rows a viewer opened in the browser (`localStorage`). A
+monitor row's subtitle holds the origin of its target and its status. With `recent.revalidate: false` they stay there
+without being checked again, so a viewer who lost access still sees them on that browser; keep recents revalidated (the
+definition supports it: `idField()` / `referenceId()`) or off if origins must not be stored.
 
 ```yaml
 nowo_uptime_monitor:

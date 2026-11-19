@@ -27,6 +27,7 @@ final readonly class MonitorSearchMapper
             $monitor->getTenant()->getSlug(),
             self::hasTarget($type) ? MonitorSearchUrl::display($monitor->getTarget()) : '',
             $includeStatus ? $monitor->getLastKnownStatus()?->value : null,
+            $includeStatus && $monitor->isPaused(),
         );
     }
 

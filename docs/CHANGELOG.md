@@ -93,8 +93,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- SearchKit provider of monitors, group `uptime_monitors` (`search_kit.enabled`, `search_kit.tenant_resolver`, `search_kit.max_candidates`), wired only when `nowo-tech/search-kit-bundle` ^1.9 is installed and `web_ui` is enabled. It searches by name and by the origin of the target, in the viewer's tenant, and shows a monitor only when the bundle's access checker lets the viewer see it; a refusal looks like no match. New host hook `Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface`; new translation key `search.group`. See [USAGE](USAGE.md#searchkit-monitors-132).
-- Monitor search building blocks (`Nowo\UptimeMonitorBundle\Search`), the base of the SearchKit provider: `MonitorSearchQuery` (one SQL query, tenant joined, escaped `LIKE ... ESCAPE '!'` over the name and the target; a needle that only occurs in a credential finds nothing), `MonitorSearchVisibility` (the bundle's own access checker: `canViewMonitor()`, else `canAccessTenant()`, else `canAccessDashboard()`), `MonitorSearchMapper` and `MonitorSearchUrl`. A result shows the origin of the target only (`scheme://host[:port]`): userinfo, path, query and fragment are never shown or matched; groups and push monitors show no URL; the status only when asked.
+- SearchKit provider of monitors, group `uptime_monitors` (`search_kit.enabled`, `search_kit.tenant_resolver`, `search_kit.max_candidates`), wired only when `nowo-tech/search-kit-bundle` ^1.9 is installed (it needs PHP 8.3 or later; the bundle still supports PHP 8.2) and `web_ui` is enabled. It searches monitors by **name** in the viewer's tenant and shows a monitor only when the bundle's access checker lets the viewer see it; a refusal looks like no match. A result shows the name, the monitor page link, the origin of the target (`scheme://host[:port]`: userinfo, path, query and fragment are never shown) and the translated status (`Paused` for a paused monitor). New host hook `Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface`; new translation key `search.group`. There is no "see all" link, and the stored target is never matched by SQL. See [USAGE](USAGE.md#searchkit-monitors-132).
+- Monitor search building blocks (`Nowo\UptimeMonitorBundle\Search`): `MonitorSearchVisibility` (the bundle's own access checker: `canViewMonitor()`, else `canAccessTenant()`, else `canAccessDashboard()`), `MonitorSearchMapper`, `MonitorSearchHit` and `MonitorSearchUrl`.
 
 ### Changed
 
@@ -103,6 +103,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `SecretRedactor::maskUrl()` left a password written with a raw `/`, `?` or `#` unmasked (`https://admin:pa/ss@host/` showed `admin:pa/ss@` on the pages that show the target): the userinfo was read to the first `/`, `?` or `#`. When a `:` stands before the last `@`, everything up to that `@` is now masked (`https://***@host/`); a URL whose path has `:` and `@` is masked the same way. The gap exists since 1.12.1 and showed the value on the dashboard, the monitor page, the summary, backups, alert mails and webhook payloads. The edit form (`maskEditableUrl()`) is a separate function and is unchanged.
 - Demo: `demo/symfony8/composer.lock` now installs nowo-tech/transaction-doctrine 1.6.0. The locks of 1.29.0 and 1.31.0 resolved nowo-tech/transaction-doctrine 1.1.0, which the bundle already required (^1.5): the demo installs from its lock, so it would fail with class not found on the first lock conflict (`ConflictCode`). The bundle's composer.json constraint was already right; hosts are not affected.
 
 ## [1.31.0] - 2026-11-18

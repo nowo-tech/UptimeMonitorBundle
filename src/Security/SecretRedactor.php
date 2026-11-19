@@ -16,7 +16,9 @@ use function preg_match_all;
 use function preg_replace;
 use function preg_replace_callback;
 use function str_contains;
+use function strrpos;
 use function strtolower;
+use function substr;
 
 use const PREG_SET_ORDER;
 
@@ -64,14 +66,39 @@ final class SecretRedactor
             return $value;
         }
 
-        // Greedy authority match: a raw '@' inside the password is part of the userinfo too.
-        $value = (string) preg_replace('#^([a-z][a-z0-9+.\-]*://)[^/?\#]*@#i', '$1' . self::MASK . '@', $value);
+        // The authority ends at the first '/', '?' or '#'. Greedy match: a raw '@' inside the password is part of the
+        // userinfo too. A password with a raw '/', '?' or '#' ends the authority early (`https://user:pa/ss@host/`): when
+        // a ':' stands before the last '@', everything up to that '@' is the userinfo (since 1.32; a URL whose path has
+        // `:` and '@' is masked the same way, failing closed).
+        if (preg_match('#^([a-z][a-z0-9+.\-]*://)([^/?\#]*)(.*)$#is', $value, $m) === 1) {
+            if (str_contains($m[2], '@')) {
+                $value = (string) preg_replace('#^([a-z][a-z0-9+.\-]*://)[^/?\#]*@#i', '$1' . self::MASK . '@', $value);
+            } elseif (self::isAmbiguousAuthority($m[2], $m[3])) {
+                $value = $m[1] . self::MASK . '@' . substr($m[3], (int) strrpos($m[3], '@') + 1);
+            }
+        }
 
         return (string) preg_replace_callback(
             '#([?&])([^=&\#]*)=([^&\#]*)#',
             static fn (array $m): string => $m[1] . $m[2] . '=' . (preg_match(self::SENSITIVE_QUERY_KEY, $m[2]) === 1 ? self::MASK : $m[3]),
             $value,
         );
+    }
+
+    /**
+     * Whether an '@' after the authority may close a userinfo whose password holds a raw '/', '?' or '#' (since 1.32):
+     * it does when a ':' stands anywhere before the last '@' (`user:pa/ss@host`, `admin:4242/rest@host`), where
+     * `parse_url()` would read `user:digits` as `host:port`. A path or query with an '@' and no ':' before it
+     * (`host/@me`, `host/x?email=a@b`) is not. Used to fail closed.
+     *
+     * @param string $authority The text before the first '/', '?' or '#' after the scheme
+     * @param string $after The rest, starting at that delimiter
+     */
+    public static function isAmbiguousAuthority(string $authority, string $after): bool
+    {
+        $at = strrpos($after, '@');
+
+        return $at !== false && str_contains($authority . substr($after, 0, $at), ':');
     }
 
     /**

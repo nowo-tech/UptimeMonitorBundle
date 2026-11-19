@@ -9,23 +9,18 @@ use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
 use Nowo\SearchKitBundle\Model\SearchReference;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
-use Nowo\SearchKitBundle\Search\Query\SearchWords;
-use Nowo\SearchKitBundle\Search\Query\SeeAllLink;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchHit;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchMapper;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface;
-use Nowo\UptimeMonitorBundle\Search\MonitorSearchUrl;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchVisibility;
-use Symfony\Component\Routing\Exception\ExceptionInterface as RoutingException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function ctype_digit;
 use function is_string;
 use function max;
-use function mb_stripos;
 use function min;
 use function sprintf;
 
@@ -106,11 +101,11 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * The monitor name and stored target; the target is verified again against the displayed origin.
+     * The monitor name only: the stored target may hold credentials, so SQL never matches it.
      */
     public function searchableFields(): array
     {
-        return ['m.name', 'm.target'];
+        return ['m.name'];
     }
 
     /**
@@ -162,14 +157,13 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * Keeps the candidates whose words match the name or displayed origin and that the access checker lets the viewer see.
+     * Keeps the candidates the access checker lets the viewer see.
      */
     public function filterVisible(array $rows, int|string $tenant, SearchQuery $query): array
     {
-        $words   = SearchWords::words($query->text);
         $visible = [];
         foreach ($rows as $row) {
-            if ($row instanceof Monitor && $this->matches($row, $words) && $this->visibility->canSee($row)) {
+            if ($row instanceof Monitor && $this->visibility->canSee($row)) {
                 $visible[] = $row;
             }
         }
@@ -188,7 +182,7 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
         return new SearchItem(
             $hit->name,
             $this->urls->generate('nowo_uptime_monitor_show', ['tenantSlug' => $hit->tenantSlug, 'id' => $hit->id]),
-            $this->subtitle($hit),
+            $this->subtitle($hit, $query->locale),
             null,
             null,
             self::GROUP,
@@ -196,43 +190,33 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * The tenant dashboard with the query, or null without a tenant or route.
+     * No "see all" link: no page of the bundle lists monitors by a search text.
      */
     public function seeAllUrl(SearchQuery $query): ?string
     {
-        $slug = $this->tenant($query);
-        if (!is_string($slug) || $slug === '') {
-            return null;
-        }
+        return null;
+    }
 
-        try {
-            return SeeAllLink::build($this->urls, 'nowo_uptime_dashboard', ['tenantSlug' => $slug], $query);
-        } catch (RoutingException) {
-            return null;
-        }
+    private function subtitle(MonitorSearchHit $hit, ?string $locale): string
+    {
+        $status = match (true) {
+            $hit->paused          => $this->status('paused', $locale),
+            $hit->status !== null => $this->status($hit->status, $locale),
+            default               => '',
+        };
+
+        return match (true) {
+            $hit->url !== '' && $status !== '' => sprintf('%s · %s', $hit->url, $status),
+            $hit->url !== ''                   => $hit->url,
+            default                            => $status,
+        };
     }
 
     /**
-     * @param list<string> $words
+     * The translated status label (`status.<value>`), the raw value without a translator.
      */
-    private function matches(Monitor $monitor, array $words): bool
+    private function status(string $value, ?string $locale): string
     {
-        $origin = MonitorSearchMapper::hasTarget($monitor->getType()) ? MonitorSearchUrl::display($monitor->getTarget()) : '';
-        foreach ($words as $word) {
-            if (mb_stripos($monitor->getName(), $word) === false && ($origin === '' || mb_stripos($origin, $word) === false)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function subtitle(MonitorSearchHit $hit): string
-    {
-        return match (true) {
-            $hit->url !== '' && $hit->status !== null => sprintf('%s · %s', $hit->url, $hit->status),
-            $hit->url !== ''                          => $hit->url,
-            default                                   => $hit->status ?? '',
-        };
+        return $this->translator?->trans('status.' . $value, [], 'NowoUptimeMonitorBundle', $locale) ?? $value;
     }
 }

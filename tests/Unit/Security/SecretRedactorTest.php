@@ -28,6 +28,14 @@ final class SecretRedactorTest extends TestCase
             'https://example.test/hook?api_key=***&page=2&Token=***&SIG=***#frag',
         ];
         yield 'flag without value' => ['https://example.test/?debug&secret=REDACTED-TEST', 'https://example.test/?debug&secret=***'];
+        yield 'password with a raw slash and port-like text' => ['https://admin:4242/rest@host.example.com/', 'https://***@host.example.com/'];
+        yield 'password with a raw slash' => ['https://admin:pa/ss@host.example.com/x?token=abc', 'https://***@host.example.com/x?token=***'];
+        yield 'password with a raw question mark' => ['https://admin:pa?ss@host.example.com/', 'https://***@host.example.com/'];
+        yield 'password with a raw hash' => ['https://admin:pa#ss@host.example.com/', 'https://***@host.example.com/'];
+        yield 'user with a slash' => ['https://us/er:pw@host.example.com/', 'https://***@host.example.com/'];
+        yield 'at sign in the path, no colon before it' => ['https://example.test/@me', 'https://example.test/@me'];
+        yield 'e-mail in the query' => ['https://example.test/x?email=a@b.example', 'https://example.test/x?email=a@b.example'];
+        yield 'connection string is not a url' => ['Server=db;User=sa;Password=Secret123;', 'Server=db;User=sa;Password=Secret123;'];
         yield 'userinfo and query' => ['https://u:p@example.test/?password=REDACTED-TEST', 'https://***@example.test/?password=***'];
     }
 

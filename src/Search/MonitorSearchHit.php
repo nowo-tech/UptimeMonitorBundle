@@ -16,6 +16,7 @@ final readonly class MonitorSearchHit
      * @param string $tenantSlug Slug of the tenant
      * @param string $url Origin of the target (see {@see MonitorSearchUrl}); empty for groups and push monitors
      * @param string|null $status Last known status value; null when not shown or unknown
+     * @param bool $paused Whether the monitor is paused (its last status is then stale)
      */
     public function __construct(
         public int $id,
@@ -24,6 +25,7 @@ final readonly class MonitorSearchHit
         public string $tenantSlug,
         public string $url,
         public ?string $status,
+        public bool $paused = false,
     ) {
     }
 }

@@ -36,15 +36,16 @@ use Symfony\Component\Routing\RouteCollection;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\InMemoryUser;
-use Symfony\Component\Translation\IdentityTranslator;
+use Symfony\Component\Translation\Loader\ArrayLoader;
+use Symfony\Component\Translation\Translator;
 
 use function array_map;
 use function class_exists;
 use function in_array;
 use function json_encode;
-use function str_contains;
 
 use const JSON_UNESCAPED_SLASHES;
+use const JSON_UNESCAPED_UNICODE;
 
 /**
  * The SearchKit contract kit against the real MonitorSearchDefinition and a real database (SQLite by default; MySQL /
@@ -79,6 +80,7 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         $this->em      = SqliteEntityManagerFactory::create((new DbalConfiguration())->setMiddlewares([new QueryCountingMiddleware($this->counter)]));
         $this->em->persist(new Tenant('acme', 'Acme'));
         $this->em->persist(new Tenant('beta', 'Beta'));
+        $this->em->persist(new Tenant('gamma', 'Gamma'));
         $this->em->flush();
         $this->em->clear();
 
@@ -135,7 +137,16 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         $routes->add('nowo_uptime_dashboard', new Route('/uptime/{tenantSlug}'));
         $urls = new UrlGenerator($routes, new RequestContext());
 
-        $this->definition = new MonitorSearchDefinition(new MonitorRepository($registry), $this, new MonitorSearchVisibility($checker, $this->tokens), new MonitorSearchMapper(), $urls);
+        $this->definition = new MonitorSearchDefinition(new MonitorRepository($registry), $this, new MonitorSearchVisibility($checker, $this->tokens), new MonitorSearchMapper(), $urls, $this->translator());
+    }
+
+    private function translator(): Translator
+    {
+        $translator = new Translator('en');
+        $translator->addLoader('array', new ArrayLoader());
+        $translator->addResource('array', ['search.group' => 'Monitors', 'status.up' => 'Up', 'status.down' => 'Down', 'status.paused' => 'Paused'], 'en', 'NowoUptimeMonitorBundle');
+
+        return $translator;
     }
 
     protected function tearDown(): void
@@ -192,9 +203,12 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         return $this->add((string) $tenant, $text, 'https://hidden.example.com/');
     }
 
+    /**
+     * Monitors have no archived or deleted state; the row baseQuery() filters out in SQL is one of another tenant.
+     */
     protected function seedArchived(int|string $tenant, string $text): int
     {
-        self::markTestSkipped('Monitors have no archived or deleted state: nothing for baseQuery() to filter out.');
+        return $this->add('gamma', $text, 'https://archived.example.com/');
     }
 
     protected function reference(int|string $id): SearchReference
@@ -251,7 +265,7 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         self::assertSame(1, $group->total);
     }
 
-    public function testResultsShowTheOriginAndStatusAndNoCredentials(): void
+    public function testResultsShowTheOriginTranslatedStatusAndNoCredentials(): void
     {
         $marker = $this->marker();
         $this->add('acme', $marker . ' api', 'https://user:hunter2@api.example.com:8443/p?token=SECRETTOKEN', CheckStatus::Down, ['headers' => ['Authorization' => 'Bearer HEADERSECRET'], 'auth_password' => 'PWSECRET']);
@@ -263,29 +277,62 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
 
         self::assertNotNull($group);
         self::assertSame(3, $group->total);
-        $shown = (string) json_encode($group->items, JSON_UNESCAPED_SLASHES);
+        $shown = (string) json_encode($group->items, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         foreach (['hunter2', 'SECRETTOKEN', 'HEADERSECRET', 'PWSECRET', 'SECRETPUSH', ':8443/'] as $secret) {
             self::assertStringNotContainsString($secret, $shown, $secret);
         }
 
-        self::assertStringContainsString('https://api.example.com:8443', $shown);
-        self::assertStringContainsString('down', $shown);
+        self::assertStringContainsString('https://api.example.com:8443 · Down', $shown);
         self::assertStringContainsString('/uptime/acme/monitors/', $shown);
-        self::assertNotNull($group->moreUrl);
-        self::assertTrue(str_contains((string) $group->moreUrl, '/uptime/acme'));
+        self::assertNull($group->moreUrl, 'no page of the bundle honours a search text');
     }
 
-    public function testAWordFoundOnlyInACredentialFindsNothing(): void
+    public function testPausedMonitorsShowPausedAndGroupsShowNoUrl(): void
+    {
+        $marker = $this->marker();
+        $this->add('acme', $marker . ' paused', 'https://p.example.com', CheckStatus::Up, [], MonitorType::Https, true);
+        $this->add('acme', $marker . ' group', '', CheckStatus::Up, [], MonitorType::Group);
+        $this->add('acme', $marker . ' unknown', 'https://u.example.com');
+        $this->actAs('acme', self::VIEWER_A);
+
+        $group = $this->provider()->search($this->query($marker));
+        self::assertNotNull($group);
+
+        self::assertSame(['Up', 'https://p.example.com · Paused', 'https://u.example.com'], array_map(static fn ($i): string => $i->subtitle, $group->items));
+    }
+
+    public function testAWordFoundOnlyInAStoredTargetFindsNothing(): void
     {
         $this->add('acme', 'Plain', 'https://user:hunter2@api.example.com/x?token=SECRETTOKEN');
         $this->add('acme', 'Cron', 'pushtarget-SECRETPUSH', null, [], MonitorType::Push);
         $this->actAs('acme', self::VIEWER_A);
 
-        foreach (['hunter2', 'SECRETTOKEN', 'SECRETPUSH', 'pushtarget'] as $needle) {
+        foreach (['hunter2', 'SECRETTOKEN', 'SECRETPUSH', 'pushtarget', 'api.example', 'user:'] as $needle) {
             self::assertNull($this->provider()->search($this->query($needle)), $needle);
         }
 
-        self::assertNotNull($this->provider()->search($this->query('api.example')));
+        self::assertNotNull($this->provider()->search($this->query('plain')));
+    }
+
+    public function testResolveShowsOnlyAVisibleMonitorOfTheViewersTenant(): void
+    {
+        $marker  = $this->marker();
+        $visible = $this->add('acme', $marker . ' visible', 'https://a.example.com');
+        $hidden  = $this->seedHidden('acme', $marker . ' hidden');
+        $foreign = $this->add('beta', $marker . ' foreign', 'https://b.example.com');
+        $this->actAs('acme', self::VIEWER_A);
+        $provider = $this->provider();
+
+        $item = $provider->resolve($this->reference($visible), self::VIEWER_A, 'en');
+        self::assertNotNull($item);
+        self::assertSame($marker . ' visible', $item->title);
+
+        self::assertNull($provider->resolve($this->reference($hidden), self::VIEWER_A, 'en'), 'hidden by the access checker');
+        self::assertNull($provider->resolve($this->reference($foreign), self::VIEWER_A, 'en'), 'another tenant');
+        self::assertNull($provider->resolve(new SearchReference('/uptime/beta/monitors/' . $visible, 'uptime_monitors', 'nowo_uptime_monitor_show', ['tenantSlug' => 'beta', 'id' => (string) $visible]), self::VIEWER_A, 'en'), 'forged tenant slug');
+        self::assertNull($provider->resolve(new SearchReference('/uptime/acme/monitors/' . $visible, 'uptime_monitors', 'nowo_uptime_monitor_show', ['tenantSlug' => 'acme', 'id' => $visible . ' OR 1']), self::VIEWER_A, 'en'), 'forged id');
+        $this->actAs(null, self::VIEWER_A);
+        self::assertNull($provider->resolve($this->reference($visible), self::VIEWER_A, 'en'), 'no tenant');
     }
 
     public function testDefinitionDetails(): void
@@ -297,15 +344,11 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         self::assertSame('Monitors', $this->definition->label($query));
         self::assertSame(100, $this->definition->maxCandidates());
         self::assertSame('uptime_monitor', $this->definition->subjectType());
-
-        $this->actAs(null, self::VIEWER_A);
         self::assertNull($this->definition->seeAllUrl($query));
 
-        $this->actAs('acme', self::VIEWER_A);
-        $noRoutes = new MonitorSearchDefinition(new MonitorRepository($this->registry), $this, new MonitorSearchVisibility(new AllowAllUptimeMonitorAccessChecker()), new MonitorSearchMapper(), new UrlGenerator(new RouteCollection(), new RequestContext()), new IdentityTranslator());
-        self::assertNull($noRoutes->seeAllUrl($query));
-        self::assertSame('search.group', $noRoutes->label($query));
-        self::assertSame(1000, (new MonitorSearchDefinition(new MonitorRepository($this->registry), $this, new MonitorSearchVisibility(new AllowAllUptimeMonitorAccessChecker()), new MonitorSearchMapper(), new UrlGenerator(new RouteCollection(), new RequestContext()), null, 5000))->maxCandidates());
+        $plain = new MonitorSearchDefinition(new MonitorRepository($this->registry), $this, new MonitorSearchVisibility(new AllowAllUptimeMonitorAccessChecker()), new MonitorSearchMapper(), new UrlGenerator(new RouteCollection(), new RequestContext()), null, 5000);
+        self::assertSame(1000, $plain->maxCandidates());
+        self::assertSame('Monitors', $plain->label($query));
     }
 
     public function testReferenceIdAcceptsOnlyAMonitorPageWithADigitId(): void
@@ -317,24 +360,10 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         self::assertNull($this->definition->referenceId(new SearchReference('/x', 'uptime_monitors', 'nowo_uptime_monitor_show')));
     }
 
-    public function testSubtitleWithoutAStatusOrWithoutAnOrigin(): void
-    {
-        $marker = $this->marker();
-        $this->add('acme', $marker . ' up', 'https://a.example.com');
-        $this->add('acme', $marker . ' group', '', CheckStatus::Up, [], MonitorType::Group);
-        $this->actAs('acme', self::VIEWER_A);
-
-        $group = $this->provider()->search($this->query($marker));
-        self::assertNotNull($group);
-        $items = $group->items;
-
-        self::assertSame(['', 'https://a.example.com'], array_map(static fn ($i): string => $i->subtitle === 'up' ? '' : $i->subtitle, $items));
-    }
-
     /**
      * @param array<string, mixed> $config
      */
-    private function add(string $tenant, string $name, string $target, ?CheckStatus $status = null, array $config = [], MonitorType $type = MonitorType::Https): int
+    private function add(string $tenant, string $name, string $target, ?CheckStatus $status = null, array $config = [], MonitorType $type = MonitorType::Https, bool $paused = false): int
     {
         $tenantEntity = $this->em->getRepository(Tenant::class)->findOneBy(['slug' => $tenant]);
         self::assertInstanceOf(Tenant::class, $tenantEntity);
@@ -345,6 +374,10 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
 
         if ($config !== []) {
             $monitor->setConfig($config);
+        }
+
+        if ($paused) {
+            $monitor->setPaused(true);
         }
 
         $this->em->persist($monitor);
