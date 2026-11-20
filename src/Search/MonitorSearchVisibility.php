@@ -19,7 +19,7 @@ use function is_object;
 /**
  * Whether the current viewer may see a monitor in search (since 1.32), decided by the bundle's own access checker as
  * the monitor page is: monitor-aware `canViewMonitor()`, else tenant-aware `canAccessTenant()`, else
- * `canAccessDashboard()`. Since 1.33 the search permission is its own check ({@see self::canSearchTenant()}).
+ * `canAccessDashboard()`. Since 1.34 the search permission is its own check ({@see self::canSearchTenant()}).
  * `security.allow_unauthenticated` skips the checks. The user is read from the token storage
  * at call time and nothing is kept between calls: safe in worker mode.
  */
@@ -31,7 +31,7 @@ final readonly class MonitorSearchVisibility
      * @param UptimeMonitorAccessCheckerInterface $accessChecker Access checker of the admin UI
      * @param TokenStorageInterface|null $tokenStorage Token storage (null without SecurityBundle)
      * @param bool $allowUnauthenticated `security.allow_unauthenticated`: the checks are skipped
-     * @param EventDispatcherInterface|null $eventDispatcher Dispatches {@see MonitorSearchAccessEvent} (since 1.33)
+     * @param EventDispatcherInterface|null $eventDispatcher Dispatches {@see MonitorSearchAccessEvent} (since 1.34)
      */
     public function __construct(
         private UptimeMonitorAccessCheckerInterface $accessChecker,
@@ -44,7 +44,7 @@ final readonly class MonitorSearchVisibility
     /**
      * The 1.32 search gate: `canAccessDashboard()` (always true under `security.allow_unauthenticated`).
      *
-     * @deprecated since 1.33, the search gate is {@see self::canSearchTenant()}; this method is no longer called
+     * @deprecated since 1.34, the search gate is {@see self::canSearchTenant()}; this method is no longer called
      */
     public function canSearch(): bool
     {
@@ -52,7 +52,7 @@ final readonly class MonitorSearchVisibility
     }
 
     /**
-     * Whether the viewer may search the monitors of a tenant (since 1.33): the checker's
+     * Whether the viewer may search the monitors of a tenant (since 1.34): the checker's
      * {@see SearchAwareUptimeMonitorAccessCheckerInterface::canSearch()} (denied when it does not implement it), then
      * {@see MonitorSearchAccessEvent} (a listener grants or denies; a denial wins). Always true under
      * `security.allow_unauthenticated`. The dashboard permission plays no part.

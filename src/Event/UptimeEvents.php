@@ -25,9 +25,12 @@ final class UptimeEvents
     /** {@see MonitorPausedEvent}: after the admin UI pause / resume action is committed (since 1.25). */
     public const MONITOR_PAUSED = MonitorPausedEvent::class;
 
-    /** {@see MonitorSearchAccessEvent}: whether a viewer may search the monitors of a tenant (since 1.33). */
+    /** {@see MonitorChangedEvent}: after any monitor create, change or delete is committed, with the field diff (since 1.33, `audit.enabled`). */
+    public const MONITOR_CHANGED = MonitorChangedEvent::class;
+
+    /** {@see MonitorSearchAccessEvent}: whether a viewer may search the monitors of a tenant (since 1.34). */
     public const MONITOR_SEARCH_ACCESS = MonitorSearchAccessEvent::class;
 
-    /** {@see MonitorSearchScopeEvent}: narrows the tenants a monitor search covers (since 1.33). */
+    /** {@see MonitorSearchScopeEvent}: narrows the tenants a monitor search covers (since 1.34). */
     public const MONITOR_SEARCH_SCOPE = MonitorSearchScopeEvent::class;
 }

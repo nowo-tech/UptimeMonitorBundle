@@ -27,7 +27,7 @@ final class RequestMonitorSearchTenantResolverTest extends TestCase
         self::assertSame('main', $resolver->resolve('u'));
         self::assertSame('main', (new RequestMonitorSearchTenantResolver($stack))->resolve('u'));
         self::assertNull((new RequestMonitorSearchTenantResolver($stack, ['default_tenant' => '']))->resolve('u'));
-        // 1.33: the same tenant as a list.
+        // 1.34: the same tenant as a list.
         self::assertSame(['main'], $resolver->resolveTenants('u'));
         self::assertSame([], (new RequestMonitorSearchTenantResolver($stack, ['default_tenant' => '']))->resolveTenants('u'));
     }

@@ -76,7 +76,7 @@ final class MonitorSearchVisibilityTest extends TestCase
     }
 
     /**
-     * 1.33: the search permission is its own check, denied unless the checker or a listener grants it; the dashboard
+     * 1.34: the search permission is its own check, denied unless the checker or a listener grants it; the dashboard
      * permission plays no part.
      */
     public function testSearchIsDeniedByDefaultAndGrantedByTheCheckerOrAListener(): void

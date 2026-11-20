@@ -85,15 +85,18 @@ final readonly class TenantQuota
      * @param EntityManagerInterface $entityManager Entity manager of the tenant and its monitors
      * @param Tenant $tenant Managed tenant entity (the locked row)
      * @param callable(int|null): T $write Receives the remaining quota (null = no limit)
+     * @param UptimeTransactionRunner|null $runner The runner to use, on `$entityManager` (since 1.33: one named after
+     *                                             its write path, {@see UptimeTransactionRunner::withAuditSource()});
+     *                                             null = the quota's own
      *
      * @throws TransientStorageFailure When the storage failed transiently (deadlock, lock wait timeout): nothing written
      *
      * @return T The write's result
      */
-    public function withTenantLock(EntityManagerInterface $entityManager, Tenant $tenant, callable $write): mixed
+    public function withTenantLock(EntityManagerInterface $entityManager, Tenant $tenant, callable $write, ?UptimeTransactionRunner $runner = null): mixed
     {
         // The bundle's runner drives the bundle's private manager; any other manager gets a runner of its own.
-        $runner = $this->runner instanceof UptimeTransactionRunner && $entityManager instanceof UptimeEntityManager ? $this->runner : new UptimeTransactionRunner($entityManager);
+        $runner ??= $this->runner instanceof UptimeTransactionRunner && $entityManager instanceof UptimeEntityManager ? $this->runner : new UptimeTransactionRunner($entityManager);
 
         // @igor-ignore - Per-call unit of work, run at once and never stored by the runner.
         return $runner->run(function () use ($entityManager, $tenant, $write): mixed {

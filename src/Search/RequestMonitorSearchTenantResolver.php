@@ -41,7 +41,7 @@ final readonly class RequestMonitorSearchTenantResolver implements MonitorSearch
     }
 
     /**
-     * The tenant of {@see self::resolve()} as a list (since 1.33): one slug, or none.
+     * The tenant of {@see self::resolve()} as a list (since 1.34): one slug, or none.
      *
      * @return list<string>
      */

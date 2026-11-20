@@ -19,7 +19,7 @@ use function strlen;
 use function substr;
 
 /**
- * The tenants one monitor search covers (since 1.33), in this order:
+ * The tenants one monitor search covers (since 1.34), in this order:
  *
  * 1. the tenant keys of `search_kit.tenant_resolver` (a list, or the single tenant of a 1.32 resolver); a key that is
  *    not a valid tenant slug (lowercase letters, digits, dashes) is dropped, so keys match slugs exactly;

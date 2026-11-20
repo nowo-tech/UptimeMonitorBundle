@@ -42,6 +42,8 @@ tenant row → monitor row → that monitor's results, aggregates and incidents.
 | Rollup (`nowo:uptime:rollup`, `RollupCommand`) | One unit per monitor, replayed; clears only the private manager between monitors | Monitor row lock, that monitor's results read as plain rows | CLI failure after the last attempt |
 | Data clear, detail purge (`UptimeDataClearService`, `DetailRetentionService`) | Keyset-batched deletes, then one unit for the monitor reset | Idempotent batches (a rerun finishes the job) | 409 + `CONFLICT_001` page from the settings screen |
 | Demo seed (`DemoSeedService`) | One unit per step | Single operator command | CLI failure |
+| Monitor change history (1.33, `audit.history.enabled`) | In the unit of the monitor change (same transaction; a failed insert fails the change) | Append-only insert, no lock of its own; `MonitorChangedEvent` after the commit, once for a replayed unit | The change's own answer |
+| History purge / anonymisation (`nowo:uptime:purge-monitor-changes`) | Keyset-batched deletes; the anonymisation is one `UPDATE` unit | Idempotent (a rerun finishes the job) | CLI failure |
 
 ## Conflict answer
 

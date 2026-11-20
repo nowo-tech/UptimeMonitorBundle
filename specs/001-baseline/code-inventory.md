@@ -413,6 +413,43 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | `Apply/ApplyFailedException.php` | Write failure replacing the database exception (class only, no previous) | FR-APPLY-006 |
 | `Resources/schema/apply-monitors.v1.json` | JSON Schema of the monitors file, shipped for CI linting | FR-APPLY-002 |
 
+## SearchKit provider
+
+Since 1.32 — monitors in the SearchKit palette (see [`docs/USAGE.md`](../../docs/USAGE.md#searchkit-monitors-132)).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Search/MonitorSearchHit.php` | One search result (name, origin-only target, status) | FR-SEARCH-001 |
+| `Search/MonitorSearchMapper.php` | Monitor to search hit | FR-SEARCH-001 |
+| `Search/MonitorSearchTenantResolverInterface.php` | Tenant of a palette request (host hook) | FR-SEARCH-001 |
+| `Search/RequestMonitorSearchTenantResolver.php` | Default tenant resolver (route `tenantSlug`) | FR-SEARCH-001 |
+| `Search/MonitorSearchUrl.php` | Origin-only display of a target; fails closed | FR-SEARCH-002 |
+| `Search/MonitorSearchVisibility.php` | Monitors the user may see | FR-SEARCH-001 |
+| `Search/SearchKit/MonitorSearchDefinition.php` | SearchKit entity definition (group `uptime_monitors`) | FR-SEARCH-001 |
+
+## Monitor change audit
+
+Since 1.33 — audit trail of monitor changes (see [`005-monitor-change-audit/spec.md`](../005-monitor-change-audit/spec.md)).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Audit/MonitorAuditState.php` | Audited state of a monitor and the field diff (origin-only URLs, write-only markers) | FR-AUDIT-002, FR-AUDIT-003 |
+| `Audit/MonitorFieldChange.php` | One field change: before / after or `replaced` / `cleared` | FR-AUDIT-003 |
+| `Audit/MonitorChangeCapture.php` | Per-run onFlush / postFlush capture of the private manager | FR-AUDIT-001 |
+| `Audit/MonitorChangeScope.php` | Outermost / nested run of the runner as the audit sees it | FR-AUDIT-001, FR-AUDIT-004 |
+| `Audit/MonitorChangeRecorder.php` | Actor, history insert, after-commit dispatch | FR-AUDIT-001, FR-AUDIT-005 |
+| `Audit/MonitorChangeOutbox.php` | Events of a run inside an application transaction | FR-AUDIT-004 |
+| `Audit/MonitorChangeOutboxListener.php` | Releases the outbox at the end of each unit of work | FR-AUDIT-004 |
+| `Audit/MonitorChangeSource.php` | Write path names | FR-AUDIT-001 |
+| `Audit/MonitorChangeActorResolverInterface.php` | Who changes monitors (host hook) | FR-AUDIT-006 |
+| `Audit/TokenStorageActorResolver.php` | Default actor: the security token's user identifier | FR-AUDIT-006 |
+| `Audit/MonitorChangeHistory.php` | History read, retention purge, actor anonymisation | FR-AUDIT-005, FR-AUDIT-006 |
+| `Command/PurgeMonitorChangesCommand.php` | `nowo:uptime:purge-monitor-changes` | FR-AUDIT-006 |
+| `Entity/MonitorChange.php` | `uptime_monitor_change` row | FR-AUDIT-005 |
+| `Event/MonitorChangedEvent.php` | After-commit event with the structured diff | FR-AUDIT-004 |
+| `Resources/config/doctrine/MonitorChange.orm.xml` | XML mapping of the history entity | FR-AUDIT-005 |
+| `Resources/views/monitor/_change_history.html.twig` | Read-only history section of the monitor page | FR-AUDIT-005 |
+
 ## Coverage summary
 
 | Category | Files | Mapped |
@@ -444,6 +481,8 @@ Since 1.18 — `nowo:uptime:apply-monitors` (see [`docs/PUSH-MONITORS.md`](../..
 | Twig views | 33 | 33 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| **Total production sources** | **268** | **268** |
+| SearchKit provider | 7 | 7 |
+| Monitor change audit | 16 | 16 |
+| **Total production sources** | **291** | **291** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.

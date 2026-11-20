@@ -6,7 +6,8 @@
 - [Reporting a Vulnerability](#reporting-a-vulnerability)
 - [Scope and attack surface](#scope-and-attack-surface)
 - [Threat model and mitigations](#threat-model-and-mitigations)
-- [Monitor search (SearchKit, 1.32 / 1.33)](#monitor-search-searchkit-132--133)
+- [Monitor search (SearchKit, 1.32 / 1.34)](#monitor-search-searchkit-132--134)
+- [Monitor change audit (1.33)](#monitor-change-audit-133)
 - [Logging policy](#logging-policy)
 - [Dependencies and updates](#dependencies-and-updates)
 - [Release security checklist (12.4.1)](#release-security-checklist-1241)
@@ -42,6 +43,8 @@ This bundle provides:
 - Console command `nowo:uptime:apply-monitors` (1.18): applies push monitors from a file, with external push tokens
   read from a 0600 file or a non-interactive stdin only — see [PUSH-MONITORS.md](PUSH-MONITORS.md#monitors-as-code)
 - Optional notifications (email, webhook, Slack)
+- Optional audit trail of monitor changes (1.33, off by default): `MonitorChangedEvent` and the
+  `uptime_monitor_change` history — see [Monitor change audit](#monitor-change-audit-133)
 - Doctrine persistence for check results and aggregates
 - Host hooks (1.21, all off by default): monitor page slots, `MONITOR_QUOTA_CHECK`, `multi_tenant.provisioner`,
   `canViewMonitor()`, `web_ui.settings.sections_resolver`, `web_ui.strict_tenant_paths` — see
@@ -219,9 +222,9 @@ This bundle provides:
           # one line per web_ui.tenant_paths entry whose path is outside ^/uptime
   ```
 
-## Monitor search (SearchKit, 1.32 / 1.33)
+## Monitor search (SearchKit, 1.32 / 1.34)
 
-The group `uptime_monitors` exists only with SearchKit installed. Since 1.33:
+The group `uptime_monitors` exists only with SearchKit installed. Since 1.34:
 
 - **Permission:** search has its own check, denied by default: `SearchAwareUptimeMonitorAccessCheckerInterface::canSearch()`
   per tenant, then `MonitorSearchAccessEvent` (a denial wins). The bundle's configurable checker keeps the 1.32 behaviour
@@ -233,6 +236,57 @@ The group `uptime_monitors` exists only with SearchKit installed. Since 1.33:
   in the window. Rows hidden by `canViewMonitor()` are filtered in PHP and may still take places in the window (the
   group is not `sensitive()`); the total is then reported as SearchKit computes it.
 - **Shown:** name, origin of the target, status; never credentials (see [USAGE](USAGE.md#searchkit-monitors-132)).
+
+## Monitor change audit (1.33)
+
+Off by default (`audit.enabled: false`, `audit.history.enabled: false`). When on, every create, change and delete of a
+monitor through the bundle is recorded: who (`audit.actor_resolver`, default the security token's user identifier),
+when, tenant, monitor id, write path and the field changes.
+
+**Recorded with their values (before → after):** `name`, `type`, `target` and `proxy` reduced to their origin
+(`scheme://host[:port]` through `MonitorSearchUrl::display()`; an ambiguous URL is `scheme://***`, an unreadable one is
+no value), `ignore_tls`, `enabled`, `interval_seconds`, `project`, `parent_id`, `origin`, `origin_key`, and the known
+non-secret settings (`method`, timeouts, `max_redirects`, `expected_status_codes`, `keyword`, `upside_down`,
+`check_cert_expiry`, `resend_notification_after_down`, `body_encoding`, `auth_method`, `retries`,
+`retry_interval_seconds`, DNS / SSL / push options including the public SPKI pins, `tags`, `description`). Text values
+are cut at 200 characters.
+
+**Recorded only as `replaced` or `cleared`, never with a value and never with a hash of it:** the URL's and the
+proxy's userinfo, path, query and fragment (`target_details`, `proxy_details`), request `headers` and `body`,
+`auth_username`, `auth_password`, the push URL key (`push_url_key`) and token (`push_token`), and every config key the
+bundle does not know (`config.<key>`: fails closed). Write-only values live in memory only while one flush is
+compared; they are never written, logged or put in the event.
+
+**Not recorded:** the check state (next check, last status, failure and notification streaks, push samples and
+timestamps), changes of a group's children when the group is deleted (the database sets their parent to null; the
+group's own `deleted` record stands for it), monitors removed by deleting their tenant (the history goes with the
+tenant: `ON DELETE CASCADE`), and writes that bypass the bundle services (raw SQL, another entity manager).
+
+**Integrity.** The history row is inserted in the transaction of the change: a change cannot commit without its
+record, and a rolled-back or refused write leaves none. The event is dispatched after the commit only. The history is
+append-only from the bundle's side (the only update is the actor anonymisation); a database user that can write the
+bundle tables can still alter it, so hosts that need tamper evidence should forward `MonitorChangedEvent` to their own
+append-only store.
+
+**Access.** The monitor page shows the history to whoever may view the monitor (the same access check as the page);
+the write-only fields show only their marker. A viewer shown only this monitor (a monitor-aware checker without
+`canAccessTenant()`) sees neither the actor nor the `project` / `parent_id` changes, and `form.hidden_fields: [project]`
+hides the `project` changes from everyone, as the page itself does. A monitor's history moves with it: after a monitor
+is moved in from another group or project, the viewers of its new place see its older changes (old project, old group
+id, old values). There is no history API and no export.
+
+**Actor.** The default actor is the security token's user identifier; under `switch_user` it is
+`<original user> (as <impersonated user>)`, so an impersonated change still names who made it.
+
+**Delivery.** `MonitorChangedEvent` of a write inside a host transaction is confirmed by the history rows when the
+history is on (exact). Without the history a host that rolls its transaction back, catches the failure and then commits
+something else in the same unit can still receive the event of the rolled-back change (see USAGE). Without the commit ledger (NowoTransactionDoctrineBundle not registered, or its `commit_detection` off) and with the history off, a host transaction rolled back and caught is enough on its own to release a phantom event. Turn the history on, or commit detection on.
+
+**Personal data (GDPR).** The actor identifier is personal data. Minimise it with `audit.actor_resolver` (a
+pseudonymous user id instead of an e-mail address), bound it with `audit.history.retention_days` and a scheduled
+`nowo:uptime:purge-monitor-changes`, and honour erasure requests with
+`nowo:uptime:purge-monitor-changes --anonymise-actor=<id>` (replaces the actor with `(anonymised)` in every row that
+names the identifier, including the `switch_user` forms `<id> (as …)` and `… (as <id>)`; the field changes stay). Copies kept by `MonitorChangedEvent` listeners are the host's responsibility.
 
 ## Logging policy
 
@@ -257,6 +311,8 @@ another) — never `dump()`, `var_dump()` or `error_log()` in `src/`. Context is
 | Monitors apply refused | `warning` | `exit_code`, `error_codes` (codes only: no paths, no values) |
 | Monitors apply failed | `error` | `error`: exception **class** (the database exception is replaced, never chained) |
 | Clear / purge / import failed | `error` (`warning` for a rejected import file) | `tenant`, `error`: exception **class** |
+| `MonitorChangedEvent` listener failed after the commit (1.33) | `error` | `monitor_id`, `exception_class` |
+| Monitor change events dropped at a reset (their transaction never ended, 1.33) | `warning` | `count` |
 
 **Never logged:** push tokens, their SHA-256, the token file path or contents, signing secrets, webhook / Slack URLs (their path or query is the secret), HTTP basic-auth credentials and custom
 headers of monitors, proxy URLs, alert e-mail recipients, alert bodies, monitor targets, database DSNs, Mercure JWTs,

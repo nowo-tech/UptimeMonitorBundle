@@ -103,7 +103,7 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         $this->registry = $registry;
         $this->tokens   = new TokenStorage();
         $self           = $this;
-        // Since 1.33 the search permission is its own check (canSearch): the dashboard stays closed, as in Beacon.
+        // Since 1.34 the search permission is its own check (canSearch): the dashboard stays closed, as in Beacon.
         $checker = new class($self) implements MonitorAwareUptimeMonitorAccessCheckerInterface, SearchAwareUptimeMonitorAccessCheckerInterface {
             public function __construct(private readonly MonitorSearchProviderDbTest $test)
             {
@@ -201,7 +201,7 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
     }
 
     /**
-     * 1.33: a definition over a list of tenants, with an access checker and a dispatcher of the bundle's search events.
+     * 1.34: a definition over a list of tenants, with an access checker and a dispatcher of the bundle's search events.
      *
      * @param list<string> $tenants
      */

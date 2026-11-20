@@ -7,7 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Security;
 use Nowo\UptimeMonitorBundle\Event\MonitorSearchAccessEvent;
 
 /**
- * Monitor search permission (since 1.33), separate from the dashboard: whether a viewer may search the monitors of a
+ * Monitor search permission (since 1.34), separate from the dashboard: whether a viewer may search the monitors of a
  * tenant in the SearchKit palette (group `uptime_monitors`). A host whose monitors live under its own pages (no bundle
  * dashboard) grants search here, or with a {@see MonitorSearchAccessEvent} listener.
  *

@@ -13,7 +13,7 @@ use function array_map;
 use function array_values;
 
 /**
- * The tenants a monitor search covers (since 1.33, {@see UptimeEvents::MONITOR_SEARCH_SCOPE}), dispatched once per
+ * The tenants a monitor search covers (since 1.34, {@see UptimeEvents::MONITOR_SEARCH_SCOPE}), dispatched once per
  * search before anything is read. It starts from the tenant keys of `search_kit.tenant_resolver`. A listener can only
  * narrow: {@see self::onlyTenants()} keeps the given keys (a second call keeps what both name),
  * {@see self::excludeTenants()} leaves some out, {@see self::deny()} leaves everything out. Keys are compared exactly.

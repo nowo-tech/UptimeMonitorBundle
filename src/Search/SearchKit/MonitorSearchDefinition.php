@@ -38,7 +38,7 @@ use const SORT_STRING;
 /**
  * SearchKit group `uptime_monitors` (since 1.32): monitors by name and by the origin of their target.
  *
- * The tenants come from the bundle's tenant resolver (since 1.33 a list, {@see MonitorSearchTenantsResolverInterface};
+ * The tenants come from the bundle's tenant resolver (since 1.34 a list, {@see MonitorSearchTenantsResolverInterface};
  * a 1.32 single-tenant resolver still works), narrowed by {@see MonitorSearchScopeEvent}
  * and the scope of the search box, and kept only where the viewer has the search permission
  * ({@see MonitorSearchVisibility::canSearchTenant()}, no longer the dashboard one): {@see MonitorSearchTenants}. The SQL
@@ -52,20 +52,20 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
 {
     public const GROUP = 'uptime_monitors';
 
-    /** Prefix of the SearchKit tenant of a search over several tenants (since 1.33): `tenants:<sha256 of the sorted slugs>`. */
+    /** Prefix of the SearchKit tenant of a search over several tenants (since 1.34): `tenants:<sha256 of the sorted slugs>`. */
     public const TENANTS_PREFIX = 'tenants:';
 
     /**
      * Creates the definition.
      *
      * @param MonitorRepository $monitors Monitor repository of the bundle
-     * @param MonitorSearchTenantResolverInterface|MonitorSearchTenantsResolverInterface $tenants Tenant resolver of the viewer (since 1.33 also a list resolver)
+     * @param MonitorSearchTenantResolverInterface|MonitorSearchTenantsResolverInterface $tenants Tenant resolver of the viewer (since 1.34 also a list resolver)
      * @param MonitorSearchVisibility $visibility The bundle's access check for search
      * @param MonitorSearchMapper $mapper Monitor to result mapping
      * @param UrlGeneratorInterface $urls URL generator
      * @param TranslatorInterface|null $translator Translator (null: English label)
      * @param int $maxCandidates Rows read and checked per search
-     * @param MonitorSearchTenants|null $scope The tenants of a search (since 1.33; null = built from $tenants and $visibility)
+     * @param MonitorSearchTenants|null $scope The tenants of a search (since 1.34; null = built from $tenants and $visibility)
      */
     public function __construct(
         private readonly MonitorRepository $monitors,
@@ -129,7 +129,7 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * The search permission was checked per tenant by tenant() (since 1.33; up to 1.32 `canAccessDashboard()`).
+     * The search permission was checked per tenant by tenant() (since 1.34; up to 1.32 `canAccessDashboard()`).
      */
     public function featureEnabled(int|string $tenant, SearchQuery $query): bool
     {
@@ -137,7 +137,7 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * The scope of the search box is applied by {@see MonitorSearchTenants} inside baseQuery(), in SQL (since 1.33):
+     * The scope of the search box is applied by {@see MonitorSearchTenants} inside baseQuery(), in SQL (since 1.34):
      * `tenant:<slug>`, or a host scope a {@see MonitorSearchScopeEvent} listener
      * accepted; any other scope already left no tenant.
      */

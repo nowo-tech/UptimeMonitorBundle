@@ -34,7 +34,7 @@ final class AllowAllUptimeMonitorAccessChecker implements SearchAwareUptimeMonit
     }
 
     /**
-     * Whether the user may search the monitors of a tenant (since 1.33): always.
+     * Whether the user may search the monitors of a tenant (since 1.34): always.
      */
     public function canSearch(object $user, string $tenantSlug): bool
     {

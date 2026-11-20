@@ -21,6 +21,8 @@ services:
     Nowo\UptimeMonitorBundle\:
         resource: '../../'
         exclude:
+            # 1.33: the audit trail is defined by the extension (it depends on nowo_uptime_monitor.audit)
+            - '../../Audit/'
             - '../../Controller/'
             - '../../DependencyInjection/'
             - '../../Doctrine/'
@@ -39,7 +41,7 @@ services:
             - '../../Search/MonitorSearchHit.php'
             - '../../Search/SearchKit/'
             - '../../Search/MonitorSearchUrl.php'
-            # 1.33: defined by the extension with the SearchKit definition (its resolver is the configured one)
+            # 1.34: defined by the extension with the SearchKit definition (its resolver is the configured one)
             - '../../Search/MonitorSearchTenants.php'
             - '../../Push/PushThresholds.php'
             # apply-monitors (1.18): value objects and exceptions, not services

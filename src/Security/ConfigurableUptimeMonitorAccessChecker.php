@@ -80,7 +80,7 @@ final readonly class ConfigurableUptimeMonitorAccessChecker implements SearchAwa
     }
 
     /**
-     * Whether the user may search the monitors of a tenant (since 1.33): the dashboard roles (the 1.32 search gate).
+     * Whether the user may search the monitors of a tenant (since 1.34): the dashboard roles (the 1.32 search gate).
      */
     public function canSearch(object $user, string $tenantSlug): bool
     {

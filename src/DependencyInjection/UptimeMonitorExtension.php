@@ -6,6 +6,14 @@ namespace Nowo\UptimeMonitorBundle\DependencyInjection;
 
 use LogicException;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
+use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
+use Nowo\TransactionDoctrine\WriteUnit\ResetBetweenAttemptsInterface;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeHistory;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeOutbox;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeOutboxListener;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeRecorder;
+use Nowo\UptimeMonitorBundle\Audit\TokenStorageActorResolver;
+use Nowo\UptimeMonitorBundle\Doctrine\KeysetBatchDelete;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
 use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
@@ -263,6 +271,66 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $this->registerTablePrefixListener($container);
         $this->registerBundleEntityManager($container);
         $this->registerConflictResponsePolicy($container, $config['conflict_response']);
+        $this->registerAudit($container, $config['audit'], $config['retention']);
+    }
+
+    /**
+     * Since 1.33: the audit trail of monitor changes. The recorder is always defined (the runner and the history read
+     * whether it is on); the outbox, its listener and the actor resolver only with `audit.enabled`.
+     *
+     * @param array{enabled: bool, actor_resolver: ?string, history: array{enabled: bool, retention_days: int, display_limit: int}} $audit
+     * @param array<string, mixed> $retention
+     */
+    private function registerAudit(ContainerBuilder $container, array $audit, array $retention): void
+    {
+        $container->setParameter(Configuration::ALIAS . '.audit', $audit);
+        $enabled  = $audit['enabled'];
+        $recorder = (new Definition(MonitorChangeRecorder::class))
+            ->setAutowired(true)
+            ->setArgument('$enabled', $enabled)
+            ->setArgument('$historyEnabled', $audit['history']['enabled'])
+            ->setArgument('$actorResolver', null)
+            ->setArgument('$eventDispatcher', null)
+            ->setArgument('$outbox', null)
+            ->addTag('monolog.logger', ['channel' => 'nowo_uptime_monitor'])
+            ->setPublic(false);
+
+        if ($enabled) {
+            $resolverId = $audit['actor_resolver'];
+            if (!is_string($resolverId) || $resolverId === '') {
+                $resolverId = TokenStorageActorResolver::class;
+                $container->setDefinition($resolverId, (new Definition(TokenStorageActorResolver::class, [
+                    new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                ]))->setPublic(false));
+            }
+            $container->setDefinition(MonitorChangeOutbox::class, (new Definition(MonitorChangeOutbox::class))
+                ->setAutowired(true)
+                ->setArgument('$ledger', new Reference(CommitLedger::class, ContainerInterface::NULL_ON_INVALID_REFERENCE))
+                ->addTag('kernel.reset', ['method' => 'reset'])
+                ->addTag(ResetBetweenAttemptsInterface::TAG)
+                ->addTag('monolog.logger', ['channel' => 'nowo_uptime_monitor'])
+                ->setPublic(false));
+            $listener = (new Definition(MonitorChangeOutboxListener::class, [new Reference(MonitorChangeRecorder::class)]))->setPublic(false);
+            foreach (MonitorChangeOutboxListener::METHODS as $event => $method) {
+                $listener->addTag('kernel.event_listener', ['event' => $event, 'method' => $method]);
+            }
+            $container->setDefinition(MonitorChangeOutboxListener::class, $listener);
+            $recorder
+                ->setArgument('$actorResolver', new Reference($resolverId))
+                ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+                ->setArgument('$outbox', new Reference(MonitorChangeOutbox::class));
+        }
+        $container->setDefinition(MonitorChangeRecorder::class, $recorder);
+
+        $container->setDefinition(MonitorChangeHistory::class, (new Definition(MonitorChangeHistory::class))
+            ->setAutowired(true)
+            ->setArgument('$entityManager', new Reference(UptimeEntityManager::class))
+            ->setArgument('$recorder', new Reference(MonitorChangeRecorder::class))
+            ->setArgument('$retentionDays', $audit['history']['retention_days'])
+            ->setArgument('$displayLimit', $audit['history']['display_limit'])
+            ->setArgument('$batchSize', KeysetBatchDelete::batchSizeFrom($retention))
+            ->setArgument('$transactionRunner', new Reference(UptimeTransactionRunner::SERVICE_ID))
+            ->setPublic(false));
     }
 
     /**
@@ -289,6 +357,8 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             new Reference(UptimeEntityManager::class),
             new Reference(UptimeManagerRegistry::class),
             null,
+            // Since 1.33: the audit trail of monitor changes (records nothing unless audit.enabled).
+            new Reference(MonitorChangeRecorder::class),
         ]))->setFactory([UptimeTransactionRunner::class, 'forBundle'])->setPublic(false));
         $container->setAlias(UptimeTransactionRunner::class, UptimeTransactionRunner::SERVICE_ID)->setPublic(false);
 
@@ -345,7 +415,7 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         }
 
         $resolver = is_string($search['tenant_resolver']) && $search['tenant_resolver'] !== '' ? new Reference($search['tenant_resolver']) : new Reference(RequestMonitorSearchTenantResolver::class);
-        // Since 1.33: the tenants of a search (a list resolver or a 1.32 single-tenant one, the scope event, the search
+        // Since 1.34: the tenants of a search (a list resolver or a 1.32 single-tenant one, the scope event, the search
         // permission per tenant).
         $container->register(MonitorSearchTenants::class, MonitorSearchTenants::class)
             ->setArgument('$resolver', $resolver)

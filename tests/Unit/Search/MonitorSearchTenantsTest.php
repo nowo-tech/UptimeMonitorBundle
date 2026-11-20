@@ -17,7 +17,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use function in_array;
 
 /**
- * 1.33: the tenants of a monitor search — a list resolver (or a 1.32 single-tenant one), the scope event (narrowing
+ * 1.34: the tenants of a monitor search — a list resolver (or a 1.32 single-tenant one), the scope event (narrowing
  * only), the scope of the search box (never widening) and the search permission per tenant.
  */
 #[CoversClass(MonitorSearchTenants::class)]

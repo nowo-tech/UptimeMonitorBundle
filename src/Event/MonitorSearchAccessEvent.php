@@ -7,7 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Event;
 use Nowo\UptimeMonitorBundle\Security\SearchAwareUptimeMonitorAccessCheckerInterface;
 
 /**
- * Whether a viewer may search the monitors of one tenant (since 1.33, {@see UptimeEvents::MONITOR_SEARCH_ACCESS}),
+ * Whether a viewer may search the monitors of one tenant (since 1.34, {@see UptimeEvents::MONITOR_SEARCH_ACCESS}),
  * dispatched once per tenant of a search. It starts from the access checker's answer
  * ({@see SearchAwareUptimeMonitorAccessCheckerInterface::canSearch()}; denied when the checker does not implement it).
  * A listener {@see self::grant()}s or {@see self::deny()}s; a denial wins over any grant. Granting search never shows

@@ -6,11 +6,16 @@ namespace Nowo\UptimeMonitorBundle\Transaction;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use InvalidArgumentException;
 use Nowo\TransactionContract\TransactionRunnerInterface;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\DoctrineTransactionRunner;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeRecorder;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeSource;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
+use Nowo\UptimeMonitorBundle\Event\MonitorChangedEvent;
+use Throwable;
 
 use function max;
 use function min;
@@ -39,6 +44,11 @@ use function usleep;
  * transaction of the application the storage may have rolled back the caller's work too): background units of work
  * (scheduled checks, push ingest, the monitors file, the rollup), which must therefore be replayable.
  *
+ * Since 1.33 every run opens the audit scope of {@see MonitorChangeRecorder} (`audit.enabled`): the monitors the unit
+ * inserts, updates or deletes are recorded inside its transaction and their {@see MonitorChangedEvent}s
+ * dispatched once it committed (only the committed attempt of a replayed unit). {@see self::withAuditSource()} names
+ * the write path recorded with them.
+ *
  * Stateless: one instance serves every request of a long-running worker.
  */
 final readonly class UptimeTransactionRunner implements TransactionRunnerInterface
@@ -61,6 +71,8 @@ final readonly class UptimeTransactionRunner implements TransactionRunnerInterfa
      * @param string|null $managerName The registry name of that manager
      * @param int|null $retryAfterSeconds Retry-After hint of the TransientStorageFailure; null for none
      * @param int $backoffBaseMilliseconds Upper bound of the first backoff of {@see self::runRetrying()} (0 = no wait)
+     * @param MonitorChangeRecorder|null $audit The audit trail of monitor changes (since 1.33; null = none)
+     * @param string $auditSource The write path recorded with the changes ({@see MonitorChangeSource})
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -68,15 +80,32 @@ final readonly class UptimeTransactionRunner implements TransactionRunnerInterfa
         private ?string $managerName = null,
         private ?int $retryAfterSeconds = 1,
         private int $backoffBaseMilliseconds = self::BACKOFF_BASE_MILLISECONDS,
+        private ?MonitorChangeRecorder $audit = null,
+        private string $auditSource = MonitorChangeSource::APP,
     ) {
     }
 
     /**
      * The runner of the bundle's private manager, replaced through the bundle registry after a storage failure.
+     *
+     * @param MonitorChangeRecorder|null $audit The audit trail of monitor changes (since 1.33)
      */
-    public static function forBundle(UptimeEntityManager $entityManager, UptimeManagerRegistry $registry, ?int $retryAfterSeconds = 1): self
+    public static function forBundle(UptimeEntityManager $entityManager, UptimeManagerRegistry $registry, ?int $retryAfterSeconds = 1, ?MonitorChangeRecorder $audit = null): self
     {
-        return new self($entityManager, $registry, UptimeEntityManager::NAME, $retryAfterSeconds);
+        return new self($entityManager, $registry, UptimeEntityManager::NAME, $retryAfterSeconds, audit: $audit);
+    }
+
+    /**
+     * The same runner, recording `$source` as the write path of the monitor changes of its runs (since 1.33). The
+     * source of the outermost run wins.
+     *
+     * @throws InvalidArgumentException When the source is not 1 to 16 lowercase letters or underscores
+     */
+    public function withAuditSource(string $source): self
+    {
+        MonitorChangeSource::assertValid($source);
+
+        return new self($this->entityManager, $this->registry, $this->managerName, $this->retryAfterSeconds, $this->backoffBaseMilliseconds, $this->audit, $source);
     }
 
     /**
@@ -84,7 +113,18 @@ final readonly class UptimeTransactionRunner implements TransactionRunnerInterfa
      */
     public function run(callable $operation): mixed
     {
-        return DoctrineTransactionRunner::forEntityManager($this->entityManager, $this->registry, $this->managerName, $this->retryAfterSeconds)->run($operation);
+        $scope = $this->audit?->open($this->entityManager, $this->auditSource);
+        try {
+            $result = DoctrineTransactionRunner::forEntityManager($this->entityManager, $this->registry, $this->managerName, $this->retryAfterSeconds)->run($operation);
+        } catch (Throwable $failure) {
+            $scope?->fail();
+
+            throw $failure;
+        }
+        // After the commit (or, nested, the savepoint release): never inside the unit's own transaction.
+        $scope?->succeed();
+
+        return $result;
     }
 
     /**
