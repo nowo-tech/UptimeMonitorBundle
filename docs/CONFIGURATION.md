@@ -145,7 +145,7 @@ SearchKit needs PHP 8.3 or later. Multi-tenant hosts must set `search_kit.tenant
 |-----|---------|---------|
 | `audit.enabled` | `false` | Records every monitor create, change and delete, whatever the write path, and dispatches `MonitorChangedEvent` after the commit. |
 | `audit.actor_resolver` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Audit\MonitorChangeActorResolverInterface`: the identifier recorded as the actor. `null` = the user identifier of the security token (null in console commands). |
-| `audit.history.enabled` | `false` | Also writes each change to the table `uptime_monitor_change` (same transaction) and shows the latest ones on the monitor page. Needs `audit.enabled` and the table (see [UPGRADING](UPGRADING.md#unreleased)). |
+| `audit.history.enabled` | `false` | Also writes each change to the table `uptime_monitor_change` (same transaction) and shows the latest ones on the monitor page. Needs `audit.enabled` and the table (see [UPGRADING](UPGRADING.md#to-1330)). |
 | `audit.history.retention_days` | `365` | `nowo:uptime:purge-monitor-changes` deletes older rows; `0` keeps them forever. |
 | `audit.history.display_limit` | `50` | Latest changes listed on the monitor page (1-500). |
 

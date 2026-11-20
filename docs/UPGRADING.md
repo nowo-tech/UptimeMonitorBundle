@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+- [To 1.33.0](#to-1330)
 - [To 1.32.0](#to-1320)
 - [To 1.31.0](#to-1310)
 - [To 1.30.0](#to-1300)
@@ -138,6 +139,14 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+## To 1.33.0
+
+From **1.32.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
 
 Target **1.33.0** (minor), from **1.32.0**:
 

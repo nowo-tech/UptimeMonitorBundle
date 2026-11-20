@@ -211,7 +211,7 @@ is logged (class only) and does not fail the request: the change is already comm
 **History (optional).** With `audit.history.enabled: true` each change is also written to `uptime_monitor_change` in the
 same transaction (a failing insert fails the change, so nothing is changed unaudited), and the monitor page shows the
 latest `audit.history.display_limit` changes in a read-only "Change history" card, to whoever may view the monitor.
-Create the table first ([UPGRADING](UPGRADING.md#unreleased)). Schedule `nowo:uptime:purge-monitor-changes` (daily, for
+Create the table first ([UPGRADING](UPGRADING.md#to-1330)). Schedule `nowo:uptime:purge-monitor-changes` (daily, for
 instance) to apply `audit.history.retention_days`; it also works with the history turned off, so old rows still age out.
 
 **Personal data.** The actor identifier is personal data. Record a pseudonymous id rather than a login e-mail with
