@@ -8,6 +8,7 @@ use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeSource;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -142,9 +143,11 @@ final readonly class MonitorBackupService
             // SEC-004 Q3: with a quota the rows are written under the tenant row lock, the remaining quota counted
             // once after the lock (null = no monitor limit). Since 1.29 the import is one unit of work of the bundle's
             // runner either way (all rows or none; a transient failure leaves no transaction open and answers 409 + CONFLICT_001).
+            // Since 1.33 the monitor changes of the import are recorded as `import` (audit.enabled).
+            $runner = ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->withAuditSource(MonitorChangeSource::IMPORT);
             $result = $this->quota instanceof TenantQuota
-                ? $this->quota->withTenantLock($this->entityManager, $tenant, fn (?int $remaining): array => $this->importRows($tenant, $rows, $mode, $remaining))
-                : ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->run(fn (): array => $this->importRows($tenant, $rows, $mode, null));
+                ? $this->quota->withTenantLock($this->entityManager, $tenant, fn (?int $remaining): array => $this->importRows($tenant, $rows, $mode, $remaining), $runner)
+                : $runner->run(fn (): array => $this->importRows($tenant, $rows, $mode, null));
         } catch (Throwable $e) {
             if ($this->registry instanceof ManagerRegistry && !$this->entityManager->isOpen()) {
                 $this->resetClosedManagers($this->registry);

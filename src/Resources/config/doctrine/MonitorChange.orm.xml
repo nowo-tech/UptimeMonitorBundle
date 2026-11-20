@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.33.0: XML mapping of the monitor change history (same table, columns and indexes as its attributes).
+     Used with nowo_uptime_monitor.doctrine.mapping_type: xml, or by a host that maps the bundle entities itself. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\UptimeMonitorBundle\Entity\MonitorChange" table="uptime_monitor_change">
+        <indexes>
+            <index name="idx_uptime_monitor_change_monitor" columns="monitor_id,occurred_at"/>
+            <index name="idx_uptime_monitor_change_occurred" columns="occurred_at"/>
+        </indexes>
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="monitorId" column="monitor_id" type="integer"/>
+        <field name="action" type="string" length="8"/>
+        <field name="source" type="string" length="16"/>
+        <field name="actor" type="string" length="255" nullable="true"/>
+        <field name="changes" type="json"/>
+        <field name="occurredAt" column="occurred_at" type="datetime_immutable"/>
+        <many-to-one field="tenant" target-entity="Nowo\UptimeMonitorBundle\Entity\Tenant">
+            <join-column nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+    </entity>
+</doctrine-mapping>

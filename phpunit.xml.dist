@@ -39,5 +39,7 @@
              config keys assert them with expectUserDeprecationMessage(); PageContractTest documents the one
              third-party exception (UiKit's PageContractTestCase, issue #123). -->
         <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[direct]=0"/>
+        <!-- The whole suite needs more than PHP's default 128M (the Docker image keeps the default). -->
+        <ini name="memory_limit" value="1G"/>
     </php>
 </phpunit>

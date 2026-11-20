@@ -20,6 +20,7 @@ use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\MonitorChange;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -55,6 +56,7 @@ final class TablePrefixListenerTest extends TestCase
             CheckAggregate::class => 'app_uptime_check_aggregate',
             Incident::class       => 'app_uptime_incident',
             Tag::class            => 'app_uptime_tag',
+            MonitorChange::class  => 'app_uptime_monitor_change',
         ];
         foreach ($expected as $class => $table) {
             self::assertSame($table, $em->getClassMetadata($class)->getTableName(), $class);

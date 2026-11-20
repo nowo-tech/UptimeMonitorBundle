@@ -24,11 +24,13 @@ use Nowo\UptimeMonitorBundle\Apply\MonitorFileParser;
 use Nowo\UptimeMonitorBundle\Apply\MonitorFileSpec;
 use Nowo\UptimeMonitorBundle\Apply\PushTokenFileReader;
 use Nowo\UptimeMonitorBundle\Apply\TokenSourceSystem;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeRecorder;
 use Nowo\UptimeMonitorBundle\Command\ApplyMonitorsCommand;
 use Nowo\UptimeMonitorBundle\Controller\PushController;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorChangedEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorsAppliedEvent;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantQuota;
@@ -280,6 +282,35 @@ final class ApplyMonitorsDbTest extends TestCase
         self::assertSame(-1, $failures);
         self::assertCount(1, $json['created']);
         self::assertInstanceOf(Monitor::class, $this->fileMonitor());
+    }
+
+    /**
+     * 1.33: the apply-monitors runs are recorded as `apply`, once per change, with the push URL key and token as
+     * markers only (never the key or the token hash).
+     */
+    public function testAppliedChangesAreRecordedAsApplyWithTheTokenAsAMarker(): void
+    {
+        $changes    = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorChangedEvent::class, static function (MonitorChangedEvent $event) use (&$changes): void {
+            $changes[] = $event;
+        });
+        $runner  = new UptimeTransactionRunner($this->em, audit: new MonitorChangeRecorder(true, true, null, $dispatcher));
+        $applier = new MonitorApplier($this->em, $this->monitors, $this->tenants, null, null, $runner);
+        $token   = $this->token();
+
+        $this->runCommand(['--file' => $this->monitorsFile([MonitorFileParserTest::entry()]), '--token-file' => '-'], json_encode(['little-vps-1.resources' => $token], JSON_THROW_ON_ERROR), $applier);
+        $this->runCommand(['--file' => $this->monitorsFile([MonitorFileParserTest::entry(['interval_seconds' => 120])]), '--token-file' => '-'], json_encode(['little-vps-1.resources' => $this->token()], JSON_THROW_ON_ERROR), $applier);
+
+        self::assertSame([['created', 'apply', null], ['updated', 'apply', null]], array_map(static fn (MonitorChangedEvent $event): array => [$event->action, $event->source, $event->actorId], $changes));
+        self::assertSame([
+            ['field' => 'interval_seconds', 'before' => 60, 'after' => 120],
+            ['field' => 'push_token', 'secret' => 'replaced'],
+            ['field' => 'retry_interval_seconds', 'before' => 60, 'after' => 120],
+        ], $changes[1]->changesAsArrays());
+        $dump = json_encode(array_map(static fn (MonitorChangedEvent $event): array => $event->changesAsArrays(), $changes), JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString(self::URL_KEY, $dump);
+        self::assertStringNotContainsString(hash('sha256', $token), $dump);
     }
 
     public function testPausedIsManagedOnlyWhenTheFileSaysSo(): void

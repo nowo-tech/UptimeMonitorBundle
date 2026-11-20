@@ -15,6 +15,7 @@ services:
       COMPOSER_ALLOW_SUPERUSER: "1"
       DATABASE_URL: mysql://root:password@mysql:3306/uptime_monitor_test?serverVersion=8.0
       DATABASE_URL_PG: postgresql://postgres:password@postgres:5432/uptime_monitor_test?serverVersion=15
+      DATABASE_URL_MARIADB: mysql://root:password@mariadb:3306/uptime_monitor_test?serverVersion=11.4.0-MariaDB
     command: ["tail", "-f", "/dev/null"]
     networks:
       - uptime-monitor-bundle-network
@@ -22,6 +23,8 @@ services:
       mysql:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      mariadb:
         condition: service_healthy
 
   mysql:
@@ -34,6 +37,20 @@ services:
       - uptime-monitor-bundle-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mariadb:
+    image: mariadb:11.4
+    container_name: uptime-monitor-bundle-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: password
+      MARIADB_DATABASE: uptime_monitor_test
+    networks:
+      - uptime-monitor-bundle-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
       timeout: 3s
       retries: 10

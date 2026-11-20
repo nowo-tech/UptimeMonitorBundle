@@ -7,10 +7,15 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Controller;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeHistory;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeRecorder;
+use Nowo\UptimeMonitorBundle\Audit\MonitorFieldChange;
+use Nowo\UptimeMonitorBundle\Audit\TokenStorageActorResolver;
 use Nowo\UptimeMonitorBundle\Controller\MonitorController;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorChangedEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorCreatedEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorDeletedEvent;
 use Nowo\UptimeMonitorBundle\Event\MonitorPausedEvent;
@@ -22,6 +27,8 @@ use Nowo\UptimeMonitorBundle\Repository\CheckAggregateRepository;
 use Nowo\UptimeMonitorBundle\Repository\CheckResultRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
+use Nowo\UptimeMonitorBundle\Security\MonitorAwareUptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Security\MonitorReadScope;
 use Nowo\UptimeMonitorBundle\Service\AggregateChartService;
 use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Service\MonitorFactory;
@@ -29,6 +36,7 @@ use Nowo\UptimeMonitorBundle\Service\TenantDashboardSerializer;
 use Nowo\UptimeMonitorBundle\Service\UptimeMetricsService;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use Nowo\UptimeMonitorBundle\Tests\Unit\Support\ControllerContainerTrait;
+use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
@@ -41,7 +49,9 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\InMemoryUser;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_filter;
 use function array_intersect;
+use function array_map;
 use function array_values;
 use function json_encode;
 
@@ -83,7 +93,10 @@ final class MonitorLifecycleEventsTest extends TestCase
         }
     }
 
-    private function controller(bool $withUser = true): MonitorController
+    /**
+     * @param list<string> $hiddenFields
+     */
+    private function controller(bool $withUser = true, ?MonitorChangeRecorder $audit = null, ?MonitorReadScope $readScope = null, array $hiddenFields = []): MonitorController
     {
         $registry = $this->createStub(ManagerRegistry::class);
         $registry->method('getManagerForClass')->willReturn($this->em);
@@ -109,9 +122,94 @@ final class MonitorLifecycleEventsTest extends TestCase
             new DashboardViewBuilder($this->monitors, $results, $aggregates, new UptimeMetricsService(), new TenantDashboardSerializer()),
             $this->em,
             eventDispatcher: $this->dispatcher,
+            hiddenFields: $hiddenFields,
+            readScope: $readScope,
             tokenStorage: $storage,
             clock: new MockClock('2026-11-10 10:00:00'),
+            transactionRunner: $audit instanceof MonitorChangeRecorder ? new UptimeTransactionRunner($this->em, audit: $audit) : null,
+            changeHistory: $audit instanceof MonitorChangeRecorder ? new MonitorChangeHistory($this->em, $audit) : null,
         );
+    }
+
+    /**
+     * 1.33: with the audit on, every UI write path dispatches MonitorChangedEvent (source `ui`, the token's user) after
+     * the commit, and the monitor page shows the history section.
+     */
+    public function testUiWritesAreAuditedAndTheMonitorPageShowsTheHistory(): void
+    {
+        $storage = new TokenStorage();
+        $storage->setToken(new UsernamePasswordToken(new InMemoryUser('alice', null), 'main'));
+        $this->dispatcher->addListener(UptimeEvents::MONITOR_CHANGED, function (MonitorChangedEvent $event): void {
+            $this->events[] = $event;
+        });
+        $audit   = new MonitorChangeRecorder(true, true, new TokenStorageActorResolver($storage), $this->dispatcher);
+        $monitor = $this->persisted('Audited');
+        $id      = (int) $monitor->getId();
+
+        $controller = $this->controller(true, $audit);
+        $request    = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Audited', 'url' => 'https://moved.example.test/health']);
+        $this->bindController($controller, true, $request);
+        self::assertTrue($controller->edit('main', $id, $request)->isRedirect());
+        $toggle = Request::create('/main/monitors/' . $id . '/toggle-pause', 'POST', ['_token' => 't']);
+        $this->bindController($controller, true, $toggle);
+        $controller->togglePause('main', $id, $toggle);
+
+        $changed = array_values(array_filter($this->events, static fn (object $event): bool => $event instanceof MonitorChangedEvent));
+        self::assertCount(2, $changed);
+        self::assertSame(['ui', 'alice'], [$changed[0]->source, $changed[0]->actorId]);
+        self::assertContains('target', $changed[0]->changedFields());
+        self::assertSame(['enabled'], $changed[1]->changedFields());
+
+        $show = Request::create('/main/monitors/' . $id);
+        $this->bindController($controller, true, $show);
+        $controller->show('main', $id, $show);
+        $sections = $this->renderedContext['page_sections']['after'] ?? [];
+        self::assertSame('@NowoUptimeMonitorBundle/monitor/_change_history.html.twig', $sections[0]['template'] ?? null);
+        $rows = $sections[0]['context']['monitor_changes'] ?? [];
+        self::assertCount(2, $rows);
+        self::assertSame(['alice', false], [$rows[0]['actor'], $rows[0]['actorHidden']]);
+    }
+
+    /**
+     * Audit VU-L2: a viewer shown only this monitor gets neither the actor nor the project / group changes; a host that
+     * hides the project field hides its changes.
+     */
+    public function testTheHistoryHidesWhatThePageHides(): void
+    {
+        $storage = new TokenStorage();
+        $storage->setToken(new UsernamePasswordToken(new InMemoryUser('alice', null), 'main'));
+        $audit   = new MonitorChangeRecorder(true, true, new TokenStorageActorResolver($storage), $this->dispatcher);
+        $monitor = $this->persisted('Moved');
+        $id      = (int) $monitor->getId();
+        $edit    = $this->controller(true, $audit);
+        $request = $this->submit('/main/monitors/' . $id . '/edit', ['name' => 'Moved', 'url' => 'https://p.test', 'project' => 'ops']);
+        $this->bindController($edit, true, $request);
+        $edit->edit('main', $id, $request);
+
+        $fieldsOf = function (MonitorController $controller) use ($id): array {
+            $show = Request::create('/main/monitors/' . $id);
+            $this->bindController($controller, true, $show);
+            $controller->show('main', $id, $show);
+            $row = $this->renderedContext['page_sections']['after'][0]['context']['monitor_changes'][0];
+
+            return [$row['actor'], $row['actorHidden'], array_map(static fn (MonitorFieldChange $field): string => $field->field, $row['changes'])];
+        };
+
+        [$actor, $hidden, $fields] = $fieldsOf($edit);
+        self::assertSame(['alice', false], [$actor, $hidden]);
+        self::assertContains('project', $fields);
+
+        $single = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $single->method('canAccessTenant')->willReturn(false);
+        $single->method('canViewMonitor')->willReturn(true);
+        [$actor, $hidden, $fields] = $fieldsOf($this->controller(true, $audit, new MonitorReadScope($single)));
+        self::assertSame([null, true], [$actor, $hidden]);
+        self::assertNotContains('project', $fields);
+        self::assertNotContains('parent_id', $fields);
+
+        [$actor, , $fields] = $fieldsOf($this->controller(true, $audit, null, ['project']));
+        self::assertSame('alice', $actor);
+        self::assertNotContains('project', $fields);
     }
 
     public function testCreateDispatchesMonitorCreatedWithTheNewId(): void

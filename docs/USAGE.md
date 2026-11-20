@@ -10,6 +10,7 @@
 - [Commands](#commands)
 - [Notifications](#notifications)
 - [Host integration (tenants, access, events)](#host-integration-tenants-access-events)
+- [Monitor change audit (1.33)](#monitor-change-audit-133)
 - [SearchKit: monitors (1.32)](#searchkit-monitors-132)
 - [Database and entity manager](#database-and-entity-manager)
   - [Standard host](#standard-host)
@@ -100,6 +101,7 @@ under another parameter name stays visible, so put secrets in headers, basic aut
 | `nowo:uptime:rollup` | Build hourly/daily aggregates from detail rows |
 | `nowo:uptime:purge-detail` | Purge old `CheckResult` rows per retention (keyset batches of `retention.purge_batch_size`) |
 | `nowo:uptime:clear-data` | Delete all checks, aggregates, and incidents (keeps tenants/monitors; `--tenant`, `-n`) |
+| `nowo:uptime:purge-monitor-changes` | (1.33) Delete monitor change history older than `audit.history.retention_days`; `--anonymise-actor=<id>` replaces that actor identifier in every row instead (GDPR erasure) |
 | `nowo:uptime:apply-monitors` | (1.18) Create, update or prune push monitors from a monitors file: `--file=<json>`, `--token-file=<path>` or `--token-file=-` (stdin), `--tenant=<uuid>`, `--dry-run`, `--prune`. stdout is one JSON document; exit codes 0–6. See [PUSH-MONITORS.md → Monitors as code](PUSH-MONITORS.md#monitors-as-code) |
 
 Production: enable Symfony Scheduler and consume `scheduler_default` (see [SCHEDULING.md](SCHEDULING.md)).
@@ -148,6 +150,90 @@ public function onDown(MonitorWentDownEvent $event): void
     $this->issues->openFor($event->getTenantSlug(), (int) $event->getMonitorId(), $event->message);
 }
 ```
+
+## Monitor change audit (1.33)
+
+Off by default. With `audit.enabled: true` the bundle records every create, change and delete of a monitor, whatever
+the write path: the new and edit forms, delete, pause / resume, push token issue / revoke, the backup import,
+`nowo:uptime:apply-monitors`, `nowo:uptime:seed-demo` and host code that writes monitors through the bundle services.
+Each change dispatches one `MonitorChangedEvent` (`UptimeEvents::MONITOR_CHANGED`) **after the commit**:
+
+| Property | Content |
+|----------|---------|
+| `tenantSlug`, `monitorId` | The monitor (the id stays meaningful after a delete) |
+| `action` | `created`, `updated` or `deleted` |
+| `changes` | `list<MonitorFieldChange>`: `field` plus `before` / `after`, or `secret` = `replaced` / `cleared` for a write-only field. `changesAsArrays()` / `changedFields()` give plain arrays / names. |
+| `actorId` | Who: the `audit.actor_resolver` result (default: the security token's user identifier; null in console commands and scheduled jobs) |
+| `source` | Write path: `ui`, `import`, `apply`, `demo` or `app` (host code, other commands) |
+| `occurredAt` | When the change was written |
+
+```php
+#[AsEventListener]
+public function onMonitorChanged(MonitorChangedEvent $event): void
+{
+    foreach ($event->changes as $change) {
+        if (in_array($change->field, ['type', 'proxy', 'ignore_tls'], true)) {
+            $this->alerts->routeChanged($event->tenantSlug, $event->monitorId, $change->toArray(), $event->actorId);
+        }
+    }
+}
+```
+
+Recorded fields: `name`, `type`, `target` and `proxy` (origin only: `scheme://host[:port]`), `ignore_tls`, `enabled`,
+`interval_seconds`, `project`, `parent_id`, `origin`, `origin_key`, and the route, schedule and alerting settings
+(`method`, timeouts, `max_redirects`, `expected_status_codes`, `keyword`, `upside_down`, `check_cert_expiry`,
+`resend_notification_after_down`, `retries`, `retry_interval_seconds`, DNS / SSL / push options, `tags`, `description`).
+Write-only fields (`target_details`, `proxy_details`, `headers`, `body`, `auth_username`, `auth_password`,
+`push_url_key`, `push_token`, any unknown config key as `config.<key>`) carry only `replaced` or `cleared`. An update
+that only moves the check state (next check, failure streaks, push samples) records nothing. Details in
+[SECURITY](SECURITY.md#monitor-change-audit-133).
+
+**Delivery rules.** The event never fires for a refused or rolled-back write. A unit of work that is replayed after a
+deadlock dispatches once, with the committed attempt's values. When the bundle's write runs inside a transaction the
+application opened (a write unit of nowo-tech/transaction-doctrine around a bundle route or message, or a host
+transaction around a bundle service), the event waits until that transaction ends and is dispatched at the end of the
+request, message or command only if it committed:
+
+- **with the history on**, the bundle looks its history rows up by id: they exist only if the transaction committed.
+  This is exact;
+- **without the history**, it needs both no exception in the unit since the change (sticky) and, when
+  NowoTransactionDoctrineBundle registers its commit ledger, a commit since the change. **Remaining case:** a host that
+  rolls its transaction back, *catches* the failure and then commits something else in the same unit still gets the
+  event of the rolled-back change. Without the commit ledger (NowoTransactionDoctrineBundle not registered, or its `commit_detection` off) and with the history off, a host transaction rolled back and caught is enough on its own to release a phantom event. Turn the history on, or commit detection on.
+
+  When a write unit replays, changes waiting without the history and without the ledger are dropped (nothing can prove
+  an earlier unit committed them).
+
+A change still inside a transaction when the request, message or command ends is dropped with a warning. When a write
+unit replays its work, the changes an earlier unit of the request already committed are kept. A listener that throws
+is logged (class only) and does not fail the request: the change is already committed.
+
+**History (optional).** With `audit.history.enabled: true` each change is also written to `uptime_monitor_change` in the
+same transaction (a failing insert fails the change, so nothing is changed unaudited), and the monitor page shows the
+latest `audit.history.display_limit` changes in a read-only "Change history" card, to whoever may view the monitor.
+Create the table first ([UPGRADING](UPGRADING.md#unreleased)). Schedule `nowo:uptime:purge-monitor-changes` (daily, for
+instance) to apply `audit.history.retention_days`; it also works with the history turned off, so old rows still age out.
+
+**Personal data.** The actor identifier is personal data. Record a pseudonymous id rather than a login e-mail with
+`audit.actor_resolver`:
+
+```php
+final readonly class AuditActor implements MonitorChangeActorResolverInterface
+{
+    public function __construct(private Security $security) {}
+
+    public function actorId(): ?string
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User ? $user->getUuid() : null;
+    }
+}
+```
+
+and on an erasure request run `nowo:uptime:purge-monitor-changes --anonymise-actor=<id>` (or call
+`MonitorChangeHistory::anonymiseActor()`). It also matches the `switch_user` forms `<id> (as …)` and `… (as <id>)`
+(the whole actor of such a row is replaced, the other user included); `%` and `_` in the identifier match literally. Event listeners that store the actor are covered by the host's own policy.
 
 ## SearchKit: monitors (1.32)
 
