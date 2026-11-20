@@ -140,6 +140,20 @@ final class MonitorChangeOutboxTest extends TestCase
     }
 
     /**
+     * Audit VU2-L1b: without the history and without a ledger a replay cannot tell an earlier unit's commit from the
+     * failed attempt: it drops the waiting change instead of releasing it (and then the replay's duplicate).
+     */
+    public function testAReplayWithoutLedgerNorHistoryDropsTheWaitingChange(): void
+    {
+        $outbox = new MonitorChangeOutbox();
+        $outbox->defer([$this->event(1)], $this->connection(false));
+        $outbox->resetBetweenAttempts();
+        $outbox->defer([$this->event(2)], $this->connection(false));
+
+        self::assertSame([2], array_map(static fn (MonitorChangedEvent $event): int => $event->monitorId, $outbox->takeReady(false)));
+    }
+
+    /**
      * Audit VU-L1: a change still inside a transaction when the unit ends is dropped with a warning (a worker would carry
      * it into the next request); kernel.exception keeps it.
      */

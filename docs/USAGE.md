@@ -199,7 +199,10 @@ request, message or command only if it committed:
 - **without the history**, it needs both no exception in the unit since the change (sticky) and, when
   NowoTransactionDoctrineBundle registers its commit ledger, a commit since the change. **Remaining case:** a host that
   rolls its transaction back, *catches* the failure and then commits something else in the same unit still gets the
-  event of the rolled-back change. Turn the history on if that matters.
+  event of the rolled-back change. Without the commit ledger (NowoTransactionDoctrineBundle not registered, or its `commit_detection` off) and with the history off, a host transaction rolled back and caught is enough on its own to release a phantom event. Turn the history on, or commit detection on.
+
+  When a write unit replays, changes waiting without the history and without the ledger are dropped (nothing can prove
+  an earlier unit committed them).
 
 A change still inside a transaction when the request, message or command ends is dropped with a warning. When a write
 unit replays its work, the changes an earlier unit of the request already committed are kept. A listener that throws
@@ -229,7 +232,8 @@ final readonly class AuditActor implements MonitorChangeActorResolverInterface
 ```
 
 and on an erasure request run `nowo:uptime:purge-monitor-changes --anonymise-actor=<id>` (or call
-`MonitorChangeHistory::anonymiseActor()`). Event listeners that store the actor are covered by the host's own policy.
+`MonitorChangeHistory::anonymiseActor()`). It also matches the `switch_user` forms `<id> (as …)` and `… (as <id>)`
+(the whole actor of such a row is replaced, the other user included); `%` and `_` in the identifier match literally. Event listeners that store the actor are covered by the host's own policy.
 
 ## SearchKit: monitors (1.32)
 

@@ -264,13 +264,13 @@ id, old values). There is no history API and no export.
 
 **Delivery.** `MonitorChangedEvent` of a write inside a host transaction is confirmed by the history rows when the
 history is on (exact). Without the history a host that rolls its transaction back, catches the failure and then commits
-something else in the same unit can still receive the event of the rolled-back change (see USAGE).
+something else in the same unit can still receive the event of the rolled-back change (see USAGE). Without the commit ledger (NowoTransactionDoctrineBundle not registered, or its `commit_detection` off) and with the history off, a host transaction rolled back and caught is enough on its own to release a phantom event. Turn the history on, or commit detection on.
 
 **Personal data (GDPR).** The actor identifier is personal data. Minimise it with `audit.actor_resolver` (a
 pseudonymous user id instead of an e-mail address), bound it with `audit.history.retention_days` and a scheduled
 `nowo:uptime:purge-monitor-changes`, and honour erasure requests with
-`nowo:uptime:purge-monitor-changes --anonymise-actor=<id>` (replaces the identifier with `(anonymised)` in every row;
-the field changes stay). Copies kept by `MonitorChangedEvent` listeners are the host's responsibility.
+`nowo:uptime:purge-monitor-changes --anonymise-actor=<id>` (replaces the actor with `(anonymised)` in every row that
+names the identifier, including the `switch_user` forms `<id> (as …)` and `… (as <id>)`; the field changes stay). Copies kept by `MonitorChangedEvent` listeners are the host's responsibility.
 
 ## Logging policy
 

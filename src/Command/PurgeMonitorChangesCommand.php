@@ -17,8 +17,8 @@ use function sprintf;
 
 /**
  * Console command `nowo:uptime:purge-monitor-changes` (since 1.33): deletes the monitor change history older than
- * `audit.history.retention_days`, or, with `--anonymise-actor=<id>`, replaces that actor identifier in every row
- * (GDPR erasure) instead.
+ * `audit.history.retention_days`, or, with `--anonymise-actor=<id>`, replaces the actor of every row that names that
+ * identifier (GDPR erasure) instead, the `switch_user` forms `<id> (as …)` and `… (as <id>)` included.
  */
 #[AsCommand(
     name: 'nowo:uptime:purge-monitor-changes',
@@ -39,7 +39,7 @@ final class PurgeMonitorChangesCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('anonymise-actor', null, InputOption::VALUE_REQUIRED, 'Replace this actor identifier in every history row (GDPR erasure) instead of purging');
+        $this->addOption('anonymise-actor', null, InputOption::VALUE_REQUIRED, 'Anonymise every history row whose actor is this identifier or names it under switch_user (GDPR erasure) instead of purging');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

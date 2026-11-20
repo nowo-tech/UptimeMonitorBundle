@@ -15,6 +15,7 @@ use Symfony\Component\Clock\NativeClock;
 
 use function max;
 use function sprintf;
+use function strtr;
 
 /**
  * The built-in history of monitor changes (since 1.33, `audit.history.enabled`): what the monitor page shows, the
@@ -105,21 +106,28 @@ final readonly class MonitorChangeHistory
     }
 
     /**
-     * GDPR erasure: replaces an actor identifier by {@see MonitorChange::ANONYMISED_ACTOR} in every row (the changes
-     * themselves stay). One statement of the bundle's runner.
+     * GDPR erasure: replaces the actor of every row that names this identifier by {@see MonitorChange::ANONYMISED_ACTOR}
+     * (the changes themselves stay): the identifier itself, and the impersonation forms `<id> (as …)` and `… (as <id>)`
+     * of `switch_user` (the whole actor of such a row is replaced, the other user included). One statement of the
+     * bundle's runner; `%`, `_` and `!` in the identifier match literally.
      *
      * @return int Rows anonymised
      */
     public function anonymiseActor(string $actor): int
     {
         $entityManager = $this->entityManager;
+        $like          = strtr($actor, ['!' => '!!', '%' => '!%', '_' => '!_']);
 
         return (int) ($this->transactionRunner ?? new UptimeTransactionRunner($entityManager))->run(static fn (): mixed => $entityManager->createQueryBuilder()
             ->update(MonitorChange::class, 'c')
             ->set('c.actor', ':anonymised')
             ->where('c.actor = :actor')
+            ->orWhere("c.actor LIKE :impersonator ESCAPE '!'")
+            ->orWhere("c.actor LIKE :impersonated ESCAPE '!'")
             ->setParameter('anonymised', MonitorChange::ANONYMISED_ACTOR)
             ->setParameter('actor', $actor)
+            ->setParameter('impersonator', $like . ' (as %')
+            ->setParameter('impersonated', '% (as ' . $like . ')')
             ->getQuery()
             ->execute());
     }

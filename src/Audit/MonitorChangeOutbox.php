@@ -28,8 +28,10 @@ use function count;
  * - **without the history**, nowo-tech/transaction-doctrine exposes no per-connection commit marker, so the outbox
  *   needs both: no failure since the change was deferred (sticky: an exception of the unit marks every waiting change),
  *   and, when NowoTransactionDoctrineBundle registers its {@see CommitLedger}, a commit of the process since then.
- *   Remaining case: a host that rolls its transaction back **and catches the failure**, then commits something else
- *   in the same unit of work, still gets the event of the rolled-back change. Turn the history on to close it.
+ *   Remaining cases: a host that rolls its transaction back **and catches the failure**, then commits something else
+ *   in the same unit of work, still gets the event of the rolled-back change; without the ledger (commit detection off,
+ *   or the bundle not registered) the caught rollback alone is enough. Turn the history on (or commit detection) to
+ *   close them.
  *
  * At the end of a unit of work a change still inside a transaction is dropped with a warning (that transaction never
  * committed in this unit; a worker would otherwise carry it into the next request). Only `kernel.exception` (the
@@ -109,13 +111,16 @@ final class MonitorChangeOutbox implements ResetInterface, ResetBetweenAttemptsI
     }
 
     /**
-     * Before a write unit replays its work: the waiting changes that are committed (an earlier unit of the request)
-     * move to the ready list, the others are dropped (the replay records them again).
+     * Before a write unit replays its work: the waiting changes that are provably committed (an earlier unit of the
+     * request: history rows found, or a commit counted by the ledger since their defer) move to the ready list; the
+     * others are dropped (the replay records them again). Without the history and without a ledger nothing can tell
+     * an earlier unit's commit from the failed attempt, so everything is dropped (no duplicate, no phantom).
      */
     public function resetBetweenAttempts(): void
     {
         foreach ($this->deferred as $entry) {
-            if (!$entry['connection']->isTransactionActive() && $this->committed($entry)) {
+            $provable = $entry['confirm'] instanceof Closure || $this->ledger instanceof CommitLedger;
+            if ($provable && !$entry['connection']->isTransactionActive() && $this->committed($entry)) {
                 // @igor-ignore - Per-request outbox, emptied by kernel.reset, at the end of every unit and before every replay.
                 $this->ready = [...$this->ready, ...$entry['events']];
             }

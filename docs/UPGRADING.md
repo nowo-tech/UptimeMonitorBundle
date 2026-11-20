@@ -195,7 +195,7 @@ nothing changes until you turn it on. See [USAGE](USAGE.md#monitor-change-audit-
   `composer update nowo-tech/uptime-monitor-bundle -w`.
 - **Delivery inside host transactions:** without `audit.history.enabled`, a host that rolls its transaction back,
   catches the failure and commits something else in the same unit may still receive the event of the rolled-back change;
-  with the history on the commit is confirmed by the history rows. See [USAGE](USAGE.md#monitor-change-audit-133).
+  with the history on the commit is confirmed by the history rows. Without the commit ledger (NowoTransactionDoctrineBundle not registered, or its `commit_detection` off) and with the history off, a host transaction rolled back and caught is enough on its own to release a phantom event. Turn the history on, or commit detection on. See [USAGE](USAGE.md#monitor-change-audit-133).
 - **New command** `nowo:uptime:purge-monitor-changes` (`--anonymise-actor=<id>` for GDPR erasure). Registered
   automatically; it does nothing until you run it.
 - **New event** `MonitorChangedEvent` (`UptimeEvents::MONITOR_CHANGED`), only with `audit.enabled`. The 1.25

@@ -20,6 +20,7 @@ use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Throwable;
 
+use function array_chunk;
 use function count;
 use function mb_substr;
 use function sprintf;
@@ -42,6 +43,9 @@ use function sprintf;
  */
 final readonly class MonitorChangeRecorder
 {
+    /** History ids looked up per query when confirming a deferred run. */
+    public const LOOKUP_CHUNK = 1000;
+
     /** Longest actor identifier stored. */
     public const MAX_ACTOR_LENGTH = 255;
 
@@ -186,11 +190,15 @@ final readonly class MonitorChangeRecorder
     private function historyRowsExist(Connection $connection, string $table, string $idColumn, array $ids): bool
     {
         try {
-            $found = $connection->fetchOne(
-                sprintf('SELECT COUNT(*) FROM %s WHERE %s IN (?)', $table, $idColumn),
-                [$ids],
-                [ArrayParameterType::INTEGER],
-            );
+            $found = 0;
+            // In chunks: a huge run must not exceed the bind limit of the platform.
+            foreach (array_chunk($ids, self::LOOKUP_CHUNK) as $chunk) {
+                $found += (int) $connection->fetchOne(
+                    sprintf('SELECT COUNT(*) FROM %s WHERE %s IN (?)', $table, $idColumn),
+                    [$chunk],
+                    [ArrayParameterType::INTEGER],
+                );
+            }
         } catch (Throwable $failure) {
             $this->logger->error('Uptime monitor: the history rows of deferred monitor changes could not be read ({exception_class}); their events are dropped.', [
                 'bundle'          => 'NowoUptimeMonitorBundle',
@@ -200,7 +208,7 @@ final readonly class MonitorChangeRecorder
             return false;
         }
 
-        return (int) $found === count($ids);
+        return $found === count($ids);
     }
 
     /**

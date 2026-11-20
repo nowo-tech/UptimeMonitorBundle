@@ -47,6 +47,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 use function array_map;
 use function json_encode;
+use function range;
 
 use const JSON_THROW_ON_ERROR;
 
@@ -530,5 +531,41 @@ final class MonitorChangeAuditDbTest extends TestCase
         $this->runner()->run($this->persisting(new Monitor($this->tenant, 'Sequenced', MonitorType::Https, 'https://seq.test')));
 
         self::assertSame([4242], array_map(static fn (MonitorChange $row): ?int => $row->getId(), $this->rows()));
+    }
+
+    /**
+     * Audit VU2-L2: the GDPR erasure also covers the switch_user forms, with LIKE wildcards matched literally.
+     */
+    public function testAnonymisationCoversImpersonationAndMatchesWildcardsLiterally(): void
+    {
+        $at = new DateTimeImmutable('2026-11-20 10:00:00');
+        foreach (['alice', 'bob (as alice)', 'alice (as bob)', 'alicex', 'xalice (as bob)', 'al_ce', 'al%e'] as $i => $actor) {
+            $this->em->persist(new MonitorChange($this->tenant, $i + 1, 'updated', 'ui', $actor, [], $at));
+        }
+        $this->em->flush();
+        $history = new MonitorChangeHistory($this->em, $this->recorder());
+
+        self::assertSame(3, $history->anonymiseActor('alice'));
+        self::assertSame(0, $history->anonymiseActor('al_e'), '_ is not a wildcard');
+        self::assertSame(1, $history->anonymiseActor('al%e'));
+        self::assertSame(
+            [MonitorChange::ANONYMISED_ACTOR, MonitorChange::ANONYMISED_ACTOR, MonitorChange::ANONYMISED_ACTOR, 'alicex', 'xalice (as bob)', 'al_ce', MonitorChange::ANONYMISED_ACTOR],
+            array_map(static fn (MonitorChange $row): ?string => $row->getActor(), $this->rows()),
+        );
+    }
+
+    /**
+     * Audit VU2-I2: the history lookup of a deferred run is chunked (here 1,500 ids, two queries).
+     */
+    public function testAHugeDeferredRunIsLookedUpInChunks(): void
+    {
+        $recorder   = $this->recorder();
+        $connection = $this->em->getConnection();
+        $connection->beginTransaction();
+        $recorder->release([new MonitorChangedEvent('main', 1, 'updated', [], null, 'app', new DateTimeImmutable())], $connection, range(1, 1500), 'uptime_monitor_change', 'id');
+        $connection->commit();
+        $recorder->releaseDeferred(false);
+
+        self::assertSame([], $this->events, 'the rows do not exist: dropped');
     }
 }
