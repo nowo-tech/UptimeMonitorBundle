@@ -88,7 +88,40 @@ final class Configuration implements ConfigurationInterface
         $treeBuilder = new TreeBuilder(self::ALIAS);
         $root        = $treeBuilder->getRootNode();
 
-        $root
+        // One method per section, each a short fluent chain. A single chain for the whole tree made the PHP compiler
+        // recurse once per call (zend_compile_expr), which overflows the 512 KiB thread stack of FrankenPHP on Alpine.
+        // Keep every chain short: ConfigurationStackTest compiles this class under that stack.
+        $this->addGeneralSection($root);
+        $this->addDoctrineSection($root);
+        $this->addConflictResponseSection($root);
+        $this->addSchedulerSection($root);
+        $this->addChecksSection($root);
+        $this->addPushSection($root);
+        $this->addRetentionSection($root);
+        $this->addAuditSection($root);
+        $this->addAggregatesSection($root);
+        $this->addMultiTenantSection($root);
+        $this->addSearchKitSection($root);
+        $this->addTenantsSection($root);
+        $this->addSecuritySection($root);
+        $this->addWebUiSection($root);
+        $this->addLimitsSection($root);
+        $this->addFormSection($root);
+        $this->addTemplatesSection($root);
+        $this->addUiSection($root);
+        $this->addDashboardSection($root);
+        $this->addStatusPageSection($root);
+        $this->addNotificationsSection($root);
+
+        return $treeBuilder;
+    }
+
+    /**
+     * Adds the master switch `enabled` and the deprecated 1.x keys `environments`, `connection` and `table_prefix`.
+     */
+    private function addGeneralSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
             ->children()
                 ->booleanNode('enabled')
                     ->info('Master switch for monitoring: false = no checks run (scheduler, nowo:uptime:run-due-checks and RunDueChecksMessage are no-ops). UI and data stay available.')
@@ -110,6 +143,16 @@ final class Configuration implements ConfigurationInterface
                     ->defaultValue('uptime_')
                     ->setDeprecated('nowo-tech/uptime-monitor-bundle', '1.5', 'The "%path%.%node%" option is deprecated and has no effect: use "nowo_uptime_monitor.doctrine.table_prefix" (prepended to the uptime_* table names) instead.')
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `doctrine` section.
+     */
+    private function addDoctrineSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('doctrine')
                     ->addDefaultsIfNotSet()
                     ->info('Doctrine storage options (REQ-ORM-002)')
@@ -154,6 +197,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `conflict_response` section.
+     */
+    private function addConflictResponseSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('conflict_response')
                     ->addDefaultsIfNotSet()
                     ->info('Since 1.31 (REQ-RUNTIME-003 rule 6): the answer of a bundle route to a lock conflict (deadlock, lock wait timeout, serialization failure). Nothing committed: the status + Retry-After + code CONFLICT_001; part committed: the status, no Retry-After, code CONFLICT_002. Null options follow the shared nowo_transaction_doctrine.conflict_response policy when NowoTransactionDoctrineBundle is registered, else 409 and 1 s.')
@@ -173,6 +226,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `scheduler` section.
+     */
+    private function addSchedulerSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('scheduler')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -187,6 +250,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `checks` section.
+     */
+    private function addChecksSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('checks')
                     ->addDefaultsIfNotSet()
                     ->info('Check execution and reported latency')
@@ -222,6 +295,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `push` section.
+     */
+    private function addPushSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('push')
                     ->addDefaultsIfNotSet()
                     ->info('Push monitors (since 1.14): servers POST their health (disk, CPU, memory, load) to path/{key} with a bearer token.')
@@ -254,6 +337,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `retention` section.
+     */
+    private function addRetentionSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('retention')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -270,6 +363,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `audit` section.
+     */
+    private function addAuditSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('audit')
                     ->info('Since 1.33: audit trail of monitor changes (who, when, which fields; write-only fields only as replaced / cleared). Off by default.')
                     ->addDefaultsIfNotSet()
@@ -304,6 +407,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `aggregates` section.
+     */
+    private function addAggregatesSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('aggregates')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -318,6 +431,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `multi_tenant` section.
+     */
+    private function addMultiTenantSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('multi_tenant')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -338,6 +461,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `search_kit` section.
+     */
+    private function addSearchKitSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('search_kit')
                     ->addDefaultsIfNotSet()
                     ->info('Since 1.32: the SearchKit provider of monitors (group `uptime_monitors`). Wired only when nowo-tech/search-kit-bundle ^1.9 is installed and web_ui is enabled.')
@@ -350,6 +483,16 @@ final class Configuration implements ConfigurationInterface
                         ->integerNode('max_candidates')->defaultValue(100)->min(1)->max(1000)->info('Rows read and access-checked per search; bounds the visible total and the deepest results page.')->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `tenants` section.
+     */
+    private function addTenantsSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('tenants')
                     ->addDefaultsIfNotSet()
                     ->info('Tenant list UI (/tenants). Disable in single-tenant host apps (e.g. nowo-devkit).')
@@ -364,6 +507,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `security` section.
+     */
+    private function addSecuritySection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('security')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -435,172 +588,227 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
-                ->arrayNode('web_ui')
+            ->end();
+    }
+
+    /**
+     * Adds the `web_ui` section; its `dashboard`, `settings` and `monitor_show` pages have their own methods.
+     */
+    private function addWebUiSection(ArrayNodeDefinition $rootNode): void
+    {
+        $webUi = $rootNode->children()->arrayNode('web_ui');
+        $webUi
+            ->addDefaultsIfNotSet()
+            ->info('UiKit page contract (REQ-UI-003): pages extend UiKit scaffolds rendered in nowo_ui_kit.layouts.admin / .guest.')
+            ->children()
+                ->booleanNode('enabled')
+                    ->defaultNull()
+                    ->info('Admin UI switch (REQ-UI-003 canonical key; replaces dashboard.enabled). null = dashboard.enabled (default true).')
+                ->end()
+                ->scalarNode('path_prefix')
+                    ->defaultNull()
+                    ->info('URL prefix of every admin route, may hold {tenantSlug} (REQ-UI-003 canonical key; replaces dashboard.path). null = dashboard.path (default /uptime).')
+                ->end()
+                ->append($this->tenantPathsNode(false))
+                ->scalarNode('layout_template')
+                    ->defaultNull()
+                    ->info('Admin layout of the bundle pages; null (default) = nowo_ui_kit.layouts.admin. The layout renders the UiKit canonical blocks (nowo_ui_content…).')
+                ->end()
+                ->arrayNode('templates')
+                    ->info('Per-page template override: page => template (a thin extends of the bundle page + data block override). Pages: ' . self::PAGES_LIST . '.')
+                    ->useAttributeAsKey('page')
+                    ->scalarPrototype()->end()
+                    ->defaultValue([])
+                    ->validate()
+                        ->ifTrue(static fn (array $v): bool => array_diff(array_keys($v), self::PAGES) !== [])
+                        ->then(static function (array $v): array {
+                            throw new InvalidArgumentException(sprintf('Unknown nowo_uptime_monitor.web_ui.templates page(s) "%s"; known pages: %s.', implode('", "', array_diff(array_keys($v), self::PAGES)), self::PAGES_LIST));
+                        })
+                    ->end()
+                ->end()
+                ->arrayNode('form_themes')
+                    ->info('Form themes of the bundle forms (UiKit FormPage / SettingsSection formThemes). Empty = only the host twig.form_themes.')
+                    ->scalarPrototype()->end()
+                    ->defaultValue([self::DEFAULT_FORM_THEME])
+                ->end()
+            ->end();
+
+        $this->addWebUiDashboardSection($webUi);
+        $this->addWebUiSettingsSection($webUi);
+        $this->addWebUiMonitorShowSection($webUi);
+
+        $webUi
+            ->children()
+                ->booleanNode('strict_tenant_paths')
+                    ->defaultFalse()
+                    ->info('Since 1.21: serve a tenant only under the path its slug selects (a tenant_paths entry whose slug_prefix it starts with, else the default path); any other path answers 404.')
+                ->end()
+                ->integerNode('per_page')
+                    ->min(5)
+                    ->max(200)
+                    ->defaultValue(20)
+                    ->info('Rows per page of the check log (monitor page) and of the latest checks (table dashboard).')
+                ->end()
+                ->booleanNode('back_links')
+                    ->defaultTrue()
+                    ->info('Since 1.14.2: the "← Dashboard" link of the monitor, monitor form and settings pages. false when the host\'s own navigation (tabs) already leads back.')
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `web_ui.dashboard` page section.
+     */
+    private function addWebUiDashboardSection(ArrayNodeDefinition $webUi): void
+    {
+        $webUi
+            ->children()
+                ->arrayNode('dashboard')
                     ->addDefaultsIfNotSet()
-                    ->info('UiKit page contract (REQ-UI-003): pages extend UiKit scaffolds rendered in nowo_ui_kit.layouts.admin / .guest.')
+                    ->info('Tenant dashboard page.')
                     ->children()
-                        ->booleanNode('enabled')
-                            ->defaultNull()
-                            ->info('Admin UI switch (REQ-UI-003 canonical key; replaces dashboard.enabled). null = dashboard.enabled (default true).')
+                        ->enumNode('view')
+                            ->values(self::DASHBOARD_VIEWS)
+                            ->defaultValue('tree')
+                            ->info('tree: the live monitor tree with quick stats and recent checks; table: a monitors table (status, 24 h uptime, last check, interval, row actions) and a paginated card of the latest checks — for hosts that embed the pages in their own navigation.')
                         ->end()
-                        ->scalarNode('path_prefix')
-                            ->defaultNull()
-                            ->info('URL prefix of every admin route, may hold {tenantSlug} (REQ-UI-003 canonical key; replaces dashboard.path). null = dashboard.path (default /uptime).')
+                        ->enumNode('header')
+                            ->values(['tenant', 'monitors'])
+                            ->defaultValue('tenant')
+                            ->info('Page header title: tenant (its name, the slug as intro) or monitors ("Monitors" — for hosts that already show the tenant around the page; the table view then drops its card title).')
                         ->end()
-                        ->append($this->tenantPathsNode(false))
-                        ->scalarNode('layout_template')
-                            ->defaultNull()
-                            ->info('Admin layout of the bundle pages; null (default) = nowo_ui_kit.layouts.admin. The layout renders the UiKit canonical blocks (nowo_ui_content…).')
+                        ->arrayNode('actions')
+                            ->info('Page header actions, in this order (each one only for users allowed to use it): ' . implode(', ', self::DASHBOARD_ACTIONS) . '.')
+                            ->enumPrototype()->values(self::DASHBOARD_ACTIONS)->end()
+                            ->defaultValue(self::DASHBOARD_ACTIONS)
                         ->end()
-                        ->arrayNode('templates')
-                            ->info('Per-page template override: page => template (a thin extends of the bundle page + data block override). Pages: ' . self::PAGES_LIST . '.')
-                            ->useAttributeAsKey('page')
-                            ->scalarPrototype()->end()
-                            ->defaultValue([])
-                            ->validate()
-                                ->ifTrue(static fn (array $v): bool => array_diff(array_keys($v), self::PAGES) !== [])
-                                ->then(static function (array $v): array {
-                                    throw new InvalidArgumentException(sprintf('Unknown nowo_uptime_monitor.web_ui.templates page(s) "%s"; known pages: %s.', implode('", "', array_diff(array_keys($v), self::PAGES)), self::PAGES_LIST));
-                                })
-                            ->end()
-                        ->end()
-                        ->arrayNode('form_themes')
-                            ->info('Form themes of the bundle forms (UiKit FormPage / SettingsSection formThemes). Empty = only the host twig.form_themes.')
-                            ->scalarPrototype()->end()
-                            ->defaultValue([self::DEFAULT_FORM_THEME])
-                        ->end()
-                        ->arrayNode('dashboard')
-                            ->addDefaultsIfNotSet()
-                            ->info('Tenant dashboard page.')
-                            ->children()
-                                ->enumNode('view')
-                                    ->values(self::DASHBOARD_VIEWS)
-                                    ->defaultValue('tree')
-                                    ->info('tree: the live monitor tree with quick stats and recent checks; table: a monitors table (status, 24 h uptime, last check, interval, row actions) and a paginated card of the latest checks — for hosts that embed the pages in their own navigation.')
-                                ->end()
-                                ->enumNode('header')
-                                    ->values(['tenant', 'monitors'])
-                                    ->defaultValue('tenant')
-                                    ->info('Page header title: tenant (its name, the slug as intro) or monitors ("Monitors" — for hosts that already show the tenant around the page; the table view then drops its card title).')
-                                ->end()
-                                ->arrayNode('actions')
-                                    ->info('Page header actions, in this order (each one only for users allowed to use it): ' . implode(', ', self::DASHBOARD_ACTIONS) . '.')
-                                    ->enumPrototype()->values(self::DASHBOARD_ACTIONS)->end()
-                                    ->defaultValue(self::DASHBOARD_ACTIONS)
-                                ->end()
-                                ->enumNode('new_monitor')
-                                    ->values(['header', 'hidden'])
-                                    ->defaultValue('header')
-                                    ->info('1.22: header (default): New monitor is a page header action (when listed in actions); hidden: never in the header (also not when disabled at the monitor limit), the host places its own opener (any element with data-uptime-open="new-monitor") and reads the uptime_new_monitor template variable (url, label, disabled, reason). The empty-state button stays.')
-                                ->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('settings')
-                            ->addDefaultsIfNotSet()
-                            ->info('Tenant settings screens (since 1.13).')
-                            ->children()
-                                ->arrayNode('sections')
-                                    ->info('The settings screens shown, in the bundle order (the others answer 404 and leave the tabs): ' . implode(', ', self::SETTINGS_SECTIONS) . '.')
-                                    ->enumPrototype()->values(self::SETTINGS_SECTIONS)->end()
-                                    ->defaultValue(self::SETTINGS_SECTIONS)
-                                ->end()
-                                ->scalarNode('sections_resolver')
-                                    ->defaultNull()
-                                    ->info('Since 1.21: service id of a Nowo\\UptimeMonitorBundle\\Ui\\SettingsSectionsResolverInterface narrowing `sections` per tenant (e.g. none for personal tenants); null = the same sections for every tenant.')
-                                ->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('monitor_show')
-                            ->addDefaultsIfNotSet()
-                            ->info('Monitor page regions (since 1.21).')
-                            ->children()
-                                ->enumNode('charts')
-                                    ->values(self::MONITOR_SHOW_CHARTS)
-                                    ->defaultValue('bundle')
-                                    ->info('bundle: the bundle charts (response time, uptime, latency); host: no bundle chart, the slots.charts template instead (if set); none: no charts.')
-                                ->end()
-                                ->arrayNode('slots')
-                                    ->addDefaultsIfNotSet()
-                                    ->info('Templates rendered, with the page variables, in place of a bundle region; null keeps the bundle region. Blocks of the same names (monitor_figures, monitor_charts, monitor_details) wrap the regions for hosts that extend the page.')
-                                    ->children()
-                                        ->scalarNode('figures')->defaultNull()->info('Replaces the key figures (24 h / 30 d uptime, latency).')->end()
-                                        ->scalarNode('charts')->defaultNull()->info('Rendered in the charts region with charts: host.')->end()
-                                        ->scalarNode('details')->defaultNull()->info('Replaces the details card(s) (with the status badge of the first one).')->end()
-                                        ->scalarNode('history')->defaultNull()->info('Since 1.30: replaces the check history card (history bar, legend, last check).')->end()
-                                        ->scalarNode('log')->defaultNull()->info('Since 1.30: replaces the check log card (table and pager; variables log_events, log_pagination, log_sort, monitor_layout.log).')->end()
-                                    ->end()
-                                ->end()
-                                ->arrayNode('order')
-                                    ->info('Since 1.30: order of the regions inside the live-updates root, e.g. [figures, history, details, charts, log]. [] (default) keeps the bundle layout. Regions left out follow in the bundle order (' . implode(', ', self::MONITOR_SHOW_REGIONS) . '); details moves into the root only when listed.')
-                                    ->enumPrototype()->values(['details', ...self::MONITOR_SHOW_REGIONS])->end()
-                                    ->defaultValue([])
-                                    ->validate()
-                                        ->ifTrue(static fn (array $order): bool => count($order) !== count(array_unique($order)))
-                                        ->thenInvalid('web_ui.monitor_show.order lists a region more than once: %s.')
-                                    ->end()
-                                ->end()
-                                ->arrayNode('log')
-                                    ->addDefaultsIfNotSet()
-                                    ->info('Since 1.30: check log options (the defaults render the 1.29 log).')
-                                    ->children()
-                                        ->booleanNode('sortable')->defaultFalse()->info('Status, time, latency and code headers sort the log (query log_sort / log_dir; default newest first).')->end()
-                                        ->booleanNode('align_numbers')->defaultFalse()->info('Latency and code cells right-aligned with tabular figures (class uptime-cell-num).')->end()
-                                        ->scalarNode('time_format')
-                                            ->defaultValue('Y-m-d H:i:s')
-                                            ->info('PHP date format of the check time, e.g. H:i.')
-                                            ->cannotBeEmpty()
-                                        ->end()
-                                        ->scalarNode('time_title_format')
-                                            ->defaultNull()
-                                            ->info('PHP date format of the time\'s title attribute (e.g. Y-m-d H:i:s); null = no title.')
-                                        ->end()
-                                        ->integerNode('per_page')->defaultNull()->min(5)->max(200)->info('Rows per log page; null = web_ui.per_page.')->end()
-                                    ->end()
-                                ->end()
-                                ->arrayNode('header')
-                                    ->addDefaultsIfNotSet()
-                                    ->info('Since 1.30: the page header (UiKit page_header partial).')
-                                    ->children()
-                                        ->enumNode('actions_layout')
-                                            ->values(self::MONITOR_SHOW_ACTIONS_LAYOUTS)
-                                            ->defaultValue('toolbar')
-                                            ->info('toolbar: one button per action (1.29); split: icon buttons, one primary button and the "more" menu (UiKit header_actions).')
-                                        ->end()
-                                        ->booleanNode('status')->defaultFalse()->info('The status badge next to the title (UiKit page_status, updated live) instead of in the first details card.')->end()
-                                        ->arrayNode('icons')
-                                            ->info('Bundle actions shown as icon buttons, by action (' . implode(', ', self::MONITOR_SHOW_ICON_ACTIONS) . '): the icon name, e.g. { edit: "tabler:pencil" }.')
-                                            ->useAttributeAsKey('action')
-                                            ->scalarPrototype()
-                                                ->validate()
-                                                    ->ifTrue(static fn (mixed $icon): bool => !is_string($icon) || (strlen($icon) > 100 || preg_match('/^[A-Za-z0-9]+(?:[:_.\/-][A-Za-z0-9]+)*$/D', $icon) !== 1))
-                                                    ->thenInvalid('web_ui.monitor_show.header.icons: invalid icon name %s (letters and digits, single ":", "_", ".", "/" or "-" between them; at most 100 characters).')
-                                                ->end()
-                                            ->end()
-                                            ->validate()
-                                                ->ifTrue(static fn (array $icons): bool => array_diff(array_keys($icons), self::MONITOR_SHOW_ICON_ACTIONS) !== [])
-                                                ->thenInvalid('web_ui.monitor_show.header.icons: unknown action in %s (' . implode(', ', self::MONITOR_SHOW_ICON_ACTIONS) . ').')
-                                            ->end()
-                                        ->end()
-                                    ->end()
-                                ->end()
-                            ->end()
-                        ->end()
-                        ->booleanNode('strict_tenant_paths')
-                            ->defaultFalse()
-                            ->info('Since 1.21: serve a tenant only under the path its slug selects (a tenant_paths entry whose slug_prefix it starts with, else the default path); any other path answers 404.')
-                        ->end()
-                        ->integerNode('per_page')
-                            ->min(5)
-                            ->max(200)
-                            ->defaultValue(20)
-                            ->info('Rows per page of the check log (monitor page) and of the latest checks (table dashboard).')
-                        ->end()
-                        ->booleanNode('back_links')
-                            ->defaultTrue()
-                            ->info('Since 1.14.2: the "← Dashboard" link of the monitor, monitor form and settings pages. false when the host\'s own navigation (tabs) already leads back.')
+                        ->enumNode('new_monitor')
+                            ->values(['header', 'hidden'])
+                            ->defaultValue('header')
+                            ->info('1.22: header (default): New monitor is a page header action (when listed in actions); hidden: never in the header (also not when disabled at the monitor limit), the host places its own opener (any element with data-uptime-open="new-monitor") and reads the uptime_new_monitor template variable (url, label, disabled, reason). The empty-state button stays.')
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `web_ui.settings` page section.
+     */
+    private function addWebUiSettingsSection(ArrayNodeDefinition $webUi): void
+    {
+        $webUi
+            ->children()
+                ->arrayNode('settings')
+                    ->addDefaultsIfNotSet()
+                    ->info('Tenant settings screens (since 1.13).')
+                    ->children()
+                        ->arrayNode('sections')
+                            ->info('The settings screens shown, in the bundle order (the others answer 404 and leave the tabs): ' . implode(', ', self::SETTINGS_SECTIONS) . '.')
+                            ->enumPrototype()->values(self::SETTINGS_SECTIONS)->end()
+                            ->defaultValue(self::SETTINGS_SECTIONS)
+                        ->end()
+                        ->scalarNode('sections_resolver')
+                            ->defaultNull()
+                            ->info('Since 1.21: service id of a Nowo\\UptimeMonitorBundle\\Ui\\SettingsSectionsResolverInterface narrowing `sections` per tenant (e.g. none for personal tenants); null = the same sections for every tenant.')
+                        ->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `web_ui.monitor_show` page section.
+     */
+    private function addWebUiMonitorShowSection(ArrayNodeDefinition $webUi): void
+    {
+        $webUi
+            ->children()
+                ->arrayNode('monitor_show')
+                    ->addDefaultsIfNotSet()
+                    ->info('Monitor page regions (since 1.21).')
+                    ->children()
+                        ->enumNode('charts')
+                            ->values(self::MONITOR_SHOW_CHARTS)
+                            ->defaultValue('bundle')
+                            ->info('bundle: the bundle charts (response time, uptime, latency); host: no bundle chart, the slots.charts template instead (if set); none: no charts.')
+                        ->end()
+                        ->arrayNode('slots')
+                            ->addDefaultsIfNotSet()
+                            ->info('Templates rendered, with the page variables, in place of a bundle region; null keeps the bundle region. Blocks of the same names (monitor_figures, monitor_charts, monitor_details) wrap the regions for hosts that extend the page.')
+                            ->children()
+                                ->scalarNode('figures')->defaultNull()->info('Replaces the key figures (24 h / 30 d uptime, latency).')->end()
+                                ->scalarNode('charts')->defaultNull()->info('Rendered in the charts region with charts: host.')->end()
+                                ->scalarNode('details')->defaultNull()->info('Replaces the details card(s) (with the status badge of the first one).')->end()
+                                ->scalarNode('history')->defaultNull()->info('Since 1.30: replaces the check history card (history bar, legend, last check).')->end()
+                                ->scalarNode('log')->defaultNull()->info('Since 1.30: replaces the check log card (table and pager; variables log_events, log_pagination, log_sort, monitor_layout.log).')->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('order')
+                            ->info('Since 1.30: order of the regions inside the live-updates root, e.g. [figures, history, details, charts, log]. [] (default) keeps the bundle layout. Regions left out follow in the bundle order (' . implode(', ', self::MONITOR_SHOW_REGIONS) . '); details moves into the root only when listed.')
+                            ->enumPrototype()->values(['details', ...self::MONITOR_SHOW_REGIONS])->end()
+                            ->defaultValue([])
+                            ->validate()
+                                ->ifTrue(static fn (array $order): bool => count($order) !== count(array_unique($order)))
+                                ->thenInvalid('web_ui.monitor_show.order lists a region more than once: %s.')
+                            ->end()
+                        ->end()
+                        ->arrayNode('log')
+                            ->addDefaultsIfNotSet()
+                            ->info('Since 1.30: check log options (the defaults render the 1.29 log).')
+                            ->children()
+                                ->booleanNode('sortable')->defaultFalse()->info('Status, time, latency and code headers sort the log (query log_sort / log_dir; default newest first).')->end()
+                                ->booleanNode('align_numbers')->defaultFalse()->info('Latency and code cells right-aligned with tabular figures (class uptime-cell-num).')->end()
+                                ->scalarNode('time_format')
+                                    ->defaultValue('Y-m-d H:i:s')
+                                    ->info('PHP date format of the check time, e.g. H:i.')
+                                    ->cannotBeEmpty()
+                                ->end()
+                                ->scalarNode('time_title_format')
+                                    ->defaultNull()
+                                    ->info('PHP date format of the time\'s title attribute (e.g. Y-m-d H:i:s); null = no title.')
+                                ->end()
+                                ->integerNode('per_page')->defaultNull()->min(5)->max(200)->info('Rows per log page; null = web_ui.per_page.')->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('header')
+                            ->addDefaultsIfNotSet()
+                            ->info('Since 1.30: the page header (UiKit page_header partial).')
+                            ->children()
+                                ->enumNode('actions_layout')
+                                    ->values(self::MONITOR_SHOW_ACTIONS_LAYOUTS)
+                                    ->defaultValue('toolbar')
+                                    ->info('toolbar: one button per action (1.29); split: icon buttons, one primary button and the "more" menu (UiKit header_actions).')
+                                ->end()
+                                ->booleanNode('status')->defaultFalse()->info('The status badge next to the title (UiKit page_status, updated live) instead of in the first details card.')->end()
+                                ->arrayNode('icons')
+                                    ->info('Bundle actions shown as icon buttons, by action (' . implode(', ', self::MONITOR_SHOW_ICON_ACTIONS) . '): the icon name, e.g. { edit: "tabler:pencil" }.')
+                                    ->useAttributeAsKey('action')
+                                    ->scalarPrototype()
+                                        ->validate()
+                                            ->ifTrue(static fn (mixed $icon): bool => !is_string($icon) || (strlen($icon) > 100 || preg_match('/^[A-Za-z0-9]+(?:[:_.\/-][A-Za-z0-9]+)*$/D', $icon) !== 1))
+                                            ->thenInvalid('web_ui.monitor_show.header.icons: invalid icon name %s (letters and digits, single ":", "_", ".", "/" or "-" between them; at most 100 characters).')
+                                        ->end()
+                                    ->end()
+                                    ->validate()
+                                        ->ifTrue(static fn (array $icons): bool => array_diff(array_keys($icons), self::MONITOR_SHOW_ICON_ACTIONS) !== [])
+                                        ->thenInvalid('web_ui.monitor_show.header.icons: unknown action in %s (' . implode(', ', self::MONITOR_SHOW_ICON_ACTIONS) . ').')
+                                    ->end()
+                                ->end()
+                            ->end()
+                        ->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `limits` section.
+     */
+    private function addLimitsSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('limits')
                     ->addDefaultsIfNotSet()
                     ->info('Per-tenant monitor limits: the New monitor action is disabled and the form refuses a monitor beyond them.')
@@ -621,6 +829,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `form` section.
+     */
+    private function addFormSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('form')
                     ->addDefaultsIfNotSet()
                     ->info('Monitor form options.')
@@ -632,6 +850,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `templates` section.
+     */
+    private function addTemplatesSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('templates')
                     ->addDefaultsIfNotSet()
                     ->info('Deprecated since 1.11: use web_ui.layout_template (null = UiKit layout). A 1.x layout (block uptime_content) set here is wrapped by a BC bridge.')
@@ -655,6 +883,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `ui` section.
+     */
+    private function addUiSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('ui')
                     ->addDefaultsIfNotSet()
                     ->info('Deprecated since 1.11: the pages follow nowo_ui_kit (css_framework, layouts, theme). ui.framework only seeds nowo_ui_kit.css_framework when the host does not set it; the CDN keys are never read.')
@@ -716,6 +954,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `dashboard` section.
+     */
+    private function addDashboardSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('dashboard')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -757,6 +1005,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `status_page` section.
+     */
+    private function addStatusPageSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('status_page')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -770,6 +1028,16 @@ final class Configuration implements ConfigurationInterface
                         ->booleanNode('show_latency')->defaultTrue()->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `notifications` section.
+     */
+    private function addNotificationsSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('notifications')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -805,8 +1073,6 @@ final class Configuration implements ConfigurationInterface
                     ->end()
                 ->end()
             ->end();
-
-        return $treeBuilder;
     }
 
     /**

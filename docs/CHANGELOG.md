@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.34.1] - 2026-11-20](#1341---2026-11-20)
 - [[1.34.0] - 2026-11-20](#1340---2026-11-20)
 - [[1.33.0] - 2026-11-20](#1330---2026-11-20)
 - [[1.32.0] - 2026-11-19](#1320---2026-11-19)
@@ -97,6 +98,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - Demo: aligned with UiKit (`demo-nav-*` test ids on the shared `demo-masthead`, brand label as in the reference demos).
+
+## [1.34.1] - 2026-11-20
+
+### Fixed
+
+- Every bundle page failed with "Maximum call stack size ... reached during compilation" (`Configuration.php` line 91) on PHP 8.3+ when PHP runs on a 512 KiB thread stack, as FrankenPHP does on Alpine (`dunglas/frankenphp:*-alpine`, classic and worker mode). The configuration tree was one fluent chain of about 700 calls, and compiling it needed 576 KiB (PHP 8.5) to 704 KiB (PHP 8.3 / 8.4) of stack; the pages load `Configuration` for its constants, so each request hit it. The tree is now built by one method per section (128 KiB is enough) and is unchanged: same keys, defaults, validation and reference dump. Affected: 1.33.0 and 1.34.0 on PHP 8.5; from about 1.18.0 on PHP 8.4 and 1.23.0 on PHP 8.3. A host CLI or PHP-FPM process (8 MiB main-thread stack) was not affected. The `zend.max_allowed_stack_size=-1` workaround is no longer needed. A test now compiles every source file and builds the tree under a 512 KiB stack.
 
 ## [1.34.0] - 2026-11-20
 
@@ -1896,7 +1903,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.34.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.34.1...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
