@@ -8,12 +8,12 @@
 {% block nowo_ui_navigation %}
     {% set _route = app.request.attributes.get('_route') %}
     <header class="nowo-ui-header" data-testid="demo-masthead">
-        <a class="nowo-ui-brand" href="{{ path('demo_home') }}">Uptime Monitor demo</a>
+        <a class="nowo-ui-brand" href="{{ path('demo_home') }}">Uptime Monitor · Symfony 8</a>
         <nav class="nowo-ui-menu" aria-label="Demo">
-            <a class="nowo-ui-link" href="{{ path('nowo_uptime_tenant_index') }}"{% if _route starts with 'nowo_uptime_tenant' %} aria-current="page"{% endif %}>Tenants</a>
-            <a class="nowo-ui-link" href="{{ path('nowo_uptime_dashboard', { tenantSlug: 'main' }) }}"{% if _route == 'nowo_uptime_dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
-            <a class="nowo-ui-link" href="{{ path('nowo_uptime_settings_index', { tenantSlug: 'main' }) }}"{% if _route starts with 'nowo_uptime_settings' %} aria-current="page"{% endif %}>Settings</a>
-            <a class="nowo-ui-link" href="{{ path('nowo_uptime_status_page', { tenantSlug: 'main' }) }}"{% if _route == 'nowo_uptime_status_page' %} aria-current="page"{% endif %}>Status page</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_uptime_tenant_index') }}"{% if _route starts with 'nowo_uptime_tenant' %} aria-current="page"{% endif %} data-testid="demo-nav-nowo_uptime_tenant_index">Tenants</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_uptime_dashboard', { tenantSlug: 'main' }) }}"{% if _route == 'nowo_uptime_dashboard' %} aria-current="page"{% endif %} data-testid="demo-nav-nowo_uptime_dashboard">Dashboard</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_uptime_settings_index', { tenantSlug: 'main' }) }}"{% if _route starts with 'nowo_uptime_settings' %} aria-current="page"{% endif %} data-testid="demo-nav-nowo_uptime_settings_index">Settings</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_uptime_status_page', { tenantSlug: 'main' }) }}"{% if _route == 'nowo_uptime_status_page' %} aria-current="page"{% endif %} data-testid="demo-nav-nowo_uptime_status_page">Status page</a>
         </nav>
         <div class="nowo-ui-header__end">
             {{ include('@NowoUiKitBundle/partials/_theme_toggle.html.twig', { compact: true }, false) }}
