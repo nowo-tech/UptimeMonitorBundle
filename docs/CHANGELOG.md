@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.34.0] - 2026-11-20](#1340---2026-11-20)
 - [[1.33.0] - 2026-11-20](#1330---2026-11-20)
 - [[1.32.0] - 2026-11-19](#1320---2026-11-19)
 - [[1.31.0] - 2026-11-18](#1310---2026-11-18)
@@ -93,6 +94,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.34.0] - 2026-11-20
+
 ### Added
 
 - Monitor search over several tenants: `search_kit.tenant_resolver` may implement `Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantsResolverInterface` (a list of tenant slugs; the search covers their union, an empty list finds nothing, keys are compared exactly). A 1.32 single-tenant resolver still works (a list of one). `MonitorSearchScopeEvent` (`UptimeEvents::MONITOR_SEARCH_SCOPE`) narrows the tenants (`onlyTenants()`, `excludeTenants()`, `deny()`) and can accept a host scope chip (`acceptScope()`); the bundle's own scope `tenant:<slug>` narrows to one tenant; a scope never widens. The tenant list is applied in SQL before the candidate limit. With several tenants the SearchKit tenant is `tenants:<sha256 of the sorted slugs>` (never "all"); the resolver and the listeners may run more than once per search. A key that is not a valid slug (e.g. `ACME`) no longer matches on case-insensitive collations. See [USAGE](USAGE.md#searchkit-monitors-132).
@@ -100,7 +103,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- The `uptime_monitors` SearchKit group is no longer gated on `canAccessDashboard()`, so hosts without the bundle dashboard can offer monitor search. Search is denied unless the checker's `canSearch()` or a `MonitorSearchAccessEvent` listener grants it; the bundle's configurable checker answers with the dashboard roles, so default setups are unchanged. Every row is still checked with `canViewMonitor()`. A custom checker without `canSearch()` must add it or grant in a listener: see [UPGRADING](UPGRADING.md#unreleased). `MonitorSearchVisibility::canSearch()` is deprecated.
+- The `uptime_monitors` SearchKit group is no longer gated on `canAccessDashboard()`, so hosts without the bundle dashboard can offer monitor search. Search is denied unless the checker's `canSearch()` or a `MonitorSearchAccessEvent` listener grants it; the bundle's configurable checker answers with the dashboard roles, so default setups are unchanged. Every row is still checked with `canViewMonitor()`. A custom checker without `canSearch()` must add it or grant in a listener: see [UPGRADING](UPGRADING.md#to-1340). `MonitorSearchVisibility::canSearch()` is deprecated.
 
 ## [1.33.0] - 2026-11-20
 
@@ -1889,7 +1892,7 @@ First stable release of `nowo-tech/uptime-monitor-bundle`.
 - Symfony components `^7.4 || ^8.0`
 - Doctrine ORM/DBAL (see `composer.json`)
 
-[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.33.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/UptimeMonitorBundle/compare/v1.34.0...HEAD
 [1.2.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/UptimeMonitorBundle/releases/tag/v1.1.0
