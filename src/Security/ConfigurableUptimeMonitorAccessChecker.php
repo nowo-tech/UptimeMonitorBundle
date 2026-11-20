@@ -13,7 +13,7 @@ use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
  * when they hold a role of every non-empty list among the two (access_roles and the area list). An empty list grants
  * nothing on its own: when both lists are empty nobody is allowed (fail closed, never "everyone").
  */
-final readonly class ConfigurableUptimeMonitorAccessChecker implements UptimeMonitorAccessCheckerInterface
+final readonly class ConfigurableUptimeMonitorAccessChecker implements SearchAwareUptimeMonitorAccessCheckerInterface
 {
     /**
      * @param list<string> $accessRoles
@@ -77,5 +77,13 @@ final readonly class ConfigurableUptimeMonitorAccessChecker implements UptimeMon
         }
 
         return false;
+    }
+
+    /**
+     * Whether the user may search the monitors of a tenant (since 1.34): the dashboard roles (the 1.32 search gate).
+     */
+    public function canSearch(object $user, string $tenantSlug): bool
+    {
+        return $this->isAllowed($this->dashboardRoles);
     }
 }

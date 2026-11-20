@@ -134,10 +134,10 @@ Deprecated since **1.11** (REQ-UI-003 vocabulary, removed in 2.0): `templates.la
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `search_kit.enabled` | `true` | `false`: the group `uptime_monitors` is not registered. It needs `nowo-tech/search-kit-bundle` ^1.9 and `web_ui.enabled`. |
-| `search_kit.tenant_resolver` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface` (the viewer's tenant slug, or `null`: no results). `null` = request `tenantSlug`, else `multi_tenant.default_tenant`. |
+| `search_kit.tenant_resolver` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantsResolverInterface` (1.34: the viewer's tenant slugs, searched together; an empty list: no results) or of a 1.32 `MonitorSearchTenantResolverInterface` (one slug, or `null`). `null` = request `tenantSlug`, else `multi_tenant.default_tenant`. |
 | `search_kit.max_candidates` | `100` | Monitors read and access-checked per search (1-1000). |
 
-SearchKit needs PHP 8.3 or later. Multi-tenant hosts must set `search_kit.tenant_resolver`; results are ordered by name. See [USAGE](USAGE.md#searchkit-monitors-132).
+SearchKit needs PHP 8.3 or later. Multi-tenant hosts must set `search_kit.tenant_resolver`; results are ordered by name. Since 1.34 the search permission is its own check (`SearchAwareUptimeMonitorAccessCheckerInterface::canSearch()` or a `MonitorSearchAccessEvent` listener; denied without either), no longer `canAccessDashboard()`. See [USAGE](USAGE.md#searchkit-monitors-132).
 
 ### Monitor change audit (1.33)
 

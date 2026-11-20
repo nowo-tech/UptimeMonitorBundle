@@ -7,7 +7,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [Current compatibility baseline](#current-compatibility-baseline)
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
-- [Unreleased](#unreleased)
+- [To 1.34.0](#to-1340)
 - [To 1.33.0](#to-1330)
 - [To 1.32.0](#to-1320)
 - [To 1.31.0](#to-1310)
@@ -138,7 +138,28 @@ No breaking changes. **No application upgrade steps.**
 composer update nowo-tech/uptime-monitor-bundle
 ```
 
-## Unreleased
+## To 1.34.0
+
+Target **1.34.0** (minor), from **1.33.0**: `composer update nowo-tech/uptime-monitor-bundle`. Only hosts with
+`nowo-tech/search-kit-bundle` installed are concerned; no schema change.
+
+- **Monitor search has its own permission (behaviour change).** Up to 1.33 the group `uptime_monitors` was gated on
+  `canAccessDashboard()`. Since 1.34 it asks `canSearch($user, $tenantSlug)` of a checker implementing
+  `SearchAwareUptimeMonitorAccessCheckerInterface`, then `MonitorSearchAccessEvent` (`grant()` / `deny()`). The bundle's
+  own checkers implement it (`security.access_checker` unset: the dashboard roles, nothing changes). **A custom access
+  checker that implements neither now gets no monitor search results**: add `canSearch()` to it (returning
+  `canAccessDashboard($user)` keeps the 1.32 behaviour) or grant in a `MonitorSearchAccessEvent` listener.
+- **Several tenants:** `search_kit.tenant_resolver` may now implement `MonitorSearchTenantsResolverInterface`
+  (`resolveTenants(): list<string>`); the search covers their union. A 1.32 single-tenant resolver keeps working.
+  `MonitorSearchScopeEvent` narrows the list and can accept a host scope chip (`acceptScope()`); the bundle's own scope is
+  `tenant:<slug>`.
+- **API additions:** optional `$eventDispatcher` of `MonitorSearchVisibility`, optional `$scope` of
+  `MonitorSearchDefinition` (its `$tenants` accepts either resolver); `MonitorSearchVisibility::canSearch()` is deprecated
+  (no longer called). With several tenants the SearchKit tenant passed to `SearchItemVisibilityEvent` is
+  `tenants:<sha256 of the sorted slugs>` (`MonitorSearchDefinition::tenantLabel()`); with one it is still that slug.
+- **Tenant keys are compared exactly.** A 1.32 resolver that returned a key that is not a valid slug (for instance
+  `ACME`, which matched the slug `acme` on MySQL's case-insensitive collations) now finds nothing: return the slug as
+  stored (lowercase letters, digits, dashes).
 
 ## To 1.33.0
 

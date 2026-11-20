@@ -6,6 +6,7 @@
 - [Reporting a Vulnerability](#reporting-a-vulnerability)
 - [Scope and attack surface](#scope-and-attack-surface)
 - [Threat model and mitigations](#threat-model-and-mitigations)
+- [Monitor search (SearchKit, 1.32 / 1.34)](#monitor-search-searchkit-132--134)
 - [Monitor change audit (1.33)](#monitor-change-audit-133)
 - [Logging policy](#logging-policy)
 - [Dependencies and updates](#dependencies-and-updates)
@@ -220,6 +221,21 @@ This bundle provides:
           - { path: ^/api/uptime, roles: ROLE_ADMIN }
           # one line per web_ui.tenant_paths entry whose path is outside ^/uptime
   ```
+
+## Monitor search (SearchKit, 1.32 / 1.34)
+
+The group `uptime_monitors` exists only with SearchKit installed. Since 1.34:
+
+- **Permission:** search has its own check, denied by default: `SearchAwareUptimeMonitorAccessCheckerInterface::canSearch()`
+  per tenant, then `MonitorSearchAccessEvent` (a denial wins). The bundle's configurable checker keeps the 1.32 behaviour
+  (dashboard roles); a custom checker that implements neither gives no results. Granting search shows nothing by
+  itself: every row is still checked with `canViewMonitor()` (else the tenant / dashboard check) and SearchKit's host event.
+- **Tenants:** the resolver's list is the upper bound. `MonitorSearchScopeEvent` listeners and the client scope can only
+  narrow it; keys are compared exactly (a key that is not a valid slug matches nothing); an empty list finds nothing.
+  The list is applied in SQL before the candidate limit, so rows of tenants the viewer does not search never take places
+  in the window. Rows hidden by `canViewMonitor()` are filtered in PHP and may still take places in the window (the
+  group is not `sensitive()`); the total is then reported as SearchKit computes it.
+- **Shown:** name, origin of the target, status; never credentials (see [USAGE](USAGE.md#searchkit-monitors-132)).
 
 ## Monitor change audit (1.33)
 

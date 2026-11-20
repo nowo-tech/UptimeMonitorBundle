@@ -41,6 +41,8 @@ services:
             - '../../Search/MonitorSearchHit.php'
             - '../../Search/SearchKit/'
             - '../../Search/MonitorSearchUrl.php'
+            # 1.34: defined by the extension with the SearchKit definition (its resolver is the configured one)
+            - '../../Search/MonitorSearchTenants.php'
             - '../../Push/PushThresholds.php'
             # apply-monitors (1.18): value objects and exceptions, not services
             - '../../Apply/ApplyError.php'
@@ -198,6 +200,7 @@ services:
         arguments:
             $tokenStorage: '@?security.token_storage'
             $allowUnauthenticated: '%nowo_uptime_monitor.security.allow_unauthenticated%'
+            $eventDispatcher: '@?event_dispatcher'
 
     Nowo\UptimeMonitorBundle\Security\MonitorReadScope:
         arguments:

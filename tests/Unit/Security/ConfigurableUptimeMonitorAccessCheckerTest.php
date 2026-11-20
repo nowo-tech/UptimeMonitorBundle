@@ -30,6 +30,7 @@ final class ConfigurableUptimeMonitorAccessCheckerTest extends TestCase
         self::assertTrue($checker->canAccessDashboard($user));
         self::assertFalse($checker->canManageMonitors($user));
         self::assertFalse($checker->canManageSettings($user));
+        self::assertTrue($checker->canSearch($user, 'acme'), '1.34: search follows the dashboard roles');
     }
 
     public function testDeniesWhenAccessRolesFailEvenIfAreaRolesWouldPass(): void
@@ -49,6 +50,7 @@ final class ConfigurableUptimeMonitorAccessCheckerTest extends TestCase
         self::assertFalse($checker->canAccessDashboard($user));
         self::assertFalse($checker->canManageMonitors($user));
         self::assertFalse($checker->canManageSettings($user));
+        self::assertFalse($checker->canSearch($user, 'acme'));
     }
 
     public function testEmptyAccessRolesDoNotBlockAreaChecks(): void

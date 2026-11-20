@@ -23,6 +23,8 @@ use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
 use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
+use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenants;
+use Nowo\UptimeMonitorBundle\Search\MonitorSearchVisibility;
 use Nowo\UptimeMonitorBundle\Search\RequestMonitorSearchTenantResolver;
 use Nowo\UptimeMonitorBundle\Search\SearchKit\MonitorSearchDefinition;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
@@ -413,12 +415,19 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         }
 
         $resolver = is_string($search['tenant_resolver']) && $search['tenant_resolver'] !== '' ? new Reference($search['tenant_resolver']) : new Reference(RequestMonitorSearchTenantResolver::class);
+        // Since 1.34: the tenants of a search (a list resolver or a 1.32 single-tenant one, the scope event, the search
+        // permission per tenant).
+        $container->register(MonitorSearchTenants::class, MonitorSearchTenants::class)
+            ->setArgument('$resolver', $resolver)
+            ->setArgument('$visibility', new Reference(MonitorSearchVisibility::class))
+            ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE));
         $container->register(MonitorSearchDefinition::class, MonitorSearchDefinition::class)
             ->setAutowired(true)
             ->setArgument('$monitors', new Reference('nowo_uptime_monitor.repository.monitor'))
             ->setArgument('$tenants', $resolver)
             ->setArgument('$translator', new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->setArgument('$maxCandidates', (int) $search['max_candidates'])
+            ->setArgument('$scope', new Reference(MonitorSearchTenants::class))
             ->addTag(self::SEARCH_KIT_TAG, ['priority' => 0]);
     }
 
