@@ -25,6 +25,7 @@ final readonly class MonitorChangeScope
      * @param MonitorChangeRecorder $recorder Dispatches the events after the commit
      * @param bool $owner Whether this run attached the capture (the outermost run)
      * @param int $mark Where a nested run's changes start
+     * @param array{0?: string, 1?: string} $historyLocation Table and id column of the history (empty without it)
      */
     public function __construct(
         private MonitorChangeCapture $capture,
@@ -33,6 +34,7 @@ final readonly class MonitorChangeScope
         private MonitorChangeRecorder $recorder,
         private bool $owner,
         private int $mark,
+        private array $historyLocation = [],
     ) {
     }
 
@@ -45,7 +47,7 @@ final readonly class MonitorChangeScope
             return;
         }
         $this->detach();
-        $this->recorder->release($this->capture->recorded(), $this->connection);
+        $this->recorder->release($this->capture->recorded(), $this->connection, $this->capture->historyIds(), ...$this->historyLocation);
     }
 
     /**

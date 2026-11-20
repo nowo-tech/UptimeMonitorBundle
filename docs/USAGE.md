@@ -191,10 +191,19 @@ that only moves the check state (next check, failure streaks, push samples) reco
 **Delivery rules.** The event never fires for a refused or rolled-back write. A unit of work that is replayed after a
 deadlock dispatches once, with the committed attempt's values. When the bundle's write runs inside a transaction the
 application opened (a write unit of nowo-tech/transaction-doctrine around a bundle route or message, or a host
-transaction around a bundle service), the event waits until that transaction ends: it is dispatched at the end of the
-request, message or command when it committed (decided by the commit ledger of NowoTransactionDoctrineBundle when it is
-registered; without it, a unit that ended with an exception drops it) and dropped when it was rolled back. A listener
-that throws is logged (class only) and does not fail the request: the change is already committed.
+transaction around a bundle service), the event waits until that transaction ends and is dispatched at the end of the
+request, message or command only if it committed:
+
+- **with the history on**, the bundle looks its history rows up by id: they exist only if the transaction committed.
+  This is exact;
+- **without the history**, it needs both no exception in the unit since the change (sticky) and, when
+  NowoTransactionDoctrineBundle registers its commit ledger, a commit since the change. **Remaining case:** a host that
+  rolls its transaction back, *catches* the failure and then commits something else in the same unit still gets the
+  event of the rolled-back change. Turn the history on if that matters.
+
+A change still inside a transaction when the request, message or command ends is dropped with a warning. When a write
+unit replays its work, the changes an earlier unit of the request already committed are kept. A listener that throws
+is logged (class only) and does not fail the request: the change is already committed.
 
 **History (optional).** With `audit.history.enabled: true` each change is also written to `uptime_monitor_change` in the
 same transaction (a failing insert fails the change, so nothing is changed unaudited), and the monitor page shows the

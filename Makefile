@@ -50,7 +50,7 @@ help:
 	@echo "  validate              composer validate --strict"
 	@echo ""
 	@echo "Bundle-specific:"
-	@echo "  test-with-db          PHPUnit against the MySQL and PostgreSQL services of docker-compose.yml (REQ-TEST-005)"
+	@echo "  test-with-db          PHPUnit against the MySQL, MariaDB and PostgreSQL services of docker-compose.yml (REQ-TEST-005)"
 	@echo "  test-coverage-with-db Same as test-with-db, with text coverage"
 	@echo "  test-coverage-90      test-coverage + fail under 90% lines"
 	@echo "  test-coverage-100     test-coverage + fail under 100% lines"
@@ -131,10 +131,12 @@ test-ts: ensure-up
 test-with-db: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) sh -c 'UPTIME_TEST_DATABASE_URL="$$DATABASE_URL" composer test'
 	$(COMPOSE) exec -T $(SERVICE_PHP) sh -c 'UPTIME_TEST_DATABASE_URL="$$DATABASE_URL_PG" composer test'
+	$(COMPOSE) exec -T $(SERVICE_PHP) sh -c 'UPTIME_TEST_DATABASE_URL="$$DATABASE_URL_MARIADB" composer test'
 
 test-coverage-with-db: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) sh -c 'UPTIME_TEST_DATABASE_URL="$$DATABASE_URL" php vendor/bin/phpunit --color=always --coverage-text'
 	$(COMPOSE) exec -T $(SERVICE_PHP) sh -c 'UPTIME_TEST_DATABASE_URL="$$DATABASE_URL_PG" php vendor/bin/phpunit --color=always --coverage-text'
+	$(COMPOSE) exec -T $(SERVICE_PHP) sh -c 'UPTIME_TEST_DATABASE_URL="$$DATABASE_URL_MARIADB" php vendor/bin/phpunit --color=always --coverage-text'
 
 cs-check: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer cs-check

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Controller;
 
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UiKitBundle\View\Action;
 use Nowo\UiKitBundle\View\BackLink;
@@ -15,8 +16,10 @@ use Nowo\UiKitBundle\View\Pagination;
 use Nowo\UiKitBundle\View\ShowPage;
 use Nowo\UptimeMonitorBundle\Audit\MonitorChangeHistory;
 use Nowo\UptimeMonitorBundle\Audit\MonitorChangeSource;
+use Nowo\UptimeMonitorBundle\Audit\MonitorFieldChange;
 use Nowo\UptimeMonitorBundle\Check\PushCheckRunner;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\MonitorChange;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -212,7 +215,7 @@ final class MonitorController extends AbstractUptimeController
         if ($this->changeHistory?->isEnabled() === true) {
             // Since 1.33 (audit.history.enabled): read-only, for whoever may view the monitor; write-only fields as markers.
             // @igor-ignore - Request-scoped page event built for this request; not a shared worker service.
-            $event->addSection('@NowoUptimeMonitorBundle/monitor/_change_history.html.twig', ['monitor_changes' => $this->changeHistory->forMonitor($monitor)]);
+            $event->addSection('@NowoUptimeMonitorBundle/monitor/_change_history.html.twig', ['monitor_changes' => $this->changeRows($tenantSlug, $this->changeHistory->forMonitor($monitor))]);
         }
         $layout = $this->monitorShowLayout();
         $live   = new MonitorShowLiveUpdatesEvent($tenantSlug, $monitor, $this->generateUrl('nowo_uptime_api_monitor_history', [
@@ -255,6 +258,37 @@ final class MonitorController extends AbstractUptimeController
             'push'           => $this->pushView($monitor, $request, $extra !== [] || $this->seesTenant($tenantSlug)),
             'monitor_layout' => $layout,
         ] + $extra));
+    }
+
+    /**
+     * The history rows as the page may show them (since 1.33): a user shown only this monitor (GU-L2) gets neither the
+     * actor nor the project / group changes, and a host that hides the project field (`form.hidden_fields`) hides its
+     * changes too.
+     *
+     * @param list<MonitorChange> $changes
+     *
+     * @return list<array{occurredAt: DateTimeImmutable, actor: string|null, actorHidden: bool, source: string, action: string, changes: list<MonitorFieldChange>}>
+     */
+    private function changeRows(string $tenantSlug, array $changes): array
+    {
+        $seesTenant = $this->seesTenant($tenantSlug);
+        $hidden     = $seesTenant ? [] : ['project', 'parent_id'];
+        if (in_array('project', $this->hiddenFields, true)) {
+            $hidden[] = 'project';
+        }
+        $rows = [];
+        foreach ($changes as $change) {
+            $rows[] = [
+                'occurredAt'  => $change->getOccurredAt(),
+                'actor'       => $seesTenant ? $change->getActor() : null,
+                'actorHidden' => !$seesTenant,
+                'source'      => $change->getSource(),
+                'action'      => $change->getAction(),
+                'changes'     => array_values(array_filter($change->getChanges(), static fn (MonitorFieldChange $field): bool => !in_array($field->field, $hidden, true))),
+            ];
+        }
+
+        return $rows;
     }
 
     /**

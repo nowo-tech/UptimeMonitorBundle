@@ -253,7 +253,18 @@ bundle tables can still alter it, so hosts that need tamper evidence should forw
 append-only store.
 
 **Access.** The monitor page shows the history to whoever may view the monitor (the same access check as the page);
-the write-only fields show only their marker. There is no history API and no export.
+the write-only fields show only their marker. A viewer shown only this monitor (a monitor-aware checker without
+`canAccessTenant()`) sees neither the actor nor the `project` / `parent_id` changes, and `form.hidden_fields: [project]`
+hides the `project` changes from everyone, as the page itself does. A monitor's history moves with it: after a monitor
+is moved in from another group or project, the viewers of its new place see its older changes (old project, old group
+id, old values). There is no history API and no export.
+
+**Actor.** The default actor is the security token's user identifier; under `switch_user` it is
+`<original user> (as <impersonated user>)`, so an impersonated change still names who made it.
+
+**Delivery.** `MonitorChangedEvent` of a write inside a host transaction is confirmed by the history rows when the
+history is on (exact). Without the history a host that rolls its transaction back, catches the failure and then commits
+something else in the same unit can still receive the event of the rolled-back change (see USAGE).
 
 **Personal data (GDPR).** The actor identifier is personal data. Minimise it with `audit.actor_resolver` (a
 pseudonymous user id instead of an e-mail address), bound it with `audit.history.retention_days` and a scheduled

@@ -55,7 +55,11 @@ replaces an actor identifier in every row (GDPR erasure). Hosts may record a pse
   for an ambiguous URL, nothing for an unreadable one).
 - **FR-AUDIT-003**: Write-only values exist in memory only for the length of one flush.
 - **FR-AUDIT-004**: Events wait in `MonitorChangeOutbox` while the connection is inside a transaction the bundle did not
-  open; the commit ledger of nowo-tech/transaction-doctrine decides whether it committed.
+  open. With the history on, the commit is confirmed by looking the run's history rows up by id (exact). Without it,
+  the outbox requires no failure since the defer (sticky) and, with NowoTransactionDoctrineBundle's commit ledger, a
+  commit since then; a rolled-back-and-caught host transaction followed by another commit in the same unit remains a
+  documented false positive. At the end of a unit a change still inside a transaction is dropped; a write-unit replay
+  keeps the changes an earlier unit already committed.
 - **FR-AUDIT-005**: A failing history insert fails the change (no unaudited write); a failing listener is logged with its
   class only.
 - **FR-AUDIT-006**: Everything is off by default (`audit.enabled: false`, `audit.history.enabled: false`).

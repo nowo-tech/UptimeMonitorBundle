@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\Audit;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
 use Nowo\UptimeMonitorBundle\Audit\MonitorChangeOutbox;
 use Nowo\UptimeMonitorBundle\Audit\MonitorChangeOutboxListener;
 use Nowo\UptimeMonitorBundle\Audit\MonitorChangeRecorder;
@@ -17,8 +18,11 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\Authentication\Token\SwitchUserToken;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\InMemoryUser;
+
+use function array_map;
 
 #[CoversClass(MonitorChangeOutbox::class)]
 #[CoversClass(MonitorChangeOutboxListener::class)]
@@ -30,6 +34,14 @@ final class MonitorChangeOutboxTest extends TestCase
     private function event(int $id = 1): MonitorChangedEvent
     {
         return new MonitorChangedEvent('main', $id, MonitorChangedEvent::ACTION_UPDATED, [], null, 'app', new DateTimeImmutable('2026-11-20'));
+    }
+
+    /**
+     * @return list<array{level: mixed, message: string, context: array<string, mixed>}>
+     */
+    private function recordsOf(RecordingLogger $logger): array
+    {
+        return $logger->records;
     }
 
     private function connection(bool $inTransaction): Connection
@@ -44,7 +56,7 @@ final class MonitorChangeOutboxTest extends TestCase
     {
         $outbox = new MonitorChangeOutbox();
         $outbox->defer([$this->event()], $this->connection(true));
-        self::assertSame([], $outbox->takeReady(false), 'still inside the transaction');
+        self::assertSame([], $outbox->takeReady(false, false), 'still inside the transaction');
 
         $outbox->resetBetweenAttempts();
         $outbox->defer([$this->event()], $this->connection(false));
@@ -71,6 +83,80 @@ final class MonitorChangeOutboxTest extends TestCase
         self::assertSame([], $outbox->takeReady(false));
     }
 
+    /**
+     * Audit VU-M1 (repro): a host transaction rolled back (and caught), then any other commit of the request. With the
+     * history the rows are looked up and the change is dropped; without it, a failure seen since the defer is sticky.
+     */
+    public function testARolledBackHostTransactionReleasesNoPhantomEvent(): void
+    {
+        $inTransaction = true;
+        $connection    = $this->createStub(Connection::class);
+        $connection->method('isTransactionActive')->willReturnCallback(static function () use (&$inTransaction): bool {
+            return $inTransaction;
+        });
+        $ledger = new CommitLedger();
+
+        $withHistory = new MonitorChangeOutbox($ledger);
+        $withHistory->defer([$this->event(1)], $connection, static fn (): bool => false);
+        $inTransaction = false;
+        $ledger->record();
+        self::assertSame([], $withHistory->takeReady(false), 'history rows missing: rolled back');
+
+        $withoutHistory = new MonitorChangeOutbox($ledger);
+        $inTransaction  = true;
+        $withoutHistory->defer([$this->event(2)], $connection);
+        $withoutHistory->takeReady(true, false);
+        $inTransaction = false;
+        $ledger->record();
+        self::assertSame([], $withoutHistory->takeReady(false), 'the failure is sticky');
+    }
+
+    /**
+     * Audit VU-M2 (repro): the replay of a second write unit keeps the committed changes of the first one.
+     */
+    public function testAReplayKeepsTheCommittedChangesOfAnEarlierUnit(): void
+    {
+        $inTransaction = true;
+        $connection    = $this->createStub(Connection::class);
+        $connection->method('isTransactionActive')->willReturnCallback(static function () use (&$inTransaction): bool {
+            return $inTransaction;
+        });
+        $ledger = new CommitLedger();
+        $outbox = new MonitorChangeOutbox($ledger);
+
+        $outbox->defer([$this->event(1)], $connection);
+        $inTransaction = false;
+        $ledger->record();
+        $inTransaction = true;
+        $outbox->defer([$this->event(2)], $connection);
+        $inTransaction = false;
+        $outbox->resetBetweenAttempts();
+        $inTransaction = true;
+        $outbox->defer([$this->event(3)], $connection);
+        $inTransaction = false;
+        $ledger->record();
+
+        self::assertSame([1, 3], array_map(static fn (MonitorChangedEvent $event): int => $event->monitorId, $outbox->takeReady(false)));
+    }
+
+    /**
+     * Audit VU-L1: a change still inside a transaction when the unit ends is dropped with a warning (a worker would carry
+     * it into the next request); kernel.exception keeps it.
+     */
+    public function testAChangeStillInsideATransactionIsDroppedAtTheEndOfTheUnit(): void
+    {
+        $logger = new RecordingLogger();
+        $outbox = new MonitorChangeOutbox(null, $logger);
+        $outbox->defer([$this->event()], $this->connection(true));
+        self::assertSame([], $outbox->takeReady(true, false));
+        self::assertCount(0, $logger->records, 'kept at kernel.exception');
+        self::assertSame([], $outbox->takeReady(false));
+        $outbox->reset();
+        $records = $this->recordsOf($logger);
+        self::assertCount(1, $records, 'dropped once, nothing left at the reset');
+        self::assertSame(1, $records[0]['context']['count'] ?? null);
+    }
+
     public function testTheListenerReleasesAtTheEndOfAUnitOfWork(): void
     {
         $events     = [];
@@ -83,6 +169,8 @@ final class MonitorChangeOutboxTest extends TestCase
         $listener = new MonitorChangeOutboxListener($recorder);
 
         $outbox->defer([$this->event(1)], $this->connection(false));
+        $listener->onUnitFailing();
+        $outbox->defer([$this->event(4)], $this->connection(false));
         $listener->onUnitFailed();
         $outbox->defer([$this->event(2)], $this->connection(false));
         $listener->onUnitSucceeded();
@@ -117,5 +205,9 @@ final class MonitorChangeOutboxTest extends TestCase
         self::assertNull((new TokenStorageActorResolver($storage))->actorId());
         $storage->setToken(new UsernamePasswordToken(new InMemoryUser('alice', null), 'main'));
         self::assertSame('alice', (new TokenStorageActorResolver($storage))->actorId());
+        // Audit VU-L4: under switch_user the original user is recorded too.
+        $original = new UsernamePasswordToken(new InMemoryUser('admin', null), 'main');
+        $storage->setToken(new SwitchUserToken(new InMemoryUser('alice', null), 'main', [], $original));
+        self::assertSame('admin (as alice)', (new TokenStorageActorResolver($storage))->actorId());
     }
 }

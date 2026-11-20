@@ -1209,16 +1209,16 @@
         },
         {
             "name": "nowo-tech/transaction-doctrine",
-            "version": "v1.6.0",
+            "version": "v1.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/transaction-doctrine.git",
-                "reference": "707309320afbe69add2450ed31f67d32f888fe93"
+                "reference": "887fc325ef20787bc108cbfea6a267dfd4e938fe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/transaction-doctrine/zipball/707309320afbe69add2450ed31f67d32f888fe93",
-                "reference": "707309320afbe69add2450ed31f67d32f888fe93",
+                "url": "https://api.github.com/repos/nowo-tech/transaction-doctrine/zipball/887fc325ef20787bc108cbfea6a267dfd4e938fe",
+                "reference": "887fc325ef20787bc108cbfea6a267dfd4e938fe",
                 "shasum": ""
             },
             "require": {
@@ -1276,7 +1276,8 @@
             },
             "autoload": {
                 "psr-4": {
-                    "Nowo\\TransactionDoctrine\\": "src/"
+                    "Nowo\\TransactionDoctrine\\": "src/",
+                    "Nowo\\TransactionDoctrine\\WriteUnit\\Dbal\\Dbal3\\": "compat/dbal3/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1314,8 +1315,8 @@
                 "issues": "https://github.com/nowo-tech/transaction-doctrine/issues",
                 "source": "https://github.com/nowo-tech/transaction-doctrine"
             },
-            "time": "2026-11-18T15:30:13+00:00",
-            "published-time": "2026-11-18T15:33:30+00:00"
+            "time": "2026-11-20T06:09:11+00:00",
+            "published-time": "2026-11-20T06:14:34+00:00"
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
@@ -1426,7 +1427,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "27a807c1cd735c1faa102e0235292fed283be188"
+                "reference": "da7332e095a6b9648e95b9b6d463757005736ab7"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",
@@ -1434,7 +1435,7 @@
                 "doctrine/orm": "^3.7",
                 "nowo-tech/form-kit-bundle": "^2.10",
                 "nowo-tech/transaction-contract": "^1.0",
-                "nowo-tech/transaction-doctrine": "^1.5",
+                "nowo-tech/transaction-doctrine": "^1.8",
                 "nowo-tech/ui-kit-bundle": "^2.29",
                 "php": ">=8.2 <8.6",
                 "symfony/clock": "^7.4 || ^8.0",
@@ -1475,6 +1476,7 @@
                 "vincentlanglet/twig-cs-fixer": "^4.0"
             },
             "suggest": {
+                "nowo-tech/search-kit-bundle": "^1.9 (needs PHP 8.3 or later) for the SearchKit provider of monitors (group uptime_monitors)",
                 "pentatrion/vite-bundle": "Vite integration in host application demos",
                 "symfony/mailer": "For email notifications",
                 "symfony/mercure-bundle": "For dashboard.sync: mercure (real-time SSE updates)",

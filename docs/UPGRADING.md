@@ -169,6 +169,12 @@ nothing changes until you turn it on. See [USAGE](USAGE.md#monitor-change-audit-
   ALTER TABLE uptime_monitor_change ADD CONSTRAINT FK_134F400D9033212A FOREIGN KEY (tenant_id) REFERENCES uptime_tenant (id) ON DELETE CASCADE NOT DEFERRABLE;
   ```
 
+  With DBAL 3 the generated DDL differs slightly: column comments `(DC2Type:json)` / `(DC2Type:datetime_immutable)`
+  (MySQL / MariaDB `COMMENT`, PostgreSQL `COMMENT ON COLUMN`) and, on PostgreSQL, a `SERIAL` id or a sequence
+  `uptime_monitor_change_id_seq` depending on the ORM id strategy; let `doctrine:migrations:diff` write it.
+  Hosts that map the bundle entities themselves (`doctrine.register_mapping: false`) must add the mapping of
+  `Nowo\UptimeMonitorBundle\Entity\MonitorChange` (attributes, or `src/Resources/config/doctrine/MonitorChange.orm.xml`).
+
   `monitor_id` is deliberately not a foreign key (the history of a deleted monitor stays until the retention purge);
   deleting a tenant deletes its history. Rollback: `DROP TABLE uptime_monitor_change`.
 - **Turning it on:**
@@ -185,6 +191,11 @@ nothing changes until you turn it on. See [USAGE](USAGE.md#monitor-change-audit-
 
   and schedule `nowo:uptime:purge-monitor-changes` (daily). The history starts empty: changes made before 1.33 were
   never recorded.
+- **Dependency:** nowo-tech/transaction-doctrine **^1.8** (was ^1.5; 1.8.0 carries two security fixes):
+  `composer update nowo-tech/uptime-monitor-bundle -w`.
+- **Delivery inside host transactions:** without `audit.history.enabled`, a host that rolls its transaction back,
+  catches the failure and commits something else in the same unit may still receive the event of the rolled-back change;
+  with the history on the commit is confirmed by the history rows. See [USAGE](USAGE.md#monitor-change-audit-133).
 - **New command** `nowo:uptime:purge-monitor-changes` (`--anonymise-actor=<id>` for GDPR erasure). Registered
   automatically; it does nothing until you run it.
 - **New event** `MonitorChangedEvent` (`UptimeEvents::MONITOR_CHANGED`), only with `audit.enabled`. The 1.25

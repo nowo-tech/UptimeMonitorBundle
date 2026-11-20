@@ -10,6 +10,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use stdClass;
@@ -17,6 +18,7 @@ use stdClass;
 use function array_map;
 use function json_encode;
 use function str_repeat;
+use function strtolower;
 
 use const JSON_THROW_ON_ERROR;
 
@@ -96,5 +98,31 @@ final class MonitorAuditStateTest extends TestCase
         $plain = MonitorFieldChange::fromArray(['before' => 1, 'after' => 2]);
         self::assertFalse($plain->isSecret());
         self::assertSame(['field' => '', 'before' => 1, 'after' => 2], $plain->toArray());
+    }
+
+    /**
+     * Audit VU (repro): odd URLs never put userinfo into the recorded origin.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function urls(): iterable
+    {
+        foreach (['https://u:p@host/x', 'u:1234/ss@host', 'https://u:p#w@host/', 'https://u:p?w@host', 'https:/u:p@host', '//u:p@host',
+            ' https://u:p@host', "https://u:p@host\n", 'https://[::1]:8080/a?t=1', 'https://bücher.de/x', 'HTTPS://U:P@HOST:443',
+            'https://host:99999/', 'host\\@evil.com', 'https://u:p@ss@host/', 'redis://:secret@cache:6379/0', 'Server=db;Password=x;',
+            'https://host:8443/n?to=ops@example.com', 'https://a%40b:c%2Fd@host/', 'https://user@host', 'http://host./'] as $url) {
+            yield $url => [$url];
+        }
+    }
+
+    #[DataProvider('urls')]
+    public function testTheOriginNeverHoldsUserinfo(string $url): void
+    {
+        $state  = MonitorAuditState::fromFields(['type' => MonitorType::Https, 'target' => $url]);
+        $origin = strtolower((string) $state['target'][1]);
+        foreach (['p', 'secret', '1234', 'password', 'c%2fd', 'a%40b', 'u:p', 'user'] as $secret) {
+            self::assertStringNotContainsString($secret . '@', $origin, $url);
+        }
+        self::assertArrayHasKey('target_details', $state);
     }
 }

@@ -13,9 +13,12 @@ use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Event\MonitorChangedEvent;
 
+use function array_filter;
 use function array_slice;
+use function array_values;
 use function count;
 use function is_array;
+use function is_int;
 
 /**
  * Records the monitor changes of ONE outermost unit of work of the bundle's runner (since 1.33).
@@ -41,6 +44,9 @@ final class MonitorChangeCapture
 
     /** @var list<MonitorChangedEvent> */
     private array $events = [];
+
+    /** @var list<int|null> Id of the history row of each recorded change (null without the history) */
+    private array $historyIds = [];
 
     /**
      * @param EntityManagerInterface $target The manager the unit runs on (the bundle's private one)
@@ -141,7 +147,9 @@ final class MonitorChangeCapture
                 continue;
             }
             // @igor-ignore - Per-run capture, attached for one unit of work and detached when it ends (never a shared service).
-            $this->events[] = $this->recorder->record($manager, $monitor->getTenant(), $id ?? (int) $monitor->getId(), $action, $changes, $this->source);
+            $this->events[] = $this->recorder->record($manager, $monitor->getTenant(), $id ?? (int) $monitor->getId(), $action, $changes, $this->source, $historyId);
+            // @igor-ignore - Per-run capture, attached for one unit of work and detached when it ends (never a shared service).
+            $this->historyIds[] = $historyId;
         }
     }
 
@@ -161,6 +169,8 @@ final class MonitorChangeCapture
         // @igor-ignore - Per-run capture, attached for one unit of work and detached when it ends (never a shared service).
         $this->events = array_slice($this->events, 0, $mark);
         // @igor-ignore - Per-run capture, attached for one unit of work and detached when it ends (never a shared service).
+        $this->historyIds = array_slice($this->historyIds, 0, $mark);
+        // @igor-ignore - Per-run capture, attached for one unit of work and detached when it ends (never a shared service).
         $this->pending = [];
     }
 
@@ -172,6 +182,16 @@ final class MonitorChangeCapture
     public function recorded(): array
     {
         return $this->events;
+    }
+
+    /**
+     * The ids of the history rows the recorded changes wrote (none without the history).
+     *
+     * @return list<int>
+     */
+    public function historyIds(): array
+    {
+        return array_values(array_filter($this->historyIds, is_int(...)));
     }
 
     /**

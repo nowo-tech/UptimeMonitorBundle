@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Audit;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
+use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Entity\MonitorChange;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Event\MonitorChangedEvent;
@@ -18,7 +20,9 @@ use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Throwable;
 
+use function count;
 use function mb_substr;
+use function sprintf;
 
 /**
  * The audit trail of monitor changes (since 1.33, `audit.enabled`, off by default).
@@ -99,7 +103,7 @@ final readonly class MonitorChangeRecorder
         $capture = new MonitorChangeCapture($manager, $this, $source);
         $eventManager->addEventListener(MonitorChangeCapture::events(), $capture);
 
-        return new MonitorChangeScope($capture, $eventManager, $manager->getConnection(), $this, true, 0);
+        return new MonitorChangeScope($capture, $eventManager, $manager->getConnection(), $this, true, 0, $this->historyEnabled ? $this->historyLocation($manager) : []);
     }
 
     /**
@@ -107,11 +111,17 @@ final readonly class MonitorChangeRecorder
      *
      * @param EntityManagerInterface $manager The manager that flushed the change
      * @param list<MonitorFieldChange> $changes
+     * @param string $source Write path ({@see MonitorChangeSource::PATTERN})
+     * @param int|null $historyId Receives the id of the history row (null without the history)
+     *
+     * @throws InvalidArgumentException When the source is not a valid write path name
      */
-    public function record(EntityManagerInterface $manager, Tenant $tenant, int $monitorId, string $action, array $changes, string $source): MonitorChangedEvent
+    public function record(EntityManagerInterface $manager, Tenant $tenant, int $monitorId, string $action, array $changes, string $source, ?int &$historyId = null): MonitorChangedEvent
     {
-        $actor = $this->actorResolver?->actorId();
-        $event = new MonitorChangedEvent(
+        MonitorChangeSource::assertValid($source);
+        $historyId = null;
+        $actor     = $this->actorResolver?->actorId();
+        $event     = new MonitorChangedEvent(
             $tenant->getSlug(),
             $monitorId,
             $action,
@@ -121,7 +131,7 @@ final readonly class MonitorChangeRecorder
             $this->clock->now(),
         );
         if ($this->historyEnabled) {
-            $this->insertHistory($manager, $tenant, $event);
+            $historyId = $this->insertHistory($manager, $tenant, $event);
         }
 
         return $event;
@@ -132,14 +142,21 @@ final readonly class MonitorChangeRecorder
      * application opened around the run), they wait in the outbox until it ends.
      *
      * @param list<MonitorChangedEvent> $events
+     * @param list<int> $historyIds The history rows the run inserted (empty without the history): looked up to tell
+     *                              whether the application's transaction committed
+     * @param string|null $historyTable Their table
+     * @param string|null $historyIdColumn Their id column
      */
-    public function release(array $events, Connection $connection): void
+    public function release(array $events, Connection $connection, array $historyIds = [], ?string $historyTable = null, ?string $historyIdColumn = null): void
     {
         if ($events === []) {
             return;
         }
         if ($this->outbox instanceof MonitorChangeOutbox && $connection->isTransactionActive()) {
-            $this->outbox->defer($events, $connection);
+            $confirm = $historyIds !== [] && $historyTable !== null && $historyIdColumn !== null
+                ? fn (): bool => $this->historyRowsExist($connection, $historyTable, $historyIdColumn, $historyIds)
+                : null;
+            $this->outbox->defer($events, $connection, $confirm);
 
             return;
         }
@@ -148,14 +165,42 @@ final readonly class MonitorChangeRecorder
     }
 
     /**
-     * Dispatches the waiting changes whose transaction committed, at a unit-of-work boundary (`$failed`: the unit ended
-     * with an exception).
+     * Dispatches the waiting changes whose transaction committed, at a unit-of-work boundary.
+     *
+     * @param bool $failed The unit met an exception
+     * @param bool $endOfUnit The unit is over (changes still inside a transaction are dropped)
      */
-    public function releaseDeferred(bool $failed): void
+    public function releaseDeferred(bool $failed, bool $endOfUnit = true): void
     {
         if ($this->outbox instanceof MonitorChangeOutbox) {
-            $this->dispatch($this->outbox->takeReady($failed));
+            $this->dispatch($this->outbox->takeReady($failed, $endOfUnit));
         }
+    }
+
+    /**
+     * Whether every history row of a run is in the database (its transaction committed). A failing lookup counts as
+     * not committed (logged with its class only): no event rather than a phantom one.
+     *
+     * @param list<int> $ids
+     */
+    private function historyRowsExist(Connection $connection, string $table, string $idColumn, array $ids): bool
+    {
+        try {
+            $found = $connection->fetchOne(
+                sprintf('SELECT COUNT(*) FROM %s WHERE %s IN (?)', $table, $idColumn),
+                [$ids],
+                [ArrayParameterType::INTEGER],
+            );
+        } catch (Throwable $failure) {
+            $this->logger->error('Uptime monitor: the history rows of deferred monitor changes could not be read ({exception_class}); their events are dropped.', [
+                'bundle'          => 'NowoUptimeMonitorBundle',
+                'exception_class' => $failure::class,
+            ]);
+
+            return false;
+        }
+
+        return (int) $found === count($ids);
     }
 
     /**
@@ -179,8 +224,10 @@ final readonly class MonitorChangeRecorder
     /**
      * Inserts the history row through the manager's connection (inside its transaction). A generator that is not a
      * post-insert one (a sequence) gives the id first.
+     *
+     * @return int The id of the row
      */
-    private function insertHistory(EntityManagerInterface $manager, Tenant $tenant, MonitorChangedEvent $event): void
+    private function insertHistory(EntityManagerInterface $manager, Tenant $tenant, MonitorChangedEvent $event): int
     {
         $metadata = $manager->getClassMetadata(MonitorChange::class);
         $data     = [
@@ -193,11 +240,28 @@ final readonly class MonitorChangeRecorder
             $metadata->getColumnName('occurredAt')                  => $event->occurredAt,
         ];
         $types = [Types::INTEGER, Types::INTEGER, Types::STRING, Types::STRING, Types::STRING, Types::JSON, Types::DATETIME_IMMUTABLE];
+        $id    = null;
         if (!$metadata->idGenerator->isPostInsertGenerator()) {
-            $data  = [$metadata->getSingleIdentifierColumnName() => $metadata->idGenerator->generateId($manager, null)] + $data;
+            $id    = (int) $metadata->idGenerator->generateId($manager, null);
+            $data  = [$metadata->getSingleIdentifierColumnName() => $id] + $data;
             $types = [Types::INTEGER, ...$types];
         }
 
-        $manager->getConnection()->insert($metadata->getTableName(), $data, $types);
+        $connection = $manager->getConnection();
+        $connection->insert($metadata->getTableName(), $data, $types);
+
+        return $id ?? (int) $connection->lastInsertId();
+    }
+
+    /**
+     * The table and id column of the history (the outbox looks the rows up by id).
+     *
+     * @return array{0: string, 1: string}
+     */
+    public function historyLocation(EntityManagerInterface $manager): array
+    {
+        $metadata = $manager->getClassMetadata(MonitorChange::class);
+
+        return [$metadata->getTableName(), $metadata->getSingleIdentifierColumnName()];
     }
 }

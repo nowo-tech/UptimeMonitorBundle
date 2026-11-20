@@ -6,6 +6,7 @@ namespace Nowo\UptimeMonitorBundle\Transaction;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use InvalidArgumentException;
 use Nowo\TransactionContract\TransactionRunnerInterface;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\DoctrineTransactionRunner;
@@ -97,9 +98,13 @@ final readonly class UptimeTransactionRunner implements TransactionRunnerInterfa
     /**
      * The same runner, recording `$source` as the write path of the monitor changes of its runs (since 1.33). The
      * source of the outermost run wins.
+     *
+     * @throws InvalidArgumentException When the source is not 1 to 16 lowercase letters or underscores
      */
     public function withAuditSource(string $source): self
     {
+        MonitorChangeSource::assertValid($source);
+
         return new self($this->entityManager, $this->registry, $this->managerName, $this->retryAfterSeconds, $this->backoffBaseMilliseconds, $this->audit, $source);
     }
 

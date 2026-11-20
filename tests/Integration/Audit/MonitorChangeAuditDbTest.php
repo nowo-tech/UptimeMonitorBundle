@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Id\AbstractIdGenerator;
 use Doctrine\Persistence\ManagerRegistry;
+use InvalidArgumentException;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
 use Nowo\UptimeMonitorBundle\Audit\MonitorAuditState;
@@ -63,6 +64,7 @@ use const JSON_THROW_ON_ERROR;
 #[CoversClass(PurgeMonitorChangesCommand::class)]
 #[CoversClass(UptimeTransactionRunner::class)]
 #[CoversClass(MonitorChange::class)]
+#[CoversClass(MonitorChangeSource::class)]
 #[CoversClass(MonitorChangedEvent::class)]
 #[CoversClass(MonitorFieldChange::class)]
 final class MonitorChangeAuditDbTest extends TestCase
@@ -372,8 +374,8 @@ final class MonitorChangeAuditDbTest extends TestCase
         $connection->beginTransaction();
         $this->runner($recorder)->run($this->persisting(new Monitor($this->tenant, 'Waits', MonitorType::Https, 'https://waits.test')));
         self::assertSame([], $this->events);
-        $recorder->releaseDeferred(false);
-        self::assertSame([], $this->events, 'still inside the application transaction');
+        $recorder->releaseDeferred(true, false);
+        self::assertSame([], $this->events, 'still inside the application transaction (kernel.exception keeps it)');
         $connection->commit();
         $this->ledger->record();
         $recorder->releaseDeferred(false);
@@ -384,9 +386,50 @@ final class MonitorChangeAuditDbTest extends TestCase
         $connection->beginTransaction();
         $this->runner($recorder)->run($this->persisting(new Monitor($this->tenant, 'Rolled back', MonitorType::Https, 'https://rolled.test')));
         $connection->rollBack();
+        // Audit VU-M1: any later commit of the request no longer releases it (its history row is looked up).
+        $this->ledger->record();
         $recorder->releaseDeferred(false);
         self::assertCount(1, $this->dispatched());
         self::assertCount(1, $this->rows());
+
+        // Audit VU-L1: still inside a transaction at the end of the unit: dropped, never carried to the next request.
+        $tenant = $this->em->find(Tenant::class, $this->tenant->getId());
+        self::assertInstanceOf(Tenant::class, $tenant);
+        $connection->beginTransaction();
+        $this->runner($recorder)->run($this->persisting(new Monitor($tenant, 'Never ends', MonitorType::Https, 'https://never.test')));
+        $recorder->releaseDeferred(false);
+        $connection->commit();
+        $this->ledger->record();
+        $recorder->releaseDeferred(false);
+        self::assertCount(1, $this->dispatched());
+    }
+
+    public function testAnInvalidSourceIsRefusedBeforeAnyWrite(): void
+    {
+        try {
+            $this->runner(null, 'a_source_name_too_long');
+            self::fail('refused');
+        } catch (InvalidArgumentException $refused) {
+            self::assertStringContainsString('Invalid monitor change source', $refused->getMessage());
+        }
+        $this->expectException(InvalidArgumentException::class);
+        $this->recorder()->record($this->em, $this->tenant, 1, 'created', [], 'Bad-Source');
+    }
+
+    public function testAFailingHistoryLookupDropsTheDeferredEvents(): void
+    {
+        $logger     = new RecordingLogger();
+        $recorder   = $this->recorder(true, null, null, $logger);
+        $connection = $this->em->getConnection();
+        $connection->beginTransaction();
+        $this->runner($recorder)->run($this->persisting(new Monitor($this->tenant, 'Lookup', MonitorType::Https, 'https://lookup.test')));
+        $connection->commit();
+        $recorder->release([], $connection);
+        // The history table is gone: the lookup fails, the event is dropped (no phantom), the failure is logged.
+        $connection->executeStatement('DROP TABLE uptime_monitor_change');
+        $recorder->releaseDeferred(false);
+        self::assertSame([], $this->events);
+        self::assertSame('error', $logger->records[0]['level']);
     }
 
     public function testWithoutHistoryOnlyTheEventIsDispatchedAndAListenerFailureIsLogged(): void
