@@ -1,0 +1,20 @@
+{#- REQ-DEMO-014: the demo runs inside UiKit's shared demo platform shell (@NowoUiKit/demo_platform/layout.html.twig):
+    the same top bar, aside, content width, theme and footer as every other nowo-tech bundle demo. This file only
+    declares the demo (nowo_ui_demo_platform); every Uptime Monitor page (admin and the public status page) renders
+    through it too (nowo_ui_kit.layouts). The bundle ships no layout and no CDN link. -#}
+{% extends '@NowoUiKit/demo_platform/layout.html.twig' %}
+{% set nowo_ui_demo_platform = {
+    bundle: 'Uptime Monitor',
+    home_route: 'demo_home',
+    repository: 'https://github.com/nowo-tech/UptimeMonitorBundle',
+    translation_domain: false,
+    locales: [],
+    nav: [
+        {label: 'Dashboard', route: 'nowo_uptime_dashboard', params: {tenantSlug: 'main'}, active: ['nowo_uptime_dashboard', 'nowo_uptime_monitor_*', 'nowo_uptime_incident_*']},
+        {label: 'Status page', route: 'nowo_uptime_status_page', params: {tenantSlug: 'main'}},
+        {label: 'Settings', route: 'nowo_uptime_settings_index', params: {tenantSlug: 'main'}, active: ['nowo_uptime_settings*'], section: 'Administration'},
+        {label: 'Tenants', route: 'nowo_uptime_tenant_index', active: ['nowo_uptime_tenant*'], section: 'Administration'},
+    ],
+} %}
+
+{% block nowo_ui_document_title %}{% block title %}Uptime Monitor{% endblock %} — Symfony 8{% endblock %}
