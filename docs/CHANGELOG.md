@@ -94,6 +94,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Every bundle page failed with "Maximum call stack size ... reached during compilation" (`Configuration.php` line 91) on PHP 8.3+ when PHP runs on a 512 KiB thread stack, as FrankenPHP does on Alpine (`dunglas/frankenphp:*-alpine`, classic and worker mode). The configuration tree was one fluent chain of about 700 calls, and compiling it needed 576 KiB (PHP 8.5) to 704 KiB (PHP 8.3 / 8.4) of stack; the pages load `Configuration` for its constants, so each request hit it. The tree is now built by one method per section (128 KiB is enough) and is unchanged: same keys, defaults, validation and reference dump. Affected: 1.33.0 and 1.34.0 on PHP 8.5; from about 1.18.0 on PHP 8.4 and 1.23.0 on PHP 8.3. A host CLI or PHP-FPM process (8 MiB main-thread stack) was not affected. The `zend.max_allowed_stack_size=-1` workaround is no longer needed. A test now compiles every source file and builds the tree under a 512 KiB stack.
+
 ## [1.34.0] - 2026-11-20
 
 ### Added
