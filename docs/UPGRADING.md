@@ -191,7 +191,7 @@ nothing changes until you turn it on. See [USAGE](USAGE.md#monitor-change-audit-
 
   and schedule `nowo:uptime:purge-monitor-changes` (daily). The history starts empty: changes made before 1.33 were
   never recorded.
-- **Dependency:** nowo-tech/transaction-doctrine **^1.8** (was ^1.5; 1.8.0 carries two security fixes):
+- **Dependency:** nowo-tech/transaction-doctrine **^1.8.1** (was ^1.5; 1.8.1 carries two security fixes):
   `composer update nowo-tech/uptime-monitor-bundle -w`.
 - **Delivery inside host transactions:** without `audit.history.enabled`, a host that rolls its transaction back,
   catches the failure and commits something else in the same unit may still receive the event of the rolled-back change;

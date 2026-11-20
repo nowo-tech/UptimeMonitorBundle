@@ -100,7 +100,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- Requires nowo-tech/transaction-doctrine ^1.8 (was ^1.5; 1.8.0 fixes GHSA-9wh3-m3m5-jffx and GHSA-65w2-9r4h-848g). The demo lock follows.
+- Requires nowo-tech/transaction-doctrine ^1.8.1 (was ^1.5; 1.8.1 fixes GHSA-9wh3-m3m5-jffx and GHSA-65w2-9r4h-848g). The demo lock follows.
 - PHPUnit runs with `memory_limit` 1G (the whole suite needs more than PHP's default 128M); the local `docker-compose.yml` and `make test-with-db` also run MariaDB 11.4, as CI does.
 - Spec Kit: `specs/005-monitor-change-audit`; the code inventory now also maps the 1.32 SearchKit files.
 
