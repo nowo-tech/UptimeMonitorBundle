@@ -7,6 +7,11 @@ namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 use LogicException;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\Symfony\NowoTransactionDoctrineBundle;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeHistory;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeOutbox;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeOutboxListener;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeRecorder;
+use Nowo\UptimeMonitorBundle\Audit\TokenStorageActorResolver;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
@@ -79,6 +84,37 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         $default = $this->containerWithSecurityBundle();
         (new UptimeMonitorExtension())->load([[]], $default);
         self::assertEquals(new Reference(RequestMonitorSearchTenantResolver::class), $default->getDefinition(MonitorSearchDefinition::class)->getArgument('$tenants'));
+    }
+
+    public function testTheAuditIsOffByDefaultAndWiredWhenEnabled(): void
+    {
+        $default = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([[]], $default);
+        $recorder = $default->getDefinition(MonitorChangeRecorder::class);
+        self::assertFalse($recorder->getArgument('$enabled'));
+        self::assertNull($recorder->getArgument('$outbox'));
+        self::assertFalse($default->hasDefinition(MonitorChangeOutbox::class));
+        self::assertFalse($default->hasDefinition(MonitorChangeOutboxListener::class));
+        self::assertSame(['enabled' => false, 'actor_resolver' => null, 'history' => ['enabled' => false, 'retention_days' => 365, 'display_limit' => 50]], $default->getParameter('nowo_uptime_monitor.audit'));
+        self::assertEquals(new Reference(MonitorChangeRecorder::class), $default->getDefinition(UptimeTransactionRunner::SERVICE_ID)->getArgument(3));
+        self::assertSame(365, $default->getDefinition(MonitorChangeHistory::class)->getArgument('$retentionDays'));
+
+        $enabled = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['audit' => ['enabled' => true, 'history' => ['enabled' => true, 'retention_days' => 30, 'display_limit' => 10]]]], $enabled);
+        $recorder = $enabled->getDefinition(MonitorChangeRecorder::class);
+        self::assertTrue($recorder->getArgument('$enabled'));
+        self::assertTrue($recorder->getArgument('$historyEnabled'));
+        self::assertEquals(new Reference(TokenStorageActorResolver::class), $recorder->getArgument('$actorResolver'));
+        self::assertEquals(new Reference(MonitorChangeOutbox::class), $recorder->getArgument('$outbox'));
+        self::assertTrue($enabled->getDefinition(MonitorChangeOutbox::class)->hasTag('kernel.reset'));
+        self::assertCount(6, $enabled->getDefinition(MonitorChangeOutboxListener::class)->getTag('kernel.event_listener'));
+        self::assertSame(30, $enabled->getDefinition(MonitorChangeHistory::class)->getArgument('$retentionDays'));
+        self::assertSame(10, $enabled->getDefinition(MonitorChangeHistory::class)->getArgument('$displayLimit'));
+
+        $custom = $this->containerWithSecurityBundle();
+        (new UptimeMonitorExtension())->load([['audit' => ['enabled' => true, 'actor_resolver' => 'app.audit_actor']]], $custom);
+        self::assertEquals(new Reference('app.audit_actor'), $custom->getDefinition(MonitorChangeRecorder::class)->getArgument('$actorResolver'));
+        self::assertFalse($custom->hasDefinition(TokenStorageActorResolver::class));
     }
 
     public function testSearchKitDefinitionIsOffWhenDisabled(): void

@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Apply;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeSource;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -101,7 +102,8 @@ final readonly class MonitorApplier implements MonitorApplierInterface
         // the entity manager open (only what the run loaded is forgotten); a deadlock or lock wait is replayed (up to
         // three attempts in all) from the tenant locks on.
         try {
-            $plan = ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->runRetrying(function () use ($spec, $tenants, $tokens, $prune): array {
+            // Since 1.33 the monitor changes are recorded as `apply` (audit.enabled), once, for the committed attempt.
+            $plan = ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->withAuditSource(MonitorChangeSource::APPLY)->runRetrying(function () use ($spec, $tenants, $tokens, $prune): array {
                 // A replay after a storage failure runs on a fresh manager: the tenants are that manager's copies.
                 $managed = $this->managedTenants($tenants);
                 foreach ($managed as $tenant) {

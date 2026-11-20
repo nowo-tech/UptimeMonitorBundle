@@ -92,6 +92,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Audit trail of monitor changes (Beacon request after GHSA-fv2q-mqc7-6vgh: there was no way to check which monitors had their type, proxy or TLS setting changed since 1.25.1). Off by default: `audit.enabled`, `audit.actor_resolver`, `audit.history.enabled`, `audit.history.retention_days`, `audit.history.display_limit`. With `audit.enabled` every create, change and delete of a monitor through the bundle (new / edit forms, delete, pause / resume, push token issue / revoke, backup import, `nowo:uptime:apply-monitors`, `nowo:uptime:seed-demo`, host code using the bundle services) dispatches `MonitorChangedEvent` (`UptimeEvents::MONITOR_CHANGED`) after the commit with the actor, time, tenant, monitor id, write path (`ui`, `import`, `apply`, `demo`, `app`) and the structured diff: before → after for the plain fields (`type`, `target` and `proxy` as origin only, `ignore_tls`, `method`, `interval_seconds`, `enabled` and the other route, schedule and alerting settings), only `replaced` / `cleared` for headers, body, basic-auth username and password, URL / proxy userinfo, path and query, push URL key and token and any unknown config key (never a value or a hash). Dispatched once for a replayed unit of work, never for a refused or rolled-back write, and after the application's transaction when the bundle's write runs inside one (`MonitorChangeOutbox`, released at the end of the request, message or command). See [USAGE](USAGE.md#monitor-change-audit-133) and [SECURITY](SECURITY.md#monitor-change-audit-133).
+- Optional history table `uptime_monitor_change` (`audit.history.enabled`), written in the transaction of each change, with a read-only "Change history" card on the monitor page for whoever may view the monitor (17 new `monitor.changes.*` translation keys in the 7 locales), and the command `nowo:uptime:purge-monitor-changes` (retention purge in keyset batches; `--anonymise-actor=<id>` for GDPR erasure). New host hook `Nowo\UptimeMonitorBundle\Audit\MonitorChangeActorResolverInterface` (record a pseudonymous id instead of the login identifier). DDL in [UPGRADING](UPGRADING.md#unreleased).
+- `UptimeTransactionRunner::withAuditSource()`, optional `$audit` / `$auditSource` constructor arguments and `forBundle(..., $audit)`; optional `$runner` argument of `TenantQuota::withTenantLock()`.
+
+### Changed
+
+- Spec Kit: `specs/005-monitor-change-audit`; the code inventory now also maps the 1.32 SearchKit files.
+
 ## [1.32.0] - 2026-11-19
 
 ### Added

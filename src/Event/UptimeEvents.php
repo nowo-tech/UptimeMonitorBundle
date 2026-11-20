@@ -24,4 +24,7 @@ final class UptimeEvents
 
     /** {@see MonitorPausedEvent}: after the admin UI pause / resume action is committed (since 1.25). */
     public const MONITOR_PAUSED = MonitorPausedEvent::class;
+
+    /** {@see MonitorChangedEvent}: after any monitor create, change or delete is committed, with the field diff (since 1.33, `audit.enabled`). */
+    public const MONITOR_CHANGED = MonitorChangedEvent::class;
 }

@@ -72,6 +72,8 @@ A worker demo exists: `demo/symfony8/docker/frankenphp/Caddyfile` declares a `wo
 | 6 repositories (`ServiceEntityRepository`) | yes | none beyond Doctrine base | ✅ | ✅ (identity map: app, W-02) |
 | 7 form types (`AbstractUptimeFormType` + `FormOptionsTrait`) | yes | trait holds the injected merger and a profile name resolved once per class; `withBuilder()` restores the bound builder in `finally` | ✅ | ✅ |
 | `Schedule\UptimeMonitorScheduleProvider`, `MessageHandler\RunDueChecksMessageHandler`, 6 commands | yes | none | ✅ | ✅ (CLI / Messenger only) |
+| `Audit\MonitorChangeRecorder`, `MonitorChangeHistory`, `MonitorChangeOutboxListener`, `TokenStorageActorResolver` (1.33) | yes | none (`readonly`); each runner run gets its own `MonitorChangeCapture`, attached to the event manager for that run and detached in every outcome | ✅ | ✅ (`tests/Integration/Audit/MonitorChangeAuditDbTest.php`) |
+| `Audit\MonitorChangeOutbox` (1.33, only with `audit.enabled`) | yes | change events of a bundle run that sat inside an application transaction, until that transaction ends; emptied by `kernel.reset`, before every write-unit replay (`ResetBetweenAttemptsInterface`) and at every end-of-unit event (released or dropped) | ✅ | ✅ (`tests/Unit/Audit/MonitorChangeOutboxTest.php`) |
 
 Note (audit OB2): with a custom asynchronous Messenger `MessageExecutionStrategyInterface` the tracker loses its nested-worker protection (a worker run inside a handler may clear the outer message's unit); the boundary clears still happen.
 

@@ -13,6 +13,8 @@ use Nowo\UiKitBundle\View\FormPage;
 use Nowo\UiKitBundle\View\PageHeader;
 use Nowo\UiKitBundle\View\Pagination;
 use Nowo\UiKitBundle\View\ShowPage;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeHistory;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeSource;
 use Nowo\UptimeMonitorBundle\Check\PushCheckRunner;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
@@ -98,6 +100,7 @@ final class MonitorController extends AbstractUptimeController
      * @param TokenStorageInterface|null $tokenStorage Actor of the lifecycle events (since 1.25; null without SecurityBundle)
      * @param ClockInterface $clock Occurred-at of the lifecycle events (since 1.25)
      * @param UptimeTransactionRunner|null $transactionRunner The bundle's runner of every write (since 1.29; null = one on $entityManager)
+     * @param MonitorChangeHistory|null $changeHistory The monitor change history shown on the monitor page (since 1.33)
      */
     public function __construct(
         TranslatorInterface $translator,
@@ -122,6 +125,7 @@ final class MonitorController extends AbstractUptimeController
         private readonly ?TokenStorageInterface $tokenStorage = null,
         private readonly ClockInterface $clock = new NativeClock(),
         private readonly ?UptimeTransactionRunner $transactionRunner = null,
+        private readonly ?MonitorChangeHistory $changeHistory = null,
     ) {
         parent::__construct($translator);
     }
@@ -204,7 +208,12 @@ final class MonitorController extends AbstractUptimeController
             // Only the group children the user may view (GU-L2).
             $detail['children'] = array_values(array_filter($detail['children'], static fn (array $child): bool => $scope->canView($child['monitor'])));
         }
-        $event  = $this->dispatchPageEvent(new UptimePageEvent('monitor_show', $tenantSlug, $monitor));
+        $event = $this->dispatchPageEvent(new UptimePageEvent('monitor_show', $tenantSlug, $monitor));
+        if ($this->changeHistory?->isEnabled() === true) {
+            // Since 1.33 (audit.history.enabled): read-only, for whoever may view the monitor; write-only fields as markers.
+            // @igor-ignore - Request-scoped page event built for this request; not a shared worker service.
+            $event->addSection('@NowoUptimeMonitorBundle/monitor/_change_history.html.twig', ['monitor_changes' => $this->changeHistory->forMonitor($monitor)]);
+        }
         $layout = $this->monitorShowLayout();
         $live   = new MonitorShowLiveUpdatesEvent($tenantSlug, $monitor, $this->generateUrl('nowo_uptime_api_monitor_history', [
             'tenantSlug' => $tenantSlug,
@@ -514,7 +523,7 @@ final class MonitorController extends AbstractUptimeController
         };
 
         if (($takesSlot || $checks !== []) && $this->quota instanceof TenantQuota) {
-            return $this->quota->withTenantLock($this->entityManager, $tenant, $write);
+            return $this->quota->withTenantLock($this->entityManager, $tenant, $write, $this->runner());
         }
 
         return $this->runner()->run(static fn (): bool => $write(null));
@@ -531,11 +540,11 @@ final class MonitorController extends AbstractUptimeController
     }
 
     /**
-     * The bundle's runner of every write (since 1.29).
+     * The bundle's runner of every write (since 1.29); its monitor changes are recorded as `ui` (since 1.33).
      */
     private function runner(): UptimeTransactionRunner
     {
-        return $this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager);
+        return ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->withAuditSource(MonitorChangeSource::UI);
     }
 
     /**

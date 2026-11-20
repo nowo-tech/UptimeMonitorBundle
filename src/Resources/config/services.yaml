@@ -21,6 +21,8 @@ services:
     Nowo\UptimeMonitorBundle\:
         resource: '../../'
         exclude:
+            # 1.33: the audit trail is defined by the extension (it depends on nowo_uptime_monitor.audit)
+            - '../../Audit/'
             - '../../Controller/'
             - '../../DependencyInjection/'
             - '../../Doctrine/'

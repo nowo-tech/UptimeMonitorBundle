@@ -17,6 +17,7 @@ use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Entity\MonitorChange;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use PHPUnit\Framework\Attributes\CoversNothing;
@@ -45,7 +46,7 @@ final class XmlMappingParityTest extends TestCase
      */
     public static function entities(): iterable
     {
-        foreach ([Tenant::class, Monitor::class, CheckResult::class, CheckAggregate::class, Incident::class, Tag::class] as $class) {
+        foreach ([Tenant::class, Monitor::class, CheckResult::class, CheckAggregate::class, Incident::class, Tag::class, MonitorChange::class] as $class) {
             yield $class => [$class];
         }
     }
@@ -75,7 +76,7 @@ final class XmlMappingParityTest extends TestCase
         $from      = (new SchemaTool($attribute))->getSchemaFromMetadata($attribute->getMetadataFactory()->getAllMetadata());
         $to        = (new SchemaTool($xml))->getSchemaFromMetadata($xml->getMetadataFactory()->getAllMetadata());
 
-        self::assertCount(6, $xml->getMetadataFactory()->getAllMetadata());
+        self::assertCount(7, $xml->getMetadataFactory()->getAllMetadata());
         self::assertTrue($attribute->getConnection()->createSchemaManager()->createComparator()->compareSchemas($from, $to)->isEmpty());
     }
 

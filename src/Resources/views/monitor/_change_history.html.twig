@@ -1,0 +1,54 @@
+{#
+  Since 1.33 (audit.history.enabled): the change history of the monitor, newest first (audit.history.display_limit
+  rows), read-only. Rendered as a page_sections.after section of the monitor page, for whoever may view the monitor.
+  Variables: monitor_changes (list of Entity\MonitorChange), page (for the UiKit classes). A write-only field
+  (headers, body, credentials, URL / proxy userinfo, path and query, push key and token) shows only "replaced" or
+  "cleared": its value is never recorded.
+#}
+{% trans_default_domain 'NowoUptimeMonitorBundle' %}
+{% set _b = page.bundle %}
+<section class="uptime-changes uptime-phone-list {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }} data-testid="uptime-monitor-changes" aria-labelledby="uptime-monitor-changes-title">
+    <header class="{{ nowo_ui_class('card_header', _b) }}">
+        <h2 class="{{ nowo_ui_class('card_title', _b) }}" id="uptime-monitor-changes-title">{{ 'monitor.changes.title'|trans }}</h2>
+    </header>
+    <div class="uptime-table-scroll">
+        <table class="uptime-changes-table uptime-phone-table {{ nowo_ui_class('table', _b) }}">
+            <thead class="{{ nowo_ui_class('table_head', _b) }}">
+                <tr>
+                    <th scope="col">{{ 'monitor.changes.col.when'|trans }}</th>
+                    <th scope="col">{{ 'monitor.changes.col.who'|trans }}</th>
+                    <th scope="col">{{ 'monitor.changes.col.action'|trans }}</th>
+                    <th scope="col">{{ 'monitor.changes.col.changes'|trans }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for change in monitor_changes %}
+                    <tr data-testid="uptime-monitor-change">
+                        <td data-uptime-phone="meta"><time datetime="{{ change.occurredAt|date('c') }}">{{ change.occurredAt|date('Y-m-d H:i:s') }}</time></td>
+                        <td data-uptime-phone="meta">{{ change.actor ?? 'monitor.changes.no_actor'|trans }} <span class="{{ nowo_ui_class('badge_neutral', _b) }}">{{ ('monitor.changes.source.' ~ change.source)|trans }}</span></td>
+                        <td data-uptime-phone="status">{{ ('monitor.changes.action.' ~ change.action)|trans }}</td>
+                        <td data-uptime-phone="detail">
+                            <ul class="uptime-change-fields">
+                                {% for field in change.changes %}
+                                    <li><code>{{ field.field }}</code>:
+                                        {% if field.secret %}
+                                            <em data-change-secret="{{ field.secret }}">{{ ('monitor.changes.secret.' ~ field.secret)|trans }}</em>
+                                        {% else %}
+                                            {{ field.before is null ? '—' : (field.before is iterable or field.before is same as(true) or field.before is same as(false) ? field.before|json_encode : field.before) }}
+                                            &rarr;
+                                            {{ field.after is null ? '—' : (field.after is iterable or field.after is same as(true) or field.after is same as(false) ? field.after|json_encode : field.after) }}
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="4" class="{{ nowo_ui_class('table_cell_muted', _b) }}">{{ 'monitor.changes.empty'|trans }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>

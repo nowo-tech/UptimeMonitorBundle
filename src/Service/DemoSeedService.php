@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\UptimeMonitorBundle\Audit\MonitorChangeSource;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
@@ -210,6 +211,7 @@ final readonly class DemoSeedService
      */
     private function runner(): UptimeTransactionRunner
     {
-        return $this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager);
+        // Since 1.33 the demo monitors are recorded as `demo` (audit.enabled).
+        return ($this->transactionRunner ?? new UptimeTransactionRunner($this->entityManager))->withAuditSource(MonitorChangeSource::DEMO);
     }
 }

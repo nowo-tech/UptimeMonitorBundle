@@ -29,7 +29,14 @@ nowo_uptime_monitor:
     retention:
         detail_days: 30
         purge_enabled: true
-        purge_batch_size: 1000   # rows per DELETE batch (purge-detail, clear-data); min 1
+        purge_batch_size: 1000   # rows per DELETE batch (purge-detail, clear-data, purge-monitor-changes); min 1
+    audit:                    # since 1.33: audit trail of monitor changes (off by default), see "Monitor change audit"
+        enabled: false        # record every monitor create / change / delete and dispatch MonitorChangedEvent after the commit
+        actor_resolver: null  # service id of a MonitorChangeActorResolverInterface; null = the security token's user identifier
+        history:
+            enabled: false    # also store the changes in uptime_monitor_change and show them on the monitor page
+            retention_days: 365   # rows older than this are deleted by nowo:uptime:purge-monitor-changes; 0 = keep forever
+            display_limit: 50     # latest changes shown on the monitor page (1-500)
     aggregates:
         # keep_forever: true   # deprecated (1.5), no effect: aggregates are always kept
         periods: [hour, day, month, year]
@@ -131,6 +138,18 @@ Deprecated since **1.11** (REQ-UI-003 vocabulary, removed in 2.0): `templates.la
 | `search_kit.max_candidates` | `100` | Monitors read and access-checked per search (1-1000). |
 
 SearchKit needs PHP 8.3 or later. Multi-tenant hosts must set `search_kit.tenant_resolver`; results are ordered by name. See [USAGE](USAGE.md#searchkit-monitors-132).
+
+### Monitor change audit (1.33)
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `audit.enabled` | `false` | Records every monitor create, change and delete, whatever the write path, and dispatches `MonitorChangedEvent` after the commit. |
+| `audit.actor_resolver` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Audit\MonitorChangeActorResolverInterface`: the identifier recorded as the actor. `null` = the user identifier of the security token (null in console commands). |
+| `audit.history.enabled` | `false` | Also writes each change to the table `uptime_monitor_change` (same transaction) and shows the latest ones on the monitor page. Needs `audit.enabled` and the table (see [UPGRADING](UPGRADING.md#unreleased)). |
+| `audit.history.retention_days` | `365` | `nowo:uptime:purge-monitor-changes` deletes older rows; `0` keeps them forever. |
+| `audit.history.display_limit` | `50` | Latest changes listed on the monitor page (1-500). |
+
+What is and is not recorded: [SECURITY](SECURITY.md#monitor-change-audit-133). How to use it: [USAGE](USAGE.md#monitor-change-audit-133).
 
 ### Check limits (SEC-004)
 
