@@ -120,10 +120,8 @@ final class MonitorAuditStateTest extends TestCase
     {
         $state  = MonitorAuditState::fromFields(['type' => MonitorType::Https, 'target' => $url]);
         $origin = strtolower((string) $state['target'][1]);
-        // Userinfo parts of the URLs above (test data only, no real credential).
-        foreach (['p', 'secret', '1234', 'password', 'c%2fd', 'a%40b', 'u:p', 'user'] as $userinfo) {
-            self::assertStringNotContainsString($userinfo . '@', $origin, $url);
-        }
+        // No userinfo at all: an origin never holds an "@".
+        self::assertStringNotContainsString('@', $origin, $url);
         self::assertArrayHasKey('target_details', $state);
     }
 }
