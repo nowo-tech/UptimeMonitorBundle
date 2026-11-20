@@ -243,7 +243,14 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
 
         $this->override = $this->listDefinition(['acme', 'beta', 'acme', 'GAMMA', 'gamma ']);
         self::assertSame([$marker . ' a', $marker . ' b'], $this->titles($marker), 'keys compared exactly');
-        self::assertSame('*', $this->override->tenant($this->query($marker)));
+        // Audit VW-1: several tenants are labelled by the hash of the sorted list, never "all".
+        $label = 'tenants:' . hash('sha256', "acme\nbeta");
+        self::assertSame($label, $this->override->tenant($this->query($marker)));
+        self::assertSame($label, MonitorSearchDefinition::tenantLabel(['beta', 'acme']));
+        self::assertSame([$marker . ' a', $marker . ' b'], array_map(static fn (Monitor $monitor): string => $monitor->getName(), $this->override->baseQuery($label, $this->query($marker))->andWhere('m.name LIKE :m')->setParameter('m', $marker . '%')->getQuery()->getResult()));
+        // Audit VW-2: a list that no longer matches the label of tenant() finds nothing.
+        self::assertSame([], $this->override->baseQuery('tenants:stale', $this->query($marker))->getQuery()->getResult());
+        self::assertSame([], $this->override->baseQuery('acme', $this->query($marker))->getQuery()->getResult());
         self::assertSame([$marker . ' b'], $this->titles($marker, 'tenant:beta'));
         self::assertSame([], $this->titles($marker, 'tenant:gamma'), 'a scope never widens');
         self::assertSame([], $this->titles($marker, 'project:p-1'), 'a scope no listener accepted');

@@ -154,8 +154,11 @@ Target **1.33.0** (minor), from **1.32.0**: `composer update nowo-tech/uptime-mo
   `tenant:<slug>`.
 - **API additions:** optional `$eventDispatcher` of `MonitorSearchVisibility`, optional `$scope` of
   `MonitorSearchDefinition` (its `$tenants` accepts either resolver); `MonitorSearchVisibility::canSearch()` is deprecated
-  (no longer called). With several tenants the SearchKit tenant passed to `SearchItemVisibilityEvent` is `*`
-  (`MonitorSearchDefinition::ANY_TENANT`); with one it is still that slug.
+  (no longer called). With several tenants the SearchKit tenant passed to `SearchItemVisibilityEvent` is
+  `tenants:<sha256 of the sorted slugs>` (`MonitorSearchDefinition::tenantLabel()`); with one it is still that slug.
+- **Tenant keys are compared exactly.** A 1.32 resolver that returned a key that is not a valid slug (for instance
+  `ACME`, which matched the slug `acme` on MySQL's case-insensitive collations) now finds nothing: return the slug as
+  stored (lowercase letters, digits, dashes).
 
 ## To 1.32.0
 

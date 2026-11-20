@@ -25,10 +25,15 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function count;
 use function ctype_digit;
+use function hash;
+use function implode;
 use function is_string;
 use function max;
 use function min;
+use function sort;
 use function sprintf;
+
+use const SORT_STRING;
 
 /**
  * SearchKit group `uptime_monitors` (since 1.32): monitors by name and by the origin of their target.
@@ -47,8 +52,8 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
 {
     public const GROUP = 'uptime_monitors';
 
-    /** The SearchKit tenant of a search that covers several tenants (since 1.33). */
-    public const ANY_TENANT = '*';
+    /** Prefix of the SearchKit tenant of a search over several tenants (since 1.33): `tenants:<sha256 of the sorted slugs>`. */
+    public const TENANTS_PREFIX = 'tenants:';
 
     /**
      * Creates the definition.
@@ -99,18 +104,28 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * The SearchKit tenant: the slug when the search covers one tenant, {@see self::ANY_TENANT} when it covers several,
-     * null when it covers none (no tenant resolved, all narrowed away, or no search permission): no results.
+     * The SearchKit tenant: the slug when the search covers one tenant, `tenants:<sha256 of the sorted slugs>` when it
+     * covers several (it never means "all"), null when it covers none (no tenant resolved, all narrowed away, or no
+     * search permission): no results.
      */
     public function tenant(SearchQuery $query): ?string
     {
-        $tenants = $this->tenantsOf($query);
+        return self::tenantLabel($this->tenantsOf($query));
+    }
 
-        return match (count($tenants)) {
-            0       => null,
-            1       => $tenants[0],
-            default => self::ANY_TENANT,
-        };
+    /**
+     * The SearchKit tenant of a list of tenant slugs (see tenant()).
+     *
+     * @param list<string> $tenants
+     */
+    public static function tenantLabel(array $tenants): ?string
+    {
+        if (count($tenants) <= 1) {
+            return $tenants[0] ?? null;
+        }
+        sort($tenants, SORT_STRING);
+
+        return self::TENANTS_PREFIX . hash('sha256', implode("\n", $tenants));
     }
 
     /**
@@ -175,11 +190,16 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
 
     /**
      * Monitors of the tenants of the search (resolved again for this call, in SQL), ordered by name then id; none when
-     * the search covers no tenant.
+     * the search covers no tenant, or when the tenants resolved now no longer match the label of tenant() (the resolver
+     * and the listeners run once for tenant() and once here, per search page and per revalidated recent).
      */
     public function baseQuery(int|string $tenant, SearchQuery $query): QueryBuilder
     {
         $tenants = $this->tenantsOf($query);
+        if (self::tenantLabel($tenants) !== (string) $tenant) {
+            // The tenants changed between tenant() and this call (the resolver and the listeners run again): nothing.
+            $tenants = [];
+        }
 
         $queryBuilder = $this->monitors->createQueryBuilder('m')
             ->addSelect('t')

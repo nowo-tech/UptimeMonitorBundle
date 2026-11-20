@@ -211,7 +211,14 @@ public function onMonitorSearchScope(MonitorSearchScopeEvent $event): void
 }
 ```
 
-Every row is still checked with `canViewMonitor()` (else the tenant / dashboard check) and SearchKit's host event. **Results are ordered by monitor name** (then id), with no relevance ranking.
+Every row is still checked with `canViewMonitor()` (else the tenant / dashboard check) and SearchKit's host event.
+
+The resolver, `MonitorSearchScopeEvent` and `MonitorSearchAccessEvent` may run more than once per search (once to name
+the SearchKit tenant, once for the query, and again for each revalidated recent): keep them side-effect free and
+deterministic; if their answers differ between the two calls the search finds nothing. The tenant SearchKit passes to
+`SearchItemVisibilityEvent` is the slug for one tenant and `tenants:<sha256 of the sorted slugs>` for several: it never
+means "all tenants". Under `security.allow_unauthenticated` the search permission is not checked and
+`MonitorSearchAccessEvent` is not dispatched, so a listener's `deny()` has no effect there. **Results are ordered by monitor name** (then id), with no relevance ranking.
 
 A refusal anywhere (no tenant, no access, a denied monitor) gives no group and no count, so a hidden monitor looks like a
 missing one. The total is the visible count inside the candidate window and the results page goes at most that deep.
