@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Search\SearchKit;
 
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\Query\QueryBuilder as DbalQueryBuilder;
 use Doctrine\ORM\QueryBuilder;
 use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
 use Nowo\SearchKitBundle\Model\SearchReference;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
+use Nowo\UptimeMonitorBundle\Event\MonitorSearchScopeEvent;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchHit;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchMapper;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface;
+use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenants;
+use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantsResolverInterface;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchVisibility;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function count;
 use function ctype_digit;
 use function is_string;
 use function max;
@@ -27,8 +33,11 @@ use function sprintf;
 /**
  * SearchKit group `uptime_monitors` (since 1.32): monitors by name and by the origin of their target.
  *
- * The tenant comes from the bundle's tenant resolver ({@see MonitorSearchTenantResolverInterface}); the SQL filter is
- * that tenant, ordered by name. `view` is checked per candidate by the bundle's own access checker
+ * The tenants come from the bundle's tenant resolver (since 1.33 a list, {@see MonitorSearchTenantsResolverInterface};
+ * a 1.32 single-tenant resolver still works), narrowed by {@see MonitorSearchScopeEvent}
+ * and the scope of the search box, and kept only where the viewer has the search permission
+ * ({@see MonitorSearchVisibility::canSearchTenant()}, no longer the dashboard one): {@see MonitorSearchTenants}. The SQL
+ * filter is that list (`t.slug IN (...)`, before SearchKit's limit), ordered by name. `view` is checked per candidate by the bundle's own access checker
  * ({@see MonitorSearchVisibility}), so host rules apply, and SearchKit then sends its host visibility event for the
  * page. A result carries the name, the origin of the target and the last status; never the config, headers, auth or
  * push credentials. SQL matches the stored target, so every word is verified again against the name and the displayed
@@ -38,25 +47,30 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
 {
     public const GROUP = 'uptime_monitors';
 
+    /** The SearchKit tenant of a search that covers several tenants (since 1.33). */
+    public const ANY_TENANT = '*';
+
     /**
      * Creates the definition.
      *
      * @param MonitorRepository $monitors Monitor repository of the bundle
-     * @param MonitorSearchTenantResolverInterface $tenants Tenant resolver of the viewer
+     * @param MonitorSearchTenantResolverInterface|MonitorSearchTenantsResolverInterface $tenants Tenant resolver of the viewer (since 1.33 also a list resolver)
      * @param MonitorSearchVisibility $visibility The bundle's access check for search
      * @param MonitorSearchMapper $mapper Monitor to result mapping
      * @param UrlGeneratorInterface $urls URL generator
      * @param TranslatorInterface|null $translator Translator (null: English label)
      * @param int $maxCandidates Rows read and checked per search
+     * @param MonitorSearchTenants|null $scope The tenants of a search (since 1.33; null = built from $tenants and $visibility)
      */
     public function __construct(
         private readonly MonitorRepository $monitors,
-        private readonly MonitorSearchTenantResolverInterface $tenants,
+        private readonly MonitorSearchTenantResolverInterface|MonitorSearchTenantsResolverInterface $tenants,
         private readonly MonitorSearchVisibility $visibility,
         private readonly MonitorSearchMapper $mapper,
         private readonly UrlGeneratorInterface $urls,
         private readonly ?TranslatorInterface $translator = null,
         private readonly int $maxCandidates = self::DEFAULT_MAX_CANDIDATES,
+        private readonly ?MonitorSearchTenants $scope = null,
     ) {
     }
 
@@ -85,19 +99,36 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * The viewer's tenant slug, from the tenant resolver; null means no results.
+     * The SearchKit tenant: the slug when the search covers one tenant, {@see self::ANY_TENANT} when it covers several,
+     * null when it covers none (no tenant resolved, all narrowed away, or no search permission): no results.
      */
     public function tenant(SearchQuery $query): ?string
     {
-        return $this->tenants->resolve((string) $query->userIdentifier);
+        $tenants = $this->tenantsOf($query);
+
+        return match (count($tenants)) {
+            0       => null,
+            1       => $tenants[0],
+            default => self::ANY_TENANT,
+        };
     }
 
     /**
-     * Whether the viewer may use monitor search (`canAccessDashboard()` of the access checker).
+     * The search permission was checked per tenant by tenant() (since 1.33; up to 1.32 `canAccessDashboard()`).
      */
     public function featureEnabled(int|string $tenant, SearchQuery $query): bool
     {
-        return $this->visibility->canSearch();
+        return true;
+    }
+
+    /**
+     * The scope of the search box is applied by {@see MonitorSearchTenants} inside baseQuery(), in SQL (since 1.33):
+     * `tenant:<slug>`, or a host scope a {@see MonitorSearchScopeEvent} listener
+     * accepted; any other scope already left no tenant.
+     */
+    public function applyScope(DbalQueryBuilder|QueryBuilder $queryBuilder, string $scope, int|string $tenant, SearchQuery $query): bool
+    {
+        return true;
     }
 
     /**
@@ -143,17 +174,36 @@ final class MonitorSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * Monitors of the tenant, ordered by name then id.
+     * Monitors of the tenants of the search (resolved again for this call, in SQL), ordered by name then id; none when
+     * the search covers no tenant.
      */
     public function baseQuery(int|string $tenant, SearchQuery $query): QueryBuilder
     {
-        return $this->monitors->createQueryBuilder('m')
+        $tenants = $this->tenantsOf($query);
+
+        $queryBuilder = $this->monitors->createQueryBuilder('m')
             ->addSelect('t')
             ->innerJoin('m.tenant', 't')
-            ->where('t.slug = :nowo_uptime_tenant')
-            ->setParameter('nowo_uptime_tenant', (string) $tenant)
+            ->where($tenants === [] ? '1 = 0' : 't.slug IN (:nowo_uptime_tenants)')
             ->orderBy('m.name', 'ASC')
             ->addOrderBy('m.id', 'ASC');
+        if ($tenants !== []) {
+            $queryBuilder->setParameter('nowo_uptime_tenants', $tenants, ArrayParameterType::STRING);
+        }
+
+        return $queryBuilder;
+    }
+
+    /**
+     * The tenant slugs this search covers.
+     *
+     * @return list<string>
+     */
+    private function tenantsOf(SearchQuery $query): array
+    {
+        $scope = $this->scope ?? new MonitorSearchTenants($this->tenants, $this->visibility);
+
+        return $scope->resolve($query->userIdentifier, $query->scope);
     }
 
     /**

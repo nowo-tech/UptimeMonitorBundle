@@ -7,7 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Security;
 /**
  * Permissive checker used when security.allow_unauthenticated is true (demo/dev only).
  */
-final class AllowAllUptimeMonitorAccessChecker implements UptimeMonitorAccessCheckerInterface
+final class AllowAllUptimeMonitorAccessChecker implements SearchAwareUptimeMonitorAccessCheckerInterface
 {
     /**
      * Always allows the dashboard.
@@ -29,6 +29,14 @@ final class AllowAllUptimeMonitorAccessChecker implements UptimeMonitorAccessChe
      * Always allows the settings.
      */
     public function canManageSettings(object $user): bool
+    {
+        return true;
+    }
+
+    /**
+     * Whether the user may search the monitors of a tenant (since 1.33): always.
+     */
+    public function canSearch(object $user, string $tenantSlug): bool
     {
         return true;
     }

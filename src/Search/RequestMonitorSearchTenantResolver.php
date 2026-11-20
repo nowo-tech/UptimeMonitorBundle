@@ -13,7 +13,7 @@ use function is_string;
  * Default tenant resolver of monitor search (since 1.32): the `tenantSlug` attribute of the current request when there
  * is one, else `multi_tenant.default_tenant`. Reads the request stack at call time: nothing is kept.
  */
-final readonly class RequestMonitorSearchTenantResolver implements MonitorSearchTenantResolverInterface
+final readonly class RequestMonitorSearchTenantResolver implements MonitorSearchTenantResolverInterface, MonitorSearchTenantsResolverInterface
 {
     /**
      * @param array<string, mixed> $multiTenant `multi_tenant` configuration
@@ -38,5 +38,17 @@ final readonly class RequestMonitorSearchTenantResolver implements MonitorSearch
         $default = $this->multiTenant['default_tenant'] ?? 'main';
 
         return is_string($default) && $default !== '' ? $default : null;
+    }
+
+    /**
+     * The tenant of {@see self::resolve()} as a list (since 1.33): one slug, or none.
+     *
+     * @return list<string>
+     */
+    public function resolveTenants(string $userIdentifier): array
+    {
+        $slug = $this->resolve($userIdentifier);
+
+        return $slug === null ? [] : [$slug];
     }
 }

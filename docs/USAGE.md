@@ -154,17 +154,64 @@ public function onDown(MonitorWentDownEvent $event): void
 With `nowo-tech/search-kit-bundle` ^1.9 installed (optional, `suggest`; **SearchKit needs PHP 8.3 or later**, the bundle itself still runs on PHP 8.2 without it) and `web_ui` enabled, the SearchKit palette and
 results page get a group `uptime_monitors`. Each search:
 
-1. takes the viewer's tenant from the tenant resolver (the `tenantSlug` of the request, else `multi_tenant.default_tenant`;
-   a host replaces it with `search_kit.tenant_resolver`, a service implementing `MonitorSearchTenantResolverInterface`;
-   `null` means no results);
-2. checks `canAccessDashboard()` of the bundle's access checker (the group is off for a viewer who may not open the dashboards);
-3. reads at most `search_kit.max_candidates` monitors of that tenant in one SQL query, matching every word against the
+1. takes the viewer's tenants from the tenant resolver (the `tenantSlug` of the request, else `multi_tenant.default_tenant`;
+   a host replaces it with `search_kit.tenant_resolver`: since 1.33 a `MonitorSearchTenantsResolverInterface` returning a
+   **list** of tenant slugs, or a 1.32 `MonitorSearchTenantResolverInterface` returning one; an empty list or `null`
+   means no results). The search covers the union of the list. Keys are compared exactly: a key that is not a valid
+   slug (lowercase letters, digits, dashes) matches nothing;
+2. (1.33) dispatches `MonitorSearchScopeEvent` (`UptimeEvents::MONITOR_SEARCH_SCOPE`): a listener can only narrow
+   (`onlyTenants([...])`, `excludeTenants([...])`, `deny()`), and applies the scope of the search box: the bundle's own
+   scope `tenant:<slug>` keeps that tenant if it is in the list; any other scope (a project chip) counts only when a
+   listener narrows for it and calls `acceptScope()`, else the search finds nothing. A scope never adds a tenant;
+3. (1.33) checks the **search permission** per tenant, separate from the dashboard: the checker's
+   `canSearch($user, $tenantSlug)` when it implements `SearchAwareUptimeMonitorAccessCheckerInterface` (the bundle's
+   configurable checker answers with the dashboard roles, as in 1.32; the allow-all one with yes), then
+   `MonitorSearchAccessEvent` (`UptimeEvents::MONITOR_SEARCH_ACCESS`: `grant()` / `deny()`, a denial wins). **Without
+   either, search is denied.** Up to 1.32 the gate was `canAccessDashboard()`;
+4. reads at most `search_kit.max_candidates` monitors of the remaining tenants in one SQL query (`t.slug IN (...)`
+   applied before the limit, so rows of other tenants never take places in the window), matching every word against the
    **name** with an escaped `LIKE ... ESCAPE '!'` (the stored target may hold credentials, so SQL never matches it);
-4. keeps only the monitors the checker lets the viewer see: `canViewMonitor()` for a monitor-aware checker (so a monitor shared
+5. keeps only the monitors the checker lets the viewer see: `canViewMonitor()` for a monitor-aware checker (so a monitor shared
    outside the tenant is searchable), else `canAccessTenant()`, else the dashboard check; then SearchKit sends its
    `SearchKitEvents::ITEM_VISIBILITY` event, where a host deny wins.
 
-**Multi-tenant hosts must set `search_kit.tenant_resolver`.** The palette request carries no `{tenantSlug}`, so the default (the request's `tenantSlug`, else `multi_tenant.default_tenant`) searches one tenant; a host with several tenants returns the viewer's own. **Results are ordered by monitor name** (then id), with no relevance ranking.
+**Multi-tenant hosts must set `search_kit.tenant_resolver`.** The palette request carries no `{tenantSlug}`, so the default (the request's `tenantSlug`, else `multi_tenant.default_tenant`) searches one tenant; a host with several tenants returns the viewer's own (since 1.33 all of them, as a list).
+
+A host whose monitors live under its own pages, with no bundle dashboard (one tenant per project, `canAccessDashboard()`
+false for everyone), grants search and lists the viewer's projects:
+
+```php
+final readonly class ProjectMonitorTenants implements MonitorSearchTenantsResolverInterface
+{
+    public function __construct(private ProjectMemberships $memberships) {}
+
+    /** @return list<string> */
+    public function resolveTenants(string $userIdentifier): array
+    {
+        return $this->memberships->projectSlugsOf($userIdentifier); // the tenant slugs of the viewer's projects
+    }
+}
+
+#[AsEventListener]
+public function onMonitorSearchAccess(MonitorSearchAccessEvent $event): void
+{
+    if ($this->projects->canUse($event->user, $event->tenantSlug, 'uptime')) {
+        $event->grant();
+    }
+}
+
+#[AsEventListener]
+public function onMonitorSearchScope(MonitorSearchScopeEvent $event): void
+{
+    $scope = $event->getScope();                 // client input, e.g. "project:<uuid>" from a project chip
+    if ($scope !== null && str_starts_with($scope, 'project:')) {
+        $event->onlyTenants([substr($scope, 8)]); // narrows only: a tenant outside the resolver's list stays out
+        $event->acceptScope();
+    }
+}
+```
+
+Every row is still checked with `canViewMonitor()` (else the tenant / dashboard check) and SearchKit's host event. **Results are ordered by monitor name** (then id), with no relevance ranking.
 
 A refusal anywhere (no tenant, no access, a denied monitor) gives no group and no count, so a hidden monitor looks like a
 missing one. The total is the visible count inside the candidate window and the results page goes at most that deep.
@@ -190,7 +237,7 @@ definition supports it: `idField()` / `referenceId()`) or off if origins must no
 nowo_uptime_monitor:
     search_kit:
         enabled: true            # false: no monitors in SearchKit
-        tenant_resolver: null    # service id of a MonitorSearchTenantResolverInterface
+        tenant_resolver: null    # service id of a MonitorSearchTenantsResolverInterface (1.33, a list) or MonitorSearchTenantResolverInterface
         max_candidates: 100      # 1-1000
 ```
 

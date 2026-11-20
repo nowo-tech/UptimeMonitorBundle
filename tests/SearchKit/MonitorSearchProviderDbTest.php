@@ -9,6 +9,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\SearchKitBundle\Event\SearchItemVisibilityEvent;
 use Nowo\SearchKitBundle\Event\SearchKitEvents;
+use Nowo\SearchKitBundle\Model\SearchGroup;
+use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchReference;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\SearchKitBundle\Test\EntitySearchProviderTestCase;
@@ -18,13 +20,19 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Enum\MonitorType;
+use Nowo\UptimeMonitorBundle\Event\MonitorSearchAccessEvent;
+use Nowo\UptimeMonitorBundle\Event\MonitorSearchScopeEvent;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchMapper;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface;
+use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenants;
+use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantsResolverInterface;
 use Nowo\UptimeMonitorBundle\Search\MonitorSearchVisibility;
 use Nowo\UptimeMonitorBundle\Search\SearchKit\MonitorSearchDefinition;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\MonitorAwareUptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Security\SearchAwareUptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -43,6 +51,7 @@ use function array_map;
 use function class_exists;
 use function in_array;
 use function json_encode;
+use function str_ends_with;
 
 use const JSON_UNESCAPED_SLASHES;
 use const JSON_UNESCAPED_UNICODE;
@@ -55,12 +64,15 @@ use const JSON_UNESCAPED_UNICODE;
 #[Group('db')]
 #[CoversClass(MonitorSearchDefinition::class)]
 #[CoversClass(MonitorSearchVisibility::class)]
+#[CoversClass(MonitorSearchTenants::class)]
 final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase implements MonitorSearchTenantResolverInterface
 {
     private EntityManagerInterface $em;
     private ManagerRegistry $registry;
     private QueryCounter $counter;
     private MonitorSearchDefinition $definition;
+    private ?MonitorSearchDefinition $override = null;
+    private UrlGenerator $urls;
     private TokenStorage $tokens;
 
     private ?string $tenant     = null;
@@ -91,12 +103,18 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         $this->registry = $registry;
         $this->tokens   = new TokenStorage();
         $self           = $this;
-        $checker        = new class($self) implements MonitorAwareUptimeMonitorAccessCheckerInterface {
+        // Since 1.33 the search permission is its own check (canSearch): the dashboard stays closed, as in Beacon.
+        $checker = new class($self) implements MonitorAwareUptimeMonitorAccessCheckerInterface, SearchAwareUptimeMonitorAccessCheckerInterface {
             public function __construct(private readonly MonitorSearchProviderDbTest $test)
             {
             }
 
             public function canAccessDashboard(object $user): bool
+            {
+                return false;
+            }
+
+            public function canSearch(object $user, string $tenantSlug): bool
             {
                 return $this->test->dashboardOpen();
             }
@@ -135,7 +153,8 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         $routes = new RouteCollection();
         $routes->add('nowo_uptime_monitor_show', new Route('/uptime/{tenantSlug}/monitors/{id}'));
         $routes->add('nowo_uptime_dashboard', new Route('/uptime/{tenantSlug}'));
-        $urls = new UrlGenerator($routes, new RequestContext());
+        $urls       = new UrlGenerator($routes, new RequestContext());
+        $this->urls = $urls;
 
         $this->definition = new MonitorSearchDefinition(new MonitorRepository($registry), $this, new MonitorSearchVisibility($checker, $this->tokens), new MonitorSearchMapper(), $urls, $this->translator());
     }
@@ -176,9 +195,132 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         return in_array($name, $this->hidden, true) || in_array($name, $this->hiddenNames, true);
     }
 
-    protected function definition(): EntitySearchDefinition
+    protected function definition(): MonitorSearchDefinition
     {
-        return $this->definition;
+        return $this->override ?? $this->definition;
+    }
+
+    /**
+     * 1.33: a definition over a list of tenants, with an access checker and a dispatcher of the bundle's search events.
+     *
+     * @param list<string> $tenants
+     */
+    private function listDefinition(array $tenants, UptimeMonitorAccessCheckerInterface $checker = new AllowAllUptimeMonitorAccessChecker(), ?EventDispatcher $dispatcher = null, int $maxCandidates = 100): MonitorSearchDefinition
+    {
+        $resolver = new class($tenants) implements MonitorSearchTenantsResolverInterface {
+            /** @param list<string> $tenants */
+            public function __construct(private readonly array $tenants)
+            {
+            }
+
+            public function resolveTenants(string $userIdentifier): array
+            {
+                return $this->tenants;
+            }
+        };
+        $visibility = new MonitorSearchVisibility($checker, $this->tokens, false, $dispatcher);
+
+        return new MonitorSearchDefinition(new MonitorRepository($this->registry), $resolver, $visibility, new MonitorSearchMapper(), $this->urls, $this->translator(), $maxCandidates, new MonitorSearchTenants($resolver, $visibility, $dispatcher));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function titles(string $text, ?string $scope = null): array
+    {
+        $group = $this->provider()->search($this->query($text, 10, $scope));
+
+        return $group instanceof SearchGroup ? array_map(static fn (SearchItem $item): string => $item->title, $group->items) : [];
+    }
+
+    public function testSeveralTenantsAreSearchedTogetherAndOnlyThose(): void
+    {
+        $marker = $this->marker();
+        $this->add('acme', $marker . ' a', 'https://a.example.com');
+        $this->add('beta', $marker . ' b', 'https://b.example.com');
+        $this->add('gamma', $marker . ' c', 'https://c.example.com');
+        $this->actAs('acme', self::VIEWER_A);
+
+        $this->override = $this->listDefinition(['acme', 'beta', 'acme', 'GAMMA', 'gamma ']);
+        self::assertSame([$marker . ' a', $marker . ' b'], $this->titles($marker), 'keys compared exactly');
+        self::assertSame('*', $this->override->tenant($this->query($marker)));
+        self::assertSame([$marker . ' b'], $this->titles($marker, 'tenant:beta'));
+        self::assertSame([], $this->titles($marker, 'tenant:gamma'), 'a scope never widens');
+        self::assertSame([], $this->titles($marker, 'project:p-1'), 'a scope no listener accepted');
+
+        $this->override = $this->listDefinition(['beta']);
+        self::assertSame('beta', $this->override->tenant($this->query($marker)));
+        $this->override = $this->listDefinition([]);
+        self::assertNull($this->provider()->search($this->query($marker)), 'an empty list finds nothing');
+    }
+
+    public function testAProjectChipAcceptedByAListenerNarrowsTheTenants(): void
+    {
+        $marker = $this->marker();
+        $this->add('acme', $marker . ' a', 'https://a.example.com');
+        $this->add('beta', $marker . ' b', 'https://b.example.com');
+        $this->actAs('acme', self::VIEWER_A);
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorSearchScopeEvent::class, static function (MonitorSearchScopeEvent $event): void {
+            if ($event->getScope() === 'project:p-beta') {
+                $event->onlyTenants(['beta', 'gamma']);
+                $event->acceptScope();
+            }
+        });
+
+        $this->override = $this->listDefinition(['acme', 'beta'], new AllowAllUptimeMonitorAccessChecker(), $dispatcher);
+        self::assertSame([$marker . ' b'], $this->titles($marker, 'project:p-beta'));
+        self::assertSame([$marker . ' a', $marker . ' b'], $this->titles($marker));
+    }
+
+    /**
+     * Beacon: no bundle dashboard (canAccessDashboard() false for everyone), search granted by the access event, and
+     * every row still checked with canViewMonitor().
+     */
+    public function testSearchIsGrantedByTheAccessEventWithoutTheDashboardPermission(): void
+    {
+        $marker = $this->marker();
+        $this->add('acme', $marker . ' shown', 'https://a.example.com');
+        $this->add('acme', $marker . ' private', 'https://b.example.com');
+        $this->add('beta', $marker . ' beta', 'https://c.example.com');
+        $this->actAs('acme', self::VIEWER_A);
+        $checker = $this->createStub(MonitorAwareUptimeMonitorAccessCheckerInterface::class);
+        $checker->method('canAccessDashboard')->willReturn(false);
+        $checker->method('canViewMonitor')->willReturnCallback(static fn (object $user, Monitor $monitor): bool => !str_ends_with($monitor->getName(), 'private'));
+
+        $this->override = $this->listDefinition(['acme', 'beta'], $checker);
+        self::assertNull($this->provider()->search($this->query($marker)), 'denied by default');
+
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(MonitorSearchAccessEvent::class, static function (MonitorSearchAccessEvent $event): void {
+            if ($event->tenantSlug === 'acme') {
+                $event->grant();
+            }
+        });
+        $this->override = $this->listDefinition(['acme', 'beta'], $checker, $dispatcher);
+        self::assertSame([$marker . ' shown'], $this->titles($marker));
+    }
+
+    /**
+     * The tenant list is applied in SQL: rows of tenants the viewer does not search never take places in the candidate
+     * window (SearchKit 1.11.2 window rules).
+     */
+    public function testRowsOfOtherTenantsNeverTakePlacesInTheWindow(): void
+    {
+        $marker = $this->marker();
+        foreach (['a1', 'a2', 'a3', 'a4'] as $suffix) {
+            $this->add('gamma', $marker . ' ' . $suffix, 'https://g.example.com');
+        }
+        $this->add('acme', $marker . ' z', 'https://a.example.com');
+        $this->actAs('acme', self::VIEWER_A);
+
+        $this->override = $this->listDefinition(['acme', 'beta'], new AllowAllUptimeMonitorAccessChecker(), null, 2);
+        $group          = $this->provider()->search($this->query($marker));
+
+        self::assertNotNull($group);
+        self::assertSame([$marker . ' z'], array_map(static fn (SearchItem $item): string => $item->title, $group->items));
+        self::assertSame(1, $group->total);
+        self::assertTrue($group->exactTotal);
     }
 
     protected function queryCounter(): QueryCounter
@@ -298,7 +440,7 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         $group = $this->provider()->search($this->query($marker));
         self::assertNotNull($group);
 
-        self::assertSame(['Up', 'https://p.example.com · Paused', 'https://u.example.com'], array_map(static fn ($i): string => $i->subtitle, $group->items));
+        self::assertSame(['Up', 'https://p.example.com · Paused', 'https://u.example.com'], array_map(static fn (SearchItem $i): string => $i->subtitle, $group->items));
     }
 
     public function testAWordFoundOnlyInAStoredTargetFindsNothing(): void
@@ -368,7 +510,7 @@ final class MonitorSearchProviderDbTest extends EntitySearchProviderTestCase imp
         $tenantEntity = $this->em->getRepository(Tenant::class)->findOneBy(['slug' => $tenant]);
         self::assertInstanceOf(Tenant::class, $tenantEntity);
         $monitor = new Monitor($tenantEntity, $name, $type, $target);
-        if ($status !== null) {
+        if ($status instanceof CheckStatus) {
             $monitor->setLastKnownStatus($status);
         }
 

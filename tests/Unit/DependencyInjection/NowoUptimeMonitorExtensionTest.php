@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\UptimeMonitorBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
+use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\Symfony\NowoTransactionDoctrineBundle;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Configuration;
@@ -18,6 +19,7 @@ use Nowo\UptimeMonitorBundle\EventSubscriber\TenantProvisioningSubscriber;
 use Nowo\UptimeMonitorBundle\EventSubscriber\WorkerBoundaryResetListener;
 use Nowo\UptimeMonitorBundle\Limits\ConfigurableTenantLimits;
 use Nowo\UptimeMonitorBundle\Limits\TenantLimitsInterface;
+use Nowo\UptimeMonitorBundle\Search\MonitorSearchTenants;
 use Nowo\UptimeMonitorBundle\Search\RequestMonitorSearchTenantResolver;
 use Nowo\UptimeMonitorBundle\Search\SearchKit\MonitorSearchDefinition;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
@@ -64,7 +66,7 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
 
     public function testSearchKitDefinitionIsTaggedAndConfigurable(): void
     {
-        if (!class_exists('Nowo\\SearchKitBundle\\Provider\\Entity\\EntitySearchDefinition')) {
+        if (!class_exists(EntitySearchDefinition::class)) {
             self::markTestSkipped('SearchKit (PHP >= 8.3) is not installed.');
         }
 
@@ -75,6 +77,8 @@ final class NowoUptimeMonitorExtensionTest extends TestCase
         self::assertTrue($definition->hasTag('nowo_search_kit.entity_definition'));
         self::assertSame(50, $definition->getArgument('$maxCandidates'));
         self::assertEquals(new Reference('app.tenant_resolver'), $definition->getArgument('$tenants'));
+        self::assertEquals(new Reference(MonitorSearchTenants::class), $definition->getArgument('$scope'));
+        self::assertEquals(new Reference('app.tenant_resolver'), $container->getDefinition(MonitorSearchTenants::class)->getArgument('$resolver'));
 
         $default = $this->containerWithSecurityBundle();
         (new UptimeMonitorExtension())->load([[]], $default);

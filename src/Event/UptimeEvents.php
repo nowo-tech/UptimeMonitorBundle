@@ -24,4 +24,10 @@ final class UptimeEvents
 
     /** {@see MonitorPausedEvent}: after the admin UI pause / resume action is committed (since 1.25). */
     public const MONITOR_PAUSED = MonitorPausedEvent::class;
+
+    /** {@see MonitorSearchAccessEvent}: whether a viewer may search the monitors of a tenant (since 1.33). */
+    public const MONITOR_SEARCH_ACCESS = MonitorSearchAccessEvent::class;
+
+    /** {@see MonitorSearchScopeEvent}: narrows the tenants a monitor search covers (since 1.33). */
+    public const MONITOR_SEARCH_SCOPE = MonitorSearchScopeEvent::class;
 }

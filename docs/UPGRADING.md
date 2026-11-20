@@ -139,6 +139,24 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+Target **1.33.0** (minor), from **1.32.0**: `composer update nowo-tech/uptime-monitor-bundle`. Only hosts with
+`nowo-tech/search-kit-bundle` installed are concerned; no schema change.
+
+- **Monitor search has its own permission (behaviour change).** Up to 1.32 the group `uptime_monitors` was gated on
+  `canAccessDashboard()`. Since 1.33 it asks `canSearch($user, $tenantSlug)` of a checker implementing
+  `SearchAwareUptimeMonitorAccessCheckerInterface`, then `MonitorSearchAccessEvent` (`grant()` / `deny()`). The bundle's
+  own checkers implement it (`security.access_checker` unset: the dashboard roles, nothing changes). **A custom access
+  checker that implements neither now gets no monitor search results**: add `canSearch()` to it (returning
+  `canAccessDashboard($user)` keeps the 1.32 behaviour) or grant in a `MonitorSearchAccessEvent` listener.
+- **Several tenants:** `search_kit.tenant_resolver` may now implement `MonitorSearchTenantsResolverInterface`
+  (`resolveTenants(): list<string>`); the search covers their union. A 1.32 single-tenant resolver keeps working.
+  `MonitorSearchScopeEvent` narrows the list and can accept a host scope chip (`acceptScope()`); the bundle's own scope is
+  `tenant:<slug>`.
+- **API additions:** optional `$eventDispatcher` of `MonitorSearchVisibility`, optional `$scope` of
+  `MonitorSearchDefinition` (its `$tenants` accepts either resolver); `MonitorSearchVisibility::canSearch()` is deprecated
+  (no longer called). With several tenants the SearchKit tenant passed to `SearchItemVisibilityEvent` is `*`
+  (`MonitorSearchDefinition::ANY_TENANT`); with one it is still that slug.
+
 ## To 1.32.0
 
 From **1.31.0**:
