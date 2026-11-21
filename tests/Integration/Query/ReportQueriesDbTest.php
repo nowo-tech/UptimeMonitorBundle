@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Configuration as DbalConfiguration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
@@ -40,6 +41,7 @@ use function array_map;
 use function intdiv;
 use function is_file;
 use function microtime;
+use function preg_replace;
 use function sort;
 use function sys_get_temp_dir;
 use function tempnam;
@@ -231,7 +233,20 @@ final class ReportQueriesDbTest extends TestCase
     {
         // A tenant row whose slug differs from a named one only by case (written outside the bundle): a case-insensitive
         // collation matches it in SQL, the PHP re-check drops it (house LQ rule).
-        $this->em->getConnection()->executeStatement("UPDATE uptime_tenant SET slug = 'DELTA' WHERE slug = 'delta'");
+        $connection = $this->em->getConnection();
+        if ($connection->getDatabasePlatform() instanceof SQLitePlatform) {
+            // SQLite compares exactly by default: rebuild the slug column NOCASE so SQL matches the look-alike, like MySQL's ci collations.
+            $ddl = (string) $connection->fetchOne("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'uptime_tenant'");
+            $new = (string) preg_replace('/(["`]?slug["`]?\s+VARCHAR\(\d+\)\s+NOT NULL)/i', '$1 COLLATE NOCASE', str_replace('uptime_tenant', 'uptime_tenant_nc', $ddl), 1, $count);
+            self::assertSame(1, $count, 'slug column found in: ' . $ddl);
+            $connection->executeStatement('PRAGMA foreign_keys = OFF');
+            $connection->executeStatement($new);
+            $connection->executeStatement('INSERT INTO uptime_tenant_nc SELECT * FROM uptime_tenant');
+            $connection->executeStatement('DROP TABLE uptime_tenant');
+            $connection->executeStatement('ALTER TABLE uptime_tenant_nc RENAME TO uptime_tenant');
+            $connection->executeStatement('PRAGMA foreign_keys = ON');
+        }
+        $connection->executeStatement("UPDATE uptime_tenant SET slug = 'DELTA' WHERE slug = 'delta'");
         $scopes = [MonitorScope::tenants(['delta']), new MonitorScope([], [new MonitorRef('delta', $this->id['d-api'])])];
 
         foreach ($scopes as $scope) {
