@@ -596,8 +596,8 @@ $shares->sharedWith('user-7');                      // list<MonitorShareView> (-
 $shares->deleteAllForUser('user-7');                // account erasure
 ```
 
-`create()` throws `MonitorShareRefusedException` (`reason`: `monitor_not_found`, `denied`, `invalid_user`) when it
-writes nothing. A double submit, or two concurrent ones, gives one row and the same answer: the existing share comes
+`create()` throws `MonitorShareRefusedException` (`reason`: `monitor_not_found`, `denied`, `invalid_user`,
+`identifier_collision`) when it writes nothing (`identifier_collision`: see [CONFIGURATION](CONFIGURATION.md#monitor-shares-135)). A double submit, or two concurrent ones, gives one row and the same answer: the existing share comes
 back with `created` false. A lock conflict throws the runner's `TransientStorageFailure`, which your conflict answer
 (nowo-tech/transaction-doctrine's responder) turns into 409 + `Retry-After` + `CONFLICT_001`, or `CONFLICT_002` when
 the request already committed other work. See [CONCURRENCY](CONCURRENCY.md).

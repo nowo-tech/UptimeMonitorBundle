@@ -182,6 +182,12 @@ configuration change is needed and **no schema change unless you enable shares**
   ALTER TABLE uptime_monitor_share ADD CONSTRAINT FK_442B80A84CE1C902 FOREIGN KEY (monitor_id) REFERENCES uptime_monitor (id) ON DELETE CASCADE NOT DEFERRABLE;
   ```
 
+  **Turning shares off later** makes `doctrine:schema:update` / `doctrine:migrations:diff` drop `uptime_monitor_share`
+  (the entity is no longer mapped): keep it on, or exclude the table with `schema_filter`, if the rows matter. A column
+  created without the binary collation answers look-alike identifiers with `identifier_collision`; fix it with
+  `ALTER TABLE uptime_monitor_share MODIFY user_identifier VARCHAR(128) CHARACTER SET utf8mb4 NOT NULL COLLATE utf8mb4_0900_bin`
+  (MariaDB: `utf8mb4_nopad_bin`).
+
   This is the DDL of doctrine/orm 3.8 and doctrine/dbal 4.6 without a table prefix; the identity column and the generated
   index and foreign-key names can differ with other versions, so let `doctrine:migrations:diff` write them. Moving shares you keep in your own table: insert `(monitor_id,
   user_identifier, created_at)` rows once the table exists; duplicates are refused by the unique key.

@@ -19,6 +19,7 @@ use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
 
 use function array_keys;
 use function implode;
+use function in_array;
 use function is_bool;
 use function is_numeric;
 use function is_string;
@@ -102,7 +103,32 @@ final readonly class DoctrineMonitorQuery implements MonitorQueryInterface
             return 0;
         }
 
-        return (int) $this->scoped($criteria)->select('COUNT(m.id)')->getQuery()->getSingleScalarResult();
+        // Counted per tenant, and only the tenants the caller named byte for byte are summed (audit XZ-3), as list()
+        // re-checks each row.
+        $total = 0;
+        if ($criteria->tenantSlugs !== []) {
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $this->scoped($criteria)->select('t.slug AS slug', 'COUNT(m.id) AS n')->groupBy('t.slug')->getQuery()->getArrayResult();
+            foreach ($rows as $row) {
+                if (in_array($row['slug'] ?? null, $criteria->tenantSlugs, true)) {
+                    $total += $this->int($row['n'] ?? 0);
+                }
+            }
+        }
+        if ($criteria->grantedMonitors !== []) {
+            // The single monitors outside the named tenants, each checked against its grant.
+            $grants = new MonitorListCriteria([], $criteria->grantedMonitors, $criteria->monitorIds, $criteria->type, $criteria->status, $criteria->paused, $criteria->includeGroups);
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $this->scoped($grants)->select('t.slug AS slug', 'm.id AS id')->getQuery()->getArrayResult();
+            foreach ($rows as $row) {
+                $slug = $this->string($row['slug'] ?? '');
+                if (!in_array($slug, $criteria->tenantSlugs, true) && $criteria->covers($slug, $this->int($row['id'] ?? 0))) {
+                    ++$total;
+                }
+            }
+        }
+
+        return $total;
     }
 
     /**
@@ -115,20 +141,30 @@ final readonly class DoctrineMonitorQuery implements MonitorQueryInterface
             return new MonitorCounts(0, 0);
         }
 
-        /** @var array<string, mixed> $row */
-        $row = $this->entityManager->createQueryBuilder()
-            ->select('SUM(CASE WHEN m.type <> :group THEN 1 ELSE 0 END) AS monitors', 'SUM(CASE WHEN m.type = :push THEN 1 ELSE 0 END) AS pushMonitors')
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('t.slug AS slug', 'SUM(CASE WHEN m.type <> :group THEN 1 ELSE 0 END) AS monitors', 'SUM(CASE WHEN m.type = :push THEN 1 ELSE 0 END) AS pushMonitors')
             ->from(Monitor::class, 'm')
             ->innerJoin('m.tenant', 't')
             ->andWhere('t.slug IN (:slugs)')
             ->andWhere('m.paused = false')
+            ->groupBy('t.slug')
             ->setParameter('slugs', $slugs)
             ->setParameter('group', MonitorType::Group->value)
             ->setParameter('push', MonitorType::Push->value)
             ->getQuery()
-            ->getSingleResult();
+            ->getArrayResult();
 
-        return new MonitorCounts($this->int($row['monitors'] ?? 0), $this->int($row['pushMonitors'] ?? 0));
+        // Only the tenants named byte for byte are summed (audit XZ-3).
+        $monitors = $push = 0;
+        foreach ($rows as $row) {
+            if (in_array($row['slug'] ?? null, $slugs, true)) {
+                $monitors += $this->int($row['monitors'] ?? 0);
+                $push += $this->int($row['pushMonitors'] ?? 0);
+            }
+        }
+
+        return new MonitorCounts($monitors, $push);
     }
 
     /**

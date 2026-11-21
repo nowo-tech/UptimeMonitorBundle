@@ -74,6 +74,22 @@ final class MonitorQuotaCheckEventTest extends TestCase
         $check->__get('other');
     }
 
+    public function testTheEntityAccessorCannotBeAssigned(): void
+    {
+        $check = new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Https);
+
+        try {
+            $check->__set('monitor', self::monitor(1));
+            self::fail('read-only');
+        } catch (LogicException $e) {
+            self::assertStringContainsString('$monitor is read-only', $e->getMessage());
+        }
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Cannot set undefined property ' . MonitorQuotaCheckEvent::class . '::$other.');
+        $check->__set('other', 1);
+    }
+
     public function testForChangeOfARunningMonitor(): void
     {
         $monitor = $this->monitor(11);

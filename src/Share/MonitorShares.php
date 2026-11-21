@@ -87,11 +87,19 @@ final readonly class MonitorShares implements MonitorSharesInterface
         try {
             return $this->insert($tenantSlug, $monitorId, $userIdentifier);
         } catch (UniqueConstraintViolationException) {
-            // A concurrent request wrote the same pair first: its row is the share. Inside a caller's transaction the
-            // read takes a shared lock on that share row, so it sees the committed row even under REPEATABLE READ.
-            return $this->findWinner($tenantSlug, $monitorId, $userIdentifier)
-                // The winner's row is gone again (deleted in between): nothing of this call is committed, retry is safe.
-                ?? throw new TransientStorageFailure(1, 'A concurrent request changed the same share. Retry later.');
+            // A concurrent request wrote the same pair first: its row is the share.
+            [$winner, $lookAlike] = $this->findWinner($tenantSlug, $monitorId, $userIdentifier);
+            if ($winner instanceof MonitorShareView) {
+                return $winner;
+            }
+            if ($lookAlike) {
+                // The unique key compares this identifier equal to another one (case, accents or trailing spaces on a
+                // column without the binary collation): a retry would never succeed (audit XZ-4).
+                throw new MonitorShareRefusedException(MonitorShareRefusedException::IDENTIFIER_COLLISION);
+            }
+
+            // The winner's row is gone again (deleted in between): nothing of this call is committed, retry is safe.
+            throw new TransientStorageFailure(1, 'A concurrent request changed the same share. Retry later.');
         } catch (ForeignKeyConstraintViolationException) {
             // The monitor was deleted since it was checked: nothing was written.
             throw new MonitorShareRefusedException(MonitorShareRefusedException::MONITOR_NOT_FOUND);
@@ -230,34 +238,40 @@ final readonly class MonitorShares implements MonitorSharesInterface
     }
 
     /**
-     * After a lost insert race: the winner's share row of that pair (the monitor's tenant was checked before), read with
-     * a shared lock on that row only when a caller's transaction is open.
+     * After a lost insert race: the winner's share row of that pair (the monitor's tenant was checked before), and
+     * whether the database matched only look-alike identifiers. The read runs as one unit of the runner with a shared
+     * lock on the share rows (audit XZ-5): it sees the committed row even inside a caller's REPEATABLE READ transaction,
+     * and a lock wait or deadlock surfaces as a TransientStorageFailure.
+     *
+     * @return array{0: MonitorShareView|null, 1: bool}
      */
-    private function findWinner(string $tenantSlug, int $monitorId, string $userIdentifier): ?MonitorShareView
+    private function findWinner(string $tenantSlug, int $monitorId, string $userIdentifier): array
     {
-        $query = $this->entityManager->createQueryBuilder()
+        $manager = $this->entityManager;
+        /** @var list<mixed> $found */
+        $found = $this->runner()->runRetrying(static fn (): array => $manager->createQueryBuilder()
             ->select('s.id AS id', 'IDENTITY(s.monitor) AS monitorId', 's.userIdentifier AS userIdentifier', 's.createdAt AS createdAt')
             ->from(MonitorShare::class, 's')
             ->andWhere('s.monitor = :monitorId')
             ->andWhere('s.userIdentifier = :user')
             ->setParameter('monitorId', $monitorId)
             ->setParameter('user', $userIdentifier)
-            ->getQuery();
-        if ($this->entityManager->getConnection()->isTransactionActive()) {
-            $query->setLockMode(LockMode::PESSIMISTIC_READ);
-        }
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_READ)
+            ->getArrayResult());
 
         $rows = [];
-        foreach ($query->getArrayResult() as $row) {
+        foreach ($found as $row) {
             $rows[] = (is_array($row) ? $row : []) + ['tenantSlug' => $tenantSlug];
         }
-        foreach ($this->hydrate($rows) as $view) {
+        $views = $this->hydrate($rows);
+        foreach ($views as $view) {
             if ($view->monitorId === $monitorId && $view->userIdentifier === $userIdentifier) {
-                return $view;
+                return [$view, false];
             }
         }
 
-        return null;
+        return [null, $views !== []];
     }
 
     /**

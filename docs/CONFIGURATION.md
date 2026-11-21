@@ -161,6 +161,16 @@ What is and is not recorded: [SECURITY](SECURITY.md#monitor-change-audit-133). H
 | `shares.enabled` | `false` | Maps `Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare` (table `uptime_monitor_share`) and registers `MonitorSharesInterface`. Off: no mapping, no table, no service. A literal boolean (no env placeholder). Create the table first (see [UPGRADING](UPGRADING.md#unreleased)). |
 | `shares.policy` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Share\MonitorSharePolicyInterface`: who a monitor may be shared with. `null` = `DenyAllMonitorSharePolicy`, every share is refused. |
 
+**Turning shares off again** unmaps the entity: `doctrine:schema:update` and `doctrine:migrations:diff` then see
+`uptime_monitor_share` as a table nobody maps and **drop it with every share in it**. Keep `shares.enabled: true` while
+the data matters; otherwise export it first, or exclude the table from the diff (Doctrine `schema_filter`) and drop it
+yourself later. `nowo:uptime:sync-schema` never drops tables.
+
+A database whose `user_identifier` column lacks the binary NO PAD collation (created by hand, or by a tool that skipped
+the bundle's listener) compares identifiers that differ only in case, accents or trailing spaces as equal. The unique
+key then refuses the second one, and `create()` throws `MonitorShareRefusedException` with the reason
+`identifier_collision` instead of a conflict that no retry can clear. Fix the column with the `ALTER` of UPGRADING.
+
 How to use it: [USAGE](USAGE.md#cross-tenant-reads-and-ports-135).
 
 ### Check limits (SEC-004)

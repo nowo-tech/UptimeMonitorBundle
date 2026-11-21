@@ -97,6 +97,26 @@ final class DoctrineMonitorQueryDbTest extends TestCase
         self::assertEquals(new MonitorCounts(0, 0), $this->query->countActive(['Alpha']));
     }
 
+    public function testALookAlikeTenantIsNeverCountedOrListed(): void
+    {
+        // A tenant row whose slug differs from a named one only by case (written outside the bundle): a case-insensitive
+        // collation matches it in SQL, the PHP re-check drops it (audit XZ-3).
+        $look = new Tenant('delta', 'Delta');
+        $this->em->persist($look);
+        $this->em->persist((new Monitor($look, 'd-1', MonitorType::Push, 'https://d.test'))->setLastKnownStatus(CheckStatus::Down));
+        $this->em->flush();
+        $this->em->getConnection()->executeStatement("UPDATE uptime_tenant SET slug = 'DELTA' WHERE slug = 'delta'");
+        $this->em->clear();
+        $id = (int) $this->em->getConnection()->fetchOne("SELECT id FROM uptime_monitor WHERE name = 'd-1'");
+
+        self::assertSame([], $this->query->list(new MonitorListCriteria(['delta'])));
+        self::assertSame(0, $this->query->count(new MonitorListCriteria(['delta'])));
+        self::assertSame(0, $this->query->count(new MonitorListCriteria([], [new MonitorRef('delta', $id)])));
+        self::assertSame(2, $this->query->count(new MonitorListCriteria(['beta'], [new MonitorRef('delta', $id)])));
+        self::assertEquals(new MonitorCounts(0, 0), $this->query->countActive(['delta']));
+        self::assertSame(0, $this->query->countDown(['delta']));
+    }
+
     public function testTheDashboardListIsProblemsFirstWithGroupsLeftOut(): void
     {
         $criteria = new MonitorListCriteria(['alpha']);
@@ -114,6 +134,7 @@ final class DoctrineMonitorQueryDbTest extends TestCase
 
         self::assertSame(['b-push', 'g-shared', 'b-up'], $this->names($this->query->list($criteria)));
         self::assertSame(3, $this->query->count($criteria), 'a-up granted under the wrong tenant is not read');
+        self::assertSame(2, $this->query->count(new MonitorListCriteria(['gamma'], [new MonitorRef('gamma', $shared)])), 'a grant inside a named tenant is counted once');
         self::assertTrue($criteria->covers('gamma', $shared));
         self::assertFalse($criteria->covers('gamma', (int) $this->m['g-other']->getId()));
         self::assertSame(['g-shared'], $this->names($this->query->list(new MonitorListCriteria([], [new MonitorRef('gamma', $shared)]))));

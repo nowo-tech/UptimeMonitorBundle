@@ -22,6 +22,7 @@ use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
+use Nowo\UptimeMonitorBundle\Tests\Database\Support\DatabaseSupport;
 
 use function array_map;
 use function getenv;
@@ -52,7 +53,7 @@ final class SqliteEntityManagerFactory
         $config = new Configuration();
         $config->setMetadataDriverImpl(new AttributeDriver($withShares ? [__DIR__ . '/../../src/Entity', __DIR__ . '/../../src/Share/Entity'] : [__DIR__ . '/../../src/Entity']));
         $config->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
-        $config->setProxyDir(sys_get_temp_dir() . '/nowo-uptime-monitor-test-proxies');
+        $config->setProxyDir(DatabaseSupport::proxyDir(sys_get_temp_dir() . '/nowo-uptime-monitor-test-proxies'));
         $config->setProxyNamespace('NowoUptimeMonitorTestProxies');
         // ORM 3.4+ on PHP 8.4+: proxies need native lazy objects when symfony/var-exporter LazyGhost is unavailable.
         $config->enableNativeLazyObjects(PHP_VERSION_ID >= 80400);

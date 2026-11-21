@@ -9,6 +9,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
+use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\TransactionContract\TransientStorageFailure;
@@ -260,6 +261,65 @@ final class MonitorSharesDbTest extends TestCase
             self::assertSame(MonitorShareRefusedException::MONITOR_NOT_FOUND, $refused->reason);
         }
         self::assertSame(0, $this->rows());
+    }
+
+    public function testIdentifiersThatCollideOnANonBinaryColumnAreRefused(): void
+    {
+        $connection = $this->em->getConnection();
+        $platform   = $connection->getDatabasePlatform();
+        if ($platform instanceof AbstractMySQLPlatform) {
+            $connection->executeStatement('ALTER TABLE uptime_monitor_share MODIFY user_identifier VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL');
+        } elseif ($platform instanceof SQLitePlatform) {
+            $connection->executeStatement('DROP TABLE uptime_monitor_share');
+            $connection->executeStatement('CREATE TABLE uptime_monitor_share (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, monitor_id INTEGER NOT NULL REFERENCES uptime_monitor (id) ON DELETE CASCADE, user_identifier VARCHAR(128) NOT NULL COLLATE NOCASE, created_at DATETIME NOT NULL)');
+            $connection->executeStatement('CREATE UNIQUE INDEX uniq_uptime_monitor_share_pair ON uptime_monitor_share (monitor_id, user_identifier)');
+        } else {
+            self::markTestSkipped('PostgreSQL compares exactly: no look-alike can collide.');
+        }
+        $this->shares->create('alpha', $this->monitorId, 'UserA');
+
+        try {
+            $this->shares->create('alpha', $this->monitorId, 'usera');
+            self::fail('refused');
+        } catch (MonitorShareRefusedException $refused) {
+            self::assertSame(MonitorShareRefusedException::IDENTIFIER_COLLISION, $refused->reason, 'a clear refusal, never a 409 a retry cannot clear');
+        }
+        self::assertSame(1, $this->rows());
+        self::assertSame(['UserA'], $this->shares->usersOf('alpha', $this->monitorId));
+        self::assertFalse($this->shares->isSharedWith('alpha', $this->monitorId, 'usera'), 'the PHP re-check keeps reads exact');
+    }
+
+    public function testALockWaitOnTheWinnersRowIsATransientConflict(): void
+    {
+        if (!SqliteEntityManagerFactory::onServer()) {
+            self::markTestSkipped('Row lock waits need MySQL / MariaDB or PostgreSQL.');
+        }
+        $holder = $this->otherConnection();
+        $this->race->before('INSERT INTO uptime_monitor_share', function () use ($holder): void {
+            $holder->insert('uptime_monitor_share', ['monitor_id' => $this->monitorId, 'user_identifier' => 'user-1', 'created_at' => '2026-11-21 09:59:59']);
+            $this->race->before('FROM uptime_monitor_share', static function () use ($holder): void {
+                // Another writer holds the winner's row while the loser reads it.
+                $holder->beginTransaction();
+                $holder->fetchOne('SELECT id FROM uptime_monitor_share FOR UPDATE');
+            });
+        });
+        DatabaseSupport::lockTimeout($this->em->getConnection(), 1);
+
+        try {
+            $this->service(null, $this->noBackoffRunner())->create('alpha', $this->monitorId, 'user-1');
+            self::fail('lock conflict expected');
+        } catch (TransientStorageFailure $conflict) {
+            self::assertSame(ConflictCode::RetrySafe, ConflictCode::forFailure($conflict), 'CONFLICT_001');
+        } finally {
+            try {
+                $holder->rollBack();
+            } catch (Throwable) {
+                $holder->close();
+            }
+        }
+
+        self::assertFalse($this->em->getConnection()->isTransactionActive());
+        self::assertFalse($this->shares->create('alpha', $this->monitorId, 'user-1')->created, 'the winner\'s share afterwards');
     }
 
     public function testALockWaitIsATransientConflictAndNothingIsWritten(): void

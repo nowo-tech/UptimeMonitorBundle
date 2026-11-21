@@ -22,7 +22,9 @@ interface MonitorSharesInterface
      * concurrent submits whose insert the unique key refused) the existing share is returned with `created` false; a
      * unique violation never escapes.
      *
-     * @throws MonitorShareRefusedException When the monitor is not in that tenant, the policy refuses, or the identifier is invalid
+     * @throws MonitorShareRefusedException When the monitor is not in that tenant, the policy refuses, the identifier is
+     *                                      invalid, or the database compares it equal to another shared identifier
+     *                                      (`identifier_collision`: a column without the binary collation)
      * @throws TransientStorageFailure On a lock conflict (deadlock, lock wait timeout): nothing of this call is
      *                                 committed; 409 + Retry-After + CONFLICT_001 (CONFLICT_002 when earlier work of the
      *                                 request was committed) through the host's or the bundle's conflict answer

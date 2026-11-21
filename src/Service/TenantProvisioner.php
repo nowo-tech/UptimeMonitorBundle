@@ -14,8 +14,9 @@ use Nowo\UptimeMonitorBundle\Query\MonitorListCriteria;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 
-use function array_flip;
+use function in_array;
 use function preg_match;
+use function spl_object_id;
 use function sprintf;
 
 /**
@@ -91,8 +92,9 @@ final readonly class TenantProvisioner implements BulkTenantProvisionerInterface
     /**
      * Enables or disables the listed tenants in one statement (since 1.35, Beacon spec 225).
      *
-     * The `UPDATE` bypasses the unit of work: the tenants the bundle's manager already holds for these slugs are
-     * detached from it, so a later read in the same request loads the new state. An application manager is never
+     * The `UPDATE` bypasses the unit of work: the tenants the bundle's manager already holds for these slugs get the new
+     * value in memory, as their committed state (no second write), so a later read in the same request sees it and a
+     * managed monitor of those tenants still flushes. An application manager is never
      * touched; tenants the application loaded through its own manager keep their old `enabled` value until reloaded.
      *
      * @param list<string> $slugs Tenant slugs (invalid ones dropped, duplicates ignored)
@@ -114,11 +116,16 @@ final readonly class TenantProvisioner implements BulkTenantProvisionerInterface
             ->getQuery()
             ->execute());
 
-        $wanted = array_flip($slugs);
-        foreach ($manager->getUnitOfWork()->getIdentityMap()[Tenant::class] ?? [] as $tenant) {
-            if ($tenant instanceof Tenant && isset($wanted[$tenant->getSlug()])) {
-                $manager->detach($tenant);
+        // The copies the bundle's manager holds take the new value as their committed state (never detached: a managed
+        // monitor of that tenant would then point to a "new" tenant on the next flush). An uninitialised proxy loads
+        // the new value itself; other pending changes of the tenant stay pending.
+        $unitOfWork = $manager->getUnitOfWork();
+        foreach ($unitOfWork->getIdentityMap()[Tenant::class] ?? [] as $tenant) {
+            if (!$tenant instanceof Tenant || $unitOfWork->isUninitializedObject($tenant) || !in_array($tenant->getSlug(), $slugs, true)) {
+                continue;
             }
+            $tenant->setEnabled($enabled);
+            $unitOfWork->setOriginalEntityProperty(spl_object_id($tenant), 'enabled', $enabled);
         }
 
         return $changed;

@@ -56,7 +56,8 @@ final class TenantBulkAndLookupDbTest extends TestCase
 
         self::assertGreaterThanOrEqual(2, $changed);
         self::assertSame(['alpha' => 0, 'beta' => 0, 'gamma' => 1], $this->states());
-        self::assertFalse($this->em->contains($held), 'the stale copy is detached from the manager');
+        self::assertTrue($this->em->contains($held), 'the managed copy stays managed (audit XZ-1)');
+        self::assertFalse($held->isEnabled(), 'and holds the new state');
         self::assertFalse($this->tenants->findOneBySlug('alpha')?->isEnabled(), 'a later read sees the new state');
 
         $provisioner->setEnabledMany(['alpha', 'beta'], false);
@@ -66,6 +67,36 @@ final class TenantBulkAndLookupDbTest extends TestCase
 
         $provisioner->setEnabledMany(['beta'], true);
         self::assertSame(['alpha' => 0, 'beta' => 1, 'gamma' => 1], $this->states());
+    }
+
+    public function testAManagedMonitorOfASwitchedTenantStillFlushes(): void
+    {
+        $alpha = $this->tenants->findOneBySlug('alpha');
+        self::assertInstanceOf(Tenant::class, $alpha);
+        $this->em->persist(new Monitor($alpha, 'API', MonitorType::Https, 'https://api.test'));
+        $this->em->flush();
+        $this->em->clear();
+        $monitor = $this->monitors->findOneBy(['name' => 'API']);
+        self::assertInstanceOf(Monitor::class, $monitor);
+        $tenant = $monitor->getTenant();
+        $tenant->setSettings(['theme' => 'dark']);
+        self::assertTrue($tenant->isEnabled());
+
+        (new TenantProvisioner($this->tenants, $this->em))->setEnabledMany(['alpha'], false);
+        $monitor->setName('API v2');
+        $this->em->flush();
+
+        self::assertSame(['alpha' => 0, 'beta' => 1, 'gamma' => 1], $this->states());
+        $connection = $this->em->getConnection();
+        self::assertSame('API v2', $connection->fetchOne('SELECT name FROM uptime_monitor WHERE id = ?', [$monitor->getId()]));
+        self::assertStringContainsString('dark', (string) $connection->fetchOne("SELECT settings FROM uptime_tenant WHERE slug = 'alpha'"), 'a pending change of the tenant is kept');
+        self::assertFalse($tenant->isEnabled());
+
+        // An uninitialised proxy of a switched tenant loads the new state itself.
+        $this->em->clear();
+        $proxy = $this->em->getReference(Tenant::class, $tenant->getId());
+        (new TenantProvisioner($this->tenants, $this->em))->setEnabledMany(['alpha'], true);
+        self::assertTrue($proxy?->isEnabled());
     }
 
     public function testFindInTenantNeedsTheExactTenant(): void

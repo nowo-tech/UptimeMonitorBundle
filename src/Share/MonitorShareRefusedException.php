@@ -21,10 +21,17 @@ final class MonitorShareRefusedException extends DomainException
     /** The user identifier is empty, longer than 128 characters or holds control characters. */
     public const INVALID_USER = 'invalid_user';
 
+    /**
+     * Since 1.35: the database compares the identifier equal to one already shared (case, accents or trailing spaces on
+     * a `user_identifier` column without the binary NO PAD collation). Fix the column (UPGRADING) or the identifiers.
+     */
+    public const IDENTIFIER_COLLISION = 'identifier_collision';
+
     private const MESSAGES = [
-        self::MONITOR_NOT_FOUND => 'The monitor was not found.',
-        self::DENIED            => 'The monitor may not be shared with this user.',
-        self::INVALID_USER      => 'The user identifier is not valid.',
+        self::MONITOR_NOT_FOUND    => 'The monitor was not found.',
+        self::DENIED               => 'The monitor may not be shared with this user.',
+        self::INVALID_USER         => 'The user identifier is not valid.',
+        self::IDENTIFIER_COLLISION => 'The user identifier collides with another one in the database.',
     ];
 
     /**

@@ -92,6 +92,17 @@ final class MonitorQuotaCheckEvent
     }
 
     /**
+     * The event has no writable magic property (audit XZ-6): assigning `monitor` (or any undeclared property) fails
+     * loudly instead of silently creating a dynamic property next to the deprecated accessor.
+     *
+     * @throws LogicException Always
+     */
+    public function __set(string $name, mixed $value): void
+    {
+        throw new LogicException($name === 'monitor' ? sprintf('%s::$monitor is read-only (and deprecated since 1.35): pass the monitor to the constructor.', self::class) : sprintf('Cannot set undefined property %s::$%s.', self::class, $name));
+    }
+
+    /**
      * Whether the deprecated `monitor` accessor holds a monitor (no deprecation: `isset()` reads nothing).
      */
     public function __isset(string $name): bool

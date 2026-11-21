@@ -41,7 +41,9 @@ use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use RuntimeException;
 
 use function getenv;
+use function is_dir;
 use function is_string;
+use function mkdir;
 use function sprintf;
 use function sys_get_temp_dir;
 
@@ -90,7 +92,7 @@ final class DatabaseSupport
         $config = new Configuration();
         $config->setMetadataDriverImpl(new AttributeDriver([__DIR__ . '/../../../src/Entity']));
         $config->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
-        $config->setProxyDir(sys_get_temp_dir() . '/nowo-uptime-monitor-load-proxies');
+        $config->setProxyDir(self::proxyDir(sys_get_temp_dir() . '/nowo-uptime-monitor-load-proxies'));
         $config->setProxyNamespace('NowoUptimeMonitorLoadProxies');
         $config->enableNativeLazyObjects(PHP_VERSION_ID >= 80400);
 
@@ -105,6 +107,21 @@ final class DatabaseSupport
         }
 
         return $em;
+    }
+
+    /**
+     * The proxy directory, created up front (race-safe). Two worker processes starting at the same moment both let
+     * Doctrine create a missing directory; the loser's mkdir failed and Doctrine threw "Your proxy directory ... must be
+     * writable" (ORMInvalidArgumentException) in one of the processes (audit XZ-9, a harness race seen in fresh
+     * containers on every database).
+     */
+    public static function proxyDir(string $directory): string
+    {
+        if (!is_dir($directory) && !@mkdir($directory, 0o777, true) && !is_dir($directory)) {
+            throw new RuntimeException(sprintf('Cannot create the proxy directory "%s".', $directory));
+        }
+
+        return $directory;
     }
 
     /**
