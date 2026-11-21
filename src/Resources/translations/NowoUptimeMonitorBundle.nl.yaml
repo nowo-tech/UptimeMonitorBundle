@@ -235,14 +235,14 @@ form.tenant.name: 'Weergavenaam'
 
 # Public status page
 status_page.title_suffix: 'Status'
-status_page.overall.operational: 'All systems operational'
-status_page.overall.degraded: 'Degraded performance'
-status_page.overall.major: 'Service disruption'
-status_page.overall.unknown: 'Status unknown'
+status_page.overall.operational: 'Alle systemen operationeel'
+status_page.overall.degraded: 'Verminderde prestaties'
+status_page.overall.major: 'Serviceonderbreking'
+status_page.overall.unknown: 'Status onbekend'
 status_page.updated: 'Last updated %datetime%'
 status_page.services_heading: 'Services'
-status_page.no_monitors: 'No active monitors.'
-status_page.powered_by: 'Powered by Nowo Uptime Monitor'
+status_page.no_monitors: 'Geen actieve monitors.'
+status_page.powered_by: 'Mogelijk gemaakt door Nowo Uptime Monitor'
 
 # Flash messages
 flash.monitor.created: 'Monitor "%name%" aangemaakt.'

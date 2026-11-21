@@ -4,7 +4,7 @@
 |-------|-------|
 | Package | `nowo-tech/uptime-monitor-bundle` (`symfony-bundle`) |
 | Audited revision | `v1.3.8` / `07c131b`; re-audited for `1.28.0` (REQ-RUNTIME-002, kernel reset false) |
-| Audit date | 2026-09-23; update 2026-11-12 |
+| Audit date | 2026-09-23; update 2026-11-12; 1.36 report ports 2026-11-21 |
 | Method | Manual review of every PHP file under `src/` (services, controllers, subscriber, Twig extension, form types, check runners, notification channels, repositories, Messenger handler, commands, DI extension, compiler pass, `Resources/config/services.yaml`) |
 | **Verdict** | ✅ **Viable under scenario B** — bundle services are stateless or self-invalidating per request; tenant UI values are Twig functions, closed Doctrine managers are recovered. Clearing the Doctrine identity map between requests remains the application's responsibility (W-02) |
 | Remediation (2026-09-23) | W-01 resolved (Twig functions `uptime_theme()` / `uptime_ui_framework()`, request-independent globals); W-02 resolved for closed managers (`ClosedEntityManagerSubscriber`, `MonitorBackupService`), identity-map staleness accepted as app responsibility; W-03 / W-04 accepted. Regression tests: `tests/Unit/Twig/UptimeUiExtensionTest.php`, `tests/Unit/EventSubscriber/ClosedEntityManagerSubscriberTest.php`, `tests/Unit/Service/MonitorBackupServiceTest.php` |
@@ -74,10 +74,11 @@ A worker demo exists: `demo/symfony8/docker/frankenphp/Caddyfile` declares a `wo
 | `Schedule\UptimeMonitorScheduleProvider`, `MessageHandler\RunDueChecksMessageHandler`, 6 commands | yes | none | ✅ | ✅ (CLI / Messenger only) |
 | `Audit\MonitorChangeRecorder`, `MonitorChangeHistory`, `MonitorChangeOutboxListener`, `TokenStorageActorResolver` (1.33) | yes | none (`readonly`); each runner run gets its own `MonitorChangeCapture`, attached to the event manager for that run and detached in every outcome | ✅ | ✅ (`tests/Integration/Audit/MonitorChangeAuditDbTest.php`) |
 | `Audit\MonitorChangeOutbox` (1.33, only with `audit.enabled`) | yes | change events of a bundle run that sat inside an application transaction, until that transaction ends. At every end-of-unit event (`kernel.terminate`, `console.terminate`, Messenger handled / failed) the committed ones go out and the ones still inside a transaction are dropped with a warning, so nothing crosses into the next request even with kernel reset off (only `kernel.exception` keeps them); before a write-unit replay (`ResetBetweenAttemptsInterface`) the uncommitted ones are dropped and the committed ones kept; `kernel.reset` drops the rest | ✅ | ✅ (`tests/Unit/Audit/MonitorChangeOutboxTest.php`) |
+| `Query\DoctrineMonitorQuery` (1.35), `Query\DoctrineCheckAggregateQuery`, `Query\DoctrineIncidentQuery` (1.36) | yes | none (`final readonly`, only the bundle's manager injected); scalar DQL / SQL results, no entity hydrated, nothing memoised between calls | ✅ | ✅ (`tests/Integration/BothHosts/ReportPortsKernelTest.php`: 300 kept-alive requests, rollups and incidents changed by another process between requests, fresh reads, empty identity map, memory bound, the boundary drops the private manager) |
 
 Note (audit OB2): with a custom asynchronous Messenger `MessageExecutionStrategyInterface` the tracker loses its nested-worker protection (a worker run inside a handler may clear the outer message's unit); the boundary clears still happen.
 
-Value objects (`CheckResultDto`, `UptimeAlert`, `MonitorSettings`, `TenantSettings`, form models) are created per call and never stored in a service. `SchemaSyncService` is instantiated with `new` inside `SyncSchemaCommand` (`src/Command/SyncSchemaCommand.php:62`) and never runs in HTTP.
+Value objects (`CheckResultDto`, `UptimeAlert`, `MonitorSettings`, `TenantSettings`, form models, the 1.35 / 1.36 query read models, `MonitorScope`, and the UI hook events with their 1.36 id accessors) are created per call and never stored in a service. `SchemaSyncService` is instantiated with `new` inside `SyncSchemaCommand` (`src/Command/SyncSchemaCommand.php:62`) and never runs in HTTP.
 
 ## Findings
 

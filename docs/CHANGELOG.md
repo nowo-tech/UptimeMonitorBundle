@@ -96,6 +96,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Report read ports (REQ-ARCH-001 rule 7, DDD-host plan B7), autowirable, returning read models and numbers, never entities:
+  - `Nowo\UptimeMonitorBundle\Query\CheckAggregateQueryInterface` (default `DoctrineCheckAggregateQuery`): `totalsByMonitor()` (the buckets of a window summed per monitor in one query: `CheckAggregateTotals` with checks, up / down, a latency weighted by checks, `uptimeRatio()` and `latencyAvgMs()`), `list()` (one page of `CheckAggregateView`, oldest first, at most `MAX_LIMIT` = 1,000) and `count()`. The period is a day by default; the window is half-open (`from <= periodStart < to`).
+  - `Nowo\UptimeMonitorBundle\Query\IncidentQueryInterface` (default `DoctrineIncidentQuery`): `list()` (one page of `IncidentView` overlapping the window, newest first, at most `MAX_LIMIT` = 2,000, optionally only open or resolved incidents; URLs in the message masked), `count()` and `downtimeByMonitor()` (per monitor, the incidents overlapping the window and their seconds inside it, an open incident running until the given "now", summed in SQL over every incident: `IncidentDowntime`). The downtime sums use native SQL on MySQL / MariaDB, PostgreSQL and SQLite; other platforms get a `LogicException`.
+  - The scope of both is a `Query\MonitorScope`: tenant slugs, single monitors bound to their tenant (`MonitorRef`) and an optional monitor id filter. An empty scope or window runs no query; invalid slugs and ids are dropped; every row is checked against the scope again in PHP with `===`, so a look-alike tenant that a case-insensitive collation matches is never read. Plain reads: no lock is taken, so a report never waits for a rollup or a check. See [USAGE](USAGE.md#report-reads-136).
+- Id accessors on the three UI hook events (REQ-ARCH-001 rules 1 and 4, plan B4); the entity accessors keep working and are deprecated in their docblocks only (no runtime deprecation; removed in 2.0):
+  - `StatusPageMonitorsEvent`: `tenantSlug` / `getTenantSlug()`, `getMonitorIds()`, `keepMonitorIds(list<int>)` (narrows the page by id; unknown ids are ignored), `occurredAt` / `getOccurredAt()` (optional third constructor argument). Deprecated: `tenant`, `getMonitors()`, `setMonitors()`.
+  - `MonitorShowLiveUpdatesEvent`: `monitorId` / `getMonitorId()`, `getTenantSlug()`, `occurredAt` / `getOccurredAt()` (optional fourth constructor argument). Deprecated: `monitor`.
+  - `UptimePageEvent`: `monitorId` / `getMonitorId()` (null on the dashboard), `getPage()`, `getTenantSlug()`, `occurredAt` / `getOccurredAt()` (optional fourth constructor argument). Deprecated: `monitor`.
+
+### Fixed
+
+- Translations: the status page texts (`status_page.overall.*`, `status_page.no_monitors`, `status_page.powered_by`) were left in English in de, fr, it, nl and pt; they are translated. A catalogue test now fails on a non-en value identical to en (brand names, URLs and technical labels are allow-listed) or on a missing key.
+- Report reads: the weighted latency sum (`latencyAvgMs * checksTotal`) no longer overflows int4 on PostgreSQL for a long window of year buckets (audit YK-M1).
+- The dashboard `UptimePageEvent` and the status page `StatusPageMonitorsEvent` carry the clock's time as `occurredAt`, like the monitor page (audit YK-I1).
+- Docs: report-port pages can be shorter than the limit, scope size limits, ports do not decide access (audit YK-L1, YK-I2).
+
+### Changed
+
+- `BulkTenantProvisionerInterface::setEnabledMany()` (`TenantProvisioner`) now runs on the runner's retrying path: outside a transaction, a lock wait or deadlock is replayed (the statement is idempotent) before it surfaces as a `TransientStorageFailure` (`CONFLICT_001`); inside a caller's transaction it still surfaces at once (audit XZD-I2). Covered by a two-connection test on MySQL, MariaDB and PostgreSQL.
+
+### Documentation
+
+- `setEnabledMany()`: after a caller's rollback, the tenant copies the bundle's manager holds keep the new `enabled` value until that manager is dropped (next worker boundary) or the tenant is reloaded (audit XZD-I1).
+- 1.35.0 note: `MonitorQuotaCheckEvent::$monitor` is no longer a declared property but a magic accessor (`__get`, `__isset`; `__set` throws). `isset($event->monitor)` and reads keep working; reflection over declared properties no longer lists it (audit XZD-I4).
+- `MonitorShares` race-winner read: on PostgreSQL inside a caller's REPEATABLE READ transaction a winner committed after the caller's snapshot is not visible, so the create fails with the retry-safe `CONFLICT_001` (audit XZD-I5).
+
 ## [1.35.0] - 2026-11-21
 
 ### Added

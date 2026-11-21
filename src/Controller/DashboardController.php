@@ -23,6 +23,8 @@ use Nowo\UptimeMonitorBundle\Service\DashboardViewBuilder;
 use Nowo\UptimeMonitorBundle\Ui\UptimeActions;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -52,6 +54,7 @@ final class DashboardController extends AbstractController
      * @param UptimeActions|null $actions Header and row actions for the users allowed to use them (since 1.12)
      * @param EventDispatcherInterface|null $eventDispatcher Dispatches {@see UptimePageEvent} (since 1.12)
      * @param array<string, mixed> $webUi Processed `web_ui` config (`dashboard.view`, `per_page`)
+     * @param ClockInterface $clock Occurred-at of the page event (since 1.36)
      */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
@@ -70,6 +73,7 @@ final class DashboardController extends AbstractController
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         #[Autowire('%nowo_uptime_monitor.web_ui%')]
         private readonly array $webUi = [],
+        private readonly ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -115,7 +119,7 @@ final class DashboardController extends AbstractController
         }
 
         $tenantSettings = TenantSettings::from($tenant);
-        $pageEvent      = new UptimePageEvent('dashboard', $tenantSlug);
+        $pageEvent      = new UptimePageEvent('dashboard', $tenantSlug, null, $this->clock->now());
         $this->eventDispatcher?->dispatch($pageEvent);
         $view = ($this->webUi['dashboard']['view'] ?? 'tree') === 'table' ? 'table' : 'tree';
 

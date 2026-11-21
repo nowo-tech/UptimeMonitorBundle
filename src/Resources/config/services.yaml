@@ -49,6 +49,15 @@ services:
             - '../../Query/MonitorListStatus.php'
             - '../../Query/MonitorRef.php'
             - '../../Query/MonitorView.php'
+            # 1.36: report read models, the scope and static helpers of the aggregate / incident ports
+            - '../../Query/CheckAggregateTotals.php'
+            - '../../Query/CheckAggregateView.php'
+            - '../../Query/IncidentDowntime.php'
+            - '../../Query/IncidentDowntimeSql.php'
+            - '../../Query/IncidentView.php'
+            - '../../Query/MonitorScope.php'
+            - '../../Query/MonitorScopeFilter.php'
+            - '../../Query/ReadRow.php'
             - '../../Share/'
             - '../../Security/MonitorViewDecision.php'
             # 1.34: defined by the extension with the SearchKit definition (its resolver is the configured one)
@@ -165,6 +174,9 @@ services:
     # interface is the application-registry repository (entities of the application's manager, like the class service).
     Nowo\UptimeMonitorBundle\Service\BulkTenantProvisionerInterface: '@Nowo\UptimeMonitorBundle\Service\TenantProvisioner'
     Nowo\UptimeMonitorBundle\Query\MonitorQueryInterface: '@Nowo\UptimeMonitorBundle\Query\DoctrineMonitorQuery'
+    # 1.36 (REQ-ARCH-001 rule 7): read ports over the rollups and the incidents (reports).
+    Nowo\UptimeMonitorBundle\Query\CheckAggregateQueryInterface: '@Nowo\UptimeMonitorBundle\Query\DoctrineCheckAggregateQuery'
+    Nowo\UptimeMonitorBundle\Query\IncidentQueryInterface: '@Nowo\UptimeMonitorBundle\Query\DoctrineIncidentQuery'
     Nowo\UptimeMonitorBundle\Repository\MonitorRepositoryInterface: '@Nowo\UptimeMonitorBundle\Repository\MonitorRepository'
 
     # apply-monitors (1.18): the token intake's system calls.

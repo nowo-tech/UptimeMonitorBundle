@@ -16,6 +16,8 @@ use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Ui\UptimePages;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -34,6 +36,7 @@ final class StatusPageController extends AbstractController
     /**
      * @param array<string, mixed> $statusPageConfig
      * @param EventDispatcherInterface|null $eventDispatcher Dispatches {@see StatusPageMonitorsEvent} (since 1.12)
+     * @param ClockInterface $clock Occurred-at of the page event (since 1.36)
      */
     public function __construct(
         private readonly TenantRepository $tenantRepository,
@@ -43,6 +46,7 @@ final class StatusPageController extends AbstractController
         private readonly array $statusPageConfig,
         private readonly UptimePages $pages = new UptimePages(),
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -87,7 +91,7 @@ final class StatusPageController extends AbstractController
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {
             // Listeners may only narrow the list (SEC-004 I1): monitors of another tenant or paused ones are dropped.
             $monitors = array_values(array_filter(
-                $this->eventDispatcher->dispatch(new StatusPageMonitorsEvent($tenant, $monitors))->getMonitors(),
+                $this->eventDispatcher->dispatch(new StatusPageMonitorsEvent($tenant, $monitors, $this->clock->now()))->getMonitors(),
                 static fn (Monitor $m): bool => $m->getTenant()->getSlug() === $tenantSlug && !$m->isPaused(),
             ));
         }
