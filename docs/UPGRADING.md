@@ -8,6 +8,7 @@ This guide helps you upgrade between versions of the Uptime Monitor Bundle.
 - [From 1.3.7 to 1.3.8](#from-137-to-138)
 - [From 1.3.6 to 1.3.7](#from-136-to-137)
 - [Unreleased](#unreleased)
+  - [To 1.36.0](#to-1360)
 - [To 1.35.0](#to-1350)
 - [To 1.34.0](#to-1340)
 - [To 1.33.0](#to-1330)
@@ -141,6 +142,35 @@ composer update nowo-tech/uptime-monitor-bundle
 ```
 
 ## Unreleased
+
+### To 1.36.0
+
+From **1.35.0**:
+
+```bash
+composer update nowo-tech/uptime-monitor-bundle
+```
+
+Everything is additive: no configuration change, **no schema change**, defaults unchanged.
+
+- **Report read ports (new, autowirable):** `Query\CheckAggregateQueryInterface` (rollup totals per monitor, pages,
+  counts) and `Query\IncidentQueryInterface` (incident pages, counts, downtime per monitor), both scoped by a
+  `Query\MonitorScope`. A host that runs DQL or SQL over `CheckAggregate` / `Incident` (an uptime report) can move to
+  them; see [USAGE](USAGE.md#report-reads-136). The downtime sums need MySQL, MariaDB, PostgreSQL or SQLite.
+- **UI hook events carry ids:** `StatusPageMonitorsEvent` (`getTenantSlug()`, `getMonitorIds()`, `keepMonitorIds()`),
+  `MonitorShowLiveUpdatesEvent` and `UptimePageEvent` (`getMonitorId()`, `getTenantSlug()`), all three with
+  `getOccurredAt()`. The entity accessors (`tenant`, `getMonitors()`, `setMonitors()`, `monitor`) keep working and
+  trigger no deprecation; they are marked `@deprecated` and removed in 2.0. Move listeners to the id forms now:
+
+  ```php
+  // Before: $event->setMonitors(array_filter($event->getMonitors(), fn (Monitor $m) => $allowed[$m->getId()] ?? false));
+  $event->keepMonitorIds(array_values(array_filter($event->getMonitorIds(), fn (int $id) => $allowed[$id] ?? false)));
+  ```
+
+- **`setEnabledMany()` replays lock waits:** outside a transaction, a lock wait or deadlock is retried (with a short
+  backoff) before the `TransientStorageFailure` (`CONFLICT_001`) reaches you; inside your own transaction it still
+  reaches you at once. If your transaction rolls back after the call, reload the tenants you hold (the bundle's
+  manager keeps the new value until the next worker boundary).
 
 ## To 1.35.0
 

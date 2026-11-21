@@ -211,7 +211,7 @@ final class MonitorController extends AbstractUptimeController
             // Only the group children the user may view (GU-L2).
             $detail['children'] = array_values(array_filter($detail['children'], static fn (array $child): bool => $scope->canView($child['monitor'])));
         }
-        $event = $this->dispatchPageEvent(new UptimePageEvent('monitor_show', $tenantSlug, $monitor));
+        $event = $this->dispatchPageEvent(new UptimePageEvent('monitor_show', $tenantSlug, $monitor, $this->clock->now()));
         if ($this->changeHistory?->isEnabled() === true) {
             // Since 1.33 (audit.history.enabled): read-only, for whoever may view the monitor; write-only fields as markers.
             // @igor-ignore - Request-scoped page event built for this request; not a shared worker service.
@@ -221,7 +221,7 @@ final class MonitorController extends AbstractUptimeController
         $live   = new MonitorShowLiveUpdatesEvent($tenantSlug, $monitor, $this->generateUrl('nowo_uptime_api_monitor_history', [
             'tenantSlug' => $tenantSlug,
             'id'         => $id,
-        ]));
+        ]), $this->clock->now());
         $this->eventDispatcher?->dispatch($live);
         $sort    = $layout['log']['sortable'] ? MonitorLogSort::fromRequest($request) : null;
         $log     = MonitorLogSort::apply(array_reverse($detail['events']), $sort);

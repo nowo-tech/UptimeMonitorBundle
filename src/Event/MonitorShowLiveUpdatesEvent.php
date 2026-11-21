@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Event;
 
+use DateTimeImmutable;
 use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 
@@ -25,11 +26,21 @@ use function trim;
  * decide from the request they are called for. Attribute names are restricted to `data-*`, `aria-*`, `role`, `title`,
  * `lang`, `dir` and `class` (appended to the root class), never `on*` or `style`, and never the attributes the bundle
  * renders on the root; every value is escaped by the template.
+ *
+ * Since 1.36 (REQ-ARCH-001 rules 1 and 4) the event carries scalars: {@see self::getMonitorId()},
+ * {@see self::getTenantSlug()} and {@see self::getOccurredAt()}. The entity accessor `monitor` keeps working; it is
+ * deprecated since 1.36 and removed in 2.0 (no runtime deprecation).
  */
 final class MonitorShowLiveUpdatesEvent
 {
     /** Attributes the bundle renders on the root (not replaceable). */
     public const RESERVED_ATTRIBUTES = ['id', 'data-monitor-id', 'data-api-history', 'data-series', 'data-latency-series'];
+
+    /** Id of the monitor shown (since 1.36; null only for a monitor that is not stored). */
+    public readonly ?int $monitorId;
+
+    /** When the page was requested (since 1.36). */
+    public readonly DateTimeImmutable $occurredAt;
 
     private ?string $apiHistoryUrl;
 
@@ -40,15 +51,43 @@ final class MonitorShowLiveUpdatesEvent
      * Creates the event of one monitor page render.
      *
      * @param string $tenantSlug Tenant of the page
-     * @param Monitor $monitor The monitor shown
+     * @param Monitor $monitor The monitor shown (deprecated accessor since 1.36: use `monitorId`)
      * @param string $historyUrl The monitor's history API URL (what the script polls by default)
+     * @param DateTimeImmutable|null $occurredAt Since 1.36: when the page was requested (null = now)
      */
     public function __construct(
         public readonly string $tenantSlug,
         public readonly Monitor $monitor,
         public readonly string $historyUrl,
+        ?DateTimeImmutable $occurredAt = null,
     ) {
         $this->apiHistoryUrl = $historyUrl;
+        $this->monitorId     = $monitor->getId();
+        $this->occurredAt    = $occurredAt ?? new DateTimeImmutable();
+    }
+
+    /**
+     * Id of the monitor shown (since 1.36).
+     */
+    public function getMonitorId(): ?int
+    {
+        return $this->monitorId;
+    }
+
+    /**
+     * Tenant of the page (since 1.36; same as `tenantSlug`).
+     */
+    public function getTenantSlug(): string
+    {
+        return $this->tenantSlug;
+    }
+
+    /**
+     * When the page was requested (since 1.36).
+     */
+    public function getOccurredAt(): DateTimeImmutable
+    {
+        return $this->occurredAt;
     }
 
     /**

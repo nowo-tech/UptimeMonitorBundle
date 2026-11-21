@@ -240,8 +240,11 @@ final readonly class MonitorShares implements MonitorSharesInterface
     /**
      * After a lost insert race: the winner's share row of that pair (the monitor's tenant was checked before), and
      * whether the database matched only look-alike identifiers. The read runs as one unit of the runner with a shared
-     * lock on the share rows (audit XZ-5): it sees the committed row even inside a caller's REPEATABLE READ transaction,
-     * and a lock wait or deadlock surfaces as a TransientStorageFailure.
+     * lock on the share rows (audit XZ-5), so a lock wait or deadlock surfaces as a TransientStorageFailure. On MySQL /
+     * MariaDB a locking read sees the latest committed row, even inside a caller's REPEATABLE READ transaction. On
+     * PostgreSQL it does under the default READ COMMITTED; inside a caller's REPEATABLE READ (or SERIALIZABLE)
+     * transaction a row committed after the caller's snapshot is not visible, so the winner reads as gone and the
+     * create fails with the retry-safe conflict (CONFLICT_001), never with a wrong answer (audit XZD-I5).
      *
      * @return array{0: MonitorShareView|null, 1: bool}
      */

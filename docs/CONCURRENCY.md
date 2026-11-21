@@ -44,9 +44,15 @@ tenant row → monitor row → that monitor's results, aggregates and incidents.
 | Demo seed (`DemoSeedService`) | One unit per step | Single operator command | CLI failure |
 | Monitor change history (1.33, `audit.history.enabled`) | In the unit of the monitor change (same transaction; a failed insert fails the change) | Append-only insert, no lock of its own; `MonitorChangedEvent` after the commit, once for a replayed unit | The change's own answer |
 | History purge / anonymisation (`nowo:uptime:purge-monitor-changes`) | Keyset-batched deletes; the anonymisation is one `UPDATE` unit | Idempotent (a rerun finishes the job) | CLI failure |
-| Bulk tenant switch (1.35, `TenantProvisioner::setEnabledMany()`) | One `UPDATE` statement in one unit | Idempotent (sets a value, never toggles); the private manager's copies of those tenants are detached | The caller's (a `TransientStorageFailure`) |
+| Bulk tenant switch (1.35, `TenantProvisioner::setEnabledMany()`) | One `UPDATE` statement in one unit; since 1.36 replayed outside a caller's transaction | Idempotent (sets a value, never toggles); the private manager's copies of those tenants take the new value as committed state (never detached; after a caller's rollback they keep it until the next worker boundary) | The caller's (a `TransientStorageFailure`, `CONFLICT_001`) |
 | Monitor share create (1.35, `MonitorShares::create()`) | One unit; replayed outside a caller's transaction | Read first, then the unique key `uniq_uptime_monitor_share_pair` + catch: the loser reads the winner's row (with a shared lock inside a caller's transaction, so REPEATABLE READ sees it); the winner deleted in between is a retry-safe `TransientStorageFailure` | Not a conflict for a double submit (both get the share); a lock conflict is the caller's 409 + `CONFLICT_001` / `CONFLICT_002` |
 | Monitor share delete / user erasure (1.35) | One `DELETE` by id in one unit, replayed outside a caller's transaction | Rows selected and re-checked exactly first; idempotent | The caller's |
+
+Read ports (`MonitorQueryInterface` 1.35, `CheckAggregateQueryInterface` and `IncidentQueryInterface` 1.36) write
+nothing and take no lock: they read the committed rows at the database's isolation level, so a report never waits for
+a rollup, a check or a bulk switch, and never sees their uncommitted work. A report made of several calls (totals, then
+a page) may see a commit that lands between two calls; call them inside your own REPEATABLE READ transaction when the
+numbers must agree exactly.
 
 ## Conflict answer
 
@@ -119,6 +125,12 @@ With both options null (the default) and `NowoTransactionDoctrineBundle` registe
   writes the same share between the read and the insert (also inside a host transaction after a snapshot read), the
   winner's row deleted again (retry-safe conflict), a row lock held by another connection (lock wait timeout:
   `CONFLICT_001`, nothing written, connection usable), exact identifiers and the binary NO PAD column.
+- `tests/Integration/Service/TenantBulkSwitchConcurrencyDbTest.php` (1.36; MySQL, MariaDB, PostgreSQL): another
+  connection holds a tenant row; the bulk switch waits, times out and is replayed once the lock is released; held
+  through every attempt it is a `CONFLICT_001` with nothing written; inside a caller's transaction it is not replayed.
+- `tests/Integration/Query/ReportQueriesDbTest.php` (1.36; SQLite file, MySQL, MariaDB, PostgreSQL): another connection
+  rolls up and resolves incidents in a transaction it keeps open; the report ports answer at once with the committed
+  rows (no lock wait, no uncommitted bucket), and see the writer's commit on the next call.
 - CI job `Load readiness` (required): MySQL 8.4, MariaDB 11.4 and PostgreSQL 16, DBAL 4 and DBAL 3.
 
 ## Residual risks

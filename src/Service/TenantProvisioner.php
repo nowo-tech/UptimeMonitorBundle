@@ -97,6 +97,12 @@ final readonly class TenantProvisioner implements BulkTenantProvisionerInterface
      * managed monitor of those tenants still flushes. An application manager is never
      * touched; tenants the application loaded through its own manager keep their old `enabled` value until reloaded.
      *
+     * Inside a transaction the caller opened, the statement joins it (a savepoint): if the caller then rolls back, the
+     * rows keep their old value but the copies the bundle's manager holds keep the new one until that manager is
+     * dropped (the next worker boundary) or the tenant is reloaded (audit XZD-I1). Since 1.36 a lock wait or deadlock
+     * of a call outside a transaction is replayed by the runner (the statement is idempotent) before it surfaces as a
+     * TransientStorageFailure (CONFLICT_001); inside a caller's transaction it surfaces at once (audit XZD-I2).
+     *
      * @param list<string> $slugs Tenant slugs (invalid ones dropped, duplicates ignored)
      */
     public function setEnabledMany(array $slugs, bool $enabled): int
@@ -107,7 +113,7 @@ final readonly class TenantProvisioner implements BulkTenantProvisionerInterface
         }
 
         $manager = $this->entityManager;
-        $changed = $this->runner()->run(static fn (): int => (int) $manager->createQueryBuilder()
+        $changed = $this->runner()->runRetrying(static fn (): int => (int) $manager->createQueryBuilder()
             ->update(Tenant::class, 't')
             ->set('t.enabled', ':enabled')
             ->andWhere('t.slug IN (:slugs)')

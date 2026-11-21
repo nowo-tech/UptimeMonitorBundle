@@ -8,8 +8,20 @@ use LogicException;
 use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\UptimeMonitorBundle\DependencyInjection\UptimeMonitorExtension;
 use Nowo\UptimeMonitorBundle\Doctrine\ExactUserIdentifierCollationListener;
+use Nowo\UptimeMonitorBundle\Query\CheckAggregateQueryInterface;
+use Nowo\UptimeMonitorBundle\Query\CheckAggregateTotals;
+use Nowo\UptimeMonitorBundle\Query\CheckAggregateView;
+use Nowo\UptimeMonitorBundle\Query\DoctrineCheckAggregateQuery;
+use Nowo\UptimeMonitorBundle\Query\DoctrineIncidentQuery;
 use Nowo\UptimeMonitorBundle\Query\DoctrineMonitorQuery;
+use Nowo\UptimeMonitorBundle\Query\IncidentDowntime;
+use Nowo\UptimeMonitorBundle\Query\IncidentDowntimeSql;
+use Nowo\UptimeMonitorBundle\Query\IncidentQueryInterface;
+use Nowo\UptimeMonitorBundle\Query\IncidentView;
 use Nowo\UptimeMonitorBundle\Query\MonitorQueryInterface;
+use Nowo\UptimeMonitorBundle\Query\MonitorScope;
+use Nowo\UptimeMonitorBundle\Query\MonitorScopeFilter;
+use Nowo\UptimeMonitorBundle\Query\ReadRow;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepositoryInterface;
 use Nowo\UptimeMonitorBundle\Service\BulkTenantProvisionerInterface;
@@ -46,6 +58,12 @@ final class SharesAndPortsWiringTest extends TestCase
         self::assertSame(DoctrineMonitorQuery::class, (string) $container->getAlias(MonitorQueryInterface::class));
         self::assertSame(TenantProvisioner::class, (string) $container->getAlias(BulkTenantProvisionerInterface::class));
         self::assertSame(MonitorRepository::class, (string) $container->getAlias(MonitorRepositoryInterface::class));
+        // 1.36: the report ports.
+        self::assertSame(DoctrineCheckAggregateQuery::class, (string) $container->getAlias(CheckAggregateQueryInterface::class));
+        self::assertSame(DoctrineIncidentQuery::class, (string) $container->getAlias(IncidentQueryInterface::class));
+        foreach ([CheckAggregateView::class, CheckAggregateTotals::class, IncidentView::class, IncidentDowntime::class, MonitorScope::class, MonitorScopeFilter::class, ReadRow::class, IncidentDowntimeSql::class] as $value) {
+            self::assertTrue(!$container->hasDefinition($value) || $container->getDefinition($value)->hasTag('container.excluded'), $value . ' is not a service');
+        }
     }
 
     public function testSharesAreOffByDefault(): void

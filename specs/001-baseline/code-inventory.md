@@ -470,6 +470,18 @@ Since 1.35 — Beacon spec 225 T005a (see [`006-cross-tenant-ports-and-shares/sp
 | `Query/MonitorView.php` | Monitor read model | FR-PORT-001 |
 | `Query/LatestCheckView.php` | Latest check read model | FR-PORT-001 |
 | `Query/MonitorCounts.php` | Plan usage counts | FR-PORT-001 |
+| `Query/CheckAggregateQueryInterface.php` | Rollup read port (1.36) | FR-REPORT-001 |
+| `Query/DoctrineCheckAggregateQuery.php` | Default rollup read port (scalar DQL) | FR-REPORT-001 |
+| `Query/CheckAggregateTotals.php` | Per-monitor rollup totals read model | FR-REPORT-001 |
+| `Query/CheckAggregateView.php` | Rollup bucket read model | FR-REPORT-001 |
+| `Query/IncidentQueryInterface.php` | Incident read port (1.36) | FR-REPORT-002 |
+| `Query/DoctrineIncidentQuery.php` | Default incident read port (scalar DQL, native downtime sums) | FR-REPORT-002 |
+| `Query/IncidentView.php` | Incident read model | FR-REPORT-002 |
+| `Query/IncidentDowntime.php` | Per-monitor downtime read model | FR-REPORT-002 |
+| `Query/IncidentDowntimeSql.php` | Per-platform downtime SQL (internal) | FR-REPORT-002 |
+| `Query/MonitorScope.php` | Scope of the report reads | FR-REPORT-003 |
+| `Query/MonitorScopeFilter.php` | Scope condition on a query builder (internal) | FR-REPORT-003 |
+| `Query/ReadRow.php` | Scalar row conversions (internal) | FR-REPORT-001 |
 | `Service/BulkTenantProvisionerInterface.php` | `setEnabledMany()` port | FR-PORT-002 |
 | `Security/MonitorIdAwareUptimeMonitorAccessCheckerInterface.php` | `canViewMonitorId()` | FR-PORT-003 |
 | `Security/MonitorViewDecision.php` | Id form first, entity form otherwise | FR-PORT-003 |
@@ -520,6 +532,6 @@ Since 1.35 — Beacon spec 225 T005a (see [`006-cross-tenant-ports-and-shares/sp
 | SearchKit provider | 12 | 12 |
 | Monitor change audit | 16 | 16 |
 | Cross-tenant ports and shares | 24 | 24 |
-| **Total production sources** | **320** | **320** |
+| **Total production sources** | **332** | **332** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.

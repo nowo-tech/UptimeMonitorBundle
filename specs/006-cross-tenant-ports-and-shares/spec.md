@@ -2,7 +2,7 @@
 
 **Feature Branch**: `feat/cross-tenant-ports-and-shares`  
 **Created**: 2026-11-21  
-**Status**: Implemented (Unreleased, 1.35.0)  
+**Status**: Implemented (1.35.0)  
 **Input**: A multi-tenant host moving its monitoring code to a layered (DDD) structure still writes DQL over the
 bundle's `Monitor` and `Tenant` entities for its dashboard list, plan usage and summary card. It flips many tenants
 with a bulk `UPDATE` and stores monitor shares in a table of its own. It needs ports that return plain values, and a

@@ -8,6 +8,8 @@ use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Configuration as Doctrine
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
+use Nowo\UptimeMonitorBundle\Query\CheckAggregateQueryInterface;
+use Nowo\UptimeMonitorBundle\Query\IncidentQueryInterface;
 use Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface;
 use Nowo\UptimeMonitorBundle\UptimeMonitorBundle;
 use Psr\Log\NullLogger;
@@ -37,6 +39,12 @@ abstract class AbstractHostTestKernel extends Kernel
 
     /** Public test alias of {@see TenantProvisionerInterface}. */
     public const TENANT_PORT = 'test.uptime.tenant_provisioner';
+
+    /** Public test alias of {@see CheckAggregateQueryInterface} (1.36). */
+    public const AGGREGATE_PORT = 'test.uptime.check_aggregate_query';
+
+    /** Public test alias of {@see IncidentQueryInterface} (1.36). */
+    public const INCIDENT_PORT = 'test.uptime.incident_query';
 
     public function __construct()
     {
@@ -108,6 +116,9 @@ abstract class AbstractHostTestKernel extends Kernel
         $container->services()->set('logger', NullLogger::class);
         // The tenant port as a host service would receive it.
         $container->services()->alias(self::TENANT_PORT, TenantProvisionerInterface::class)->public();
+        // 1.36: the report read ports as a host service would receive them.
+        $container->services()->alias(self::AGGREGATE_PORT, CheckAggregateQueryInterface::class)->public();
+        $container->services()->alias(self::INCIDENT_PORT, IncidentQueryInterface::class)->public();
         $doctrine        = $this->doctrineConfig();
         $doctrine['orm'] = (array) $doctrine['orm'] + $this->nativeLazyObjects();
         $container->extension('doctrine', $doctrine);

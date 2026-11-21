@@ -49,7 +49,7 @@ while IFS= read -r path; do
 done < <(grep -E '^\| `[^`]+\.[A-Za-z0-9]+`' "$INVENTORY" | sed -E 's/^\| `([^`]+)`.*/\1/' | LC_ALL=C sort -u)
 
 # 3. Totals.
-total_row="$(grep -E '^\|.*Total' "$INVENTORY" | head -n 1 || true)"
+total_row="$(grep -E '^\|.*\*\*Total' "$INVENTORY" | head -n 1 || true)"
 if [[ -z "$total_row" ]]; then
   echo "ERROR: no 'Total' summary row in $INVENTORY" >&2
   errors=$((errors + 1))
