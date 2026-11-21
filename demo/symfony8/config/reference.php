@@ -954,6 +954,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         flush_listener_changes?: bool|Param, // Since 1.27.0: after the MonitorWentDownEvent / MonitorRecoveredEvent listeners ran (after the check commit), also flush the application entity manager that maps the bundle entities when a listener left changes there (the 1.25 to 1.26 behaviour; a deprecation is triggered when it flushes something). False = the bundle never flushes an application manager (DDD hosts; the only behaviour in 2.0): listeners flush their own changes. // Default: true
  *         table_prefix?: scalar|Param|null, // Prefix prepended to every bundle table, index and unique constraint name (e.g. "app_" yields app_uptime_monitor). Empty = historical uptime_* names. // Default: ""
  *     },
+ *     conflict_response?: array{ // Since 1.31 (REQ-RUNTIME-003 rule 6): the answer of a bundle route to a lock conflict (deadlock, lock wait timeout, serialization failure). Nothing committed: the status + Retry-After + code CONFLICT_001; part committed: the status, no Retry-After, code CONFLICT_002. Null options follow the shared nowo_transaction_doctrine.conflict_response policy when NowoTransactionDoctrineBundle is registered, else 409 and 1 s.
+ *         status?: int|Param, // 409 (default) or 503 (the 1.29 to 1.30 answer). Null = the shared policy, else 409. // Default: null
+ *         retry_after?: int|Param, // Retry-After seconds of a CONFLICT_001 answer when the failure carries no hint of its own. Null = the shared policy, else 1. // Default: null
+ *     },
  *     scheduler?: array{
  *         enabled?: bool|Param, // Default: true
  *         mode?: "scheduler"|"cron"|"messenger"|Param, // Default: "scheduler"
@@ -979,6 +983,15 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         purge_enabled?: bool|Param, // Default: true
  *         purge_batch_size?: int|Param, // Rows deleted per keyset batch by the detail purge and nowo:uptime:clear-data (short autocommit statements instead of one unbounded DELETE) // Default: 1000
  *     },
+ *     audit?: array{ // Since 1.33: audit trail of monitor changes (who, when, which fields; write-only fields only as replaced / cleared). Off by default.
+ *         enabled?: bool|Param, // Record every monitor create, change and delete and dispatch MonitorChangedEvent after the commit // Default: false
+ *         actor_resolver?: scalar|Param|null, // Service id of a MonitorChangeActorResolverInterface (who changed the monitor); null = the user identifier of the security token // Default: null
+ *         history?: array{
+ *             enabled?: bool|Param, // Also store the changes in the uptime_monitor_change table and show them on the monitor page (needs audit.enabled) // Default: false
+ *             retention_days?: int|Param, // Days nowo:uptime:purge-monitor-changes keeps history rows; 0 = keep forever // Default: 365
+ *             display_limit?: int|Param, // Latest changes shown on the monitor page // Default: 50
+ *         },
+ *     },
  *     aggregates?: array{
  *         keep_forever?: bool|Param, // Deprecated: The "nowo_uptime_monitor.aggregates.keep_forever.keep_forever" option is deprecated and has no effect: aggregates are always kept; use nowo:uptime:clear-data to remove them. // Deprecated: never read; aggregates are always kept (remove them with nowo:uptime:clear-data). // Default: true
  *         periods?: list<scalar|Param|null>,
@@ -988,6 +1001,11 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         header?: scalar|Param|null, // Deprecated: The "nowo_uptime_monitor.multi_tenant.header.header" option is deprecated and has no effect: tenants are resolved from the URL slug, not a request header. // Deprecated: never read; tenants are resolved from the URL, not a request header. // Default: "X-Uptime-Tenant"
  *         default_tenant?: scalar|Param|null, // Default: "main"
  *         provisioner?: scalar|Param|null, // Since 1.21: service id of a Nowo\UptimeMonitorBundle\Tenant\MissingTenantProvisionerInterface, called (after the access checks) when an admin page or API names a tenant slug without a tenant; it returns the new tenant, or null for a 404. null = off. // Default: null
+ *     },
+ *     search_kit?: array{ // Since 1.32: the SearchKit provider of monitors (group `uptime_monitors`). Wired only when nowo-tech/search-kit-bundle ^1.9 is installed and web_ui is enabled.
+ *         enabled?: bool|Param, // false: no monitors in SearchKit. // Default: true
+ *         tenant_resolver?: scalar|Param|null, // Service id of a Nowo\UptimeMonitorBundle\Search\MonitorSearchTenantResolverInterface returning the tenant slug of the viewer (null = none: no results). null here = the `tenantSlug` of the current request, else multi_tenant.default_tenant. // Default: null
+ *         max_candidates?: int|Param, // Rows read and access-checked per search; bounds the visible total and the deepest results page. // Default: 100
  *     },
  *     tenants?: array{ // Tenant list UI (/tenants). Disable in single-tenant host apps (e.g. nowo-devkit).
  *         list_enabled?: bool|Param, // When false, GET /tenants redirects to the default tenant dashboard. // Default: true
@@ -1601,10 +1619,18 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         tokens_dark?: array<string, mixed>,
  *         confirm_message_in_header?: bool|Param, // Confirm dialogs and the full-page confirm render the message inside the header, under the title (hosts whose dialog header is title + message). View\Confirm::messageInHeader wins when set. // Default: false
  *         popover_menus?: bool|Param, // 2.4: menu / kebab / row-action menus render their panel as a native [popover] (browser top layer: never clipped by table scrollers or cards; nowo-ui-popover.js places it). The partial option `popover` wins. // Default: false
+ *         context_menus?: bool|Param, // 2.54: kebab / row-action menus also open as the context menu of the row or card around them (right-click, the ContextMenu key, Shift+F10, long press on touch), with the same items. Loads the opt-in context-menu runtime through the scripts partial. The partial option `context_menu` wins; data-nowo-ui-context-menu="off" opts a row out. // Default: false
  *         form_errors_after_widget?: bool|Param, // 2.10: the UiKit form theme (form/nowo_ui_layout.html.twig) prints a field's errors after its widget (and before the help), instead of Symfony's order (label, errors, widget, help). // Default: false
  *         menu_semantics?: null|"menu"|"disclosure"|Param, // 2.28: ARIA of popover menus with items. null (default) = as 2.27; menu = APG menu button (role="menu" / menuitem, arrow keys in nowo-ui-popover.js); disclosure = no aria-haspopup. The menu partial option `menu_semantics` wins. // Default: null
  *         dialog?: array{ // 2.31: kit dialog options (docs/THEMING.md#dialog-sizes-229).
  *             height?: "content"|"size"|Param, // 2.31: content (default, dialog rule v2) = a dialog is as tall as its content, capped at min(the size's height token, 100dvh - 2rem), only the body scrolls; size = every dialog with a field, list, table or fold has the size's height (2.29 / 2.30), printed as --nowo-ui-dialog-fill: 1 by nowo_ui_theme_css(). // Default: "content"
+ *         },
+ *         focus_mode?: array{ // 2.55: shell focus mode — [data-nowo-ui-focus-mode] toggles hide the shell regions (level 1) and optionally enter the browser fullscreen (level 2); js/nowo-ui-focus-mode.js. See docs/USAGE.md#shell-focus-mode-255.
+ *             enabled?: bool|Param, // false (default): no shell attributes, no focus bar, the focus_mode_toggle partial renders nothing and the scripts partial does not load the runtime. // Default: false
+ *             regions?: list<scalar|Param|null>,
+ *             keep?: list<scalar|Param|null>,
+ *             shortcut?: scalar|Param|null, // Key that toggles level 1 on pages with a toggle (never while typing, with a modifier pressed or with a dialog / menu open); e.g. F or Alt+Shift+F. null or false: no shortcut. // Default: "F"
+ *             fullscreen?: bool|Param, // Offer level 2 (the browser fullscreen on the shell, from the focus bar or a fullscreen toggle). Unsupported or refused by the browser: level 1 stays. // Default: true
  *         },
  *         bundles?: array<string, array{ // Default: []
  *             framework_defaults?: bool|Param, // Override of theme.framework_defaults for this bundle (unset = inherit).

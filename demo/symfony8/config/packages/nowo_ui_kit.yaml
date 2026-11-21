@@ -1,10 +1,11 @@
-# UiKit page contract (REQ-UI-003) and REQ-DEMO-014: one host layout pair and UiKit's default theme, unchanged (no CSS
-# framework, no CDN, no token override).
+# UiKit page contract (REQ-UI-003) and REQ-DEMO-014: UiKit's default theme, unchanged (no CSS framework, no CDN, no
+# token override); the demo platform shell (templates/base.html.twig) is the admin and guest layout of every bundle page.
 nowo_ui_kit:
     css_framework: custom
+    base_stylesheet: true
     # No icon font and no CDN: row actions show their text labels.
     icon_set: none
     row_actions_display: text
     layouts:
-        admin: 'layouts/admin.html.twig'
-        guest: 'layouts/guest.html.twig'
+        admin: 'base.html.twig'
+        guest: 'base.html.twig'

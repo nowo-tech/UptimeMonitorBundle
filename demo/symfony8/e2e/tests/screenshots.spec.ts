@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { OUTAGE_MONITOR, openDashboard } from './helpers';
 
 /**
- * REQ-DEMO-013 — README screenshots in full demo context: app masthead + bundle UI + Symfony web debug
+ * REQ-DEMO-013 — README screenshots in full demo context: demo shell + bundle UI, no Symfony debug
  * toolbar (light theme), with the seeded monitors and 24 h of backfilled history (`make demo-screenshots` reseeds first).
  * Captured as PNG; `make demo-screenshots` converts them to WebP and deletes the PNGs.
  */
@@ -18,17 +18,14 @@ const WIDTH = 1440;
 const HEIGHT = 900;
 
 /**
- * Captures the viewport (masthead → bundle UI → fixed web debug toolbar) once the toolbar is rendered.
- * When `until` is given, the viewport grows so that element is fully visible above the toolbar.
+ * Captures the viewport (demo shell header → bundle UI). The Symfony toolbar is not part of the demo platform: it is hidden.
+ * When `until` is given, the viewport grows so that element is fully visible.
  */
 async function captureDemoFrame(page: Page, file: string, until?: Locator): Promise<void> {
-  const toolbar = page.locator('.sf-toolbar .sf-toolbarreset');
-  await expect(toolbar).toBeVisible();
+  await page.addStyleTag({ content: '.sf-toolbar,.sf-minitoolbar,[id^="sfwdt"]{display:none!important}' });
   if (until) {
     const bottom = await until.evaluate((el) => el.getBoundingClientRect().bottom + window.scrollY);
-    const toolbarHeight = (await toolbar.boundingBox())?.height ?? 40;
-    await page.setViewportSize({ width: WIDTH, height: Math.max(HEIGHT, Math.ceil(bottom + 32 + toolbarHeight)) });
-    await expect(toolbar).toBeVisible();
+    await page.setViewportSize({ width: WIDTH, height: Math.max(HEIGHT, Math.ceil(bottom + 32)) });
   }
   // Let Chart.js / heartbeat bars finish their entry animation.
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => setTimeout(done, 1200))));
