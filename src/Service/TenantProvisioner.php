@@ -10,9 +10,11 @@ use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
+use Nowo\UptimeMonitorBundle\Query\MonitorListCriteria;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 
+use function array_flip;
 use function preg_match;
 use function sprintf;
 
@@ -21,7 +23,7 @@ use function sprintf;
  * project, slug = the project id — instead of the `/tenants` UI (set `tenants.list_enabled: false`). Since 1.25 host code
  * type-hints {@see TenantProvisionerInterface}.
  */
-final readonly class TenantProvisioner implements TenantProvisionerInterface
+final readonly class TenantProvisioner implements BulkTenantProvisionerInterface
 {
     /**
      * Creates the provisioner.
@@ -84,6 +86,42 @@ final readonly class TenantProvisioner implements TenantProvisionerInterface
         $this->runner()->run(static fn (): Tenant => $tenant->setEnabled($enabled));
 
         return true;
+    }
+
+    /**
+     * Enables or disables the listed tenants in one statement (since 1.35, Beacon spec 225).
+     *
+     * The `UPDATE` bypasses the unit of work: the tenants the bundle's manager already holds for these slugs are
+     * detached from it, so a later read in the same request loads the new state. An application manager is never
+     * touched; tenants the application loaded through its own manager keep their old `enabled` value until reloaded.
+     *
+     * @param list<string> $slugs Tenant slugs (invalid ones dropped, duplicates ignored)
+     */
+    public function setEnabledMany(array $slugs, bool $enabled): int
+    {
+        $slugs = (new MonitorListCriteria($slugs))->tenantSlugs;
+        if ($slugs === []) {
+            return 0;
+        }
+
+        $manager = $this->entityManager;
+        $changed = $this->runner()->run(static fn (): int => (int) $manager->createQueryBuilder()
+            ->update(Tenant::class, 't')
+            ->set('t.enabled', ':enabled')
+            ->andWhere('t.slug IN (:slugs)')
+            ->setParameter('enabled', $enabled)
+            ->setParameter('slugs', $slugs)
+            ->getQuery()
+            ->execute());
+
+        $wanted = array_flip($slugs);
+        foreach ($manager->getUnitOfWork()->getIdentityMap()[Tenant::class] ?? [] as $tenant) {
+            if ($tenant instanceof Tenant && isset($wanted[$tenant->getSlug()])) {
+                $manager->detach($tenant);
+            }
+        }
+
+        return $changed;
     }
 
     /**

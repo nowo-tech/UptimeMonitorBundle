@@ -95,6 +95,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Cross-tenant read port `Nowo\UptimeMonitorBundle\Query\MonitorQueryInterface` (default `DoctrineMonitorQuery`, autowirable): `list()` (one page of `MonitorView` read models, each with its `LatestCheckView`), `count()`, `countActive()` (plan usage: `MonitorCounts` of non-paused monitors, groups left out, and of push monitors, in one query), `countDown()` and `findInTenant()`. Scope and filters come in a `MonitorListCriteria`: tenant slugs, single monitors bound to their tenant (`MonitorRef`), monitor ids, type, status (`MonitorListStatus`), paused, groups; sort by `MonitorListSort` (problems first by default, ties by name then id). The slug list is the only scope: an empty scope runs no query, a slug that is not a valid tenant slug is dropped (exact comparison on any collation), and every row is checked against the scope again. Returns plain values, never entities; targets are masked. See [USAGE](USAGE.md#cross-tenant-reads-and-ports-135).
+- `Nowo\UptimeMonitorBundle\Service\BulkTenantProvisionerInterface::setEnabledMany(list<string> $slugs, bool $enabled): int`: one idempotent `UPDATE` for many tenants. A new interface extending `TenantProvisionerInterface` (host implementations of that interface keep compiling); `TenantProvisioner` implements it and the container aliases it.
+- `Nowo\UptimeMonitorBundle\Security\MonitorIdAwareUptimeMonitorAccessCheckerInterface::canViewMonitorId(object $user, string $tenantSlug, int $monitorId)`: the id form of `canViewMonitor()`, in a new interface. The configurable and allow-all checkers implement it; when a monitor-aware checker also implements it, the bundle asks it instead of `canViewMonitor()` (monitor page, history and aggregates APIs, group children, search results), after checking that the monitor belongs to the tenant.
+- `MonitorQuotaCheckEvent::$monitorId` and `MonitorQuotaCheckEvent::$paused` (an existing monitor: paused before the write; a new one: created paused), plus optional constructor arguments of the same names.
+- Bundle-owned monitor shares, opt-in (`shares.enabled`, `shares.policy`): table `uptime_monitor_share` (monitor id + host user identifier, unique per pair, `ON DELETE CASCADE` with the monitor) mapped only when enabled, `Nowo\UptimeMonitorBundle\Share\MonitorSharesInterface` (`create()`, `delete()`, `usersOf()`, `sharedWith()`, `isSharedWith()`, `deleteAllForUser()`) and the host port `MonitorSharePolicyInterface` (who a monitor may be shared with; `DenyAllMonitorSharePolicy` without one). `create()` is idempotent: a repeated or concurrent submit gets the existing share (`created` false), a unique violation never escapes, and a lock conflict surfaces as a `TransientStorageFailure` (409 + Retry-After + `CONFLICT_001`, or `CONFLICT_002` when part of the request was committed). User identifiers compare exactly (binary NO PAD column on MySQL / MariaDB plus a PHP re-check). DDL in [UPGRADING](UPGRADING.md#unreleased).
+- `Nowo\UptimeMonitorBundle\Repository\MonitorRepositoryInterface::findInTenant(string $tenantSlug, int $id): ?Monitor`, a new interface implemented by `MonitorRepository` (exact slug).
+- `MonitorBackupService::export()` accepts a tenant slug as well as a `Tenant` (the slug is compared exactly).
+- Chart-ready history series: `Nowo\UptimeMonitorBundle\Chart\ChartSeriesFormatter::format()` and the Twig function `nowo_uptime_chart_series()` turn one field of a series payload (`chart_series_json`, `latency_series`) into `{labels, series: [{key, label, data}], total}`.
+
+### Fixed
+
+- Monitor form: whole-step number fields (`step` 1, the push thresholds of disk, inodes, memory, CPU and swap) rendered a whole value with decimals ("85.00", shown "85,00" in comma-decimal locales). They now render "85"; a fractional value is kept, and fields with another step are unchanged.
+
+### Deprecated
+
+- Reading `MonitorQuotaCheckEvent::$monitor` (the entity) is deprecated since 1.35 and triggers a deprecation; the property is removed in 2.0. Use `$monitorId` and `$paused`.
+
 ### Changed
 
 - Demo: runs in UiKit's demo platform shell (`nowo-tech/ui-kit-bundle` ^2.60; shared top bar, aside, page header and section cards; no demo stylesheet or `<style>`). Demo only, no bundle change.

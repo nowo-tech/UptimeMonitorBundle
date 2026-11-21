@@ -31,6 +31,8 @@ explicit per-call deadlines, so they never pin a FrankenPHP thread — see [Time
   tokens from a 0600 file or stdin only — see [docs/PUSH-MONITORS.md](docs/PUSH-MONITORS.md#monitors-as-code)
 - ✅ Multi-tenant access checkers: per-tenant and per-monitor decisions, and `security.denied_tenant_status: 404` to
   hide tenants a user may not access — see [docs/CONFIGURATION.md](docs/CONFIGURATION.md#security-req-ui-002)
+- ✅ Ports for multi-tenant and DDD hosts: cross-tenant monitor lists and counts as read models, bulk tenant switch,
+  access by monitor id, and opt-in monitor shares — see [docs/USAGE.md](docs/USAGE.md#cross-tenant-reads-and-ports-135)
 
 ## Quick start
 

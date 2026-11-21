@@ -7,6 +7,7 @@ namespace Nowo\UptimeMonitorBundle\Search;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Event\MonitorSearchAccessEvent;
 use Nowo\UptimeMonitorBundle\Security\MonitorAwareUptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Security\MonitorViewDecision;
 use Nowo\UptimeMonitorBundle\Security\SearchAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
@@ -84,7 +85,7 @@ final readonly class MonitorSearchVisibility
         $checker = $this->accessChecker;
 
         return match (true) {
-            $checker instanceof MonitorAwareUptimeMonitorAccessCheckerInterface => $checker->canViewMonitor($user, $monitor),
+            $checker instanceof MonitorAwareUptimeMonitorAccessCheckerInterface => MonitorViewDecision::canView($checker, $user, $monitor),
             $checker instanceof TenantAwareUptimeMonitorAccessCheckerInterface  => $checker->canAccessTenant($user, $monitor->getTenant()->getSlug()),
             default                                                             => $checker->canAccessDashboard($user),
         };

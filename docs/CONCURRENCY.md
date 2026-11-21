@@ -44,6 +44,9 @@ tenant row → monitor row → that monitor's results, aggregates and incidents.
 | Demo seed (`DemoSeedService`) | One unit per step | Single operator command | CLI failure |
 | Monitor change history (1.33, `audit.history.enabled`) | In the unit of the monitor change (same transaction; a failed insert fails the change) | Append-only insert, no lock of its own; `MonitorChangedEvent` after the commit, once for a replayed unit | The change's own answer |
 | History purge / anonymisation (`nowo:uptime:purge-monitor-changes`) | Keyset-batched deletes; the anonymisation is one `UPDATE` unit | Idempotent (a rerun finishes the job) | CLI failure |
+| Bulk tenant switch (1.35, `TenantProvisioner::setEnabledMany()`) | One `UPDATE` statement in one unit | Idempotent (sets a value, never toggles); the private manager's copies of those tenants are detached | The caller's (a `TransientStorageFailure`) |
+| Monitor share create (1.35, `MonitorShares::create()`) | One unit; replayed outside a caller's transaction | Read first, then the unique key `uniq_uptime_monitor_share_pair` + catch: the loser reads the winner's row (with a shared lock inside a caller's transaction, so REPEATABLE READ sees it); the winner deleted in between is a retry-safe `TransientStorageFailure` | Not a conflict for a double submit (both get the share); a lock conflict is the caller's 409 + `CONFLICT_001` / `CONFLICT_002` |
+| Monitor share delete / user erasure (1.35) | One `DELETE` by id in one unit, replayed outside a caller's transaction | Rows selected and re-checked exactly first; idempotent | The caller's |
 
 ## Conflict answer
 
@@ -112,6 +115,10 @@ With both options null (the default) and `NowoTransactionDoctrineBundle` registe
   processes provisioning the same tenants, two connections writing the same tag name (a unique violation, not a
   conflict).
 - `tests/Integration/Service/LoadReadinessDbTest.php`: the 1.29 races replayed deterministically.
+- `tests/Integration/Share/MonitorSharesDbTest.php` (1.35; SQLite file, MySQL, MariaDB, PostgreSQL): a second connection
+  writes the same share between the read and the insert (also inside a host transaction after a snapshot read), the
+  winner's row deleted again (retry-safe conflict), a row lock held by another connection (lock wait timeout:
+  `CONFLICT_001`, nothing written, connection usable), exact identifiers and the binary NO PAD column.
 - CI job `Load readiness` (required): MySQL 8.4, MariaDB 11.4 and PostgreSQL 16, DBAL 4 and DBAL 3.
 
 ## Residual risks

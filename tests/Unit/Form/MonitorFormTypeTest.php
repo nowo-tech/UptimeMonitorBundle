@@ -323,4 +323,37 @@ final class MonitorFormTypeTest extends TypeTestCase
         $data->port         = 70000;
         self::assertCount(4, $validator->validate($data));
     }
+
+    public function testWholeNumberFieldsRenderIntegers(): void
+    {
+        $data                             = new MonitorFormData();
+        $data->intervalSeconds            = 60;
+        $data->requestTimeoutSeconds      = 30;
+        $data->pushThresholds['diskWarn'] = 85.0;
+        $data->pushThresholds['cpuWarn']  = 85.5;
+        $data->pushThresholds['loadWarn'] = 2.0;
+
+        $view = $this->factory->create(MonitorFormType::class, $data)->createView();
+
+        self::assertSame('60', $view['intervalSeconds']->vars['value']);
+        self::assertSame('30', $view['requestTimeoutSeconds']->vars['value']);
+        self::assertSame('85', $view['pushDiskWarn']->vars['value'], 'step 1: "85", not "85.00"');
+        self::assertSame('95', $view['pushDiskCritical']->vars['value']);
+        self::assertSame('85.50', $view['pushCpuWarn']->vars['value'], 'a fractional value stays as it is');
+        self::assertSame('2.00', $view['pushLoadWarn']->vars['value'], 'step 0.1 fields keep their decimals');
+    }
+
+    public function testWholeNumberValueOnlyTouchesWholeDecimalsOfStepOneNumberFields(): void
+    {
+        $number = ['block_prefixes' => ['form', 'number'], 'attr' => ['step' => 1]];
+
+        self::assertSame('60', MonitorFormType::wholeNumberValue($number + ['value' => '60.0']));
+        self::assertSame('-3', MonitorFormType::wholeNumberValue($number + ['value' => '-3,00']));
+        self::assertSame('60.5', MonitorFormType::wholeNumberValue($number + ['value' => '60.5']));
+        self::assertSame('', MonitorFormType::wholeNumberValue($number + ['value' => '']));
+        self::assertSame('60.0', MonitorFormType::wholeNumberValue(['block_prefixes' => ['form', 'text'], 'attr' => ['step' => 1], 'value' => '60.0']));
+        self::assertSame('60.0', MonitorFormType::wholeNumberValue(['block_prefixes' => ['form', 'number'], 'attr' => ['step' => 0.1], 'value' => '60.0']));
+        self::assertSame('60.0', MonitorFormType::wholeNumberValue(['block_prefixes' => ['form', 'number'], 'value' => '60.0']));
+        self::assertNull(MonitorFormType::wholeNumberValue([]));
+    }
 }

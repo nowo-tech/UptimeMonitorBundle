@@ -99,6 +99,7 @@ final class Configuration implements ConfigurationInterface
         $this->addPushSection($root);
         $this->addRetentionSection($root);
         $this->addAuditSection($root);
+        $this->addSharesSection($root);
         $this->addAggregatesSection($root);
         $this->addMultiTenantSection($root);
         $this->addSearchKitSection($root);
@@ -458,6 +459,30 @@ final class Configuration implements ConfigurationInterface
                         ->scalarNode('provisioner')
                             ->defaultNull()
                             ->info('Since 1.21: service id of a Nowo\\UptimeMonitorBundle\\Tenant\\MissingTenantProvisionerInterface, called (after the access checks) when an admin page or API names a tenant slug without a tenant; it returns the new tenant, or null for a 404. null = off.')
+                        ->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `shares` section (since 1.35).
+     */
+    private function addSharesSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
+                ->arrayNode('shares')
+                    ->info('Since 1.35: bundle-owned monitor shares (monitor + host user identifier, table uptime_monitor_share). Off by default: the entity is mapped, and the table exists, only when enabled.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('enabled')
+                            ->info('Map the share entity and register MonitorSharesInterface. A literal boolean (it changes the Doctrine mapping): no env placeholder.')
+                            ->defaultFalse()
+                        ->end()
+                        ->scalarNode('policy')
+                            ->info('Service id of the host MonitorSharePolicyInterface (who a monitor may be shared with). Null = DenyAllMonitorSharePolicy: every share is refused.')
+                            ->defaultNull()
                         ->end()
                     ->end()
                 ->end()

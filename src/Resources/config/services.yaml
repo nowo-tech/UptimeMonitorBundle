@@ -41,6 +41,16 @@ services:
             - '../../Search/MonitorSearchHit.php'
             - '../../Search/SearchKit/'
             - '../../Search/MonitorSearchUrl.php'
+            # 1.35: read models of the monitor query (value objects) and the opt-in shares (defined by the extension)
+            - '../../Query/LatestCheckView.php'
+            - '../../Query/MonitorCounts.php'
+            - '../../Query/MonitorListCriteria.php'
+            - '../../Query/MonitorListSort.php'
+            - '../../Query/MonitorListStatus.php'
+            - '../../Query/MonitorRef.php'
+            - '../../Query/MonitorView.php'
+            - '../../Share/'
+            - '../../Security/MonitorViewDecision.php'
             # 1.34: defined by the extension with the SearchKit definition (its resolver is the configured one)
             - '../../Search/MonitorSearchTenants.php'
             - '../../Push/PushThresholds.php'
@@ -151,6 +161,11 @@ services:
     # DDD ports (1.25): the documented write entry points behind interfaces (host code type-hints these).
     Nowo\UptimeMonitorBundle\Apply\MonitorApplierInterface: '@Nowo\UptimeMonitorBundle\Apply\MonitorApplier'
     Nowo\UptimeMonitorBundle\Service\TenantProvisionerInterface: '@Nowo\UptimeMonitorBundle\Service\TenantProvisioner'
+    # 1.35 (Beacon spec 225): bulk tenant switch, cross-tenant monitor reads, monitor lookup by tenant. The repository
+    # interface is the application-registry repository (entities of the application's manager, like the class service).
+    Nowo\UptimeMonitorBundle\Service\BulkTenantProvisionerInterface: '@Nowo\UptimeMonitorBundle\Service\TenantProvisioner'
+    Nowo\UptimeMonitorBundle\Query\MonitorQueryInterface: '@Nowo\UptimeMonitorBundle\Query\DoctrineMonitorQuery'
+    Nowo\UptimeMonitorBundle\Repository\MonitorRepositoryInterface: '@Nowo\UptimeMonitorBundle\Repository\MonitorRepository'
 
     # apply-monitors (1.18): the token intake's system calls.
     Nowo\UptimeMonitorBundle\Apply\TokenSourceSystem: '@Nowo\UptimeMonitorBundle\Apply\NativeTokenSourceSystem'

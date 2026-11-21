@@ -49,7 +49,7 @@ final readonly class MonitorReadScope
     {
         $checker = $this->monitorAwareChecker();
 
-        return !$checker instanceof MonitorAwareUptimeMonitorAccessCheckerInterface || $checker->canViewMonitor($this->user(), $monitor);
+        return !$checker instanceof MonitorAwareUptimeMonitorAccessCheckerInterface || MonitorViewDecision::canView($checker, $this->user(), $monitor);
     }
 
     private function monitorAwareChecker(): ?MonitorAwareUptimeMonitorAccessCheckerInterface

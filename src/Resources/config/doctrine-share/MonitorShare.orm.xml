@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.35.0: XML mapping of the monitor shares (same table, columns and indexes as its attributes). Mapped only
+     with nowo_uptime_monitor.shares.enabled: true, with doctrine.mapping_type: xml, or by a host that maps the
+     Nowo\UptimeMonitorBundle\Share\Entity namespace itself. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare" table="uptime_monitor_share">
+        <indexes>
+            <index name="idx_uptime_monitor_share_user" columns="user_identifier"/>
+        </indexes>
+        <unique-constraints>
+            <unique-constraint name="uniq_uptime_monitor_share_pair" columns="monitor_id,user_identifier"/>
+        </unique-constraints>
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="userIdentifier" column="user_identifier" type="string" length="128"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+        <many-to-one field="monitor" target-entity="Nowo\UptimeMonitorBundle\Entity\Monitor">
+            <join-column name="monitor_id" nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+    </entity>
+</doctrine-mapping>

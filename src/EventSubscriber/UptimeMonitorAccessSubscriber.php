@@ -16,6 +16,7 @@ use Nowo\UptimeMonitorBundle\Controller\TenantController;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Repository\MonitorRepository;
 use Nowo\UptimeMonitorBundle\Security\MonitorAwareUptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Security\MonitorViewDecision;
 use Nowo\UptimeMonitorBundle\Security\TenantAwareUptimeMonitorAccessCheckerInterface;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
 use stdClass;
@@ -186,7 +187,8 @@ final readonly class UptimeMonitorAccessSubscriber implements EventSubscriberInt
     private function checkMonitorRead(MonitorAwareUptimeMonitorAccessCheckerInterface $checker, object $user, string $tenantSlug, mixed $id): void
     {
         $monitor = is_numeric($id) ? $this->monitorRepository?->find((int) $id) : null;
-        if (!$monitor instanceof Monitor || $monitor->getTenant()->getSlug() !== $tenantSlug || !$checker->canViewMonitor($user, $monitor)) {
+        // Since 1.35 the id form decides when the checker implements it (MonitorViewDecision).
+        if (!$monitor instanceof Monitor || $monitor->getTenant()->getSlug() !== $tenantSlug || !MonitorViewDecision::canView($checker, $user, $monitor)) {
             throw new NotFoundHttpException('Monitor not found.');
         }
     }

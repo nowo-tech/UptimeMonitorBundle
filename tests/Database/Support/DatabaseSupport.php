@@ -96,6 +96,8 @@ final class DatabaseSupport
 
         $em = new EntityManager(self::connection($url), $config);
         if ($resetSchema) {
+            // Since 1.35: the share table (other tests) references uptime_monitor.
+            $em->getConnection()->executeStatement('DROP TABLE IF EXISTS uptime_monitor_share');
             $metadata = $em->getMetadataFactory()->getAllMetadata();
             $tool     = new SchemaTool($em);
             $tool->dropSchema($metadata);

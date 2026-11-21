@@ -12,6 +12,9 @@ nowo_uptime_monitor:
         register_mapping: true          # 1.27.0+: false = the host maps the bundle entities itself (DDD host)
         mapping_type: attribute         # 1.27.0+: attribute | xml (src/Resources/config/doctrine, same schema)
         flush_listener_changes: true    # 1.27.0+: BC flush of what incident listeners left in the host manager (deprecated; false in 2.0)
+    shares:                   # since 1.35: bundle-owned monitor shares (table uptime_monitor_share), off by default
+        enabled: false        # literal boolean: maps the share entity and registers MonitorSharesInterface
+        policy: null          # service id of your MonitorSharePolicyInterface; null = every share refused
     conflict_response:        # since 1.31 (REQ-RUNTIME-003): answer to a lock conflict, see CONCURRENCY.md
         status: null          # 409 | 503; null = nowo_transaction_doctrine.conflict_response when registered, else 409
         retry_after: null     # Retry-After seconds of CONFLICT_001 when the failure has no hint; null = shared policy, else 1
@@ -150,6 +153,15 @@ SearchKit needs PHP 8.3 or later. Multi-tenant hosts must set `search_kit.tenant
 | `audit.history.display_limit` | `50` | Latest changes listed on the monitor page (1-500). |
 
 What is and is not recorded: [SECURITY](SECURITY.md#monitor-change-audit-133). How to use it: [USAGE](USAGE.md#monitor-change-audit-133).
+
+### Monitor shares (1.35)
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `shares.enabled` | `false` | Maps `Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare` (table `uptime_monitor_share`) and registers `MonitorSharesInterface`. Off: no mapping, no table, no service. A literal boolean (no env placeholder). Create the table first (see [UPGRADING](UPGRADING.md#unreleased)). |
+| `shares.policy` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Share\MonitorSharePolicyInterface`: who a monitor may be shared with. `null` = `DenyAllMonitorSharePolicy`, every share is refused. |
+
+How to use it: [USAGE](USAGE.md#cross-tenant-reads-and-ports-135).
 
 ### Check limits (SEC-004)
 
