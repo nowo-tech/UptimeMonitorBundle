@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Query;
 
+use DateTime;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +25,7 @@ use Nowo\UptimeMonitorBundle\Tests\Support\SqliteEntityManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
 
 use function array_map;
 
@@ -197,6 +199,29 @@ final class DoctrineMonitorQueryDbTest extends TestCase
         $paused = $this->query->findInTenant('alpha', (int) $this->m['a-paused']->getId());
         self::assertSame('paused', $paused?->displayStatus());
         self::assertSame('unknown', $this->query->findInTenant('alpha', (int) $this->m['a-new']->getId())?->displayStatus());
+    }
+
+    public function testTwoChecksAtTheSameInstantShowTheLastWritten(): void
+    {
+        $monitor = $this->em->find(Monitor::class, (int) $this->m['b-up']->getId());
+        self::assertInstanceOf(Monitor::class, $monitor);
+        $this->addResult($monitor, CheckStatus::Down, 900, '2026-05-01 11:00:00', 500);
+        $this->addResult($monitor, CheckStatus::Up, 42, '2026-05-01 11:00:00', 200);
+        $this->em->clear();
+
+        $latest = $this->query->findInTenant('beta', (int) $monitor->getId(), withLatest: true)?->latest;
+        self::assertInstanceOf(LatestCheckView::class, $latest);
+        self::assertSame([CheckStatus::Up, 42, 200], [$latest->status, $latest->latencyMs, $latest->statusCode], 'one view per monitor: the highest id wins a tie');
+    }
+
+    public function testDatesReadBackFromAnyDriverShape(): void
+    {
+        $date = new ReflectionMethod(DoctrineMonitorQuery::class, 'date');
+
+        self::assertSame('2026-05-01 11:00:00', $date->invoke($this->query, new DateTime('2026-05-01 11:00:00'))?->format('Y-m-d H:i:s'), 'a mutable date is copied');
+        self::assertSame('2026-05-01 11:00:00', $date->invoke($this->query, '2026-05-01 11:00:00')?->format('Y-m-d H:i:s'), 'a raw driver string is parsed');
+        self::assertNull($date->invoke($this->query, ''));
+        self::assertNull($date->invoke($this->query, null));
     }
 
     public function testFindInTenantNeedsTheExactTenant(): void

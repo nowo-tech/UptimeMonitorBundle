@@ -49,11 +49,12 @@ final class ShareValueObjectsTest extends TestCase
 
     public function testTheListenerCollatesTheShareColumnInPlace(): void
     {
-        foreach ([[['serverVersion' => '8.4.3'], 'utf8mb4_0900_bin'], [['primary' => ['serverVersion' => '8.0.10']], 'utf8mb4_bin']] as [$params, $expected]) {
+        // The configured server version, else (no serverVersion parameter) the one the server reports.
+        foreach ([[['serverVersion' => '8.4.3'], null, 'utf8mb4_0900_bin'], [['primary' => ['serverVersion' => '8.0.10']], null, 'utf8mb4_bin'], [[], '8.0.16', 'utf8mb4_bin'], [[], '8.4.0', 'utf8mb4_0900_bin']] as [$params, $reported, $expected]) {
             $table = $this->table();
             $args  = new GenerateSchemaTableEventArgs($this->metadata(MonitorShare::class), new Schema(), $table);
 
-            (new ExactUserIdentifierCollationListener($this->manager(new MySQL80Platform(), $params)))->postGenerateSchemaTable($args);
+            (new ExactUserIdentifierCollationListener($this->manager(new MySQL80Platform(), $params, $reported)))->postGenerateSchemaTable($args);
 
             self::assertSame($table, $args->getClassTable(), 'the table is never replaced (its foreign keys are added later)');
             self::assertSame($expected, $table->getColumn('user_identifier')->getPlatformOption('collation'));
@@ -109,12 +110,16 @@ final class ShareValueObjectsTest extends TestCase
 
     /**
      * @param array<string, mixed> $params
+     * @param string|null $reportedVersion What the server reports (asked only without a configured version)
      */
-    private function manager(object $platform, array $params): EntityManagerInterface
+    private function manager(object $platform, array $params, ?string $reportedVersion = null): EntityManagerInterface
     {
         $connection = $this->createStub(Connection::class);
         $connection->method('getDatabasePlatform')->willReturn($platform);
         $connection->method('getParams')->willReturn($params);
+        if ($reportedVersion !== null) {
+            $connection->method('getServerVersion')->willReturn($reportedVersion);
+        }
         $manager = $this->createStub(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($connection);
 

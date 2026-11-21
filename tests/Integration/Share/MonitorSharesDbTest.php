@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\UptimeMonitorBundle\Tests\Integration\Share;
 
+use DateTime;
 use Doctrine\DBAL\Configuration as DbalConfiguration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
@@ -34,6 +35,7 @@ use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
 use Symfony\Component\Clock\MockClock;
 use Throwable;
 
@@ -356,9 +358,29 @@ final class MonitorSharesDbTest extends TestCase
 
         self::assertFalse($this->shares->delete('beta', $this->monitorId, 'user-1'));
         self::assertFalse($this->shares->delete('alpha', $this->monitorId, ''));
+        // A malformed tenant slug or monitor id matches nothing (no query), on delete and on the exact read.
+        self::assertFalse($this->shares->delete('Alpha', $this->monitorId, 'user-1'));
+        self::assertFalse($this->shares->delete('alpha', 0, 'user-1'));
+        self::assertFalse($this->shares->isSharedWith('alpha ', $this->monitorId, 'user-1'));
+        self::assertTrue($this->shares->isSharedWith('alpha', $this->monitorId, 'user-1'));
         self::assertTrue($this->shares->delete('alpha', $this->monitorId, 'user-1'));
         self::assertFalse($this->shares->delete('alpha', $this->monitorId, 'user-1'));
         self::assertSame(0, $this->rows());
+    }
+
+    public function testRowsReadBackFromAnyDriverShape(): void
+    {
+        $hydrate = new ReflectionMethod(MonitorShares::class, 'hydrate');
+
+        /** @var list<MonitorShareView> $views */
+        $views = $hydrate->invoke($this->shares, [
+            'not a row',
+            ['id' => 'x', 'monitorId' => 1, 'tenantSlug' => 'alpha', 'userIdentifier' => 'user-1'],
+            ['id' => 1, 'monitorId' => 2, 'tenantSlug' => 'alpha', 'userIdentifier' => 'user-1', 'createdAt' => new DateTime('2026-11-21 10:00:00')],
+            ['id' => 2, 'monitorId' => 2, 'tenantSlug' => 'alpha', 'userIdentifier' => 'user-2', 'createdAt' => '2026-11-21 11:00:00'],
+        ]);
+
+        self::assertSame([[1, '2026-11-21 10:00:00'], [2, '2026-11-21 11:00:00']], array_map(static fn (MonitorShareView $view): array => [$view->id, $view->createdAt->format('Y-m-d H:i:s')], $views), 'malformed rows are skipped, mutable and string dates are read');
     }
 
     public function testErasingAUserRemovesAllTheirShares(): void

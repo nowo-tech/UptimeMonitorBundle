@@ -125,6 +125,7 @@ final readonly class TenantProvisioner implements BulkTenantProvisionerInterface
                 continue;
             }
             $tenant->setEnabled($enabled);
+            // @igor-ignore - Bundle-owned unit of work, dropped at every worker boundary; the value equals the committed row.
             $unitOfWork->setOriginalEntityProperty(spl_object_id($tenant), 'enabled', $enabled);
         }
 
