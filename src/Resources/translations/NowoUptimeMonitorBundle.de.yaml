@@ -46,13 +46,13 @@ monitor.form.section.tcp: 'TCP / SSL / Ping'
 monitor.form.section.dns: 'DNS'
 monitor.form.section.ssl: 'SSL-Zertifikat'
 monitor.form.save: 'Speichern'
-monitor.form.cancel: 'Cancel'
-monitor.form.loading: 'Loading form…'
+monitor.form.cancel: "Abbrechen"
+monitor.form.loading: "Formular wird geladen…"
 monitor.form.hint: '<strong>Gruppen</strong>-Monitore fungieren als Projekte: Sie führen ihren eigenen Heartbeat (Zusammenfassung der Kind-Status) im obigen Intervall aus. Weisen Sie Kind-Monitore über <em>Monitorgruppe</em> zu. Einstellungen wie bei Uptime Kuma (Wiederholungen, Timeout, Statusbereiche, Header, Proxy, Auth).'
 monitor.new: 'Neuer Monitor'
 monitor.edit: 'Monitor bearbeiten'
 
-action.close: 'Close'
+action.close: "Schließen"
 
 # Settings navigation
 settings.title: 'Einstellungen'
@@ -239,8 +239,8 @@ status_page.overall.operational: 'Alle Systeme betriebsbereit'
 status_page.overall.degraded: 'Eingeschränkte Leistung'
 status_page.overall.major: 'Dienststörung'
 status_page.overall.unknown: 'Status unbekannt'
-status_page.updated: 'Last updated %datetime%'
-status_page.services_heading: 'Services'
+status_page.updated: "Zuletzt aktualisiert: %datetime%"
+status_page.services_heading: "Dienste"
 status_page.no_monitors: 'Keine aktiven Monitore.'
 status_page.powered_by: 'Bereitgestellt von Nowo Uptime Monitor'
 

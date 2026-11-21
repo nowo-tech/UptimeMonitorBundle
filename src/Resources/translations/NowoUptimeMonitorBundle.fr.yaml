@@ -46,13 +46,13 @@ monitor.form.section.tcp: 'TCP / SSL / Ping'
 monitor.form.section.dns: 'DNS'
 monitor.form.section.ssl: 'Certificat SSL'
 monitor.form.save: 'Enregistrer'
-monitor.form.cancel: 'Cancel'
-monitor.form.loading: 'Loading form…'
+monitor.form.cancel: "Annuler"
+monitor.form.loading: "Chargement du formulaire…"
 monitor.form.hint: 'Les moniteurs <strong>Groupe</strong> servent de projets : ils exécutent leur propre heartbeat (agrégation des statuts enfants) sur l''intervalle ci-dessus. Assignez les moniteurs enfants via <em>Groupe de moniteur</em>. Paramètres compatibles Uptime Kuma (tentatives, délai, codes de statut, en-têtes, proxy, auth).'
 monitor.new: 'Nouveau moniteur'
 monitor.edit: 'Modifier le moniteur'
 
-action.close: 'Close'
+action.close: "Fermer"
 
 # Settings navigation
 settings.title: 'Paramètres'
@@ -234,12 +234,12 @@ form.tenant.slug_taken: 'Un autre locataire utilise déjà ce slug.'
 form.tenant.name: 'Nom affiché'
 
 # Public status page
-status_page.title_suffix: 'Status'
+status_page.title_suffix: "Statut"
 status_page.overall.operational: 'Tous les systèmes sont opérationnels'
 status_page.overall.degraded: 'Performances dégradées'
 status_page.overall.major: 'Interruption de service'
 status_page.overall.unknown: 'Statut inconnu'
-status_page.updated: 'Last updated %datetime%'
+status_page.updated: "Dernière mise à jour : %datetime%"
 status_page.services_heading: 'Services'
 status_page.no_monitors: 'Aucun moniteur actif.'
 status_page.powered_by: 'Propulsé par Nowo Uptime Monitor'
@@ -264,13 +264,13 @@ flash.settings.backup_import_failed: 'Échec de l''importation : le fichier n''e
 
 # Pages (UiKit page contract, REQ-UI-003)
 nav.dashboard: 'Tableau de bord'
-tenant.index.title: 'Tenants'
+tenant.index.title: "Locataires"
 tenant.index.new: 'Nouveau tenant'
 tenant.index.empty: 'Aucun tenant pour le moment.'
 tenant.col.name: 'Nom'
 tenant.col.slug: 'Slug'
 tenant.new.title: 'Nouveau tenant'
-tenant.back: 'Tenants'
+tenant.back: "Locataires"
 tenant.form.create: 'Créer le tenant'
 monitor.show.details: 'Détails'
 monitor.show.type: 'Type'
