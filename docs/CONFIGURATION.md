@@ -158,7 +158,7 @@ What is and is not recorded: [SECURITY](SECURITY.md#monitor-change-audit-133). H
 
 | Key | Default | Meaning |
 |-----|---------|---------|
-| `shares.enabled` | `false` | Maps `Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare` (table `uptime_monitor_share`) and registers `MonitorSharesInterface`. Off: no mapping, no table, no service. A literal boolean (no env placeholder). Create the table first (see [UPGRADING](UPGRADING.md#unreleased)). |
+| `shares.enabled` | `false` | Maps `Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare` (table `uptime_monitor_share`) and registers `MonitorSharesInterface`. Off: no mapping, no table, no service. A literal boolean (no env placeholder). Create the table first (see [UPGRADING](UPGRADING.md#to-1350)). |
 | `shares.policy` | `null` | Service id of a `Nowo\UptimeMonitorBundle\Share\MonitorSharePolicyInterface`: who a monitor may be shared with. `null` = `DenyAllMonitorSharePolicy`, every share is refused. |
 
 **Turning shares off again** unmaps the entity: `doctrine:schema:update` and `doctrine:migrations:diff` then see
