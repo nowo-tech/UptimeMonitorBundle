@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
+use SortDirection;
 
 use function is_numeric;
 use function max;
@@ -46,7 +47,7 @@ final readonly class DoctrineCheckAggregateQuery implements CheckAggregateQueryI
             ->addSelect('SUM(a.checksDown) AS checksDown', 'SUM(a.latencyAvgMs * a.checksTotal) AS latencyWeighted')
             ->groupBy('m.id')
             ->addGroupBy('t.slug')
-            ->orderBy('m.id', 'ASC')
+            ->orderBy('m.id', SortDirection::Ascending)
             ->getQuery()
             ->getArrayResult();
 
@@ -84,9 +85,9 @@ final readonly class DoctrineCheckAggregateQuery implements CheckAggregateQueryI
         $rows = $this->window($scope, $from, $to, $period)
             ->select('a.id AS id', 'm.id AS monitorId', 't.slug AS tenantSlug', 'a.periodStart AS periodStart', 'a.checksTotal AS checksTotal')
             ->addSelect('a.checksUp AS checksUp', 'a.checksDown AS checksDown', 'a.uptimeRatio AS uptimeRatio', 'a.latencyAvgMs AS latencyAvgMs')
-            ->orderBy('a.periodStart', 'ASC')
-            ->addOrderBy('m.id', 'ASC')
-            ->addOrderBy('a.id', 'ASC')
+            ->orderBy('a.periodStart', SortDirection::Ascending)
+            ->addOrderBy('m.id', SortDirection::Ascending)
+            ->addOrderBy('a.id', SortDirection::Ascending)
             ->setMaxResults(max(1, min(self::MAX_LIMIT, $limit)))
             ->setFirstResult(max(0, $offset))
             ->getQuery()

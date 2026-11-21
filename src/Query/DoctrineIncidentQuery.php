@@ -13,6 +13,7 @@ use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
 use Nowo\UptimeMonitorBundle\Security\SecretRedactor;
+use SortDirection;
 
 use function array_chunk;
 use function array_keys;
@@ -52,8 +53,8 @@ final readonly class DoctrineIncidentQuery implements IncidentQueryInterface
         /** @var list<array<string, mixed>> $rows */
         $rows = $this->window($scope, $from, $to, $open)
             ->select('i.id AS id', 'm.id AS monitorId', 't.slug AS tenantSlug', 'i.triggerStatus AS triggerStatus', 'i.startedAt AS startedAt', 'i.endedAt AS endedAt', 'i.message AS message')
-            ->orderBy('i.startedAt', 'DESC')
-            ->addOrderBy('i.id', 'DESC')
+            ->orderBy('i.startedAt', SortDirection::Descending)
+            ->addOrderBy('i.id', SortDirection::Descending)
             ->setMaxResults(max(1, min(self::MAX_LIMIT, $limit)))
             ->setFirstResult(max(0, $offset))
             ->getQuery()
