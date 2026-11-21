@@ -186,6 +186,31 @@ final class ReportQueriesDbTest extends TestCase
         self::assertNull($none->latencyAvgMs());
     }
 
+    public function testTheWeightedLatencySumPastInt4IsExact(): void
+    {
+        // latency x checks = 3,153,600,000 > 2^31 (a year of 30 s checks at 3 s): int4 arithmetic would overflow on PostgreSQL.
+        $web = $this->em->find(Monitor::class, $this->id['a-web']);
+        self::assertInstanceOf(Monitor::class, $web);
+        $this->bucket($web, AggregatePeriod::Year, '2024-01-01 00:00:00', 1_051_200, 1_051_200, 3000);
+        $this->bucket($web, AggregatePeriod::Year, '2025-01-01 00:00:00', 1_051_200, 1_051_200, 1000);
+        $this->em->flush();
+        $this->em->clear();
+        $from  = new DateTimeImmutable('2024-01-01 00:00:00');
+        $to    = new DateTimeImmutable('2026-01-01 00:00:00');
+        $scope = MonitorScope::tenants(['alpha']);
+
+        $totals = $this->aggregates->totalsByMonitor($scope, $from, $to, AggregatePeriod::Year);
+
+        self::assertSame([$this->id['a-web']], array_keys($totals));
+        $web = $totals[$this->id['a-web']];
+        self::assertSame(2, $web->buckets);
+        self::assertSame(2_102_400, $web->checksTotal);
+        self::assertSame(1_051_200 * 3000 + 1_051_200 * 1000, $web->latencyWeightedMs);
+        self::assertSame(2000, $web->latencyAvgMs());
+        self::assertSame(2, $this->aggregates->count($scope, $from, $to, AggregatePeriod::Year));
+        self::assertCount(2, $this->aggregates->list($scope, $from, $to, AggregatePeriod::Year));
+    }
+
     public function testBucketsPageOldestFirstAndCountTheirTotal(): void
     {
         $scope = MonitorScope::tenants(['alpha', 'beta']);

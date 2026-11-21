@@ -107,6 +107,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `MonitorShowLiveUpdatesEvent`: `monitorId` / `getMonitorId()`, `getTenantSlug()`, `occurredAt` / `getOccurredAt()` (optional fourth constructor argument). Deprecated: `monitor`.
   - `UptimePageEvent`: `monitorId` / `getMonitorId()` (null on the dashboard), `getPage()`, `getTenantSlug()`, `occurredAt` / `getOccurredAt()` (optional fourth constructor argument). Deprecated: `monitor`.
 
+### Fixed
+
+- Translations: the status page texts (`status_page.overall.*`, `status_page.no_monitors`, `status_page.powered_by`) were left in English in de, fr, it, nl and pt; they are translated. A catalogue test now fails on a non-en value identical to en (brand names, URLs and technical labels are allow-listed) or on a missing key.
+- Report reads: the weighted latency sum (`latencyAvgMs * checksTotal`) no longer overflows int4 on PostgreSQL for a long window of year buckets (audit YK-M1).
+- The dashboard `UptimePageEvent` and the status page `StatusPageMonitorsEvent` carry the clock's time as `occurredAt`, like the monitor page (audit YK-I1).
+- Docs: report-port pages can be shorter than the limit, scope size limits, ports do not decide access (audit YK-L1, YK-I2).
+
 ### Changed
 
 - `BulkTenantProvisionerInterface::setEnabledMany()` (`TenantProvisioner`) now runs on the runner's retrying path: outside a transaction, a lock wait or deadlock is replayed (the statement is idempotent) before it surfaces as a `TransientStorageFailure` (`CONFLICT_001`); inside a caller's transaction it still surfaces at once (audit XZD-I2). Covered by a two-connection test on MySQL, MariaDB and PostgreSQL.

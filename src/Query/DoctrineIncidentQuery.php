@@ -122,6 +122,24 @@ final readonly class DoctrineIncidentQuery implements IncidentQueryInterface
             return [];
         }
 
+        // The platform is checked before the first query: an unsupported one throws without reading anything.
+        $connection = $this->entityManager->getConnection();
+        $platform   = $connection->getDatabasePlatform();
+        $metadata   = $this->entityManager->getClassMetadata(Incident::class);
+        $monitorCol = $metadata->getSingleAssociationJoinColumnName('monitor');
+        $started    = $metadata->getColumnName('startedAt');
+        $ended      = $metadata->getColumnName('endedAt');
+        $sql        = sprintf(
+            'SELECT %1$s AS monitor_id, COUNT(*) AS n, SUM(%2$s) AS seconds FROM %3$s WHERE %1$s IN (:ids) AND %4$s < %6$s AND (%5$s IS NULL OR %5$s >= %7$s) GROUP BY %1$s',
+            $monitorCol,
+            IncidentDowntimeSql::seconds($platform, $started, $ended),
+            $metadata->getTableName(),
+            $started,
+            $ended,
+            IncidentDowntimeSql::bound($platform, 'to'),
+            IncidentDowntimeSql::bound($platform, 'from'),
+        );
+
         // The monitors of the scope first (exact slugs), then the sums over their incidents by id.
         /** @var list<array<string, mixed>> $rows */
         $rows = MonitorScopeFilter::apply(
@@ -139,23 +157,6 @@ final readonly class DoctrineIncidentQuery implements IncidentQueryInterface
         if ($slugs === []) {
             return [];
         }
-
-        $connection = $this->entityManager->getConnection();
-        $platform   = $connection->getDatabasePlatform();
-        $metadata   = $this->entityManager->getClassMetadata(Incident::class);
-        $monitorCol = $metadata->getSingleAssociationJoinColumnName('monitor');
-        $started    = $metadata->getColumnName('startedAt');
-        $ended      = $metadata->getColumnName('endedAt');
-        $sql        = sprintf(
-            'SELECT %1$s AS monitor_id, COUNT(*) AS n, SUM(%2$s) AS seconds FROM %3$s WHERE %1$s IN (:ids) AND %4$s < %6$s AND (%5$s IS NULL OR %5$s >= %7$s) GROUP BY %1$s',
-            $monitorCol,
-            IncidentDowntimeSql::seconds($platform, $started, $ended),
-            $metadata->getTableName(),
-            $started,
-            $ended,
-            IncidentDowntimeSql::bound($platform, 'to'),
-            IncidentDowntimeSql::bound($platform, 'from'),
-        );
 
         $downtime = [];
         foreach (array_chunk(array_keys($slugs), self::DOWNTIME_CHUNK) as $ids) {

@@ -604,16 +604,22 @@ $open     = $incidents->count($scope, $from, $to, open: true);
 - **Scope.** The caller decides which tenants (and single monitors) the user may read; the bundle reads nothing else.
   An empty scope, an empty id filter or an empty window (`$from >= $to`) answers nothing without a query. Invalid slugs
   and ids below 1 are dropped. Group monitors are included.
+- **Access.** The read ports do not decide access: a host that denies access per monitor (shares, roles) must narrow
+  `monitorIds` itself.
+- **Size of the scope.** Each of `tenantSlugs` and `monitorIds` is one `IN` list in one statement: keep each to a few
+  thousand entries per call (MySQL, MariaDB and PostgreSQL allow 65,535 placeholders per statement; SQLite before 3.32
+  allows 999 and fails above). Split larger scopes into several calls.
 - **Exact tenants.** Each row carries its tenant slug and is compared with the scope again in PHP (`===`): a tenant
   whose slug differs only by case or accents, which a case-insensitive collation would match, is never read.
 - **Pages.** `list()` pages are stable (ties broken by monitor id and row id); `limit` is clamped to
   `CheckAggregateQueryInterface::MAX_LIMIT` (1,000) and `IncidentQueryInterface::MAX_LIMIT` (2,000), `offset` to 0 or
-  more. Use `count()` for the total and `downtimeByMonitor()` for whole totals (it sums every incident, no page cap).
+  more. A page can be shorter than `limit` when rows of look-alike tenants are dropped by the PHP re-check, so page until
+  an empty page, never until `offset >= count()`. Use `count()` for the total and `downtimeByMonitor()` for whole totals (it sums every incident, no page cap).
 - **Dates.** Pass the window in the time zone the bundle writes (the PHP default time zone). An open incident runs
   until the `$now` you pass, never past `$to`, and never counts negative time.
 - **Messages.** `IncidentView::$message` has its URLs masked (user info and secret-looking query values).
 - **Platforms.** `downtimeByMonitor()` sums in native SQL on MySQL / MariaDB, PostgreSQL and SQLite (one statement
-  per 1,000 monitors); other platforms get a `LogicException`. The rest is DQL.
+  per 1,000 monitors); other platforms get a `LogicException` before any query runs. The rest is DQL.
 - **Concurrency and worker mode.** Plain reads on the bundle's own manager: no lock, so a report never waits for a
   rollup or a check and never sees uncommitted rows; nothing stays managed; the services are stateless `readonly`
   classes, safe in a kept-alive FrankenPHP worker (no reset needed).

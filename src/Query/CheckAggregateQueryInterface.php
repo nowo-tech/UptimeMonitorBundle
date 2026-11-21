@@ -14,7 +14,10 @@ use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
  *
  * The window is half-open: a bucket is in it when `$from <= periodStart < $to` (dates in the time zone the bundle
  * writes, the PHP default). An empty window (`$from >= $to`) or an empty {@see MonitorScope} answers nothing without a
- * query. The access decision (which tenants a user may read) stays with the caller. {@see DoctrineCheckAggregateQuery}
+ * query. The access decision (which tenants a user may read) stays with the caller; the port does not decide access,
+ * so a host that denies access per monitor must narrow `monitorIds`. Keep `tenantSlugs` and `monitorIds` to a few
+ * thousand entries per call: each is one `IN` list (MySQL, MariaDB and PostgreSQL allow 65,535 placeholders per
+ * statement; SQLite before 3.32 only 999). {@see DoctrineCheckAggregateQuery}
  * is the default implementation.
  */
 interface CheckAggregateQueryInterface
@@ -39,6 +42,8 @@ interface CheckAggregateQueryInterface
 
     /**
      * One page of the buckets of the window, oldest first (then by monitor id and bucket id, so pages are stable).
+     * A page can be shorter than `$limit` when rows of look-alike tenants are dropped by the exact PHP re-check: page
+     * until an empty page, never until `$offset >= count()`.
      *
      * @param int $limit Page size (1 to {@see self::MAX_LIMIT}; clamped)
      * @param int $offset Rows skipped (0 or more)

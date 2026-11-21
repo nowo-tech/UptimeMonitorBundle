@@ -44,7 +44,7 @@ final readonly class DoctrineCheckAggregateQuery implements CheckAggregateQueryI
         /** @var list<array<string, mixed>> $rows */
         $rows = $this->window($scope, $from, $to, $period)
             ->select('m.id AS monitorId', 't.slug AS tenantSlug', 'COUNT(a.id) AS buckets', 'SUM(a.checksTotal) AS checksTotal', 'SUM(a.checksUp) AS checksUp')
-            ->addSelect('SUM(a.checksDown) AS checksDown', 'SUM(a.latencyAvgMs * a.checksTotal) AS latencyWeighted')
+            ->addSelect('SUM(a.checksDown) AS checksDown', 'SUM(a.latencyAvgMs * 1.0 * a.checksTotal) AS latencyWeighted')
             ->groupBy('m.id')
             ->addGroupBy('t.slug')
             ->orderBy('m.id', SortDirection::Ascending)

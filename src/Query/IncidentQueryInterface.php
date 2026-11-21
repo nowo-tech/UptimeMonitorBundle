@@ -13,7 +13,10 @@ use DateTimeImmutable;
  *
  * An incident overlaps the window `[$from, $to)` when it started before `$to` and is open or ended at `$from` or later
  * (dates in the time zone the bundle writes, the PHP default). An empty window (`$from >= $to`) or an empty
- * {@see MonitorScope} answers nothing without a query. The access decision stays with the caller.
+ * {@see MonitorScope} answers nothing without a query. The access decision stays with the caller; the port does not
+ * decide access, so a host that denies access per monitor must narrow `monitorIds`. Keep `tenantSlugs` and
+ * `monitorIds` to a few thousand entries per call (65,535 placeholders per statement on MySQL, MariaDB and
+ * PostgreSQL; 999 on SQLite before 3.32; `downtimeByMonitor()` chunks its own id lists by 1,000).
  * {@see DoctrineIncidentQuery} is the default implementation.
  */
 interface IncidentQueryInterface
@@ -25,6 +28,8 @@ interface IncidentQueryInterface
 
     /**
      * One page of the incidents overlapping the window, newest first (then by id, so pages are stable).
+     * A page can be shorter than `$limit` when rows of look-alike tenants are dropped by the exact PHP re-check: page
+     * until an empty page, never until `$offset >= count()`.
      *
      * @param bool|null $open Only open (true) or resolved (false) incidents; null for both
      * @param int $limit Page size (1 to {@see self::MAX_LIMIT}; clamped)

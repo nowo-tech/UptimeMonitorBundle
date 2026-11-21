@@ -235,14 +235,14 @@ form.tenant.name: 'Nome visualizzato'
 
 # Public status page
 status_page.title_suffix: 'Status'
-status_page.overall.operational: 'All systems operational'
-status_page.overall.degraded: 'Degraded performance'
-status_page.overall.major: 'Service disruption'
-status_page.overall.unknown: 'Status unknown'
+status_page.overall.operational: 'Tutti i sistemi operativi'
+status_page.overall.degraded: 'Prestazioni ridotte'
+status_page.overall.major: 'Interruzione del servizio'
+status_page.overall.unknown: 'Stato sconosciuto'
 status_page.updated: 'Last updated %datetime%'
 status_page.services_heading: 'Services'
-status_page.no_monitors: 'No active monitors.'
-status_page.powered_by: 'Powered by Nowo Uptime Monitor'
+status_page.no_monitors: 'Nessun monitor attivo.'
+status_page.powered_by: 'Offerto da Nowo Uptime Monitor'
 
 # Flash messages
 flash.monitor.created: 'Monitor "%name%" creato.'

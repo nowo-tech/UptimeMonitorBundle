@@ -156,7 +156,9 @@ Everything is additive: no configuration change, **no schema change**, defaults 
 - **Report read ports (new, autowirable):** `Query\CheckAggregateQueryInterface` (rollup totals per monitor, pages,
   counts) and `Query\IncidentQueryInterface` (incident pages, counts, downtime per monitor), both scoped by a
   `Query\MonitorScope`. A host that runs DQL or SQL over `CheckAggregate` / `Incident` (an uptime report) can move to
-  them; see [USAGE](USAGE.md#report-reads-136). The downtime sums need MySQL, MariaDB, PostgreSQL or SQLite.
+  them; see [USAGE](USAGE.md#report-reads-136). The downtime sums need MySQL, MariaDB, PostgreSQL or SQLite (other
+  platforms throw a `LogicException` before any query). The ports do not decide access: narrow `monitorIds` per monitor.
+  `list()` pages can be shorter than the limit (look-alike tenant rows are dropped): page until an empty page.
 - **UI hook events carry ids:** `StatusPageMonitorsEvent` (`getTenantSlug()`, `getMonitorIds()`, `keepMonitorIds()`),
   `MonitorShowLiveUpdatesEvent` and `UptimePageEvent` (`getMonitorId()`, `getTenantSlug()`), all three with
   `getOccurredAt()`. The entity accessors (`tenant`, `getMonitors()`, `setMonitors()`, `monitor`) keep working and
