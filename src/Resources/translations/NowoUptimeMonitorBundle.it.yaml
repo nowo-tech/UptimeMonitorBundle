@@ -46,13 +46,13 @@ monitor.form.section.tcp: 'TCP / SSL / Ping'
 monitor.form.section.dns: 'DNS'
 monitor.form.section.ssl: 'Certificato SSL'
 monitor.form.save: 'Salva'
-monitor.form.cancel: 'Cancel'
-monitor.form.loading: 'Loading form…'
+monitor.form.cancel: "Annulla"
+monitor.form.loading: "Caricamento del modulo…"
 monitor.form.hint: 'I monitor <strong>Gruppo</strong> fungono da progetti: eseguono il proprio heartbeat (aggregato degli stati figli) sull''intervallo indicato. Assegna i monitor figli tramite <em>Gruppo monitor</em>. Impostazioni in stile Uptime Kuma (tentativi, timeout, codici di stato, header, proxy, auth).'
 monitor.new: 'Nuovo monitor'
 monitor.edit: 'Modifica monitor'
 
-action.close: 'Close'
+action.close: "Chiudi"
 
 # Settings navigation
 settings.title: 'Impostazioni'
@@ -234,13 +234,13 @@ form.tenant.slug_taken: 'Un altro tenant ha già questo slug.'
 form.tenant.name: 'Nome visualizzato'
 
 # Public status page
-status_page.title_suffix: 'Status'
+status_page.title_suffix: "Stato"
 status_page.overall.operational: 'Tutti i sistemi operativi'
 status_page.overall.degraded: 'Prestazioni ridotte'
 status_page.overall.major: 'Interruzione del servizio'
 status_page.overall.unknown: 'Stato sconosciuto'
-status_page.updated: 'Last updated %datetime%'
-status_page.services_heading: 'Services'
+status_page.updated: "Ultimo aggiornamento: %datetime%"
+status_page.services_heading: "Servizi"
 status_page.no_monitors: 'Nessun monitor attivo.'
 status_page.powered_by: 'Offerto da Nowo Uptime Monitor'
 

@@ -97,6 +97,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Untranslated short labels in the de/es/fr/it/nl/pt catalogues (Cancel, Loading form…, Close, Last updated, Services, Status, Tenants). `TranslationCatalogueTest` now fails on missing keys and on non-en values identical to English of any length (it used to skip values up to 15 characters and with placeholders) unless allow-listed per locale (brands, protocol names, units, loanwords, cognates), and reports stale allow-list entries.
+
 ## [1.36.0] - 2026-11-21
 
 ### Added

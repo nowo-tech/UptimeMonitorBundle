@@ -46,13 +46,13 @@ monitor.form.section.tcp: 'TCP / SSL / Ping'
 monitor.form.section.dns: 'DNS'
 monitor.form.section.ssl: 'Certificado SSL'
 monitor.form.save: 'Guardar'
-monitor.form.cancel: 'Cancel'
-monitor.form.loading: 'Loading form…'
+monitor.form.cancel: "Cancelar"
+monitor.form.loading: "A carregar o formulário…"
 monitor.form.hint: 'Os monitores <strong>Grupo</strong> funcionam como projetos: executam o seu próprio heartbeat (agregação dos estados filhos) no intervalo acima. Atribua monitores filhos via <em>Grupo de monitor</em>. Definições compatíveis com Uptime Kuma (tentativas, timeout, códigos de estado, cabeçalhos, proxy, auth).'
 monitor.new: 'Novo monitor'
 monitor.edit: 'Editar monitor'
 
-action.close: 'Close'
+action.close: "Fechar"
 
 # Settings navigation
 settings.title: 'Definições'
@@ -234,13 +234,13 @@ form.tenant.slug_taken: 'Outro tenant já tem este slug.'
 form.tenant.name: 'Nome visível'
 
 # Public status page
-status_page.title_suffix: 'Status'
+status_page.title_suffix: "Estado"
 status_page.overall.operational: 'Todos os sistemas operacionais'
 status_page.overall.degraded: 'Desempenho degradado'
 status_page.overall.major: 'Interrupção do serviço'
 status_page.overall.unknown: 'Estado desconhecido'
-status_page.updated: 'Last updated %datetime%'
-status_page.services_heading: 'Services'
+status_page.updated: "Última atualização: %datetime%"
+status_page.services_heading: "Serviços"
 status_page.no_monitors: 'Nenhum monitor ativo.'
 status_page.powered_by: 'Desenvolvido com Nowo Uptime Monitor'
 
@@ -264,13 +264,13 @@ flash.settings.backup_import_failed: 'Falha na importação: o ficheiro não é 
 
 # Pages (UiKit page contract, REQ-UI-003)
 nav.dashboard: 'Painel'
-tenant.index.title: 'Tenants'
+tenant.index.title: "Inquilinos"
 tenant.index.new: 'Novo tenant'
 tenant.index.empty: 'Ainda não há tenants.'
 tenant.col.name: 'Nome'
 tenant.col.slug: 'Slug'
 tenant.new.title: 'Novo tenant'
-tenant.back: 'Tenants'
+tenant.back: "Inquilinos"
 tenant.form.create: 'Criar tenant'
 monitor.show.details: 'Detalhes'
 monitor.show.type: 'Tipo'

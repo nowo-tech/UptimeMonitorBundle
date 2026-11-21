@@ -264,13 +264,13 @@ flash.settings.backup_import_failed: 'Error al importar: el archivo no es una co
 
 # Pages (UiKit page contract, REQ-UI-003)
 nav.dashboard: 'Panel'
-tenant.index.title: 'Tenants'
+tenant.index.title: "Inquilinos"
 tenant.index.new: 'Nuevo tenant'
 tenant.index.empty: 'Todavía no hay tenants.'
 tenant.col.name: 'Nombre'
 tenant.col.slug: 'Slug'
 tenant.new.title: 'Nuevo tenant'
-tenant.back: 'Tenants'
+tenant.back: "Inquilinos"
 tenant.form.create: 'Crear tenant'
 monitor.show.details: 'Detalles'
 monitor.show.type: 'Tipo'
