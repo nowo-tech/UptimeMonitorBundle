@@ -90,13 +90,20 @@ final readonly class MonitorBackupService
     }
 
     /**
+     * The backup JSON of a tenant's monitors (groups left out). Since 1.35 the tenant may be given by its slug, so a
+     * host needs no tenant entity (an unknown slug exports no monitors, under that slug).
+     *
+     * @param string|Tenant $tenant The tenant, or its slug
+     *
      * @return array{version: int, exported_at: string, tenant: string, monitors: list<array<string, mixed>>}
      */
-    public function export(Tenant $tenant): array
+    public function export(Tenant|string $tenant): array
     {
+        $slug     = $tenant instanceof Tenant ? $tenant->getSlug() : $tenant;
         $monitors = [];
-        foreach ($this->monitorRepository->findByTenantSlug($tenant->getSlug()) as $monitor) {
-            if ($monitor->isGroup()) {
+        foreach ($this->monitorRepository->findByTenantSlug($slug) as $monitor) {
+            // Exact slug (a case-insensitive collation must not export another tenant's monitors).
+            if ($monitor->isGroup() || $monitor->getTenant()->getSlug() !== $slug) {
                 continue;
             }
 
@@ -105,14 +112,14 @@ final readonly class MonitorBackupService
 
         $this->logger->info('Uptime backup exported for tenant {tenant}: {count} monitor(s)', [
             'bundle' => 'NowoUptimeMonitorBundle',
-            'tenant' => $tenant->getSlug(),
+            'tenant' => $slug,
             'count'  => count($monitors),
         ]);
 
         return [
             'version'     => 1,
             'exported_at' => $this->clock->now()->format(DateTimeInterface::ATOM),
-            'tenant'      => $tenant->getSlug(),
+            'tenant'      => $slug,
             'monitors'    => $monitors,
         ];
     }
@@ -244,7 +251,7 @@ final readonly class MonitorBackupService
                 continue;
             }
 
-            if ($checked && $this->isDenied([new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_CREATE, $tenant->getSlug(), $data->type)], $reason)) {
+            if ($checked && $this->isDenied([new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_CREATE, $tenant->getSlug(), $data->type, paused: $data->paused)], $reason)) {
                 ++$denied;
                 continue;
             }

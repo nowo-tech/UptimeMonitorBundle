@@ -20,6 +20,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\MonitorChange;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -77,6 +78,30 @@ final class XmlMappingParityTest extends TestCase
         $to        = (new SchemaTool($xml))->getSchemaFromMetadata($xml->getMetadataFactory()->getAllMetadata());
 
         self::assertCount(7, $xml->getMetadataFactory()->getAllMetadata());
+        self::assertTrue($attribute->getConnection()->createSchemaManager()->createComparator()->compareSchemas($from, $to)->isEmpty());
+    }
+
+    public function testTheShareXmlMatchesTheAttributes(): void
+    {
+        $root      = dirname(__DIR__, 3) . '/src';
+        $attribute = $this->manager(new AttributeDriver([$root . '/Entity', $root . '/Share/Entity']));
+        $xml       = $this->manager(new SimplifiedXmlDriver([
+            $root . '/Resources/config/doctrine'       => 'Nowo\\UptimeMonitorBundle\\Entity',
+            $root . '/Resources/config/doctrine-share' => 'Nowo\\UptimeMonitorBundle\\Share\\Entity',
+        ]));
+        $class = MonitorShare::class;
+
+        $a = $attribute->getClassMetadata($class);
+        $x = $xml->getClassMetadata($class);
+        self::assertSame($a->getTableName(), $x->getTableName());
+        self::assertEquals($this->sorted($a->table['indexes'] ?? []), $this->sorted($x->table['indexes'] ?? []));
+        self::assertEquals($this->sorted($a->table['uniqueConstraints'] ?? []), $this->sorted($x->table['uniqueConstraints'] ?? []));
+        self::assertEquals($this->fields($a), $this->fields($x));
+        self::assertEquals($this->associations($a), $this->associations($x));
+
+        $from = (new SchemaTool($attribute))->getSchemaFromMetadata($attribute->getMetadataFactory()->getAllMetadata());
+        $to   = (new SchemaTool($xml))->getSchemaFromMetadata($xml->getMetadataFactory()->getAllMetadata());
+        self::assertCount(8, $xml->getMetadataFactory()->getAllMetadata());
         self::assertTrue($attribute->getConnection()->createSchemaManager()->createComparator()->compareSchemas($from, $to)->isEmpty());
     }
 

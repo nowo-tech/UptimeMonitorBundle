@@ -10,8 +10,10 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 
+use function array_filter;
 use function array_keys;
 use function array_merge;
+use function array_values;
 use function implode;
 use function is_array;
 use function is_string;
@@ -37,8 +39,14 @@ final class EntityManagerOptionPass implements CompilerPassInterface
 
     public const CONNECTION_PARAMETER = 'nowo_uptime_monitor.doctrine.connection';
 
+    /** Since 1.35: whether the opt-in monitor shares are mapped (`shares.enabled`). */
+    public const SHARES_PARAMETER = 'nowo_uptime_monitor.shares.enabled';
+
     /** @var list<string> */
     private const ENTITY_NAMESPACES = ['Nowo\\UptimeMonitorBundle\\Entity'];
+
+    /** Since 1.35: the namespace of the opt-in monitor shares. */
+    private const SHARE_ENTITY_NAMESPACE = 'Nowo\\UptimeMonitorBundle\\Share\\Entity';
 
     /**
      * Fails the build when the configured entity manager does not exist or does not map the bundle entities.
@@ -58,35 +66,45 @@ final class EntityManagerOptionPass implements CompilerPassInterface
             throw new InvalidConfigurationException(sprintf('nowo_uptime_monitor.doctrine.entity_manager is "%s", but no such Doctrine entity manager is configured (known: "%s"). Add it under doctrine.orm.entity_managers or remove the option.', $name, implode('", "', array_keys($managers))));
         }
 
+        $namespaces = self::ENTITY_NAMESPACES;
+        if ($container->hasParameter(self::SHARES_PARAMETER) && $container->getParameter(self::SHARES_PARAMETER) === true) {
+            $namespaces[] = self::SHARE_ENTITY_NAMESPACE;
+        }
+
         foreach (array_keys($managers) as $manager) {
             $chainId = sprintf('doctrine.orm.%s_metadata_driver', $manager);
             if (!$container->hasDefinition($chainId)) {
                 continue;
             }
 
-            $chain = $container->getDefinition($chainId);
-            $calls = [];
-            $maps  = false;
+            $chain  = $container->getDefinition($chainId);
+            $calls  = [];
+            $mapped = [];
             foreach ($chain->getMethodCalls() as $call) {
                 if ($this->isExcludedDriver($call)) {
                     continue;
                 }
                 $namespace = $call[0] === 'addDriver' ? ($call[1][1] ?? null) : null;
-                $maps      = $maps || $this->isBundleNamespace($namespace, true);
-                $calls[]   = $call;
+                foreach ($namespaces as $bundleNamespace) {
+                    if ($this->isBundleNamespace($namespace, $bundleNamespace)) {
+                        $mapped[$bundleNamespace] = true;
+                    }
+                }
+                $calls[] = $call;
             }
-            if ($manager !== $name && !$maps) {
+            $missing = array_values(array_filter($namespaces, static fn (string $bundleNamespace): bool => !isset($mapped[$bundleNamespace])));
+            if ($manager !== $name && $missing !== []) {
                 // First in the chain: a chain asks its namespace drivers in order, then its default driver.
                 $excluded = [];
-                foreach (self::ENTITY_NAMESPACES as $bundleNamespace) {
+                foreach ($missing as $bundleNamespace) {
                     $excluded[] = ['addDriver', [new Definition(ExcludedEntityNamespaceDriver::class), $bundleNamespace]];
                 }
                 $calls = array_merge($excluded, $calls);
             }
             $chain->setMethodCalls($calls);
 
-            if ($manager === $name && !$maps) {
-                throw new InvalidConfigurationException(sprintf('The Doctrine entity manager "%s" (nowo_uptime_monitor.doctrine.entity_manager) does not map %s.', $name, implode(', ', self::ENTITY_NAMESPACES)));
+            if ($manager === $name && $missing !== []) {
+                throw new InvalidConfigurationException(sprintf('The Doctrine entity manager "%s" (nowo_uptime_monitor.doctrine.entity_manager) does not map %s.', $name, implode(', ', $missing)));
             }
         }
     }
@@ -121,19 +139,11 @@ final class EntityManagerOptionPass implements CompilerPassInterface
     }
 
     /**
-     * @param bool $orParent also accept a parent namespace of the bundle entities (a host mapping of a wider namespace)
+     * Whether a driver namespace maps the bundle namespace: the same namespace, a sub-namespace, or a parent namespace
+     * (a host mapping of a wider namespace).
      */
-    private function isBundleNamespace(mixed $namespace, bool $orParent): bool
+    private function isBundleNamespace(mixed $namespace, string $bundleNamespace): bool
     {
-        if (!is_string($namespace)) {
-            return false;
-        }
-        foreach (self::ENTITY_NAMESPACES as $bundleNamespace) {
-            if (str_starts_with($namespace, $bundleNamespace) || ($orParent && str_starts_with($bundleNamespace, $namespace . '\\'))) {
-                return true;
-            }
-        }
-
-        return false;
+        return is_string($namespace) && (str_starts_with($namespace, $bundleNamespace) || str_starts_with($bundleNamespace, $namespace . '\\'));
     }
 }

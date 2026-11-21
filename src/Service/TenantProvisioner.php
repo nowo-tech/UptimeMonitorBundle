@@ -10,10 +10,13 @@ use InvalidArgumentException;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
 use Nowo\UptimeMonitorBundle\Form\TenantFormType;
+use Nowo\UptimeMonitorBundle\Query\MonitorListCriteria;
 use Nowo\UptimeMonitorBundle\Repository\TenantRepository;
 use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 
+use function in_array;
 use function preg_match;
+use function spl_object_id;
 use function sprintf;
 
 /**
@@ -21,7 +24,7 @@ use function sprintf;
  * project, slug = the project id — instead of the `/tenants` UI (set `tenants.list_enabled: false`). Since 1.25 host code
  * type-hints {@see TenantProvisionerInterface}.
  */
-final readonly class TenantProvisioner implements TenantProvisionerInterface
+final readonly class TenantProvisioner implements BulkTenantProvisionerInterface
 {
     /**
      * Creates the provisioner.
@@ -84,6 +87,49 @@ final readonly class TenantProvisioner implements TenantProvisionerInterface
         $this->runner()->run(static fn (): Tenant => $tenant->setEnabled($enabled));
 
         return true;
+    }
+
+    /**
+     * Enables or disables the listed tenants in one statement (since 1.35, Beacon spec 225).
+     *
+     * The `UPDATE` bypasses the unit of work: the tenants the bundle's manager already holds for these slugs get the new
+     * value in memory, as their committed state (no second write), so a later read in the same request sees it and a
+     * managed monitor of those tenants still flushes. An application manager is never
+     * touched; tenants the application loaded through its own manager keep their old `enabled` value until reloaded.
+     *
+     * @param list<string> $slugs Tenant slugs (invalid ones dropped, duplicates ignored)
+     */
+    public function setEnabledMany(array $slugs, bool $enabled): int
+    {
+        $slugs = (new MonitorListCriteria($slugs))->tenantSlugs;
+        if ($slugs === []) {
+            return 0;
+        }
+
+        $manager = $this->entityManager;
+        $changed = $this->runner()->run(static fn (): int => (int) $manager->createQueryBuilder()
+            ->update(Tenant::class, 't')
+            ->set('t.enabled', ':enabled')
+            ->andWhere('t.slug IN (:slugs)')
+            ->setParameter('enabled', $enabled)
+            ->setParameter('slugs', $slugs)
+            ->getQuery()
+            ->execute());
+
+        // The copies the bundle's manager holds take the new value as their committed state (never detached: a managed
+        // monitor of that tenant would then point to a "new" tenant on the next flush). An uninitialised proxy loads
+        // the new value itself; other pending changes of the tenant stay pending.
+        $unitOfWork = $manager->getUnitOfWork();
+        foreach ($unitOfWork->getIdentityMap()[Tenant::class] ?? [] as $tenant) {
+            if (!$tenant instanceof Tenant || $unitOfWork->isUninitializedObject($tenant) || !in_array($tenant->getSlug(), $slugs, true)) {
+                continue;
+            }
+            $tenant->setEnabled($enabled);
+            // @igor-ignore - Bundle-owned unit of work, dropped at every worker boundary; the value equals the committed row.
+            $unitOfWork->setOriginalEntityProperty(spl_object_id($tenant), 'enabled', $enabled);
+        }
+
+        return $changed;
     }
 
     /**

@@ -15,12 +15,14 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\Driver\AttributeDriver;
 use Doctrine\ORM\Mapping\UnderscoreNamingStrategy;
 use Doctrine\ORM\Tools\SchemaTool;
+use Nowo\UptimeMonitorBundle\Doctrine\ExactUserIdentifierCollationListener;
 use Nowo\UptimeMonitorBundle\Entity\CheckAggregate;
 use Nowo\UptimeMonitorBundle\Entity\CheckResult;
 use Nowo\UptimeMonitorBundle\Entity\Incident;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Enum\AggregatePeriod;
 use Nowo\UptimeMonitorBundle\Enum\CheckStatus;
+use Nowo\UptimeMonitorBundle\Tests\Database\Support\DatabaseSupport;
 
 use function array_map;
 use function getenv;
@@ -42,22 +44,31 @@ final class SqliteEntityManagerFactory
 {
     public const DATABASE_URL_ENV = 'UPTIME_TEST_DATABASE_URL';
 
-    public static function create(?\Doctrine\DBAL\Configuration $dbalConfig = null, bool $createSchema = true): EntityManagerInterface
+    /**
+     * @param bool $withShares Since 1.35: map the opt-in monitor shares too
+     * @param string|null $sqliteFile SQLite file instead of memory (several connections on one database); ignored with a URL
+     */
+    public static function create(?\Doctrine\DBAL\Configuration $dbalConfig = null, bool $createSchema = true, bool $withShares = false, ?string $sqliteFile = null): EntityManagerInterface
     {
         $config = new Configuration();
-        $config->setMetadataDriverImpl(new AttributeDriver([__DIR__ . '/../../src/Entity']));
+        $config->setMetadataDriverImpl(new AttributeDriver($withShares ? [__DIR__ . '/../../src/Entity', __DIR__ . '/../../src/Share/Entity'] : [__DIR__ . '/../../src/Entity']));
         $config->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
-        $config->setProxyDir(sys_get_temp_dir() . '/nowo-uptime-monitor-test-proxies');
+        $config->setProxyDir(DatabaseSupport::proxyDir(sys_get_temp_dir() . '/nowo-uptime-monitor-test-proxies'));
         $config->setProxyNamespace('NowoUptimeMonitorTestProxies');
         // ORM 3.4+ on PHP 8.4+: proxies need native lazy objects when symfony/var-exporter LazyGhost is unavailable.
         $config->enableNativeLazyObjects(PHP_VERSION_ID >= 80400);
 
-        $url    = getenv(self::DATABASE_URL_ENV);
-        $params = is_string($url) && $url !== ''
-            ? (new DsnParser(['mysql' => 'pdo_mysql', 'postgresql' => 'pdo_pgsql', 'postgres' => 'pdo_pgsql', 'pgsql' => 'pdo_pgsql']))->parse($url)
-            : ['driver' => 'pdo_sqlite', 'memory' => true];
-
-        $em       = new EntityManager(DriverManager::getConnection($params, $dbalConfig), $config);
+        $params = self::params($sqliteFile);
+        $em     = new EntityManager(DriverManager::getConnection($params, $dbalConfig), $config);
+        // Since 1.35: the share table references uptime_monitor; drop it first so the bundle tables can be dropped.
+        $em->getConnection()->executeStatement('DROP TABLE IF EXISTS uptime_monitor_share');
+        if ($withShares) {
+            // The exact (binary NO PAD) user identifier column on MySQL / MariaDB, as the bundle wires it.
+            $em->getEventManager()->addEventListener('postGenerateSchemaTable', new ExactUserIdentifierCollationListener($em));
+            if (($params['driver'] ?? null) === 'pdo_sqlite') {
+                $em->getConnection()->executeStatement('PRAGMA foreign_keys = ON');
+            }
+        }
         $metadata = $em->getMetadataFactory()->getAllMetadata();
         $tool     = new SchemaTool($em);
         $tool->dropSchema($metadata);
@@ -66,6 +77,31 @@ final class SqliteEntityManagerFactory
         }
 
         return $em;
+    }
+
+    /**
+     * The connection parameters: the configured database URL, else SQLite (a file when given, else memory).
+     *
+     * @return array<string, mixed>
+     */
+    public static function params(?string $sqliteFile = null): array
+    {
+        $url = getenv(self::DATABASE_URL_ENV);
+        if (is_string($url) && $url !== '') {
+            return (new DsnParser(['mysql' => 'pdo_mysql', 'postgresql' => 'pdo_pgsql', 'postgres' => 'pdo_pgsql', 'pgsql' => 'pdo_pgsql']))->parse($url);
+        }
+
+        return $sqliteFile !== null ? ['driver' => 'pdo_sqlite', 'path' => $sqliteFile] : ['driver' => 'pdo_sqlite', 'memory' => true];
+    }
+
+    /**
+     * Whether the tests run on a real database server (UPTIME_TEST_DATABASE_URL).
+     */
+    public static function onServer(): bool
+    {
+        $url = getenv(self::DATABASE_URL_ENV);
+
+        return is_string($url) && $url !== '';
     }
 
     /**

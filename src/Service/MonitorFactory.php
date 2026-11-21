@@ -52,7 +52,7 @@ final readonly class MonitorFactory
         $stored            = $this->storedSecrets($monitor);
         [$target, $config] = $this->buildTargetAndConfig($data, $stored);
         $config            = $this->preserveInternalConfig($previousConfig, $config, $data, $this->keepsRoute($data, $stored));
-        if (!self::isHttpType($data->type)) {
+        if (!$this->isHttpType($data->type)) {
             // A monitor that is not an HTTP one holds no password, body or headers (they never follow a type change).
             unset($config['auth_password'], $config['body'], $config['headers']);
         }
@@ -179,14 +179,14 @@ final readonly class MonitorFactory
             'proxy'     => isset($config['proxy']) && is_string($config['proxy']) ? $config['proxy'] : '',
             'headers'   => $config['headers'] ?? null,
             'ignoreTls' => ($config['verify_ssl'] ?? true) === false || ($config['ignore_tls'] ?? false) === true,
-            'http'      => self::isHttpType($monitor->getType()),
+            'http'      => $this->isHttpType($monitor->getType()),
         ];
     }
 
     /**
      * Whether a type is HTTP or HTTPS, the only ones that hold a URL, headers, a password and a body.
      */
-    private static function isHttpType(MonitorType $type): bool
+    private function isHttpType(MonitorType $type): bool
     {
         return $type === MonitorType::Http || $type === MonitorType::Https;
     }
@@ -204,7 +204,7 @@ final readonly class MonitorFactory
     private function keepsRoute(MonitorFormData $data, array $stored): bool
     {
         return $stored['http']
-            && self::isHttpType($data->type)
+            && $this->isHttpType($data->type)
             && SecretRedactor::keepsDestination($data->url, $stored['url'])
             && ($data->proxy === '' || SecretRedactor::keepsDestination($data->proxy, $stored['proxy']))
             && ($stored['ignoreTls'] || !$data->ignoreTls);

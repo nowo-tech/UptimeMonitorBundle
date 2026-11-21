@@ -11,14 +11,20 @@ use Nowo\UptimeMonitorBundle\Push\PushThresholds;
 use Nowo\UptimeMonitorBundle\Translation\UptimeTranslation;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
+use function in_array;
+use function is_array;
 use function is_int;
+use function is_scalar;
 use function is_string;
+use function preg_match;
 use function sprintf;
 use function strtolower;
 use function trim;
@@ -370,6 +376,41 @@ final class MonitorFormType extends AbstractUptimeFormType
             ->setParameter('%seconds%', (string) $minSeconds)
             ->setTranslationDomain(UptimeTranslation::DOMAIN)
             ->addViolation();
+    }
+
+    /**
+     * Whole-step number fields (`step` 1: the push thresholds of disk, inodes, memory, CPU and swap, `scale` 2) render a
+     * whole value as an integer (since 1.35): "85", not "85.00" (shown "85,00" in a comma-decimal locale). A fractional
+     * value set elsewhere (configuration, API, import) is kept as it is, and fields with another step are left alone.
+     *
+     * @param FormView $view The form view
+     * @param FormInterface<mixed> $form The form
+     * @param array<string, mixed> $options The form options
+     */
+    public function finishView(FormView $view, FormInterface $form, array $options): void
+    {
+        foreach ($view->children as $child) {
+            $child->vars['value'] = self::wholeNumberValue($child->vars);
+        }
+    }
+
+    /**
+     * The value a field renders: a whole decimal value of a `step` 1 number field as an integer, else unchanged.
+     *
+     * @param array<string, mixed> $vars The field's view variables
+     */
+    public static function wholeNumberValue(array $vars): mixed
+    {
+        $value    = $vars['value'] ?? null;
+        $prefixes = $vars['block_prefixes'] ?? [];
+        $attr     = $vars['attr'] ?? [];
+        $step     = is_array($attr) ? ($attr['step'] ?? null) : null;
+        if (!is_array($prefixes) || !in_array('number', $prefixes, true) || !is_scalar($step) || (string) $step !== '1'
+            || !is_string($value) || preg_match('/^(-?\d+)[.,]0+$/D', $value, $whole) !== 1) {
+            return $value;
+        }
+
+        return $whole[1];
     }
 
     /**

@@ -16,6 +16,7 @@
   - [Standard host](#standard-host)
   - [DDD host](#ddd-host)
 - [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
+- [Cross-tenant reads and ports (1.35)](#cross-tenant-reads-and-ports-135)
 - [Overriding templates](#overriding-templates)
   - [Monitor page by configuration (1.30)](#monitor-page-by-configuration-130)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
@@ -449,6 +450,7 @@ superclass or trait to extend. The current user is passed to the access checker 
 | `Tenant\MissingTenantProvisionerInterface` | `multi_tenant.provisioner` | Create a tenant on first access (usually delegates to `TenantProvisionerInterface::ensure()`) |
 | `Ui\SettingsSectionsResolverInterface` | `web_ui.settings.sections_resolver` | Settings sections shown per tenant |
 | `Notification\NotificationChannelInterface` | service tag `nowo.uptime_monitor.notification_channel` | Extra alert channel |
+| `Share\MonitorSharePolicyInterface` (1.35) | `shares.policy` | Who a monitor may be shared with (deny by default) |
 
 **Events to translate into your own domain events:**
 
@@ -504,8 +506,101 @@ final readonly class UptimeIncidentTranslator
 - The settings backup import (`MonitorBackupService::import()`) dispatches no per-monitor lifecycle events.
 - `TenantProvisionerInterface::ensure()` returns the `Tenant` entity (of the application manager that maps the bundle
   entities, since 1.27.0); read `getSlug()` and drop it.
-- `MissingTenantProvisionerInterface` returns a `Tenant` entity, and `canViewMonitor()` receives a `Monitor` entity.
+- `MissingTenantProvisionerInterface` returns a `Tenant` entity. `canViewMonitor()` receives a `Monitor` entity; since
+  1.35 a checker can implement `canViewMonitorId()` instead (see below).
 - Custom notification channels must be tagged by hand.
+
+## Cross-tenant reads and ports (1.35)
+
+Ports for hosts that list or count monitors across tenants, or that keep no bundle entity in their own code. All of
+them are autowirable interfaces; none returns or receives a host entity.
+
+**Monitor lists and counts: `Query\MonitorQueryInterface`.** Read models (`MonitorView`, `LatestCheckView`,
+`MonitorCounts`), never entities. The caller decides which tenants the user may read and passes them as slugs; the
+bundle reads nothing else. An empty scope answers nothing without a query.
+
+```php
+use Nowo\UptimeMonitorBundle\Query\MonitorListCriteria;
+use Nowo\UptimeMonitorBundle\Query\MonitorListSort;
+use Nowo\UptimeMonitorBundle\Query\MonitorListStatus;
+use Nowo\UptimeMonitorBundle\Query\MonitorQueryInterface;
+use Nowo\UptimeMonitorBundle\Query\MonitorRef;
+
+// Dashboard: the user's tenants, plus single monitors shared with them (each bound to its own tenant).
+$criteria = new MonitorListCriteria(
+    tenantSlugs: $allowedSlugs,
+    grantedMonitors: [new MonitorRef('user-42', 17)],
+    type: null,                          // or a MonitorType
+    status: MonitorListStatus::Down,     // up | down | degraded | unknown | paused; null = any
+    paused: null,                        // true / false narrows further
+);
+$total = $query->count($criteria);
+$rows  = $query->list($criteria, MonitorListSort::Problem, descending: false, limit: 25, offset: 0);
+foreach ($rows as $view) {
+    // $view->id, tenantSlug, tenantName, name, type, target (masked), intervalSeconds, paused, lastKnownStatus,
+    // displayStatus(), $view->latest?->checkedAt / latencyMs / status / statusCode
+}
+
+$usage = $query->countActive($payerSlugs);   // ->monitors (not paused, groups left out), ->pushMonitors
+$down  = $query->countDown($projectSlugs);   // summary card
+$one   = $query->findInTenant('acme', 17);   // MonitorView|null, exact slug
+```
+
+The problem sort is down, degraded, never checked / unknown, up, then paused; every sort breaks ties by name, then id.
+`limit` is clamped to 1-500.
+
+**Many tenants at once: `Service\BulkTenantProvisionerInterface`.** `setEnabledMany(['p-1', 'p-2'], false)` runs one
+idempotent `UPDATE` (plan changes, feature switches). Unknown slugs are ignored.
+
+**Monitor by tenant: `Repository\MonitorRepositoryInterface::findInTenant($slug, $id)`** returns the entity (application
+manager, like the repository service) only when the monitor belongs to that tenant. Prefer
+`MonitorQueryInterface::findInTenant()` for plain values.
+
+**Access by id: `Security\MonitorIdAwareUptimeMonitorAccessCheckerInterface`.** Implement `canViewMonitorId($user,
+$tenantSlug, $monitorId)` next to `canViewMonitor()`; the bundle then asks the id form for the reads of one monitor. It
+has already checked that the monitor belongs to `$tenantSlug`.
+
+**Quota listeners:** read `$event->monitorId` and `$event->paused` of `MonitorQuotaCheckEvent`; `$event->monitor` is
+deprecated.
+
+**Backup export by slug:** `MonitorBackupService::export('acme')`.
+
+**Chart series:** `nowo_uptime_chart_series(chart_series_json, 'uptime_percent', 'uptime', 'Uptime'|trans)` in Twig, or
+`ChartSeriesFormatter::format()` in PHP, returns `{labels, series: [{key, label, data}], total}` (decimals rounded to
+two places, gaps as `null`, `total` = points with a value).
+
+### Monitor shares
+
+With `shares.enabled: true` the bundle stores which host users may read a monitor outside its tenant: one row per monitor
+and user identifier (your own id, 1-128 characters, compared exactly). Deciding who may read a monitor stays in your
+checker. Typically `canViewMonitorId()` returns `canAccessTenant($user, $slug) || $shares->isSharedWith($slug, $id,
+$user->getUserIdentifier())`.
+
+```php
+use Nowo\UptimeMonitorBundle\Share\MonitorSharePolicyInterface;
+use Nowo\UptimeMonitorBundle\Share\MonitorSharesInterface;
+use Nowo\UptimeMonitorBundle\Share\MonitorShareRefusedException;
+
+final readonly class CoMemberSharePolicy implements MonitorSharePolicyInterface // shares.policy: this service
+{
+    public function canShareWith(string $tenantSlug, int $monitorId, string $userIdentifier): bool
+    {
+        return $this->coMembers->shareAProject($tenantSlug, $userIdentifier); // your rule
+    }
+}
+
+$share = $shares->create('user-42', 17, 'user-7');  // MonitorShareView; ->created false when it already existed
+$shares->delete('user-42', 17, 'user-7');           // bool, idempotent
+$shares->usersOf('user-42', 17);                    // list<string>
+$shares->sharedWith('user-7');                      // list<MonitorShareView> (->monitorRef() for MonitorListCriteria)
+$shares->deleteAllForUser('user-7');                // account erasure
+```
+
+`create()` throws `MonitorShareRefusedException` (`reason`: `monitor_not_found`, `denied`, `invalid_user`,
+`identifier_collision`) when it writes nothing (`identifier_collision`: see [CONFIGURATION](CONFIGURATION.md#monitor-shares-135)). A double submit, or two concurrent ones, gives one row and the same answer: the existing share comes
+back with `created` false. A lock conflict throws the runner's `TransientStorageFailure`, which your conflict answer
+(nowo-tech/transaction-doctrine's responder) turns into 409 + `Retry-After` + `CONFLICT_001`, or `CONFLICT_002` when
+the request already committed other work. See [CONCURRENCY](CONCURRENCY.md).
 
 ## Overriding templates
 

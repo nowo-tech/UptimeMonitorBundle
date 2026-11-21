@@ -13,7 +13,7 @@ use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
  * when they hold a role of every non-empty list among the two (access_roles and the area list). An empty list grants
  * nothing on its own: when both lists are empty nobody is allowed (fail closed, never "everyone").
  */
-final readonly class ConfigurableUptimeMonitorAccessChecker implements SearchAwareUptimeMonitorAccessCheckerInterface
+final readonly class ConfigurableUptimeMonitorAccessChecker implements SearchAwareUptimeMonitorAccessCheckerInterface, MonitorIdAwareUptimeMonitorAccessCheckerInterface
 {
     /**
      * @param list<string> $accessRoles
@@ -52,6 +52,14 @@ final readonly class ConfigurableUptimeMonitorAccessChecker implements SearchAwa
     public function canManageSettings(object $user): bool
     {
         return $this->isAllowed($this->settingsRoles);
+    }
+
+    /**
+     * Whether the user may read one monitor (since 1.35): the dashboard roles, as every other read of this checker.
+     */
+    public function canViewMonitorId(object $user, string $tenantSlug, int $monitorId): bool
+    {
+        return $this->isAllowed($this->dashboardRoles);
     }
 
     /**

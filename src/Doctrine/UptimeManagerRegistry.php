@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use Doctrine\Persistence\ObjectRepository;
+use Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare;
 
 use function str_contains;
 use function str_starts_with;
@@ -24,6 +25,9 @@ final readonly class UptimeManagerRegistry implements ManagerRegistry
 {
     /** Namespace of the bundle entities. */
     public const ENTITY_NAMESPACE = 'Nowo\\UptimeMonitorBundle\\Entity\\';
+
+    /** Since 1.35: the opt-in monitor shares ({@see MonitorShare}). */
+    public const SHARE_ENTITY_NAMESPACE = 'Nowo\\UptimeMonitorBundle\\Share\\Entity\\';
 
     /**
      * @param ManagerRegistry $registry The application registry (`doctrine`)
@@ -153,7 +157,12 @@ final readonly class UptimeManagerRegistry implements ManagerRegistry
 
     private function isBundleClass(string $class): bool
     {
-        return str_starts_with($class, self::ENTITY_NAMESPACE)
-            || str_contains($class, '\\__CG__\\' . self::ENTITY_NAMESPACE);
+        foreach ([self::ENTITY_NAMESPACE, self::SHARE_ENTITY_NAMESPACE] as $namespace) {
+            if (str_starts_with($class, $namespace) || str_contains($class, '\\__CG__\\' . $namespace)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

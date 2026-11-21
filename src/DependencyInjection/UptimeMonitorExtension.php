@@ -13,6 +13,8 @@ use Nowo\UptimeMonitorBundle\Audit\MonitorChangeOutbox;
 use Nowo\UptimeMonitorBundle\Audit\MonitorChangeOutboxListener;
 use Nowo\UptimeMonitorBundle\Audit\MonitorChangeRecorder;
 use Nowo\UptimeMonitorBundle\Audit\TokenStorageActorResolver;
+use Nowo\UptimeMonitorBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
+use Nowo\UptimeMonitorBundle\Doctrine\ExactUserIdentifierCollationListener;
 use Nowo\UptimeMonitorBundle\Doctrine\KeysetBatchDelete;
 use Nowo\UptimeMonitorBundle\Doctrine\TablePrefixListener;
 use Nowo\UptimeMonitorBundle\Doctrine\UnitOfWorkBoundaries;
@@ -30,6 +32,10 @@ use Nowo\UptimeMonitorBundle\Search\SearchKit\MonitorSearchDefinition;
 use Nowo\UptimeMonitorBundle\Security\AllowAllUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\ConfigurableUptimeMonitorAccessChecker;
 use Nowo\UptimeMonitorBundle\Security\UptimeMonitorAccessCheckerInterface;
+use Nowo\UptimeMonitorBundle\Share\DenyAllMonitorSharePolicy;
+use Nowo\UptimeMonitorBundle\Share\MonitorSharePolicyInterface;
+use Nowo\UptimeMonitorBundle\Share\MonitorShares;
+use Nowo\UptimeMonitorBundle\Share\MonitorSharesInterface;
 use Nowo\UptimeMonitorBundle\Transaction\UptimeTransactionRunner;
 use Nowo\UptimeMonitorBundle\Ui\SettingsSections;
 use Symfony\Component\Config\FileLocator;
@@ -44,6 +50,7 @@ use Symfony\Component\HttpKernel\KernelEvents;
 
 use function array_key_exists;
 use function class_exists;
+use function dirname;
 use function in_array;
 use function is_array;
 use function is_bool;
@@ -60,6 +67,9 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
 
     /** Tag SearchKit collects entity search definitions by (`EntitySearchDefinition::TAG`). */
     private const SEARCH_KIT_TAG = 'nowo_search_kit.entity_definition';
+
+    /** Since 1.35: the Doctrine mapping name of the opt-in monitor shares. */
+    public const SHARE_MAPPING = 'UptimeMonitorBundleShares';
 
     /**
      * Prepends FormKit, framework, Twig and UiKit defaults the bundle relies on.
@@ -83,16 +93,27 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         }
 
         if ($container->hasExtension('doctrine')) {
-            [$registerMapping, $mappingType] = $this->rawMappingOptions($container);
+            [$registerMapping, $mappingType, $shares] = $this->rawMappingOptions($container);
             if ($registerMapping) {
+                $mappings = [
+                    'UptimeMonitorBundle' => [
+                        'type'      => $mappingType,
+                        'is_bundle' => true,
+                    ],
+                ];
+                // Since 1.35: the opt-in monitor shares, mapped only when enabled (no new table otherwise).
+                if ($shares) {
+                    $mappings[self::SHARE_MAPPING] = [
+                        'type'      => $mappingType,
+                        'is_bundle' => false,
+                        'dir'       => dirname(__DIR__) . ($mappingType === 'xml' ? '/Resources/config/doctrine-share' : '/Share/Entity'),
+                        'prefix'    => 'Nowo\\UptimeMonitorBundle\\Share\\Entity',
+                        'alias'     => 'UptimeMonitorShare',
+                    ];
+                }
                 $container->prependExtensionConfig('doctrine', [
                     'orm' => [
-                        'mappings' => [
-                            'UptimeMonitorBundle' => [
-                                'type'      => $mappingType,
-                                'is_bundle' => true,
-                            ],
-                        ],
+                        'mappings' => $mappings,
                     ],
                 ]);
             }
@@ -102,15 +123,17 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
     }
 
     /**
-     * `doctrine.register_mapping` and `doctrine.mapping_type` from the raw configuration (prepend() runs before the
-     * configuration is processed; the last file that sets a key wins, invalid values are rejected later by load()).
+     * `doctrine.register_mapping`, `doctrine.mapping_type` and (since 1.35) `shares.enabled` from the raw configuration
+     * (prepend() runs before the configuration is processed; the last file that sets a key wins, invalid values are
+     * rejected later by load()).
      *
-     * @return array{0: bool, 1: string}
+     * @return array{0: bool, 1: string, 2: bool}
      */
     private function rawMappingOptions(ContainerBuilder $container): array
     {
         $register = true;
         $type     = 'attribute';
+        $shares   = false;
         foreach ($container->getExtensionConfig(Configuration::ALIAS) as $config) {
             $doctrine = is_array($config['doctrine'] ?? null) ? $config['doctrine'] : [];
             if (is_bool($doctrine['register_mapping'] ?? null)) {
@@ -119,9 +142,13 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
             if (in_array($doctrine['mapping_type'] ?? null, ['attribute', 'xml'], true)) {
                 $type = $doctrine['mapping_type'];
             }
+            $section = is_array($config['shares'] ?? null) ? $config['shares'] : [];
+            if (is_bool($section['enabled'] ?? null)) {
+                $shares = $section['enabled'];
+            }
         }
 
-        return [$register, $type];
+        return [$register, $type, $shares];
     }
 
     /**
@@ -272,6 +299,45 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
         $this->registerBundleEntityManager($container);
         $this->registerConflictResponsePolicy($container, $config['conflict_response']);
         $this->registerAudit($container, $config['audit'], $config['retention']);
+        $this->registerShares($container, $config['shares']);
+    }
+
+    /**
+     * Since 1.35: the opt-in monitor shares. With `shares.enabled` the service, the host policy (deny by default) and
+     * the exact-collation listener of the share table; without it nothing is defined and the entity is not mapped.
+     *
+     * @param array{enabled: mixed, policy: ?string} $shares
+     *
+     * @throws LogicException When `shares.enabled` is not a literal boolean
+     */
+    private function registerShares(ContainerBuilder $container, array $shares): void
+    {
+        if (!is_bool($shares['enabled'])) {
+            throw new LogicException('nowo_uptime_monitor.shares.enabled must be a literal boolean (it decides the Doctrine mapping at compile time): an env placeholder is not supported.');
+        }
+        $container->setParameter(EntityManagerOptionPass::SHARES_PARAMETER, $shares['enabled']);
+        if (!$shares['enabled']) {
+            return;
+        }
+
+        $policyId = $shares['policy'];
+        if (!is_string($policyId) || $policyId === '') {
+            $policyId = DenyAllMonitorSharePolicy::class;
+            $container->setDefinition($policyId, (new Definition(DenyAllMonitorSharePolicy::class))->setPublic(false));
+        }
+        $container->setAlias(MonitorSharePolicyInterface::class, $policyId)->setPublic(false);
+
+        $container->setDefinition(MonitorShares::class, (new Definition(MonitorShares::class))
+            ->setAutowired(true)
+            ->setArgument('$entityManager', new Reference(UptimeEntityManager::class))
+            ->setArgument('$policy', new Reference(MonitorSharePolicyInterface::class))
+            ->setArgument('$transactionRunner', new Reference(UptimeTransactionRunner::SERVICE_ID))
+            ->setPublic(false));
+        $container->setAlias(MonitorSharesInterface::class, MonitorShares::class)->setPublic(false);
+
+        $container->setDefinition(ExactUserIdentifierCollationListener::class, (new Definition(ExactUserIdentifierCollationListener::class, [
+            new Reference(UptimeEntityManager::class),
+        ]))->addTag('doctrine.event_listener', ['event' => 'postGenerateSchemaTable'])->setPublic(false));
     }
 
     /**

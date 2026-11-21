@@ -119,7 +119,7 @@ final class MonitorControllerSubmitTest extends TestCase
         $seen       = [];
         $dispatcher = $this->denying(MonitorQuotaCheckEvent::ACTION_CREATE, 'Your plan allows 3 monitors.');
         $dispatcher->addListener(MonitorQuotaCheckEvent::class, static function (MonitorQuotaCheckEvent $check) use (&$seen): void {
-            $seen[] = [$check->tenantSlug, $check->type, $check->monitor];
+            $seen[] = [$check->tenantSlug, $check->type, $check->monitorId, $check->paused];
         }, 10);
         $request    = $this->submit('/main/monitors/new', ['name' => 'Server'], ['X-Uptime-Modal' => '1']);
         $controller = $this->controller($dispatcher);
@@ -129,7 +129,7 @@ final class MonitorControllerSubmitTest extends TestCase
 
         self::assertSame(422, $response->getStatusCode());
         self::assertNull($this->monitors->findOneBy(['name' => 'Server']), 'nothing written');
-        self::assertSame([['main', MonitorType::Https, null]], $seen);
+        self::assertSame([['main', MonitorType::Https, null, false]], $seen);
         $form = $this->renderedContext['form'] ?? null;
         self::assertInstanceOf(FormView::class, $form);
         $errors = $form->vars['errors'];
@@ -227,7 +227,7 @@ final class MonitorControllerSubmitTest extends TestCase
         self::assertTrue($monitor->isPaused(), 'still paused');
         self::assertSame('Paused', $monitor->getName(), 'nothing of the edit written');
         self::assertCount(1, $seen);
-        self::assertSame([MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Https, $monitor, null], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitor, $seen[0]->previousType]);
+        self::assertSame([MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Https, $monitor->getId(), true, null], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitorId, $seen[0]->paused, $seen[0]->previousType]);
     }
 
     public function testGuM1AGroupTurnedIntoACheckIsACreate(): void
@@ -237,7 +237,7 @@ final class MonitorControllerSubmitTest extends TestCase
         $this->em->refresh($this->group);
         self::assertTrue($this->group->isGroup(), 'still a group');
         self::assertCount(1, $seen);
-        self::assertSame([MonitorQuotaCheckEvent::ACTION_CREATE, 'main', MonitorType::Https, $this->group, MonitorType::Group], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitor, $seen[0]->previousType]);
+        self::assertSame([MonitorQuotaCheckEvent::ACTION_CREATE, 'main', MonitorType::Https, $this->group->getId(), MonitorType::Group], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitorId, $seen[0]->previousType]);
     }
 
     public function testGuM1ATypeChangeToPushIsACreate(): void
@@ -250,7 +250,7 @@ final class MonitorControllerSubmitTest extends TestCase
         self::assertSame(MonitorType::Https, $monitor->getType(), 'still https');
         self::assertNull($monitor->getPushKey());
         self::assertCount(1, $seen);
-        self::assertSame([MonitorQuotaCheckEvent::ACTION_CREATE, 'main', MonitorType::Push, $monitor, MonitorType::Https], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitor, $seen[0]->previousType]);
+        self::assertSame([MonitorQuotaCheckEvent::ACTION_CREATE, 'main', MonitorType::Push, $monitor->getId(), MonitorType::Https], [$seen[0]->action, $seen[0]->tenantSlug, $seen[0]->type, $seen[0]->monitorId, $seen[0]->previousType]);
     }
 
     public function testGuM1AnEditChangingBothChecksBothCreateFirst(): void
@@ -299,7 +299,7 @@ final class MonitorControllerSubmitTest extends TestCase
         $seen       = [];
         $dispatcher = new EventDispatcher();
         $dispatcher->addListener(MonitorQuotaCheckEvent::class, static function (MonitorQuotaCheckEvent $check) use (&$seen): void {
-            $seen[] = [$check->action, $check->tenantSlug, $check->type, $check->monitor, $check->previousType];
+            $seen[] = [$check->action, $check->tenantSlug, $check->type, $check->monitorId, $check->previousType];
             if ($check->action === MonitorQuotaCheckEvent::ACTION_RESUME && $check->type === MonitorType::Push) {
                 $check->deny('Push limit reached.');
             }
@@ -316,8 +316,8 @@ final class MonitorControllerSubmitTest extends TestCase
         self::assertTrue($push->isPaused(), 'push refused');
         self::assertFalse($https->isPaused(), 'https allowed');
         self::assertSame([
-            [MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Push, $push, null],
-            [MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Https, $https, null],
+            [MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Push, $push->getId(), null],
+            [MonitorQuotaCheckEvent::ACTION_RESUME, 'main', MonitorType::Https, $https->getId(), null],
         ], $seen);
     }
 

@@ -17,7 +17,7 @@ use SortDirection;
 /**
  * @extends ServiceEntityRepository<Monitor>
  */
-class MonitorRepository extends ServiceEntityRepository
+class MonitorRepository extends ServiceEntityRepository implements MonitorRepositoryInterface
 {
     /**
      * Creates the repository of monitors.
@@ -27,6 +27,29 @@ class MonitorRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Monitor::class);
+    }
+
+    /**
+     * The monitor with this id when it belongs to the tenant with this slug, else null (since 1.35). The slug is
+     * re-checked byte for byte after the read, so a case- or accent-insensitive collation never matches another tenant.
+     */
+    public function findInTenant(string $tenantSlug, int $id): ?Monitor
+    {
+        if ($id < 1 || $tenantSlug === '') {
+            return null;
+        }
+
+        $monitor = $this->createQueryBuilder('m')
+            ->addSelect('t')
+            ->innerJoin('m.tenant', 't')
+            ->andWhere('m.id = :id')
+            ->andWhere('t.slug = :slug')
+            ->setParameter('id', $id)
+            ->setParameter('slug', $tenantSlug)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $monitor instanceof Monitor && $monitor->getTenant()->getSlug() === $tenantSlug ? $monitor : null;
     }
 
     /**

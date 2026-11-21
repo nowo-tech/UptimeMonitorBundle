@@ -25,6 +25,9 @@ final readonly class TablePrefixListener
 {
     public const ENTITY_NAMESPACE = 'Nowo\\UptimeMonitorBundle\\Entity\\';
 
+    /** Since 1.35: the opt-in monitor shares, prefixed like the other bundle tables. */
+    public const SHARE_ENTITY_NAMESPACE = 'Nowo\\UptimeMonitorBundle\\Share\\Entity\\';
+
     /**
      * @param string $tablePrefix Prefix prepended to every bundle table / index / unique constraint name ('' = none)
      */
@@ -48,7 +51,7 @@ final readonly class TablePrefixListener
      */
     public function apply(ClassMetadata $metadata): void
     {
-        if ($this->tablePrefix === '' || !str_starts_with($metadata->getName(), self::ENTITY_NAMESPACE)) {
+        if ($this->tablePrefix === '' || (!str_starts_with($metadata->getName(), self::ENTITY_NAMESPACE) && !str_starts_with($metadata->getName(), self::SHARE_ENTITY_NAMESPACE))) {
             return;
         }
 

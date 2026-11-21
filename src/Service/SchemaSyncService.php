@@ -21,6 +21,9 @@ final readonly class SchemaSyncService
 {
     private const ENTITY_NAMESPACE_PREFIX = 'Nowo\\UptimeMonitorBundle\\Entity\\';
 
+    /** Since 1.35: the opt-in monitor shares (mapped only with shares.enabled). */
+    private const SHARE_ENTITY_NAMESPACE_PREFIX = 'Nowo\\UptimeMonitorBundle\\Share\\Entity\\';
+
     /**
      * Creates the schema sync service.
      *
@@ -288,10 +291,8 @@ final readonly class SchemaSyncService
 
         return array_values(array_filter(
             $metadata,
-            static fn (ClassMetadata $classMetadata): bool => str_starts_with(
-                $classMetadata->getName(),
-                self::ENTITY_NAMESPACE_PREFIX,
-            ),
+            static fn (ClassMetadata $classMetadata): bool => str_starts_with($classMetadata->getName(), self::ENTITY_NAMESPACE_PREFIX)
+                || str_starts_with($classMetadata->getName(), self::SHARE_ENTITY_NAMESPACE_PREFIX),
         ));
     }
 }

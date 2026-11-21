@@ -23,6 +23,7 @@ use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\MonitorChange;
 use Nowo\UptimeMonitorBundle\Entity\Tag;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use stdClass;
@@ -79,6 +80,17 @@ final class TablePrefixListenerTest extends TestCase
         // The prefixed schema is usable end to end (foreign keys reference the prefixed tables).
         (new SchemaTool($em))->createSchema($em->getMetadataFactory()->getAllMetadata());
         self::assertSame(0, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM app_uptime_monitor'));
+    }
+
+    public function testTheOptInShareTableIsPrefixedToo(): void
+    {
+        $metadata = new ClassMetadata(MonitorShare::class);
+        $metadata->setPrimaryTable(['name' => 'uptime_monitor_share', 'uniqueConstraints' => ['uniq_uptime_monitor_share_pair' => ['columns' => ['monitor_id', 'user_identifier']]]]);
+
+        (new TablePrefixListener('app_'))->loadClassMetadata(new LoadClassMetadataEventArgs($metadata, $this->entityManager('')));
+
+        self::assertSame('app_uptime_monitor_share', $metadata->getTableName());
+        self::assertArrayHasKey('app_uniq_uptime_monitor_share_pair', $metadata->table['uniqueConstraints'] ?? []);
     }
 
     public function testNonBundleEntitiesAreIgnored(): void

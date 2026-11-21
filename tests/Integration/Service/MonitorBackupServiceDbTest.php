@@ -72,7 +72,7 @@ final class MonitorBackupServiceDbTest extends TestCase
     {
         $seen    = [];
         $service = $this->serviceWithListener(static function (MonitorQuotaCheckEvent $check) use (&$seen): void {
-            $seen[] = [$check->action, $check->tenantSlug, $check->type, $check->monitor];
+            $seen[] = [$check->action, $check->tenantSlug, $check->type, $check->monitorId];
             if ($check->type === MonitorType::Push) {
                 $check->deny('No more push monitors.');
             }
@@ -127,8 +127,8 @@ final class MonitorBackupServiceDbTest extends TestCase
         $this->em->flush();
         $seen    = [];
         $service = $this->serviceWithListener(static function (MonitorQuotaCheckEvent $check) use (&$seen, $free): void {
-            $seen[] = [$check->action, $check->monitor?->getName(), $check->type, $check->previousType];
-            if ($check->monitor !== $free) {
+            $seen[] = [$check->action, $check->monitorId, $check->paused, $check->type, $check->previousType];
+            if ($check->monitorId !== $free->getId()) {
                 $check->deny('Denied.');
             }
         });
@@ -146,10 +146,10 @@ final class MonitorBackupServiceDbTest extends TestCase
         self::assertSame(MonitorType::Https, $site->getType());
         self::assertFalse($free->isPaused());
         self::assertSame([
-            ['resume', 'Paused', MonitorType::Https, null],
-            ['create', 'Group', MonitorType::Https, MonitorType::Group],
-            ['create', 'Site', MonitorType::Push, MonitorType::Https],
-            ['resume', 'Free', MonitorType::Https, null],
+            ['resume', $paused->getId(), true, MonitorType::Https, null],
+            ['create', $group->getId(), false, MonitorType::Https, MonitorType::Group],
+            ['create', $site->getId(), false, MonitorType::Push, MonitorType::Https],
+            ['resume', $free->getId(), true, MonitorType::Https, null],
         ], $seen);
     }
 

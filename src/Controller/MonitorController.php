@@ -380,7 +380,7 @@ final class MonitorController extends AbstractUptimeController
 
         if (!$unresolved && $form->isSubmitted() && $form->isValid()) {
             $monitor = $this->monitorFactory->createFromFormData($tenant, $data);
-            $check   = new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_CREATE, $tenantSlug, $monitor->getType());
+            $check   = new MonitorQuotaCheckEvent(MonitorQuotaCheckEvent::ACTION_CREATE, $tenantSlug, $monitor->getType(), paused: $monitor->isPaused());
             if (!$this->saveUnderQuota($tenant, fn () => $this->entityManager->persist($monitor), $data->type !== MonitorType::Group, [$check])) {
                 $form->addError(new FormError($check->getReason() ?? $this->transMessage('monitor.limits.max_monitors', ['%count%' => $this->quota?->max($tenantSlug) ?? 0])));
 

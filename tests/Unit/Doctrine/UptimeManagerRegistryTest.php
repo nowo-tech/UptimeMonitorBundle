@@ -11,6 +11,7 @@ use Nowo\UptimeMonitorBundle\Doctrine\UptimeEntityManager;
 use Nowo\UptimeMonitorBundle\Doctrine\UptimeManagerRegistry;
 use Nowo\UptimeMonitorBundle\Entity\Monitor;
 use Nowo\UptimeMonitorBundle\Entity\Tenant;
+use Nowo\UptimeMonitorBundle\Share\Entity\MonitorShare;
 use Nowo\UptimeMonitorBundle\Tests\Fixtures\Host\Entity\HostNote;
 use Nowo\UptimeMonitorBundle\Tests\Support\SqliteManagerRegistry;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -42,6 +43,9 @@ final class UptimeManagerRegistryTest extends TestCase
         // A Doctrine proxy class name of a bundle entity.
         self::assertSame($bundle, $registry->getManagerForClass('Proxies\\__CG__\\' . Monitor::class)); // @phpstan-ignore argument.type
         self::assertSame($doctrine->getManager('reporting'), $registry->getManagerForClass(HostNote::class));
+        // 1.35: the opt-in monitor shares are bundle entities too.
+        self::assertSame($bundle, $registry->getManagerForClass(MonitorShare::class));
+        self::assertSame($bundle, $registry->getManagerForClass('Proxies\\__CG__\\Nowo\\UptimeMonitorBundle\\Share\\Entity\\MonitorShare')); // @phpstan-ignore argument.type
         self::assertSame($bundle, $registry->getManager(UptimeEntityManager::NAME));
         self::assertSame($default, $registry->getManager());
         self::assertSame($bundle, $registry->getManagers()[UptimeEntityManager::NAME]);

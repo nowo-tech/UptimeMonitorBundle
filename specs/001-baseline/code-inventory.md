@@ -426,6 +426,11 @@ Since 1.32 — monitors in the SearchKit palette (see [`docs/USAGE.md`](../../do
 | `Search/MonitorSearchUrl.php` | Origin-only display of a target; fails closed | FR-SEARCH-002 |
 | `Search/MonitorSearchVisibility.php` | Monitors the user may see | FR-SEARCH-001 |
 | `Search/SearchKit/MonitorSearchDefinition.php` | SearchKit entity definition (group `uptime_monitors`) | FR-SEARCH-001 |
+| `Search/MonitorSearchTenants.php` | Tenants of one search (1.34: several tenants, scope event) | FR-SEARCH-001 |
+| `Search/MonitorSearchTenantsResolverInterface.php` | Host hook: the tenants a viewer searches (1.34) | FR-SEARCH-001 |
+| `Event/MonitorSearchScopeEvent.php` | Narrows the searched tenants, host scope chip (1.34) | FR-SEARCH-001 |
+| `Event/MonitorSearchAccessEvent.php` | Grants or denies the monitor search per tenant (1.34) | FR-SEARCH-001 |
+| `Security/SearchAwareUptimeMonitorAccessCheckerInterface.php` | `canSearch()`: search permission per tenant (1.34) | FR-SEARCH-001 |
 
 ## Monitor change audit
 
@@ -449,6 +454,37 @@ Since 1.33 — audit trail of monitor changes (see [`005-monitor-change-audit/sp
 | `Event/MonitorChangedEvent.php` | After-commit event with the structured diff | FR-AUDIT-004 |
 | `Resources/config/doctrine/MonitorChange.orm.xml` | XML mapping of the history entity | FR-AUDIT-005 |
 | `Resources/views/monitor/_change_history.html.twig` | Read-only history section of the monitor page | FR-AUDIT-005 |
+
+## Cross-tenant ports and shares
+
+Since 1.35 — Beacon spec 225 T005a (see [`006-cross-tenant-ports-and-shares/spec.md`](../006-cross-tenant-ports-and-shares/spec.md)).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Query/MonitorQueryInterface.php` | Cross-tenant read port | FR-PORT-001 |
+| `Query/DoctrineMonitorQuery.php` | Default read port on the bundle manager (scalar results) | FR-PORT-001 |
+| `Query/MonitorListCriteria.php` | Scope (slugs, granted monitors) and filters | FR-PORT-001 |
+| `Query/MonitorListSort.php` | Sort keys | FR-PORT-001 |
+| `Query/MonitorListStatus.php` | Status filter | FR-PORT-001 |
+| `Query/MonitorRef.php` | One monitor bound to its tenant | FR-PORT-001 |
+| `Query/MonitorView.php` | Monitor read model | FR-PORT-001 |
+| `Query/LatestCheckView.php` | Latest check read model | FR-PORT-001 |
+| `Query/MonitorCounts.php` | Plan usage counts | FR-PORT-001 |
+| `Service/BulkTenantProvisionerInterface.php` | `setEnabledMany()` port | FR-PORT-002 |
+| `Security/MonitorIdAwareUptimeMonitorAccessCheckerInterface.php` | `canViewMonitorId()` | FR-PORT-003 |
+| `Security/MonitorViewDecision.php` | Id form first, entity form otherwise | FR-PORT-003 |
+| `Repository/MonitorRepositoryInterface.php` | `findInTenant()` | FR-PORT-004 |
+| `Share/MonitorSharesInterface.php` | Share port | FR-SHARE-001 |
+| `Share/MonitorShares.php` | Shares on the bundle manager (idempotent create) | FR-SHARE-001, FR-SHARE-003 |
+| `Share/MonitorSharePolicyInterface.php` | Host policy (who a monitor may be shared with) | FR-SHARE-002 |
+| `Share/DenyAllMonitorSharePolicy.php` | Default policy: deny | FR-SHARE-002 |
+| `Share/MonitorShareView.php` | Share read model | FR-SHARE-001 |
+| `Share/MonitorShareRefusedException.php` | Refused share | FR-SHARE-001 |
+| `Share/Entity/MonitorShare.php` | `uptime_monitor_share` row (opt-in mapping) | FR-SHARE-004 |
+| `Resources/config/doctrine-share/MonitorShare.orm.xml` | XML mapping of the share entity | FR-SHARE-004 |
+| `Doctrine/ExactUserIdentifierCollationListener.php` | Binary NO PAD user identifier column | FR-SHARE-004 |
+| `Chart/ChartSeriesFormatter.php` | Chart-ready history series | FR-PORT-005 |
+| `Twig/ChartSeriesExtension.php` | `nowo_uptime_chart_series()` | FR-PORT-005 |
 
 ## Coverage summary
 
@@ -481,8 +517,9 @@ Since 1.33 — audit trail of monitor changes (see [`005-monitor-change-audit/sp
 | Twig views | 33 | 33 |
 | Push monitors | 8 | 8 |
 | Monitors as code | 15 | 15 |
-| SearchKit provider | 7 | 7 |
+| SearchKit provider | 12 | 12 |
 | Monitor change audit | 16 | 16 |
-| **Total production sources** | **291** | **291** |
+| Cross-tenant ports and shares | 24 | 24 |
+| **Total production sources** | **320** | **320** |
 
 Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l` → **227** (2026-11-04; co-located `*.test.ts` excluded). `make check-spec-inventory` (run by `make release-check`) checks every row, stale rows and this total.
