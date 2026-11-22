@@ -145,6 +145,8 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+- **Doctrine mapping alias removed (shares).** The prepended `UptimeMonitorBundleShares` mapping no longer sets `alias: UptimeMonitorShare` (deprecated by DoctrineBundle 3.4). A host that used the short syntax `UptimeMonitorShare:Entity` in DQL or `getRepository()` must use the FQCN (`Nowo\UptimeMonitorBundle\Share\Entity\…`).
+
 ## To 1.36.1
 
 From **1.36.0**:

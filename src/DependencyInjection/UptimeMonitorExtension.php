@@ -108,7 +108,6 @@ final class UptimeMonitorExtension extends Extension implements PrependExtension
                         'is_bundle' => false,
                         'dir'       => dirname(__DIR__) . ($mappingType === 'xml' ? '/Resources/config/doctrine-share' : '/Share/Entity'),
                         'prefix'    => 'Nowo\\UptimeMonitorBundle\\Share\\Entity',
-                        'alias'     => 'UptimeMonitorShare',
                     ];
                 }
                 $container->prependExtensionConfig('doctrine', [

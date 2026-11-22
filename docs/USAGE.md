@@ -37,6 +37,8 @@ The dashboard polls `GET /api/uptime/{tenantSlug}/summary` every `dashboard.poll
 
 Use **Settings** in the toolbar or open `/uptime/{tenantSlug}/settings` for tenant-wide options (appearance, tags, backup, history retention). See [SETTINGS.md](SETTINGS.md).
 
+Status pill colours: the pill text uses the ink tokens `--uptime-up-ink`, `--uptime-down-ink`, `--uptime-degraded-ink` and `--uptime-unknown-ink` (WCAG AA 4.5:1 on the tinted pill in light and dark); the bar and fill colours stay `--uptime-up`, `--uptime-down`, ... A host can override any ink token. In the table dashboard the row *More actions* is UiKit's square kebab icon button.
+
 ## Settings
 
 Uptime Kuma–style **Settings** are per tenant:
