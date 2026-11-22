@@ -99,6 +99,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- No translation changed. The existing `TranslationCatalogueTest` now also fails on a non-es value identical to the Spanish one (longer than 12 characters, different from English) unless allow-listed per locale as genuinely shared, and on stale entries of that allow-list.
+
 ## [1.37.0] - 2026-11-22
 
 ### Added

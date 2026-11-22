@@ -15,6 +15,7 @@ use function basename;
 use function glob;
 use function in_array;
 use function is_array;
+use function mb_strlen;
 use function preg_match;
 use function preg_replace;
 use function sort;
@@ -23,7 +24,8 @@ use function sprintf;
 /**
  * Guards against untranslated strings: in every non-en catalogue (all domains) a key must exist, and a value identical to
  * the English one (any length, ignoring values without letters once placeholders are removed) must be listed in
- * ALLOWED_IDENTICAL for that locale. An allow-list entry that is no longer identical to English is reported as stale.
+ * ALLOWED_IDENTICAL for that locale. A non-es value identical to the Spanish one (longer than 12 characters, not English)
+ * must be listed in ALLOWED_SAME_AS_SPANISH. An allow-list entry that no longer applies is reported as stale.
  */
 final class TranslationCatalogueTest extends TestCase
 {
@@ -335,6 +337,59 @@ final class TranslationCatalogueTest extends TestCase
         ],
     ];
 
+    /**
+     * Keys whose non-es value legitimately equals the Spanish one (longer than 12 characters, different from English):
+     * words and phrases that are genuinely the same in Spanish and the locale, per locale.
+     *
+     * @var array<string, list<string>>
+     */
+    private const ALLOWED_SAME_AS_SPANISH = [
+        'it' => [
+            'settings.nav.reverse_proxy',
+            'settings.section.reverse_proxy',
+        ],
+        'pt' => [
+            'dashboard.filtered_by_monitor',
+            'dashboard.status_page',
+            'flash.monitor.deleted',
+            'flash.settings.tag_deleted',
+            'flash.settings.tag_updated',
+            'form.monitor.dns_expected',
+            'form.monitor.parent',
+            'form.monitor.push_threshold.cpu_critical',
+            'form.monitor.push_threshold.cpu_warn',
+            'form.monitor.push_threshold.disk_critical',
+            'form.monitor.push_threshold.disk_warn',
+            'form.monitor.push_threshold.load_critical',
+            'form.monitor.push_threshold.load_warn',
+            'form.monitor.push_threshold.swap_critical',
+            'form.monitor.push_threshold.swap_warn',
+            'form.monitor.type',
+            'form.monitor.type.ssl',
+            'form.settings.base_url',
+            'form.settings.entry_page',
+            'form.settings.entry_page.status',
+            'form.settings.status_page_visibility',
+            'form.settings.status_page_visibility.private',
+            'form.settings.ui_framework',
+            'monitor.edit',
+            'monitor.form.section.ssl',
+            'monitor.push.chart_disks',
+            'monitor.push.chart_load',
+            'monitor.push.metric.load',
+            'monitor.show.interval',
+            'monitor.show.sort_by',
+            'settings.backup.export_button',
+            'settings.nav.reverse_proxy',
+            'settings.nav.status_page',
+            'settings.notifications.cooldown_seconds',
+            'settings.section.reverse_proxy',
+            'settings.section.status_page',
+            'settings.tags.delete_confirm_title',
+            'summary.public_page',
+        ],
+    ];
+
     /** @return iterable<string, array{string, string}> */
     public static function catalogues(): iterable
     {
@@ -342,7 +397,7 @@ final class TranslationCatalogueTest extends TestCase
         sort($files);
 
         foreach ($files as $file) {
-            if (preg_match('/^(.+)\.([a-z]{2})\.yaml$/', basename($file), $m) === 1 && $m[2] !== 'en') {
+            if (preg_match('/^(.+)\.([a-z]{2}(?:_[A-Z]{2})?)\.yaml$/', basename($file), $m) === 1 && $m[2] !== 'en') {
                 yield basename($file) => [$m[1], $m[2]];
             }
         }
@@ -377,6 +432,36 @@ final class TranslationCatalogueTest extends TestCase
         self::assertSame([], $gaps, sprintf('Values identical to English in %s.%s.yaml (translate or allow-list)', $domain, $locale));
     }
 
+    /** @return iterable<string, array{string, string}> */
+    public static function nonSpanishCatalogues(): iterable
+    {
+        foreach (self::catalogues() as $name => [$domain, $locale]) {
+            if ($locale !== 'es') {
+                yield $name => [$domain, $locale];
+            }
+        }
+    }
+
+    #[DataProvider('nonSpanishCatalogues')]
+    public function testNoSpanishLeftInOtherLocales(string $domain, string $locale): void
+    {
+        $english = $this->load($domain, 'en');
+        $spanish = $this->load($domain, 'es');
+        $target  = $this->load($domain, $locale);
+        $allowed = self::ALLOWED_SAME_AS_SPANISH[$locale] ?? [];
+        $leaks   = [];
+
+        foreach ($spanish as $key => $value) {
+            if (!isset($target[$key]) || $target[$key] !== $value || $value === ($english[$key] ?? null) || mb_strlen($value) <= 12 || in_array($key, $allowed, true)) {
+                continue;
+            }
+
+            $leaks[] = $key;
+        }
+
+        self::assertSame([], $leaks, sprintf('Values identical to Spanish in %s.%s.yaml (translate or allow-list)', $domain, $locale));
+    }
+
     public function testAllowListHasNoStaleEntries(): void
     {
         $english = [];
@@ -398,6 +483,33 @@ final class TranslationCatalogueTest extends TestCase
         }
 
         self::assertSame([], $stale, 'Allow-list entries that no longer exist or are no longer identical to English');
+    }
+
+    public function testSpanishAllowListHasNoStaleEntries(): void
+    {
+        $english = [];
+        $spanish = [];
+        $locales = [];
+
+        foreach (self::catalogues() as [$domain, $locale]) {
+            $english += $this->load($domain, 'en');
+            $spanish += $this->load($domain, 'es');
+            $locales[$locale] = ($locales[$locale] ?? []) + $this->load($domain, $locale);
+        }
+
+        $stale = [];
+
+        foreach (self::ALLOWED_SAME_AS_SPANISH as $locale => $keys) {
+            foreach ($keys as $key) {
+                $value = $spanish[$key] ?? null;
+
+                if ($value === null || ($locales[$locale][$key] ?? null) !== $value || $value === ($english[$key] ?? null) || mb_strlen($value) <= 12) {
+                    $stale[] = $locale . ':' . $key;
+                }
+            }
+        }
+
+        self::assertSame([], $stale, 'Spanish allow-list entries that no longer exist or no longer equal the Spanish value');
     }
 
     /** @return array<string, string> */
