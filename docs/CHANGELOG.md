@@ -99,6 +99,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **No card inside a card (UX-018, visual change).** The monitor form sections (page, dialog, new and edit) and the "Monitors of this group" block on the monitor page are flat: a heading plus a divider above every section after the first, with no border, background or radius of their own. The fieldsets and the Advanced `<details>` no longer carry the UiKit `card` slot, and their legend / summary carry `uptime-form-section__title` instead of `card_title`; the group children use `uptime-flat-section` / `uptime-flat-section__title`. `uptime-form-sections--flat` is now the default and a no-op. No new Twig variable, no worker-state change (CSS and markup only). Checked against Chrome Modern Web Guidance (`forms`, `card`, `html`, `form sections` search): the fieldset + legend grouping stays and the gap between sections is larger than the label-to-field gap.
+- The bundle draws no file picker or checkbox tile of its own (native inputs and switches only), so nothing changed there.
+
 ### Fixed
 
 - No translation changed. The existing `TranslationCatalogueTest` now also fails on a non-es value identical to the Spanish one (longer than 12 characters, different from English) unless allow-listed per locale as genuinely shared, and on stale entries of that allow-list.

@@ -8,7 +8,8 @@
    <details> (open when one of them has an error or a non-default value), retry interval and timeout only where they apply (check-retry, check-timeout), port only
    for TCP / SSL (tcp-port). The section keys of 1.17 (http-options, tcp) are still understood by the dialog script.
    The sections of the other types carry `hidden` in the initial HTML (the selected type, or HTTPS for a new monitor).
-   1.19: each section is a UiKit card (`card` slot on the fieldset / <details>, `card_title` on its legend / summary). #}
+   1.19 drew each section as a UiKit card; since 1.38 (UX-018, no card in a card) a section is flat: a heading
+   (`uptime-form-section__title` on the legend / summary) plus a divider, no bordered box. #}
 {% macro row(field) %}
     {%- set _unit_key = field.vars.row_attr['data-uptime-unit'] ?? null -%}
     {%- if _unit_key is null -%}
@@ -48,8 +49,8 @@
 {% endmacro %}
 {% import _self as uptime_form %}
 {% set _cb = _b ?? (page.bundle ?? 'NowoUptimeMonitorBundle') %}
-{% set _card = ' ' ~ nowo_ui_class('card', _cb) %}
-{% set _card_title = nowo_ui_class('card_title', _cb) %}
+{% set _card = '' %}
+{% set _card_title = 'uptime-form-section__title' %}
 {% set _type = form.type is defined ? (form.type.vars.value ~ '') : null %}
 {% if _type == '' %}{% set _type = null %}{% endif %}
 {{ form_errors(form) }}

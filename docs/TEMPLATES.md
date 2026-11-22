@@ -74,11 +74,12 @@ colours to the UiKit `--nowo-ui-*` tokens.
 
 ### Form sections, flat panels and chart colours (1.17, 1.19)
 
-- **Form sections (1.19: cards by default).** The monitor form fieldsets (`.uptime-form-section`) and the Advanced
-  `<details>` carry the UiKit `card` slot and their legend / summary the `card_title` slot, so they are drawn as UiKit
-  cards (1.17 and 1.18 drew them flat: heading + divider). To keep the flat sections, add the class
-  `uptime-form-sections--flat` to an ancestor of the form (or to the `.uptime-app` wrapper of an overriding
-  template). On the monitor page `.uptime-detail` is no longer drawn as a card around the history, figures, charts and
+- **Form sections (1.38: flat).** The monitor form fieldsets (`.uptime-form-section`) and the Advanced `<details>` are
+  flat (heading + divider, no bordered box) because the form already sits in the page card or the dialog (UX-018, no
+  card in a card). The legend / summary carry `uptime-form-section__title`; 1.19 to 1.37 drew them as UiKit cards.
+  `uptime-form-sections--flat` is kept and changes nothing. The "Monitors of this group" block of the monitor page is
+  a flat `.uptime-flat-section` too.
+  On the monitor page `.uptime-detail` is no longer drawn as a card around the history, figures, charts and
   check log; the check log and the push disk table scroll in a plain `.uptime-table-scroll` (not the `table_wrap`
   slot, which a host may theme as a panel); the push health charts and gauges sit flat inside the health card.
 - **Chart colours.** `uptime-monitor-detail.js` reads these custom properties from the page root

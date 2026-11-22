@@ -131,8 +131,8 @@
 {% if _order is empty %}
 
 {% block monitor_children %}            {% if monitor.type.value == 'group' and detail.children is not empty %}
-                <section class="uptime-group-children {{ nowo_ui_class('card', _b) }}"{{ nowo_ui_attrs('card', _b) }}>
-                    <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'monitor.show.group_children'|trans }}</h2>
+                <section class="uptime-group-children uptime-flat-section">
+                    <h2 class="uptime-flat-section__title">{{ 'monitor.show.group_children'|trans }}</h2>
                     <ul class="uptime-group-child-list">
                         {% for child in detail.children %}
                             {% set child_status = child.latest ? child.latest.status.value : 'unknown' %}

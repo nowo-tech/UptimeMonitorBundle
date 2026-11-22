@@ -275,11 +275,12 @@ final class PageContractTest extends PageContractTestCase
         self::assertMatchesRegularExpression('#aria-describedby="monitor_form_intervalSeconds_unit monitor_form_intervalSeconds_help"#', $form);
         self::assertMatchesRegularExpression('#<input type="checkbox"[^>]*role="switch"[^>]*name="monitor_form\[paused\]"|name="monitor_form\[paused\]"[^>]*role="switch"#', $form);
         self::assertStringContainsString('uptime-label-required', $form);
-        self::assertMatchesRegularExpression('#<details class="uptime-form-section uptime-form-advanced nowo-ui-card[^"]*" data-monitor-fields="http-advanced">#', $form, 'folded while every advanced field has its default');
-        // 1.19: every section is a UiKit card (card slot on the fieldset / <details>, card_title on its legend / summary).
-        self::assertMatchesRegularExpression('#<fieldset class="uptime-form-section nowo-ui-card[^"]*">\s*<legend class="nowo-ui-card__title[^"]*">General</legend>#', $form);
-        self::assertMatchesRegularExpression('#<summary class="uptime-form-advanced__summary nowo-ui-card__title[^"]*">#', $form);
-        self::assertSame(substr_count($form, '<fieldset class="uptime-form-section'), preg_match_all('#<fieldset class="uptime-form-section[^"]* nowo-ui-card[^"]*"[^>]*>\s*<legend class="nowo-ui-card__title[^"]*">#', $form));
+        self::assertMatchesRegularExpression('#<details class="uptime-form-section uptime-form-advanced" data-monitor-fields="http-advanced">#', $form, 'folded while every advanced field has its default');
+        // 1.38 (UX-018, no card in a card): every section is flat, a heading (legend / summary) with no card slot on the box.
+        self::assertMatchesRegularExpression('#<fieldset class="uptime-form-section">\s*<legend class="uptime-form-section__title">General</legend>#', $form);
+        self::assertMatchesRegularExpression('#<summary class="uptime-form-advanced__summary uptime-form-section__title">#', $form);
+        self::assertSame(substr_count($form, '<fieldset class="uptime-form-section'), preg_match_all('#<fieldset class="uptime-form-section[^"]*"[^>]*>\s*<legend class="uptime-form-section__title">#', $form));
+        self::assertDoesNotMatchRegularExpression('#<(fieldset|details) class="uptime-form-section[^"]*nowo-ui-card#', $form, 'no card inside the form page card');
         self::assertStringNotContainsString('<legend>', $form);
         self::assertStringContainsString('data-monitor-fields="check-timeout"', $form);
         self::assertStringContainsString('data-monitor-fields="tcp-port"', $form);
@@ -409,6 +410,8 @@ final class PageContractTest extends PageContractTestCase
         self::assertIsInt($notice);
         self::assertIsInt($children);
         self::assertTrue($notice < $children);
+        // 1.38 (UX-018): the group children are a flat section (heading + divider), not a card.
+        self::assertMatchesRegularExpression('#<section class="uptime-group-children uptime-flat-section">\s*<h2 class="uptime-flat-section__title">#', $unchecked);
         self::assertSame(4, preg_match_all('#data-detail-pending data-uptime-region="[a-z]+" hidden>#', $unchecked));
         self::assertStringContainsString('uptime-details-header', $unchecked, 'details not listed stay in the sections');
 
