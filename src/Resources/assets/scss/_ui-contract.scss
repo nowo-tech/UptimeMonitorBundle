@@ -65,7 +65,6 @@
     min-width: 0;
   }
 
-  .uptime-group-children,
   .uptime-detail-history-section,
   .uptime-push-credentials,
   .uptime-push-health {
@@ -423,44 +422,51 @@
   --uptime-chart-series-6: var(--nowo-ui-info-text, #0891b2);
 }
 
-/* Monitor form sections (1.19): each section is a UiKit card (the `card` slot on the fieldset / <details>, the card
-   tokens here so every UI framework draws the same box), with the legend as its title. Three classes, so these win over
-   the 1.x theme rules (uptime-theme-light / auto / host-theme) and the framework card classes (Bootstrap `.card` is a
-   flex column: the section keeps its grid). Hosts that want the flat 1.17 sections (heading + divider) add
-   `uptime-form-sections--flat` on an ancestor of the form (or on the `.uptime-app` wrapper); the 1.16 opt-in
-   `uptime-form-sections--cards` is now the default and changes nothing. */
+/* Monitor form sections (1.38, UX-018: no card in a card): the form already sits in the page card or the dialog, so a
+   section is flat, a heading (the legend / summary, `uptime-form-section__title`) plus a divider above every section
+   after the first one, with no border, background or radius of its own. Three classes, so these win over the 1.x theme
+   rules (uptime-theme-light / auto / host-theme) and the framework card classes. The 1.17 opt-in
+   `uptime-form-sections--flat` is now the default and changes nothing. */
 .uptime-app.uptime-app--embedded .uptime-form-section {
   margin: 0;
-  padding: 0.875rem 1rem 0.25rem;
-  border: 1px solid var(--nowo-ui-card-border, var(--nowo-ui-border, #e2e8f0));
-  border-radius: var(--nowo-ui-card-radius, var(--nowo-ui-radius, 0.375rem));
-  background: var(--nowo-ui-card-bg, var(--nowo-ui-surface, #fff));
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
   color: inherit;
   overflow: visible;
 }
 
-.uptime-app.uptime-app--embedded .uptime-form-section > legend {
+.uptime-app.uptime-app--embedded .uptime-form-section > legend,
+.uptime-app.uptime-app--embedded .uptime-form-section > summary {
   color: inherit;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .uptime-app.uptime-app--embedded .uptime-form-section:not([hidden]) ~ .uptime-form-section:not([hidden]) {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--nowo-ui-border, #e2e8f0);
 }
 
-:is(.uptime-form-sections--flat .uptime-app, .uptime-app.uptime-form-sections--flat).uptime-app--embedded {
-  .uptime-form-section {
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-  }
+/* Flat section of a page (UX-018): a heading and a divider above, no bordered box (the children of a group monitor). */
+.uptime-app.uptime-app--embedded .uptime-flat-section {
+  margin: 1.25rem 0 0;
+  padding: 1.25rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--nowo-ui-border, #e2e8f0);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
 
-  .uptime-form-section:not([hidden]) ~ .uptime-form-section:not([hidden]) {
-    margin-top: 1.25rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--nowo-ui-border, #e2e8f0);
-  }
+.uptime-app.uptime-app--embedded .uptime-flat-section__title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: inherit;
 }
 
 /* Monitor page: the detail wrapper is a plain stack of the page's cards (history, figures, charts, check log, push
@@ -689,9 +695,9 @@
   }
 }
 
-/* The folded Advanced section is a card like the fieldsets: its summary sits where a legend would. */
-.uptime-app.uptime-app--embedded details.uptime-form-section {
-  padding-bottom: 0.875rem;
+/* The folded Advanced section is flat like the fieldsets: its summary sits where a legend would. */
+.uptime-app.uptime-app--embedded details.uptime-form-section > summary {
+  cursor: pointer;
 }
 
 /* File-managed monitors (1.18): the compact "File" badge of the dashboard sidebar and table rows. */
