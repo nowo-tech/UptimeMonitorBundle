@@ -1,3 +1,5 @@
+@use 'variables' as *;
+
 /**
  * Host shell integration (REQ-UI-001 tokens): colours come from the UiKit --nowo-ui-* tokens first, then the host's
  * Tabler --tblr-* tokens, then the bundle defaults. The host's theme attribute (Tabler / Bootstrap `data-bs-theme`, or `data-theme` as
@@ -26,6 +28,7 @@
   --uptime-input-border: var(--nowo-ui-border, var(--tblr-border-color, #cbd5e1));
   --uptime-events-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #ffffff));
   --uptime-table-head-bg: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, #f1f5f9));
+  @include uptime-ink-tokens-light;
 }
 
 @mixin uptime-host-dark-tokens {
@@ -48,6 +51,7 @@
   --uptime-input-border: var(--nowo-ui-border, var(--tblr-border-color, #3a3f4b));
   --uptime-events-bg: var(--nowo-ui-surface, var(--tblr-bg-surface, #252830));
   --uptime-table-head-bg: var(--nowo-ui-surface-muted, var(--tblr-bg-surface-secondary, #1a1d23));
+  @include uptime-ink-tokens-dark;
 }
 
 :is([data-bs-theme='light'], [data-theme='light']) .uptime-app--embedded.uptime-theme-auto,

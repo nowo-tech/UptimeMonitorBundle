@@ -593,6 +593,22 @@ final class PageContractTest extends PageContractTestCase
         self::assertStringNotContainsString('data-bs-dismiss', $html);
     }
 
+    /** 1.37 (UX-049): the row More actions is UiKit's square kebab icon button, with the confirm dialog outside the popover. */
+    public function testTheRowMoreActionsIsTheSquareKebabIconButton(): void
+    {
+        $table = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboardTable()))->html;
+
+        self::assertStringContainsString('data-uptime-row-actions', $table);
+        self::assertStringContainsString('id="uptime-monitor-menu-7-panel"', $table);
+        self::assertMatchesRegularExpression('#<button type="button" class="[^"]*nowo-ui-menu__toggle--square[^"]*"[^>]*aria-haspopup="menu"[^>]*aria-label="More actions"#', $table);
+        self::assertStringNotContainsString('class="nowo-ui-menu__label">More actions', $table, 'icon only: no visible label');
+        self::assertStringContainsString('nowo-ui-menu__item--danger', $table, 'Delete is the danger item');
+        self::assertStringContainsString('<dialog', $table);
+        self::assertStringNotContainsString('data-nowo-ui-page-actions', $table, 'a row menu is not the page actions slot');
+        // the delete confirmation dialog sits after the menu, not inside the popover panel
+        self::assertGreaterThan(strpos($table, 'id="uptime-monitor-menu-7-panel"'), strpos($table, '<dialog'));
+    }
+
     public function testTableDashboardAndPagedMonitorPage(): void
     {
         $table = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboardTable()))->html;

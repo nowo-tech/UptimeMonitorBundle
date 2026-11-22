@@ -1,6 +1,7 @@
 
 @use 'sass:meta';
 @use 'host-theme';
+@use 'variables' as *;
 
 /* —— Light —— */
 .uptime-app.uptime-theme-light {
@@ -23,6 +24,7 @@
   --uptime-input-border: #cbd5e1;
   --uptime-events-bg: #ffffff;
   --uptime-table-head-bg: #f1f5f9;
+  @include uptime-ink-tokens-light;
 }
 
 .uptime-app.uptime-theme-light {
@@ -145,6 +147,7 @@
   --uptime-border: #3a3f4b;
   --uptime-text: #e8eaed;
   --uptime-muted: #9aa0a6;
+  @include uptime-ink-tokens-dark;
 }
 
 /* —— Auto: follow OS preference —— */
@@ -169,6 +172,7 @@
     --uptime-input-border: #cbd5e1;
     --uptime-events-bg: #ffffff;
     --uptime-table-head-bg: #f1f5f9;
+    @include uptime-ink-tokens-light;
   }
 
   .uptime-app.uptime-theme-auto {

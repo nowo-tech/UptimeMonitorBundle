@@ -9,6 +9,18 @@ $uptime-down: #ef4444;
 $uptime-degraded: #eab308;
 $uptime-unknown: #64748b;
 
+// Text ink of the status pills (1.37): separate from the bar colours above (those are for fills, bars and borders;
+// bright green on white is 2.28:1). Every ink meets WCAG 1.4.3 (4.5:1) on its tinted pill background in the matching
+// theme - light inks are the 800 shades, dark inks the 300 shades.
+$uptime-up-ink-light: #166534;
+$uptime-down-ink-light: #991b1b;
+$uptime-degraded-ink-light: #854d0e;
+$uptime-unknown-ink-light: #475569;
+$uptime-up-ink-dark: #86efac;
+$uptime-down-ink-dark: #fca5a5;
+$uptime-degraded-ink-dark: #fde047;
+$uptime-unknown-ink-dark: #cbd5e1;
+
 $uptime-shell-bg: #12141a;
 $uptime-shell-text: #e8eaed;
 $uptime-header-bg: #0d0f14;
@@ -35,4 +47,18 @@ $breakpoint-form: 640px;
   --uptime-down: #{$uptime-down};
   --uptime-degraded: #{$uptime-degraded};
   --uptime-unknown: #{$uptime-unknown};
+}
+
+@mixin uptime-ink-tokens-light {
+  --uptime-up-ink: #{$uptime-up-ink-light};
+  --uptime-down-ink: #{$uptime-down-ink-light};
+  --uptime-degraded-ink: #{$uptime-degraded-ink-light};
+  --uptime-unknown-ink: #{$uptime-unknown-ink-light};
+}
+
+@mixin uptime-ink-tokens-dark {
+  --uptime-up-ink: #{$uptime-up-ink-dark};
+  --uptime-down-ink: #{$uptime-down-ink-dark};
+  --uptime-degraded-ink: #{$uptime-degraded-ink-dark};
+  --uptime-unknown-ink: #{$uptime-unknown-ink-dark};
 }

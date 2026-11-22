@@ -1,7 +1,12 @@
+@use 'variables' as *;
+
 /* App shell (dashboard) */
 .uptime-app {
   background: var(--uptime-shell-bg, #12141a);
   color: var(--uptime-shell-text, #e8eaed);
+
+  // Status pill text inks (1.37): dark theme by default, the light themes override them (uptime-theme, host-theme).
+  @include uptime-ink-tokens-dark;
 }
 
 .uptime-app main {
@@ -383,23 +388,23 @@
 
 .uptime-sidebar-pill-up {
   background: rgba(34, 197, 94, 0.25);
-  color: #4ade80;
+  color: var(--uptime-up-ink, #86efac);
 }
 
 .uptime-sidebar-pill-down {
   background: rgba(239, 68, 68, 0.25);
-  color: #f87171;
+  color: var(--uptime-down-ink, #fca5a5);
 }
 
 .uptime-sidebar-pill-degraded {
   background: rgba(234, 179, 8, 0.25);
-  color: #facc15;
+  color: var(--uptime-degraded-ink, #fde047);
 }
 
 .uptime-sidebar-pill-unknown,
 .uptime-sidebar-pill-paused {
-  background: #374151;
-  color: #9ca3af;
+  background: rgba(100, 116, 139, 0.25);
+  color: var(--uptime-unknown-ink, #cbd5e1);
 }
 
 .uptime-sidebar-name {
@@ -462,19 +467,19 @@
 }
 
 .uptime-stat-card--up .uptime-stat-value {
-  color: #4ade80;
+  color: var(--uptime-up-ink, #86efac);
 }
 
 .uptime-stat-card--down .uptime-stat-value {
-  color: #f87171;
+  color: var(--uptime-down-ink, #fca5a5);
 }
 
 .uptime-stat-card--degraded .uptime-stat-value {
-  color: #facc15;
+  color: var(--uptime-degraded-ink, #fde047);
 }
 
 .uptime-stat-card--unknown .uptime-stat-value {
-  color: #9ca3af;
+  color: var(--uptime-unknown-ink, #cbd5e1);
 }
 
 .uptime-stat-card--paused .uptime-stat-value {
@@ -538,22 +543,22 @@
 
 .uptime-status-badge-up {
   background: rgba(34, 197, 94, 0.2);
-  color: #4ade80;
+  color: var(--uptime-up-ink, #86efac);
 }
 
 .uptime-status-badge-down {
   background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
+  color: var(--uptime-down-ink, #fca5a5);
 }
 
 .uptime-status-badge-degraded {
   background: rgba(234, 179, 8, 0.2);
-  color: #facc15;
+  color: var(--uptime-degraded-ink, #fde047);
 }
 
 .uptime-status-badge-unknown {
-  background: #374151;
-  color: #9ca3af;
+  background: rgba(100, 116, 139, 0.25);
+  color: var(--uptime-unknown-ink, #cbd5e1);
 }
 
 .uptime-event-message {

@@ -98,6 +98,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Status pill text inks `--uptime-up-ink`, `--uptime-down-ink`, `--uptime-degraded-ink`, `--uptime-unknown-ink`, separate from the bar and fill colours (`--uptime-up`, ...); light and dark values per theme (bundle themes and the host `data-bs-theme` / `data-theme`).
+
+### Changed
+
+- Every status pill (status, uptime pill, sidebar pill, status badge, detail status, stat values, sync badge) uses the ink tokens and meets WCAG AA 4.5:1 in light and dark (the Operational pill was 2.28:1).
+- Table dashboard: the row *More actions* is the square kebab icon button of UiKit (the `page_actions` menu without its page slot), not a labelled button.
+
+### Fixed
+
+- The prepended Doctrine mapping of the monitor shares no longer sets `alias` (deprecated by DoctrineBundle 3.4); see UPGRADING.
+
 ## [1.36.1] - 2026-11-21
 
 ### Fixed

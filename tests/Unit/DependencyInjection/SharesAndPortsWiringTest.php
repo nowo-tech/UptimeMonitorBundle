@@ -120,6 +120,7 @@ final class SharesAndPortsWiringTest extends TestCase
             $mapping = $container->getExtensionConfig('doctrine')[0]['orm']['mappings'][UptimeMonitorExtension::SHARE_MAPPING];
             self::assertSame($type, $mapping['type']);
             self::assertFalse($mapping['is_bundle']);
+            self::assertArrayNotHasKey('alias', $mapping, 'DoctrineBundle 3.4 deprecates the mapping alias option');
             self::assertSame(self::SHARES, $mapping['prefix']);
             self::assertStringEndsWith($dir, $mapping['dir']);
             self::assertDirectoryExists($mapping['dir']);
