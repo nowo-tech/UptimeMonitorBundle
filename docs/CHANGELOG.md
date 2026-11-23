@@ -102,6 +102,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- The stale, unreferenced chunk `src/Resources/public/assets/monitor-form-modal-DyVTc7ej.js` (superseded by `monitor-form-modal-BBH1DrpV.js`); it was dead code publicly served after `assets:install` (audit ZAI-2).
+
 ## [1.40.0] - 2026-11-23
 
 ### Changed
