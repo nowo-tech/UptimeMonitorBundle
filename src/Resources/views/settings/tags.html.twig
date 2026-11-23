@@ -4,7 +4,7 @@
   one section per settings screen with its href (section tabs), current = this screen), and the 1.x variables
   tenant, tenant_slug, section, section_title. Section "tags": form = TagFormType, submit settings.tags.add_button; tags
   (list<Tag>), tag_edit_actions (tag id => View\Action, since 1.13), tag_delete_actions (tag id => View\Action: POST
-  + CSRF FormView behind the UiKit confirm dialog), editing_tag (the tag of /tags/{id}, since 1.13), 1.x
+  + CSRF FormView behind ONE shared UiKit confirm dialog, `uptime-tag-confirm`), editing_tag (the tag of /tags/{id}, since 1.13), 1.x
   tag_delete_forms.
   Data block filled: nowo_ui_settings_section (tag list with edit and delete actions, then parent(): the add-tag form,
   or the edited tag's form).
@@ -40,12 +40,14 @@
                                 {{ include(nowo_ui_partial('action', _b), {action: tag_edit_actions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
                             {% endif %}
                             {% if tag_delete_actions[tag.id] is defined %}
-                                {{ include(nowo_ui_partial('action', _b), {action: tag_delete_actions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
+                                {#- lazy dialogs: opens the ONE shared confirm dialog below; the row keeps its hidden POST form (target + CSRF) -#}
+                                {{ include(nowo_ui_partial('action', _b), {action: tag_delete_actions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type, confirm_shared: {id: 'uptime-tag-confirm', row: loop.index}}, false) }}
                             {% endif %}
                         </span>
                     </li>
                 {% endfor %}
             </ul>
+            {{ include(nowo_ui_partial('confirm_shared', _b), {id: 'uptime-tag-confirm', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
         {% endif %}
         <h3 class="uptime-settings-subtitle {{ nowo_ui_class('card_title', _b) }}" data-testid="uptime-tag-form-title">
             {{ editing_tag|default(null) ? 'settings.tags.edit_title'|trans({'%name%': editing_tag.name}) : 'settings.tags.add'|trans }}

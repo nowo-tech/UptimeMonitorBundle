@@ -1320,16 +1320,16 @@
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
-            "version": "v2.61.0",
+            "version": "v2.68.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/UiKitBundle.git",
-                "reference": "d447ef040dfb7e52d221eb888735b9eb40a53bb8"
+                "reference": "b88274f85f5edbe2976debe53b0b6a766e7cba96"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/d447ef040dfb7e52d221eb888735b9eb40a53bb8",
-                "reference": "d447ef040dfb7e52d221eb888735b9eb40a53bb8",
+                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/b88274f85f5edbe2976debe53b0b6a766e7cba96",
+                "reference": "b88274f85f5edbe2976debe53b0b6a766e7cba96",
                 "shasum": ""
             },
             "require": {
@@ -1419,16 +1419,16 @@
                 "issues": "https://github.com/nowo-tech/UiKitBundle/issues",
                 "source": "https://github.com/nowo-tech/UiKitBundle"
             },
-            "time": "2026-11-20T22:14:25+00:00",
-            "published-time": "2026-11-20T22:17:13+00:00"
+            "time": "2026-11-23T05:57:27+00:00",
+            "published-time": "2026-11-23T05:59:40+00:00"
         },
         {
             "name": "nowo-tech/uptime-monitor-bundle",
-            "version": "dev-chore/demo-platform-shell",
+            "version": "dev-fix/lazy-dialogs",
             "dist": {
                 "type": "path",
                 "url": "/var/uptime-monitor-bundle",
-                "reference": "c11384b4a557d95853fd412138208df4b710950c"
+                "reference": "328681b3f65e326c7288fd3949ce158551cdc36e"
             },
             "require": {
                 "doctrine/dbal": "^3.8.2 || ^4.0",
@@ -1437,7 +1437,7 @@
                 "nowo-tech/form-kit-bundle": "^2.10",
                 "nowo-tech/transaction-contract": "^1.0",
                 "nowo-tech/transaction-doctrine": "^1.8.1",
-                "nowo-tech/ui-kit-bundle": "^2.29",
+                "nowo-tech/ui-kit-bundle": "^2.68",
                 "php": ">=8.2 <8.6",
                 "symfony/clock": "^7.4 || ^8.0",
                 "symfony/config": "^7.4 || ^8.0",

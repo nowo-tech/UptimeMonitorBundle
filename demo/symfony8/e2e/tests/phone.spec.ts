@@ -99,6 +99,21 @@ test.describe('phone layout (390 x 844)', () => {
 test.describe('desktop keeps the tables (1280 x 720)', () => {
   test.use({ viewport: { width: 1280, height: 720 }, isMobile: false, hasTouch: false });
 
+  /** Lazy dialogs (2026-11-23): N monitor rows, ONE shared delete confirm dialog (filled when it opens). */
+  test('the monitor rows share one delete confirm dialog', async ({ page }) => {
+    test.skip(!(await openTableDashboard(page)), 'the demo serves the tree dashboard (run make test-e2e-phone)');
+
+    await expect(page.locator('dialog#uptime-monitor-confirm[data-nowo-confirm-shared]')).toHaveCount(1);
+    await expect(page.getByTestId('uptime-monitors-table').locator('dialog')).toHaveCount(0);
+    const row = page.getByTestId('uptime-monitor-row').first();
+    await row.getByRole('button', { name: 'More actions' }).click();
+    await page.locator('[popover]:popover-open').getByRole('button', { name: 'Delete' }).click();
+    const confirm = page.locator('dialog[open][data-nowo-confirm-shared]');
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+  });
+
   test('the monitors table and the check log keep their header row', async ({ page }) => {
     if (await openTableDashboard(page)) {
       await expect(page.getByTestId('uptime-monitors-table').locator('thead')).not.toHaveCSS('position', 'absolute');

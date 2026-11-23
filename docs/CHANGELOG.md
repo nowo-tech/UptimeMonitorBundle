@@ -100,6 +100,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Lazy dialogs (symfony-beacon rule 2026-11-23, "every dialog loads its content on demand"): the table dashboard and Settings → Tags no longer print one confirm `<dialog>` (title, message, POST form + CSRF) per row. The monitors table prints ONE shared confirm dialog (UiKit 2.68 `confirm_shared`, id `uptime-monitor-confirm`, after the table) for every row Delete, and the tag list one more (`uptime-tag-confirm`); each is filled from the row toggle when it opens. Each row keeps its own hidden POST form, target and CSRF token; CSRF, access checks and REQ-RUNTIME-003 behaviour are unchanged. The row kebab is now the UiKit `menu` partial directly (same options the `page_actions` partial passed: square icon, popover, menu items), because `page_actions` prints one dialog per confirm action. Table dashboard with 50 monitors: 52 dialogs → 3 (the shared confirm, the row detail dialog and the empty monitor form dialog), 355,228 → 309,932 bytes. Requires `nowo-tech/ui-kit-bundle` `^2.68`.
+
 ## [1.38.0] - 2026-11-22
 
 ### Changed
