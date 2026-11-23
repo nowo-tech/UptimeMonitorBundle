@@ -34,12 +34,16 @@ use function array_keys;
 use function array_map;
 use function dirname;
 use function file_get_contents;
+use function fwrite;
+use function getenv;
 use function html_entity_decode;
 use function is_string;
 use function json_decode;
 use function preg_match;
 use function preg_match_all;
+use function sprintf;
 use function str_starts_with;
+use function strlen;
 use function strpos;
 use function substr;
 use function substr_count;
@@ -47,6 +51,7 @@ use function substr_count;
 use const ENT_HTML5;
 use const ENT_QUOTES;
 use const JSON_THROW_ON_ERROR;
+use const STDERR;
 
 /**
  * REQ-UI-003: every bundle page extends a UiKit scaffold (or is a declared unique page on the UiKit layout), fills
@@ -608,8 +613,45 @@ final class PageContractTest extends PageContractTestCase
         self::assertStringContainsString('nowo-ui-menu__item--danger', $table, 'Delete is the danger item');
         self::assertStringContainsString('<dialog', $table);
         self::assertStringNotContainsString('data-nowo-ui-page-actions', $table, 'a row menu is not the page actions slot');
-        // the delete confirmation dialog sits after the menu, not inside the popover panel
-        self::assertGreaterThan(strpos($table, 'id="uptime-monitor-menu-7-panel"'), strpos($table, '<dialog'));
+        // the shared delete confirmation dialog sits after the table, not inside the popover panel
+        self::assertGreaterThan(strpos($table, 'id="uptime-monitor-menu-7-panel"'), strpos($table, '<dialog id="uptime-monitor-confirm"'));
+    }
+
+    /**
+     * Lazy dialogs (symfony-beacon rule 2026-11-23): N monitor rows print ONE shared confirm dialog, not N. Each row
+     * keeps its own hidden delete form (target + CSRF token) that the shared dialog submits through `form="…"`.
+     */
+    public function testMonitorRowsShareOneConfirmDialog(): void
+    {
+        $html = $this->renderPage(new PageFixture(self::VIEWS . 'dashboard/index.html.twig', PageFixtures::dashboardTableMany(50)))->html;
+        if (getenv('UPTIME_LAZY_MEASURE') !== false) {
+            fwrite(STDERR, sprintf("\n[lazy-dialogs] uptime table dashboard, 50 monitors: %d bytes, %d dialogs\n", strlen($html), preg_match_all('/<dialog\b/', $html)));
+        }
+
+        self::assertSame(1, substr_count($html, 'data-nowo-confirm-shared'), 'One shared confirm dialog for 50 rows.');
+        self::assertSame(1, preg_match_all('/<dialog [^>]*data-nowo-ui-confirm[ >]/', $html), 'One confirm dialog (the others are the row detail and the monitor form shells).');
+        self::assertSame(50, substr_count($html, 'data-nowo-confirm-target="uptime-monitor-confirm"'));
+        $dialog = substr($html, (int) strpos($html, '<dialog id="uptime-monitor-confirm"'));
+        self::assertStringNotContainsString('<form', substr($dialog, 0, (int) strpos($dialog, '</dialog>')), 'The shared dialog carries no form.');
+        for ($id = 100; $id < 150; ++$id) {
+            self::assertSame(1, preg_match('/<form [^>]*action="\/main\/monitors\/' . $id . '\/delete"[^>]*>/', $html, $form), 'Row ' . $id . ' keeps its delete form.');
+            self::assertSame(1, preg_match('/ id="([^"]+)"/', $form[0], $formId));
+            self::assertStringContainsString('data-nowo-confirm-form="' . $formId[1] . '"', $html, 'Its toggle names its own form.');
+            self::assertStringContainsString('value="token-delete' . $id . '"', $html, 'Its own CSRF token.');
+            self::assertStringContainsString('action="/main/monitors/' . $id . '/toggle-pause"', $html, 'The other POST actions stay in the menu.');
+        }
+        self::assertStringContainsString('data-nowo-confirm-message="Delete the monitor “Monitor 7” and its check history? This cannot be undone."', $html);
+    }
+
+    /** Lazy dialogs: the tag rows of Settings → Tags share one confirm dialog and keep their own delete forms. */
+    public function testTagRowsShareOneConfirmDialog(): void
+    {
+        $tags = $this->renderPage(new PageFixture(self::VIEWS . 'settings/tags.html.twig', PageFixtures::settingsPages()['tags']))->html;
+
+        self::assertSame(1, substr_count($tags, 'data-nowo-confirm-shared'));
+        self::assertStringContainsString('<dialog id="uptime-tag-confirm"', $tags);
+        self::assertStringContainsString('data-nowo-confirm-target="uptime-tag-confirm"', $tags);
+        self::assertMatchesRegularExpression('#<form [^>]*action="/main/settings/tags/1/delete"#', $tags);
     }
 
     public function testTableDashboardAndPagedMonitorPage(): void

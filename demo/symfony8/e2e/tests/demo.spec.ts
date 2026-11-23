@@ -80,6 +80,25 @@ test.describe('Uptime Monitor demo', () => {
     }
   });
 
+  /** Lazy dialogs (2026-11-23): the tag rows share ONE confirm dialog; each row keeps its own POST form and token. */
+  test('tag rows share one delete confirm dialog', async ({ page }) => {
+    const name = `e2e-tag-${Date.now()}`;
+    await page.goto(`/uptime/${TENANT}/settings/tags`);
+    await page.getByLabel('Tag name').fill(name);
+    await page.getByRole('button', { name: '+ Add tag' }).click();
+    await expect(page.locator('.uptime-tag-list__item', { hasText: name })).toBeVisible();
+
+    await expect(page.locator('dialog[data-nowo-confirm-shared]')).toHaveCount(1);
+    await expect(page.locator('.uptime-tag-list dialog')).toHaveCount(0);
+    await page.locator('.uptime-tag-list__item', { hasText: name }).getByRole('button', { name: 'Delete' }).click();
+    const confirm = page.locator('dialog[open][data-nowo-confirm-shared]');
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toContainText(name);
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page.locator('.uptime-tag-list__item', { hasText: name })).toBeVisible();
+  });
+
   test('settings screens render and navigate', async ({ page }) => {
     await page.goto(`/uptime/${TENANT}/settings`);
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();

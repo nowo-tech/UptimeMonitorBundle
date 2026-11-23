@@ -147,6 +147,23 @@ composer update nowo-tech/uptime-monitor-bundle
 
 ## Unreleased
 
+```bash
+composer update nowo-tech/uptime-monitor-bundle nowo-tech/ui-kit-bundle
+```
+
+- **Lazy dialogs: one confirm dialog per table.** `nowo-tech/ui-kit-bundle` must be `^2.68`. The table dashboard
+  prints ONE shared confirm dialog (`uptime-monitor-confirm`) and Settings → Tags one more (`uptime-tag-confirm`)
+  instead of one `<dialog>` per row. Check host tests and overrides that rely on the per-row markup:
+  - a row Delete toggle's `data-nowo-confirm-target` is the shared id, not the action's confirm id
+    (`uptime-monitor-delete-<id>`); the row's POST form (target + CSRF) sits hidden in the row menu
+    (`data-nowo-confirm-form` names it) instead of inside a per-row dialog;
+  - the row kebab of the table dashboard renders the UiKit `menu` partial directly instead of `page_actions`: a host
+    override of `page_actions` for `NowoUptimeMonitorBundle` no longer applies to the rows (the page header is
+    unchanged), and a host override of `menu` or `action` must handle and forward `confirm_shared` (UiKit 2.68);
+  - an override of `dashboard/_table_view.html.twig` or `settings/tags.html.twig` should pass
+    `confirm_shared: {id: …, row: loop.index}` to the row action / menu and include `nowo_ui_partial('confirm_shared')`
+    once.
+
 ## To 1.38.0
 
 From **1.37.0**:

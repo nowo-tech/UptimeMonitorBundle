@@ -213,6 +213,35 @@ final class PageFixtures
     }
 
     /**
+     * The table dashboard with `$count` monitors, each with View, Pause and Delete (lazy dialogs: N rows, 1 dialog).
+     *
+     * @return array<string, mixed>
+     */
+    public static function dashboardTableMany(int $count): array
+    {
+        $context = self::dashboardTable();
+        $rows    = [];
+        $actions = [];
+        for ($i = 0; $i < $count; ++$i) {
+            $id           = 100 + $i;
+            $monitor      = self::monitor($id, 'Monitor ' . $i, MonitorType::Https, 'https://example.com/' . $i);
+            $rows[]       = ['monitor' => $monitor, 'latest' => self::check($monitor, CheckStatus::Up, 40 + $i), 'history' => [], 'uptime_24h' => 99.5, 'uptime_30d' => 99.9, 'nested' => false];
+            $actions[$id] = [
+                Action::view('/main/monitors/' . $id, UptimePages::label('monitor.view')),
+                new Action('custom', UptimePages::label('monitor.pause'), '/main/monitors/' . $id . '/toggle-pause', method: 'POST', csrfToken: 'token-toggle' . $id),
+                Action::delete('/main/monitors/' . $id . '/delete', 'token-delete' . $id, new Confirm(
+                    UptimePages::label('monitor.delete'),
+                    UptimePages::label('monitor.delete_confirm', ['%name%' => 'Monitor ' . $i]),
+                    UptimePages::label('monitor.delete'),
+                    id: 'uptime-monitor-delete-' . $id,
+                ), UptimePages::label('monitor.delete_short')),
+            ];
+        }
+
+        return ['monitor_rows' => $rows, 'monitor_row_actions' => $actions, 'monitor_targets' => []] + $context;
+    }
+
+    /**
      * A monitor page with two check log pages and a host section before the bundle content.
      *
      * @return array<string, mixed>
