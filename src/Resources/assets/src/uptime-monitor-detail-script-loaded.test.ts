@@ -34,6 +34,6 @@ describe.each(ENTRIES)('%s', (entry, name) => {
     const lines = log.mock.calls.filter((call) => String(call[0]).includes('script loaded'));
     expect(lines).toHaveLength(1);
     expect(String(lines[0]?.[0])).toContain(`[${name}] script loaded, build: `);
-    expect(lines[0]).toContain('2026-11-23 14:05 UTC');
+    expect(String(lines[0]?.[0])).toContain('2026-11-23 14:05 UTC');
   });
 });
