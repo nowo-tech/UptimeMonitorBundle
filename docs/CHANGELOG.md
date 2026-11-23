@@ -101,6 +101,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Console**: the script-loaded line of `uptime-dashboard.js` now reads `📦 [uptime] script loaded, build: 2026-11-23 14:05 UTC`: a readable UTC build time instead of the opaque source hash. The time comes from the committed `build-info.json` (`{sourceHash, builtAt}`): the source hash stays the change detector, `builtAt` is reused while the sources are unchanged and renewed only when they change, so rebuilding unchanged sources never rewrites the committed assets (no wall-clock stamp, no git date).
+
+### Added
+
+- **Console**: quiet switch for the script-loaded line: `<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'` prints nothing. The default is unchanged.
+
 ## [1.39.0] - 2026-11-23
 
 ### Changed

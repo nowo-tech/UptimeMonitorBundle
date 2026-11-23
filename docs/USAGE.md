@@ -22,6 +22,7 @@
   - [Monitor page by configuration (1.30)](#monitor-page-by-configuration-130)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
   - [Layout and CSS stack (REQ-UI-001 / REQ-UI-003)](#layout-and-css-stack-req-ui-001--req-ui-003)
+- [Browser console](#browser-console)
 
 ## Dashboard
 
@@ -797,3 +798,7 @@ your layout (`nowo_ui_partial('scripts')`, already in the UiKit layouts). The bu
 UiKit area-nav registry (`nowo_ui_area_nav('uptime_monitor', {tenantSlug: …})`, `uptime_monitor_settings`).
 
 See also [CONFIGURATION.md](CONFIGURATION.md) for `web_ui.*` details and [TEMPLATES.md](TEMPLATES.md) for every page.
+
+## Browser console
+
+The bundle's script logs one line when it loads (`📦 [uptime] script loaded, build: 2026-11-23 14:05 UTC`) so a developer can tell which build a page runs. To silence it, set `<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'` before the script loads; nothing is printed then. The default is unchanged.

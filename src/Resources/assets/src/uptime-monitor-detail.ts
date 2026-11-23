@@ -3,6 +3,13 @@ import { axisColors, readChartPalette, type ChartPalette } from './chart-theme';
 import { renderHistoryBar } from './history-bar';
 import { initMonitorFormModal } from './monitor-form-modal';
 import { renderPushCharts } from './push-health';
+import { createBundleLogger } from './uptime-logger';
+
+declare const __UPTIME_ASSETS_BUILD_TIME__: string;
+
+createBundleLogger('uptime/monitor-detail', {
+  buildTime: typeof __UPTIME_ASSETS_BUILD_TIME__ !== 'undefined' ? __UPTIME_ASSETS_BUILD_TIME__ : undefined,
+}).scriptLoaded();
 
 type SeriesData = {
   labels: string[];
