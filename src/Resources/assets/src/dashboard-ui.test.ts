@@ -9,6 +9,11 @@ import {
 } from './dashboard-ui';
 import { clearBundleLoggerForTest, setBundleLogger, type BundleLogger } from './uptime-logger';
 
+// REQ-ASSETS-005: every test starts with an empty once-guard registry.
+beforeEach(() => {
+  delete (globalThis as { __nowoScriptBannerNames?: unknown }).__nowoScriptBannerNames;
+});
+
 function spyLogger(): BundleLogger {
   return { scriptLoaded: vi.fn(), setDebug: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 }

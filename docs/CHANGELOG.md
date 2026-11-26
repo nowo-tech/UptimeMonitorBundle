@@ -102,6 +102,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The `📦 [name] script loaded` console banner now prints once per page, even when the script is loaded twice: per-name once-guard (a `Set` on `globalThis`) in `logger.ts`, with a Vitest test and rebuilt assets (REQ-ASSETS-005).
+
 ### Removed
 
 - The stale, unreferenced chunk `src/Resources/public/assets/monitor-form-modal-DyVTc7ej.js` (superseded by `monitor-form-modal-BBH1DrpV.js`); it was dead code publicly served after `assets:install` (audit ZAI-2).
