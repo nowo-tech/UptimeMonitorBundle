@@ -107,6 +107,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - PHP 8.6: `composer.json` allows PHP below 8.7 (was below 8.6). CI adds a forward-compatibility workflow with a
   PHP 8.6 cell and a Symfony 8.2 cell (release candidates, allowed to fail until 8.2.0 is stable).
+- `MonitorBackupService` types its optional event dispatcher with `Symfony\Contracts\EventDispatcher\EventDispatcherInterface`
+  (was the component interface): Symfony 8.2 deprecates autowiring the component interface. A dispatcher that cannot
+  list its listeners now gets the quota check of every imported row.
 
 ## [1.40.1] - 2026-11-26
 

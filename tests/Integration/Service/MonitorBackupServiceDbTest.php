@@ -25,6 +25,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Validator\Validation;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_column;
 use function array_fill;
@@ -160,6 +161,28 @@ final class MonitorBackupServiceDbTest extends TestCase
         $result = $service->import($this->tenant, ['monitors' => [['name' => 'One', 'target' => 'https://one.test']]]);
 
         self::assertSame(['imported' => 1, 'skipped' => 0, 'overwritten' => 0, 'invalid' => 0, 'over_quota' => 0, 'quota_denied' => 0, 'quota_denied_reason' => null], $result);
+    }
+
+    public function testAContractsOnlyDispatcherIsAskedForEveryRow(): void
+    {
+        $dispatcher = new class implements EventDispatcherInterface {
+            /** @var list<object> */
+            public array $dispatched = [];
+
+            public function dispatch(object $event, ?string $eventName = null): object
+            {
+                $this->dispatched[] = $event;
+
+                return $event;
+            }
+        };
+        $service = new MonitorBackupService($this->monitors, new MonitorFactory($this->monitors), $this->em, eventDispatcher: $dispatcher);
+
+        $result = $service->import($this->tenant, ['monitors' => [['name' => 'One', 'target' => 'https://one.test']]]);
+
+        self::assertSame(1, $result['imported']);
+        self::assertCount(1, $dispatcher->dispatched);
+        self::assertInstanceOf(MonitorQuotaCheckEvent::class, $dispatcher->dispatched[0]);
     }
 
     public function testExportSkipsGroupsAndCarriesTheFormFields(): void
