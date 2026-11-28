@@ -19,6 +19,9 @@ use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Bundle\TwigBundle\TwigBundle;
 use Symfony\Component\Config\Definition\ArrayNode;
 use Symfony\Component\Config\Definition\BaseNode;
+use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
@@ -78,6 +81,17 @@ abstract class AbstractHostTestKernel extends Kernel
     public function getLogDir(): string
     {
         return sys_get_temp_dir() . '/nowo-uptime-monitor-' . $this->variant() . '/log';
+    }
+
+    protected function build(ContainerBuilder $container): void
+    {
+        // Tests add and remove listeners while the kernel runs (see RuntimeListenerEventDispatcher).
+        $container->addCompilerPass(new class implements CompilerPassInterface {
+            public function process(ContainerBuilder $container): void
+            {
+                $container->getDefinition('event_dispatcher')->setClass(RuntimeListenerEventDispatcher::class);
+            }
+        }, PassConfig::TYPE_BEFORE_OPTIMIZATION, -1000);
     }
 
     /** Cache directory suffix. */
