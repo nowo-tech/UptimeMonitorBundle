@@ -26,8 +26,9 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface as ListenerAwareDispatcherInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Throwable;
 
 use function ceil;
@@ -195,8 +196,11 @@ final readonly class MonitorBackupService
         $overQuota   = 0;
         $denied      = 0;
         $reason      = null;
-        // No listener: no per-row flush, the import runs as before.
-        $checked = $this->eventDispatcher?->hasListeners(UptimeEvents::MONITOR_QUOTA_CHECK) === true;
+        // No listener: no per-row flush, the import runs as before. A dispatcher that cannot list its listeners is
+        // assumed to have one.
+        $checked = $this->eventDispatcher instanceof ListenerAwareDispatcherInterface
+            ? $this->eventDispatcher->hasListeners(UptimeEvents::MONITOR_QUOTA_CHECK)
+            : $this->eventDispatcher !== null;
 
         foreach ($rows as $row) {
             if (!is_array($row)) {
